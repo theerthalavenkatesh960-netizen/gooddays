@@ -20,6 +20,7 @@ DROP TABLE IF EXISTS focus_sessions;
 DROP TABLE IF EXISTS daily_notes;
 DROP TABLE IF EXISTS daily_top_three;
 DROP TABLE IF EXISTS tasks;
+DROP TABLE IF EXISTS gamification_entries;
 DROP TABLE IF EXISTS user_profiles;
 
 -- if there are any custom functions they can also be dropped here

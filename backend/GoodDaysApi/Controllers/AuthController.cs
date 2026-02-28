@@ -28,7 +28,7 @@ public class AuthController : ControllerBase
     {
         if (await _db.Users.AnyAsync(u => u.Email == req.Email)) return BadRequest("Email already registered");
 
-        var user = new User { Email = req.Email, Name = req.Name, PasswordHash = Hash(req.Password) };
+        var user = new User { Id = Guid.NewGuid(), Email = req.Email, Name = req.Name, PasswordHash = Hash(req.Password) };
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 

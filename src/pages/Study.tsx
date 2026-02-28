@@ -11,27 +11,24 @@ export default function Study() {
 
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [todayNotes, setTodayNotes] = useState('');
-  // resource and chapter management has been moved to server-side templates
   const [weeklyMinutes, setWeeklyMinutes] = useState(0);
   const [studyStreak, setStudyStreak] = useState(0);
 
   useEffect(() => {
     if (user) {
       loadTodaySession();
-      loadResources();
       loadWeeklyMinutes();
       loadStreak();
     }
   }, [user]);
 
-  // no longer using selected resource or chapters
-
   const loadTodaySession = async () => {
     if (!user) return;
-
     const data = await api.getStudySessions(user.id);
     if (data && data.length > 0) {
-      const todaySession = data.find(s => format(new Date(s.date), 'yyyy-MM-dd') === today);
+      const todaySession = data.find(
+        (s: any) => format(new Date(s.date), 'yyyy-MM-dd') === today
+      );
       if (todaySession) {
         setTodayMinutes(todaySession.durationMinutes);
         setTodayNotes(todaySession.notes || '');
@@ -39,113 +36,123 @@ export default function Study() {
     }
   };
 
-  // resources no longer derived from sessions
+  const loadWeeklyMinutes = async () => {
+    if (!user) return;
+    const data = await api.getStudySessions(user.id);
+    if (data && data.length > 0) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 6);
+      const total = data
+        .filter((s: any) => new Date(s.date) >= cutoff)
+        .reduce((sum: number, s: any) => sum + (s.durationMinutes || 0), 0);
+      setWeeklyMinutes(total);
+    }
+  };
 
+  const loadStreak = async () => {
+    if (!user) return;
+    const data = await api.getStudySessions(user.id);
+    if (data && data.length > 0) {
+      let streak = 0;
+      for (let i = 0; i < 7; i++) {
+        const day = format(
+          new Date(new Date().setDate(new Date().getDate() - i)),
+          'yyyy-MM-dd'
+        );
+        if (
+          data.some(
+            (s: any) => format(new Date(s.date), 'yyyy-MM-dd') === day &&
+              s.durationMinutes > 0
+          )
+        ) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      setStudyStreak(streak);
+    }
+  };
 
-      {/* resource/chapter UI removed; study sessions now simple logs so
-          most of the previous interface is no longer needed. */}
-            placeholder="Add new resource..."
-            className="flex-1 px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
+  const saveToday = async () => {
+    if (!user) return;
+    const data = await api.getStudySessions(user.id);
+    const todaySession = data.find(
+      (s: any) => format(new Date(s.date), 'yyyy-MM-dd') === today
+    );
+    if (todaySession) {
+      await api.updateStudySession(todaySession.id, todayMinutes, todayNotes, new Date(today));
+    } else {
+      await api.createStudySession(user.id, todayMinutes, todayNotes, new Date(today));
+    }
+    loadWeeklyMinutes();
+    loadStreak();
+  };
+
+  return (
+    <div>
+      <h1 className="text-4xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+        Study Sessions
+      </h1>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-4">
+          <div className="text-sm font-semibold text-gray-600 mb-1">
+            This Week
+          </div>
+          <div className="text-2xl font-bold text-green-600">
+            {weeklyMinutes} min
+          </div>
+        </div>
+        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-4">
+          <div className="text-sm font-semibold text-gray-600 mb-1">
+            Streak
+          </div>
+          <div className="text-2xl font-bold text-blue-600">
+            {studyStreak} day{studyStreak !== 1 && 's'}
+          </div>
+        </div>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl p-6 shadow-xl space-y-6"
+      >
+        <h2 className="text-2xl font-bold mb-4">Today's Session</h2>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Minutes
+          </label>
+          <input
+            type="number"
+            value={todayMinutes}
+            onChange={(e) => setTodayMinutes(parseInt(e.target.value) || 0)}
+            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 outline-none"
           />
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={addResource}
-            className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold"
-          >
-            <Plus size={20} />
-          </motion.button>
         </div>
 
-        <div className="flex gap-2 mb-4 overflow-x-auto">
-          {resources.map((resource) => (
-            <button
-              key={resource.id}
-              onClick={() => setSelectedResource(resource.id)}
-              className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap ${
-                selectedResource === resource.id
-                  ? 'bg-emerald-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {resource.name}
-            </button>
-          ))}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Notes
+          </label>
+          <textarea
+            value={todayNotes}
+            onChange={(e) => setTodayNotes(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 outline-none"
+            rows={3}
+          />
         </div>
 
-        {selectedResource && (
-          <>
-            <div className="flex gap-2 mb-4">
-              <input
-                type="text"
-                value={newChapter.name}
-                onChange={(e) => setNewChapter({ ...newChapter, name: e.target.value })}
-                placeholder="Chapter name..."
-                className="flex-1 px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
-              />
-              <input
-                type="url"
-                value={newChapter.video_link}
-                onChange={(e) => setNewChapter({ ...newChapter, video_link: e.target.value })}
-                placeholder="Video link (optional)..."
-                className="flex-1 px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
-              />
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={addChapter}
-                className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold"
-              >
-                <Plus size={20} />
-              </motion.button>
-            </div>
-
-            <div className="space-y-2">
-              {chapters.map((chapter) => (
-                <div key={chapter.id} className="bg-gray-50 rounded-xl p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    <select
-                      value={chapter.status}
-                      onChange={(e) => updateChapterStatus(chapter.id, e.target.value)}
-                      className={`px-3 py-1 rounded-lg border-2 text-sm font-medium ${
-                        chapter.status === 'done'
-                          ? 'border-green-500 bg-green-50 text-green-700'
-                          : chapter.status === 'in_progress'
-                          ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
-                          : 'border-gray-300 bg-white text-gray-700'
-                      }`}
-                    >
-                      <option value="not_started">Not Started</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="done">Done</option>
-                    </select>
-                    <div>
-                      <div className="font-medium text-gray-800">{chapter.name}</div>
-                      {chapter.video_link && (
-                        <a
-                          href={chapter.video_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 hover:underline"
-                        >
-                          View Video
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => deleteChapter(chapter.id)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                  >
-                    <Trash2 size={18} />
-                  </motion.button>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={saveToday}
+          className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+        >
+          Save
+        </motion.button>
       </motion.div>
     </div>
   );
