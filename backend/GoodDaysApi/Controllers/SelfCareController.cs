@@ -17,16 +17,17 @@ public class SelfCareController : ControllerBase
     }
 
     [HttpGet("user/{userId}")]
+    // returns self-care logs for a user
     public async Task<IActionResult> GetUserActivities(Guid userId)
     {
-        var activities = await _db.SelfCareActivities.Where(s => s.UserId == userId).OrderByDescending(s => s.Date).ToListAsync();
+        var activities = await _db.SelfCareLogs.Where(s => s.UserId == userId).OrderByDescending(s => s.Date).ToListAsync();
         return Ok(activities);
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetActivity(Guid id)
     {
-        var activity = await _db.SelfCareActivities.FindAsync(id);
+        var activity = await _db.SelfCareLogs.FindAsync(id);
         if (activity == null) return NotFound();
         return Ok(activity);
     }
@@ -34,15 +35,14 @@ public class SelfCareController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateActivity([FromBody] CreateSelfCareRequest req)
     {
-        var activity = new SelfCareActivity
+        var activity = new SelfCareLog
         {
             UserId = req.UserId,
-            ActivityType = req.ActivityType,
-            Description = req.Description,
-            DurationMinutes = req.DurationMinutes,
             Date = req.Date,
+            TemplateId = req.TemplateId,
+            Completed = req.Completed,
         };
-        _db.SelfCareActivities.Add(activity);
+        _db.SelfCareLogs.Add(activity);
         await _db.SaveChangesAsync();
         return Ok(activity);
     }
@@ -50,13 +50,12 @@ public class SelfCareController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateActivity(Guid id, [FromBody] UpdateSelfCareRequest req)
     {
-        var activity = await _db.SelfCareActivities.FindAsync(id);
+        var activity = await _db.SelfCareLogs.FindAsync(id);
         if (activity == null) return NotFound();
         
-        activity.ActivityType = req.ActivityType ?? activity.ActivityType;
-        activity.Description = req.Description ?? activity.Description;
-        activity.DurationMinutes = req.DurationMinutes ?? activity.DurationMinutes;
         activity.Date = req.Date ?? activity.Date;
+        if (req.TemplateId.HasValue) activity.TemplateId = req.TemplateId.Value;
+        if (req.Completed.HasValue) activity.Completed = req.Completed.Value;
         
         await _db.SaveChangesAsync();
         return Ok(activity);
@@ -65,14 +64,14 @@ public class SelfCareController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteActivity(Guid id)
     {
-        var activity = await _db.SelfCareActivities.FindAsync(id);
+        var activity = await _db.SelfCareLogs.FindAsync(id);
         if (activity == null) return NotFound();
         
-        _db.SelfCareActivities.Remove(activity);
+        _db.SelfCareLogs.Remove(activity);
         await _db.SaveChangesAsync();
         return Ok();
     }
 }
 
-public record CreateSelfCareRequest(Guid UserId, string ActivityType, string Description, int DurationMinutes, DateTime Date);
-public record UpdateSelfCareRequest(string? ActivityType, string? Description, int? DurationMinutes, DateTime? Date);
+public record CreateSelfCareRequest(Guid UserId, DateTime Date, Guid TemplateId, bool Completed = false);
+public record UpdateSelfCareRequest(DateTime? Date, Guid? TemplateId, bool? Completed);

@@ -37,7 +37,6 @@ public class StudyController : ControllerBase
         var session = new StudySession
         {
             UserId = req.UserId,
-            Subject = req.Subject,
             DurationMinutes = req.DurationMinutes,
             Notes = req.Notes,
             Date = req.Date,
@@ -53,7 +52,6 @@ public class StudyController : ControllerBase
         var session = await _db.StudySessions.FindAsync(id);
         if (session == null) return NotFound();
         
-        session.Subject = req.Subject ?? session.Subject;
         session.DurationMinutes = req.DurationMinutes ?? session.DurationMinutes;
         session.Notes = req.Notes ?? session.Notes;
         session.Date = req.Date ?? session.Date;
@@ -74,5 +72,5 @@ public class StudyController : ControllerBase
     }
 }
 
-public record CreateStudyRequest(Guid UserId, string Subject, int DurationMinutes, string? Notes, DateTime Date);
-public record UpdateStudyRequest(string? Subject, int? DurationMinutes, string? Notes, DateTime? Date);
+public record CreateStudyRequest(Guid UserId, int DurationMinutes, string? Notes, DateTime Date);
+public record UpdateStudyRequest(int? DurationMinutes, string? Notes, DateTime? Date);

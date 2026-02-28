@@ -12,8 +12,10 @@ public class User
 
     // login credentials (local database)
     [Required]
+    [Column("email")]
     public string Email { get; set; } = string.Empty;
     [Required]
+    [Column("password_hash")]
     public string PasswordHash { get; set; } = string.Empty;
 
     // profile fields defined in supabase migration

@@ -2,9 +2,10 @@ type User = { id: string; email: string; name?: string };
 type Session = { access_token: string; user: User } | null;
 type Task = { id: string; userId: string; title: string; description?: string; isCompleted: boolean; dueDate: string; createdAt: string; updatedAt: string };
 type Expense = { id: string; userId: string; description: string; amount: number; category: string; date: string; createdAt: string };
-type SelfCareActivity = { id: string; userId: string; activityType: string; description: string; durationMinutes: number; date: string; createdAt: string };
+// stored as logs referencing a template
+type SelfCareActivity = { id: string; userId: string; date: string; templateId: string; completed: boolean; createdAt: string };
 type ThesisEntry = { id: string; userId: string; title: string; content?: string; status?: string; date: string; createdAt: string; updatedAt: string };
-type StudySession = { id: string; userId: string; subject: string; durationMinutes: number; notes?: string; date: string; createdAt: string };
+type StudySession = { id: string; userId: string; durationMinutes: number; notes?: string; date: string; createdAt: string };
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || '';
 
@@ -99,12 +100,13 @@ export async function getSelfCareActivity(id: string) {
   return request(`selfcare/${id}`);
 }
 
-export async function createSelfCareActivity(userId: string, activityType: string, description: string, durationMinutes: number, date: Date) {
-  return request('selfcare', { method: 'POST', body: JSON.stringify({ userId, activityType, description, durationMinutes, date }) });
+// create a log entry; templateId should refer to a SelfCareTemplate record
+export async function createSelfCareActivity(userId: string, date: Date, templateId: string, completed = false) {
+  return request('selfcare', { method: 'POST', body: JSON.stringify({ userId, date, templateId, completed }) });
 }
 
-export async function updateSelfCareActivity(id: string, activityType?: string, description?: string, durationMinutes?: number, date?: Date) {
-  return request(`selfcare/${id}`, { method: 'PUT', body: JSON.stringify({ activityType, description, durationMinutes, date }) });
+export async function updateSelfCareActivity(id: string, date?: Date, templateId?: string, completed?: boolean) {
+  return request(`selfcare/${id}`, { method: 'PUT', body: JSON.stringify({ date, templateId, completed }) });
 }
 
 export async function deleteSelfCareActivity(id: string) {
@@ -141,12 +143,12 @@ export async function getStudySession(id: string) {
   return request(`study/${id}`);
 }
 
-export async function createStudySession(userId: string, subject: string, durationMinutes: number, notes?: string, date?: Date) {
-  return request('study', { method: 'POST', body: JSON.stringify({ userId, subject, durationMinutes, notes, date }) });
+export async function createStudySession(userId: string, durationMinutes: number, notes?: string, date?: Date) {
+  return request('study', { method: 'POST', body: JSON.stringify({ userId, durationMinutes, notes, date }) });
 }
 
-export async function updateStudySession(id: string, subject?: string, durationMinutes?: number, notes?: string, date?: Date) {
-  return request(`study/${id}`, { method: 'PUT', body: JSON.stringify({ subject, durationMinutes, notes, date }) });
+export async function updateStudySession(id: string, durationMinutes?: number, notes?: string, date?: Date) {
+  return request(`study/${id}`, { method: 'PUT', body: JSON.stringify({ durationMinutes, notes, date }) });
 }
 
 export async function deleteStudySession(id: string) {

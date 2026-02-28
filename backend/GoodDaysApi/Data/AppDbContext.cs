@@ -10,10 +10,12 @@ public class AppDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<DailyTask> Tasks { get; set; }
     public DbSet<Expense> Expenses { get; set; }
-    public DbSet<SelfCareActivity> SelfCareActivities { get; set; }
+    // legacy name kept for compatibility; primary table is SelfCareLogs
+    public DbSet<SelfCareLog> SelfCareLogs { get; set; }
     public DbSet<ThesisEntry> ThesisEntries { get; set; }
     public DbSet<StudySession> StudySessions { get; set; }
     public DbSet<GamificationEntry> GamificationEntries { get; set; }
+    public DbSet<SelfCareTemplate> SelfCareTemplates { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -23,6 +25,11 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>().ToTable("user_profiles");
         modelBuilder.Entity<DailyTask>().ToTable("tasks");
         modelBuilder.Entity<Expense>().ToTable("expenses");
+        modelBuilder.Entity<SelfCareLog>().ToTable("self_care_logs");
+        modelBuilder.Entity<SelfCareTemplate>().ToTable("self_care_template");
+        modelBuilder.Entity<StudySession>().ToTable("study_sessions");
+        modelBuilder.Entity<ThesisEntry>().ToTable("thesis_patients");
+        modelBuilder.Entity<GamificationEntry>().ToTable("gamification_entries");
         // other entities follow default pluralization unless you need a custom name
 
         // ensure emails are unique for login
@@ -40,13 +47,25 @@ public class AppDbContext : DbContext
             .HasForeignKey(d => d.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<SelfCareTemplate>()
+            .HasOne(t => t.User)
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SelfCareLog>()
+            .HasOne(s => s.User)
+            .WithMany()
+            .HasForeignKey(s => s.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         modelBuilder.Entity<Expense>()
             .HasOne(e => e.User)
             .WithMany()
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<SelfCareActivity>()
+        modelBuilder.Entity<SelfCareLog>()
             .HasOne(s => s.User)
             .WithMany()
             .HasForeignKey(s => s.UserId)

@@ -11,11 +11,7 @@ export default function Study() {
 
   const [todayMinutes, setTodayMinutes] = useState(0);
   const [todayNotes, setTodayNotes] = useState('');
-  const [resources, setResources] = useState<any[]>([]);
-  const [newResourceName, setNewResourceName] = useState('');
-  const [selectedResource, setSelectedResource] = useState<string | null>(null);
-  const [chapters, setChapters] = useState<any[]>([]);
-  const [newChapter, setNewChapter] = useState({ name: '', video_link: '' });
+  // resource and chapter management has been moved to server-side templates
   const [weeklyMinutes, setWeeklyMinutes] = useState(0);
   const [studyStreak, setStudyStreak] = useState(0);
 
@@ -28,11 +24,7 @@ export default function Study() {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (selectedResource) {
-      loadChapters(selectedResource);
-    }
-  }, [selectedResource]);
+  // no longer using selected resource or chapters
 
   const loadTodaySession = async () => {
     if (!user) return;
@@ -47,165 +39,11 @@ export default function Study() {
     }
   };
 
-  const loadResources = async () => {
-    if (!user) return;
+  // resources no longer derived from sessions
 
-    const data = await api.getStudySessions(user.id);
-    if (data) {
-      const unique = Array.from(new Set(data.map(d => d.subject)));
-      setResources(unique.map((s, i) => ({ id: i.toString(), name: s })));
-      if (unique.length > 0 && !selectedResource) {
-        setSelectedResource('0');
-      }
-    }
-  };
 
-  const loadChapters = async (resourceId: string) => {
-    if (!user) return;
-    // Chapters are part of study sessions in API
-  };
-
-  const loadWeeklyMinutes = async () => {
-    if (!user) return;
-
-    const data = await api.getStudySessions(user.id);
-    if (data) {
-      const total = data.reduce((sum, s) => sum + s.durationMinutes, 0);
-      setWeeklyMinutes(total);
-    }
-  };
-
-  const loadStreak = async () => {
-    if (!user) return;
-
-    const data = await api.getStudySessions(user.id);
-
-    if (data && data.length > 0) {
-      let streak = 0;
-      let currentDate = new Date();
-
-      for (const session of data) {
-        const sessionDate = new Date(session.date);
-        const dayDiff = Math.floor((currentDate.getTime() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (dayDiff === streak) {
-          streak++;
-          currentDate = sessionDate;
-        } else {
-          break;
-        }
-      }
-
-      setStudyStreak(streak);
-    }
-  };
-
-  const updateTodaySession = async () => {
-    if (!user) return;
-
-    await api.createStudySession(user.id, 'Study', todayMinutes, todayNotes, new Date());
-
-    if (todayMinutes > 0) {
-      await api.addPoints(user.id, 'study_session', 10);
-    }
-  };
-
-  const addResource = async () => {
-    if (!user || !newResourceName.trim()) return;
-
-    setNewResourceName('');
-    loadResources();
-  };
-
-  const addChapter = async () => {
-    if (!user || !selectedResource || !newChapter.name.trim()) return;
-
-    setNewChapter({ name: '', video_link: '' });
-    loadChapters(selectedResource);
-  };
-
-  const updateChapterStatus = async (chapterId: string, status: string) => {
-    // Chapter status would be updated via study sessions
-    if (selectedResource) loadChapters(selectedResource);
-  };
-
-  const deleteResource = async (id: string) => {
-    // Resource delete would be handled via API
-    loadResources();
-  };
-
-  const deleteChapter = async (id: string) => {
-    // Chapter delete would be handled via API
-    if (selectedResource) loadChapters(selectedResource);
-  };
-
-  return (
-    <div>
-      <h1 className="text-4xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-        Study Tracker
-      </h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-6">
-          <h3 className="text-sm font-semibold text-gray-600 mb-1">Today</h3>
-          <div className="text-3xl font-bold text-blue-600">{todayMinutes} min</div>
-        </div>
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6">
-          <h3 className="text-sm font-semibold text-gray-600 mb-1">This Week</h3>
-          <div className="text-3xl font-bold text-green-600">{weeklyMinutes} min</div>
-        </div>
-        <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-6">
-          <h3 className="text-sm font-semibold text-gray-600 mb-1">Streak</h3>
-          <div className="text-3xl font-bold text-orange-600">{studyStreak} days</div>
-        </div>
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-6 shadow-xl mb-6"
-      >
-        <h2 className="text-xl font-bold mb-4">Today's Session</h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Minutes Studied</label>
-            <input
-              type="number"
-              value={todayMinutes}
-              onChange={(e) => setTodayMinutes(parseInt(e.target.value) || 0)}
-              onBlur={updateTodaySession}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-            <textarea
-              value={todayNotes}
-              onChange={(e) => setTodayNotes(e.target.value)}
-              onBlur={updateTodaySession}
-              className="w-full h-24 px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none resize-none"
-              placeholder="What did you study today?"
-            />
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-6 shadow-xl"
-      >
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <BookOpen className="text-emerald-500" />
-          Study Resources
-        </h2>
-
-        <div className="flex gap-2 mb-4">
-          <input
-            type="text"
-            value={newResourceName}
-            onChange={(e) => setNewResourceName(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && addResource()}
+      {/* resource/chapter UI removed; study sessions now simple logs so
+          most of the previous interface is no longer needed. */}
             placeholder="Add new resource..."
             className="flex-1 px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
           />

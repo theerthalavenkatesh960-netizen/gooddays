@@ -3,28 +3,25 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GoodDaysApi.Models;
 
-// maps to `thesis_patients` table in Supabase schema
-[Table("thesis_patients")]
-public class ThesisEntry
+// corresponds to `self_care_logs` table in supabase migrations
+[Table("self_care_logs")]
+public class SelfCareLog
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
     [Required]
     [Column("user_id")]
     public Guid UserId { get; set; }
-    // map to thesis_patients columns
     [Required]
-    [Column("group_name")]
-    public string Title { get; set; } = string.Empty;
-    [Column("notes")]
-    public string? Content { get; set; }
-    [Column("proforma_status")]
-    public string? Status { get; set; }
     [Column("date")]
     public DateTime Date { get; set; }
+    [Required]
+    [Column("template_id")]
+    public Guid TemplateId { get; set; }
+    [Column("completed")]
+    public bool Completed { get; set; } = false;
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    // the migration does not include an updated_at column; remove property to avoid errors
     
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }

@@ -57,7 +57,6 @@ public class ThesisController : ControllerBase
         entry.Content = req.Content ?? entry.Content;
         entry.Status = req.Status ?? entry.Status;
         entry.Date = req.Date ?? entry.Date;
-        entry.UpdatedAt = DateTime.UtcNow;
         
         await _db.SaveChangesAsync();
         return Ok(entry);
