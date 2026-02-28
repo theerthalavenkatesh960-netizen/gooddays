@@ -1,13 +1,19 @@
 # GoodDays API (Minimal)
 
-This folder contains a minimal .NET 7 API intended to replace Supabase for the GoodDays app.
+This folder contains a minimal **.NET 8** API intended to replace Supabase for the GoodDays app.
 
-How to run (requires .NET 7 SDK):
+How to run (requires .NET 8 SDK):
 
 dotnet restore
 dotnet run --project GoodDaysApi
 
-The API will create a local SQLite DB file `gooddays.db` in the project folder.
+The API now uses PostgreSQL exclusively. You **must** provide a
+`ConnectionStrings:Default` value (via `appsettings.json`, environment
+variable, etc.) containing a valid PostgreSQL connection string.  
+The project includes the `Npgsql.EntityFrameworkCore.PostgreSQL` provider
+and will throw a startup exception if the string is missing or blank.  
+All SQLite references are retained only for legacy purposes and can be
+removed if desired.
 
 Endpoints:
 - POST /api/auth/signup { email, password, name }

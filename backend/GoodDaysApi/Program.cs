@@ -1,6 +1,8 @@
+using GoodDaysApi.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Swashbuckle.AspNetCore.SwaggerGen; 
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,8 +11,14 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var connectionString = builder.Configuration.GetConnectionString("Default") ?? "Data Source=gooddays.db";
-builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlite(connectionString));
+var connectionString = builder.Configuration.GetConnectionString("Default");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "A PostgreSQL connection string must be provided via 'ConnectionStrings:Default'.");
+}
+
+builder.Services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(connectionString));
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "change_this_to_a_secure_random_key";
 var key = Encoding.ASCII.GetBytes(jwtKey);

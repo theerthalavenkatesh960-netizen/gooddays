@@ -1,0 +1,7 @@
+/Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/obj/Debug/net7.0/GoodDaysApi.csproj.AssemblyReference.cache
+/Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/obj/Debug/net7.0/GoodDaysApi.GeneratedMSBuildEditorConfig.editorconfig
+/Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/obj/Debug/net7.0/GoodDaysApi.AssemblyInfoInputs.cache
+/Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/obj/Debug/net7.0/GoodDaysApi.AssemblyInfo.cs
+/Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/obj/Debug/net7.0/GoodDaysApi.csproj.CoreCompileInputs.cache
+/Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/obj/Debug/net7.0/GoodDaysApi.MvcApplicationPartsAssemblyInfo.cache
+/Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/obj/Debug/net7.0/GoodDaysApi.sourcelink.json
