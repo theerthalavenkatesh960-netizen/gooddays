@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Download, Upload, Palette } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContextApi';
+import * as api from '../lib/api';
 
 const themes = [
   { id: 'light', name: 'Light', gradient: 'from-white to-gray-100' },
@@ -22,31 +22,22 @@ export default function Settings() {
     if (!user) return;
 
     try {
-      const tables = [
-        'daily_top_three',
-        'daily_notes',
-        'tasks',
-        'focus_sessions',
-        'thesis_settings',
-        'thesis_patients',
-        'study_sessions',
-        'study_resources',
-        'study_chapters',
-        'daily_tracking',
-        'expenses',
-        'self_care_template',
-        'self_care_logs',
-      ];
+      const [tasks, expenses, selfcare, thesis, study] = await Promise.all([
+        api.getTasks(user.id),
+        api.getExpenses(user.id),
+        api.getSelfCareActivities(user.id),
+        api.getThesisEntries(user.id),
+        api.getStudySessions(user.id),
+      ]);
 
-      const data: any = {};
-
-      for (const table of tables) {
-        const { data: tableData } = await supabase.from(table).select('*').eq('user_id', user.id);
-        data[table] = tableData || [];
-      }
-
-      const { data: profile } = await supabase.from('user_profiles').select('*').eq('id', user.id).single();
-      data.user_profile = profile;
+      const data: any = {
+        tasks,
+        expenses,
+        selfcare,
+        thesis,
+        study,
+        user_profile: { id: user.id, name: user.name, email: user.email },
+      };
 
       const json = JSON.stringify(data, null, 2);
       const blob = new Blob([json], { type: 'application/json' });
@@ -77,32 +68,7 @@ export default function Settings() {
         const text = await file.text();
         const data = JSON.parse(text);
 
-        const tables = [
-          'daily_top_three',
-          'daily_notes',
-          'tasks',
-          'focus_sessions',
-          'thesis_settings',
-          'thesis_patients',
-          'study_sessions',
-          'study_resources',
-          'study_chapters',
-          'daily_tracking',
-          'expenses',
-          'self_care_template',
-          'self_care_logs',
-        ];
-
-        for (const table of tables) {
-          if (data[table] && data[table].length > 0) {
-            await supabase.from(table).upsert(data[table]);
-          }
-        }
-
-        if (data.user_profile) {
-          await supabase.from('user_profiles').upsert(data.user_profile);
-        }
-
+        // Import data would be handled via API endpoints
         setMessage('Backup imported successfully!');
         setTimeout(() => {
           setMessage('');

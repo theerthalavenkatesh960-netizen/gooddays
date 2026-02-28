@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Zap } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import * as api from '../lib/api';
+import { useAuth } from '../contexts/AuthContextApi';
 
 const motivationalMessages = [
   "You're doing amazing",
@@ -28,42 +28,17 @@ export default function GamificationBar() {
   useEffect(() => {
     if (user) {
       loadProfile();
-      const subscription = supabase
-        .channel('profile_changes')
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'user_profiles',
-            filter: `id=eq.${user.id}`,
-          },
-          (payload) => {
-            setPoints(payload.new.points);
-            setLevel(payload.new.level);
-            showMotivationalMessage();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        subscription.unsubscribe();
-      };
+      // Real-time subscription would be set up here if needed
     }
   }, [user]);
 
   const loadProfile = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('level, points')
-      .eq('id', user.id)
-      .maybeSingle();
-
+    const data = await api.getUserPoints(user.id);
     if (data) {
-      setLevel(data.level);
-      setPoints(data.points);
+      setPoints(data.totalPoints || 0);
+      setLevel(Math.floor(data.totalPoints / 100) + 1);
     }
   };
 

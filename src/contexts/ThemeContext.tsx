@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from './AuthContext';
+import { useAuth } from './AuthContextApi';
 
 type Theme = 'light' | 'dark' | 'blue' | 'green' | 'ocean';
 
@@ -24,14 +23,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const loadTheme = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('theme')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (data?.theme) {
-      setThemeState(data.theme as Theme);
+    try {
+      const theme = localStorage.getItem(`theme_${user.id}`);
+      if (theme) {
+        setThemeState(theme as Theme);
+      }
+    } catch (error) {
+      console.error('Failed to load theme:', error);
     }
   };
 
@@ -39,10 +37,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeState(newTheme);
 
     if (user) {
-      await supabase
-        .from('user_profiles')
-        .update({ theme: newTheme })
-        .eq('id', user.id);
+      try {
+        localStorage.setItem(`theme_${user.id}`, newTheme);
+      } catch (error) {
+        console.error('Failed to save theme:', error);
+      }
     }
   };
 

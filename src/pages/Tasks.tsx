@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, CheckCircle2, RotateCcw, Trash2, Filter } from 'lucide-react';
 import { format, isToday, isPast, parseISO } from 'date-fns';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import * as api from '../lib/api';
+import { useAuth } from '../contexts/AuthContextApi';
 
 const categories = ['Home', 'Admin', 'Study', 'Personal', 'Fun'];
 const priorities = ['low', 'medium', 'high'];
@@ -26,50 +26,31 @@ export default function Tasks() {
   const loadTasks = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-
-    if (data) setTasks(data);
+    const data = await api.getTasks(user.id);
+    if (data && data.length > 0) setTasks(data);
   };
 
   const addTask = async () => {
     if (!user || !newTask.trim()) return;
 
-    const { error } = await supabase.from('tasks').insert({
-      user_id: user.id,
-      title: newTask,
-      category: selectedCategory,
-      priority: selectedPriority,
-      status: 'pending',
-    });
-
-    if (!error) {
-      setNewTask('');
-      loadTasks();
-    }
+    await api.createTask(user.id, newTask, '', new Date(selectedCategory + ' ' + selectedPriority));
+    setNewTask('');
+    loadTasks();
   };
 
   const toggleTask = async (task: any) => {
-    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-    const completed_at = newStatus === 'completed' ? new Date().toISOString() : null;
+    const isCompleted = !task.isCompleted;
+    await api.updateTask(task.id, task.title, task.description, isCompleted, new Date(task.dueDate));
 
-    await supabase
-      .from('tasks')
-      .update({ status: newStatus, completed_at })
-      .eq('id', task.id);
-
-    if (newStatus === 'completed' && user) {
-      await supabase.rpc('add_points', { user_id: user.id, points_to_add: 10 });
+    if (isCompleted && user) {
+      await api.addPoints(user.id, 'task_completed', 10);
     }
 
     loadTasks();
   };
 
   const deleteTask = async (id: string) => {
-    await supabase.from('tasks').delete().eq('id', id);
+    await api.deleteTask(id);
     loadTasks();
   };
 
@@ -222,7 +203,7 @@ export default function Tasks() {
               exit={{ opacity: 0, x: 20 }}
               transition={{ delay: index * 0.05 }}
               className={`bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-all ${
-                task.status === 'completed' ? 'opacity-60' : ''
+                task.isCompleted ? 'opacity-60' : ''
               }`}
             >
               <div className="flex items-center gap-4">
@@ -231,7 +212,7 @@ export default function Tasks() {
                   whileTap={{ scale: 0.9 }}
                   onClick={() => toggleTask(task)}
                 >
-                  {task.status === 'completed' ? (
+                  {task.isCompleted ? (
                     <CheckCircle2 className="text-emerald-500" size={24} />
                   ) : (
                     <div className="w-6 h-6 rounded-full border-2 border-gray-300" />
@@ -241,7 +222,7 @@ export default function Tasks() {
                 <div className="flex-1">
                   <h3
                     className={`font-semibold ${
-                      task.status === 'completed' ? 'line-through text-gray-400' : 'text-gray-800'
+                      task.isCompleted ? 'line-through text-gray-400' : 'text-gray-800'
                     }`}
                   >
                     {task.title}
@@ -262,7 +243,7 @@ export default function Tasks() {
                 </div>
 
                 <div className="flex gap-2">
-                  {task.status === 'completed' && (
+                  {task.isCompleted && (
                     <motion.button
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}

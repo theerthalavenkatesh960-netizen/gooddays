@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek } from 'date-fns';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import * as api from '../lib/api';
+import { useAuth } from '../contexts/AuthContextApi';
 
 export default function CalendarView() {
   const { user } = useAuth();
@@ -24,69 +24,39 @@ export default function CalendarView() {
     const start = format(startOfMonth(currentDate), 'yyyy-MM-dd');
     const end = format(endOfMonth(currentDate), 'yyyy-MM-dd');
 
-    const [tasks, focus, study, expenses, selfcare] = await Promise.all([
-      supabase
-        .from('tasks')
-        .select('completed_at')
-        .eq('user_id', user.id)
-        .eq('status', 'completed')
-        .gte('completed_at', start)
-        .lte('completed_at', end),
-      supabase
-        .from('focus_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('completed_at', start)
-        .lte('completed_at', end),
-      supabase
-        .from('study_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('date', start)
-        .lte('date', end),
-      supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('created_at', start)
-        .lte('created_at', end),
-      supabase
-        .from('self_care_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('completed', true)
-        .gte('date', start)
-        .lte('date', end),
+    const [tasks, study, expenses, selfcare] = await Promise.all([
+      api.getTasks(user.id),
+      api.getStudySessions(user.id),
+      api.getExpenses(user.id),
+      api.getSelfCareActivities(user.id),
     ]);
 
     const data: any = {};
 
-    tasks.data?.forEach((t) => {
-      const date = format(new Date(t.completed_at), 'yyyy-MM-dd');
+    tasks?.forEach((t) => {
+      if (t.isCompleted) {
+        const date = format(new Date(t.updatedAt), 'yyyy-MM-dd');
+        data[date] = data[date] || {};
+        data[date].tasks = (data[date].tasks || 0) + 1;
+      }
+    });
+
+    study?.forEach((s) => {
+      const date = format(new Date(s.date), 'yyyy-MM-dd');
       data[date] = data[date] || {};
-      data[date].tasks = (data[date].tasks || 0) + 1;
+      data[date].study = s.durationMinutes;
     });
 
-    focus.data?.forEach((f) => {
-      const date = format(new Date(f.completed_at), 'yyyy-MM-dd');
-      data[date] = data[date] || {};
-      data[date].focus = (data[date].focus || 0) + 1;
-    });
-
-    study.data?.forEach((s) => {
-      data[s.date] = data[s.date] || {};
-      data[s.date].study = s.minutes;
-    });
-
-    expenses.data?.forEach((e) => {
-      const date = format(new Date(e.created_at), 'yyyy-MM-dd');
+    expenses?.forEach((e) => {
+      const date = format(new Date(e.date), 'yyyy-MM-dd');
       data[date] = data[date] || {};
       data[date].expenses = (data[date].expenses || 0) + parseFloat(e.amount);
     });
 
-    selfcare.data?.forEach((s) => {
-      data[s.date] = data[s.date] || {};
-      data[s.date].selfcare = (data[s.date].selfcare || 0) + 1;
+    selfcare?.forEach((s) => {
+      const date = format(new Date(s.date), 'yyyy-MM-dd');
+      data[date] = data[date] || {};
+      data[date].selfcare = (data[date].selfcare || 0) + 1;
     });
 
     setDayData(data);

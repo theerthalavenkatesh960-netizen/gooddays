@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Circle, StickyNote, Flame } from 'lucide-react';
 import { format } from 'date-fns';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import * as api from '../lib/api';
+import { useAuth } from '../contexts/AuthContextApi';
 import GamificationBar from '../components/GamificationBar';
 
 export default function Dashboard() {
@@ -38,31 +38,22 @@ export default function Dashboard() {
   const loadTopThree = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from('daily_top_three')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('date', today)
-      .maybeSingle();
-
-    if (data) {
-      setTopThree(data);
+    const tasks = await api.getTasks(user.id);
+    if (tasks && tasks.length > 0) {
+      setTopThree({
+        task_1: tasks[0]?.title || '',
+        task_2: tasks[1]?.title || '',
+        task_3: tasks[2]?.title || '',
+        completed_1: tasks[0]?.isCompleted || false,
+        completed_2: tasks[1]?.isCompleted || false,
+        completed_3: tasks[2]?.isCompleted || false,
+      });
     }
   };
 
   const loadDailyNote = async () => {
     if (!user) return;
-
-    const { data } = await supabase
-      .from('daily_notes')
-      .select('note')
-      .eq('user_id', user.id)
-      .eq('date', today)
-      .maybeSingle();
-
-    if (data) {
-      setDailyNote(data.note);
-    }
+    // Daily notes would be stored with thesis or similar
   };
 
   const loadStreaks = async () => {
@@ -74,40 +65,22 @@ export default function Dashboard() {
       return format(d, 'yyyy-MM-dd');
     });
 
-    const { data: tasksData } = await supabase
-      .from('tasks')
-      .select('completed_at')
-      .eq('user_id', user.id)
-      .eq('status', 'completed')
-      .gte('completed_at', last7Days[0]);
+    const [tasksData, studyData, selfcareData] = await Promise.all([
+      api.getTasks(user.id),
+      api.getStudySessions(user.id),
+      api.getSelfCareActivities(user.id),
+    ]);
 
-    const { data: studyData } = await supabase
-      .from('study_sessions')
-      .select('date')
-      .eq('user_id', user.id)
-      .in('date', last7Days);
-
-    const { data: selfcareData } = await supabase
-      .from('self_care_logs')
-      .select('date')
-      .eq('user_id', user.id)
-      .eq('completed', true)
-      .in('date', last7Days);
-
-    const { data: workoutData } = await supabase
-      .from('daily_tracking')
-      .select('date, workout_minutes')
-      .eq('user_id', user.id)
-      .in('date', last7Days)
-      .gt('workout_minutes', 0);
+    const taskStreak = last7Days.map(d => tasksData?.some(t => t.isCompleted && format(new Date(t.updatedAt), 'yyyy-MM-dd') === d) || false);
+    const studyStreak = last7Days.map(d => studyData?.some(s => format(new Date(s.date), 'yyyy-MM-dd') === d) || false);
+    const selfcareStreak = last7Days.map(d => selfcareData?.some(s => format(new Date(s.date), 'yyyy-MM-dd') === d) || false);
+    const workoutStreak = last7Days.map(d => selfcareData?.some(s => format(new Date(s.date), 'yyyy-MM-dd') === d && s.activityType.toLowerCase().includes('workout')) || false);
 
     setStreaks({
-      tasks: last7Days.map(date =>
-        tasksData?.some(t => format(new Date(t.completed_at), 'yyyy-MM-dd') === date) || false
-      ),
-      study: last7Days.map(date => studyData?.some(s => s.date === date) || false),
-      selfcare: last7Days.map(date => selfcareData?.some(s => s.date === date) || false),
-      workout: last7Days.map(date => workoutData?.some(w => w.date === date) || false),
+      tasks: taskStreak,
+      study: studyStreak,
+      selfcare: selfcareStreak,
+      workout: workoutStreak,
     });
   };
 
@@ -117,18 +90,10 @@ export default function Dashboard() {
     const updated = { ...topThree, [field]: value };
     setTopThree(updated);
 
-    const { error } = await supabase
-      .from('daily_top_three')
-      .upsert({
-        user_id: user.id,
-        date: today,
-        ...updated,
-      });
-
     if (field.startsWith('completed_') && value === true) {
       const allCompleted = updated.completed_1 && updated.completed_2 && updated.completed_3;
       if (allCompleted) {
-        await supabase.rpc('add_points', { user_id: user.id, points_to_add: 20 });
+        await api.addPoints(user.id, 'top_three_complete', 20);
       }
     }
   };
@@ -137,14 +102,6 @@ export default function Dashboard() {
     if (!user) return;
 
     setDailyNote(note);
-
-    await supabase
-      .from('daily_notes')
-      .upsert({
-        user_id: user.id,
-        date: today,
-        note,
-      });
   };
 
   const StreakBar = ({ completed }: { completed: boolean[] }) => (

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GoodDaysApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3f62fae94266fd816c7c9118a33a6a57fd33932d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+59428a8bd3297403cc605257bdff61dad5ad9d97")]
 [assembly: System.Reflection.AssemblyProductAttribute("GoodDaysApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GoodDaysApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

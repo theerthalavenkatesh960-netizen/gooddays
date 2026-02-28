@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Trash2, Download, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import * as api from '../lib/api';
+import { useAuth } from '../contexts/AuthContextApi';
 
 const categories = ['Food', 'Transport', 'Home', 'Personal', 'Medical', 'Fun', 'Other'];
 
@@ -27,14 +27,8 @@ export default function Expenses() {
   const loadExpenses = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from('expenses')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    if (data) {
+    const data = await api.getExpenses(user.id);
+    if (data && data.length > 0) {
       setExpenses(data);
       calculateTotals(data);
     }
@@ -42,13 +36,13 @@ export default function Expenses() {
 
   const calculateTotals = (data: any[]) => {
     const today = format(new Date(), 'yyyy-MM-dd');
-    const todayExpenses = data.filter((e) => format(new Date(e.created_at), 'yyyy-MM-dd') === today);
+    const todayExpenses = data.filter((e) => format(new Date(e.date), 'yyyy-MM-dd') === today);
     const todaySum = todayExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
     setTodayTotal(todaySum);
 
     const byMonth: any = {};
     data.forEach((e) => {
-      const month = format(new Date(e.created_at), 'MMM yyyy');
+      const month = format(new Date(e.date), 'MMM yyyy');
       byMonth[month] = (byMonth[month] || 0) + parseFloat(e.amount);
     });
     setMonthlyTotals(byMonth);
@@ -57,19 +51,20 @@ export default function Expenses() {
   const addExpense = async () => {
     if (!user || !newExpense.amount) return;
 
-    await supabase.from('expenses').insert({
-      user_id: user.id,
-      amount: parseFloat(newExpense.amount),
-      category: newExpense.category,
-      note: newExpense.note,
-    });
+    await api.createExpense(
+      user.id,
+      newExpense.note,
+      parseFloat(newExpense.amount),
+      newExpense.category,
+      new Date()
+    );
 
     setNewExpense({ amount: '', category: 'Food', note: '' });
     loadExpenses();
   };
 
   const deleteExpense = async (id: string) => {
-    await supabase.from('expenses').delete().eq('id', id);
+    await api.deleteExpense(id);
     loadExpenses();
   };
 
@@ -195,7 +190,7 @@ export default function Expenses() {
             <div className="flex items-center gap-4 flex-1">
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-800">${parseFloat(expense.amount).toFixed(2)}</div>
-                <div className="text-xs text-gray-500">{format(new Date(expense.created_at), 'MMM d, h:mm a')}</div>
+                <div className="text-xs text-gray-500">{format(new Date(expense.date), 'MMM d, h:mm a')}</div>
               </div>
               <div className="flex-1">
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(expense.category)}`}>

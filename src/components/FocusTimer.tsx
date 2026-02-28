@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Square, Timer, Clock } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { api } from '../lib/api';
+import { useAuth } from '../contexts/AuthContextApi';
 import { format } from 'date-fns';
 
 export default function FocusTimer() {
@@ -43,14 +43,12 @@ export default function FocusTimer() {
   const loadSessions = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from('focus_sessions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    if (data) setSessions(data);
+    try {
+      const sessions = await api.getStudySessions(user.id);
+      setSessions(sessions.slice(0, 5));
+    } catch (error) {
+      console.error('Failed to load sessions:', error);
+    }
   };
 
   const handleStart = () => {
@@ -79,19 +77,24 @@ export default function FocusTimer() {
     const endTime = new Date();
     const actualDuration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000 / 60);
 
-    await supabase.from('focus_sessions').insert({
-      user_id: user.id,
-      task_name: taskName,
-      duration: actualDuration,
-      started_at: startTime.toISOString(),
-      completed_at: endTime.toISOString(),
-    });
+    try {
+      await api.createStudySession(
+        user.id,
+        taskName,
+        actualDuration,
+        `Completed: ${taskName}`,
+        format(new Date(), 'yyyy-MM-dd')
+      );
 
-    await supabase.rpc('add_points', { user_id: user.id, points_to_add: 5 });
+      await api.addPoints(user.id, 'focus_session', 5);
 
-    setShowPopup(false);
-    handleStop();
-    loadSessions();
+      setShowPopup(false);
+      handleStop();
+      loadSessions();
+    } catch (error) {
+      console.error('Failed to save session:', error);
+      alert('Failed to save session. Please try again.');
+    }
   };
 
   const handleContinue = () => {

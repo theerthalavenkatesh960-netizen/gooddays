@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Trash2, CheckCircle2, Circle } from 'lucide-react';
 import { format } from 'date-fns';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import * as api from '../lib/api';
+import { useAuth } from '../contexts/AuthContextApi';
 
 export default function SelfCare() {
   const { user } = useAuth();
@@ -26,47 +26,27 @@ export default function SelfCare() {
   const loadTemplate = async () => {
     if (!user) return;
 
-    let { data } = await supabase
-      .from('self_care_template')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('order_index', { ascending: true });
+    const defaultItems = [
+      { category: 'AM', item: 'Face Wash', order_index: 0 },
+      { category: 'AM', item: 'Moisturizer', order_index: 1 },
+      { category: 'AM', item: 'Sunscreen', order_index: 2 },
+      { category: 'PM', item: 'Cleanse', order_index: 3 },
+      { category: 'PM', item: 'Treatment', order_index: 4 },
+      { category: 'PM', item: 'Moisturize', order_index: 5 },
+      { category: 'Hair', item: 'Serum', order_index: 6 },
+      { category: 'Hair', item: 'Scalp Care', order_index: 7 },
+    ];
 
-    if (!data || data.length === 0) {
-      const defaultItems = [
-        { category: 'AM', item: 'Face Wash', order_index: 0 },
-        { category: 'AM', item: 'Moisturizer', order_index: 1 },
-        { category: 'AM', item: 'Sunscreen', order_index: 2 },
-        { category: 'PM', item: 'Cleanse', order_index: 3 },
-        { category: 'PM', item: 'Treatment', order_index: 4 },
-        { category: 'PM', item: 'Moisturize', order_index: 5 },
-        { category: 'Hair', item: 'Serum', order_index: 6 },
-        { category: 'Hair', item: 'Scalp Care', order_index: 7 },
-      ];
-
-      const { data: inserted } = await supabase
-        .from('self_care_template')
-        .insert(defaultItems.map((item) => ({ ...item, user_id: user.id })))
-        .select();
-
-      data = inserted || [];
-    }
-
-    setTemplate(data);
+    setTemplate(defaultItems);
   };
 
   const loadTodayLogs = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from('self_care_logs')
-      .select('template_id, completed')
-      .eq('user_id', user.id)
-      .eq('date', today)
-      .eq('completed', true);
-
+    const data = await api.getSelfCareActivities(user.id);
     if (data) {
-      const completed = new Set(data.map((log) => log.template_id));
+      const todayActivities = data.filter(d => format(new Date(d.date), 'yyyy-MM-dd') === today);
+      const completed = new Set(todayActivities.map((log) => log.id));
       setTodayLogs(completed);
 
       const total = template.length;
@@ -78,15 +58,10 @@ export default function SelfCare() {
   const loadStreak = async () => {
     if (!user) return;
 
-    const { data: logs } = await supabase
-      .from('self_care_logs')
-      .select('date')
-      .eq('user_id', user.id)
-      .eq('completed', true)
-      .order('date', { ascending: false });
+    const data = await api.getSelfCareActivities(user.id);
 
-    if (logs && logs.length > 0) {
-      const uniqueDates = Array.from(new Set(logs.map((l) => l.date))).sort().reverse();
+    if (data && data.length > 0) {
+      const uniqueDates = Array.from(new Set(data.map((l) => format(new Date(l.date), 'yyyy-MM-dd')))).sort().reverse();
       let streakCount = 0;
       let currentDate = new Date();
 
@@ -114,22 +89,9 @@ export default function SelfCare() {
 
     if (isCompleted) {
       newLogs.delete(templateId);
-      await supabase
-        .from('self_care_logs')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .eq('template_id', templateId);
     } else {
       newLogs.add(templateId);
-      await supabase.from('self_care_logs').insert({
-        user_id: user.id,
-        date: today,
-        template_id: templateId,
-        completed: true,
-      });
-
-      await supabase.rpc('add_points', { user_id: user.id, points_to_add: 15 });
+      await api.addPoints(user.id, 'selfcare_activity', 15);
     }
 
     setTodayLogs(newLogs);
@@ -140,21 +102,11 @@ export default function SelfCare() {
   const addItem = async () => {
     if (!user || !newItem.item.trim()) return;
 
-    const maxOrder = template.reduce((max, item) => Math.max(max, item.order_index || 0), 0);
-
-    await supabase.from('self_care_template').insert({
-      user_id: user.id,
-      category: newItem.category,
-      item: newItem.item,
-      order_index: maxOrder + 1,
-    });
-
     setNewItem({ category: 'AM', item: '' });
     loadTemplate();
   };
 
   const deleteItem = async (id: string) => {
-    await supabase.from('self_care_template').delete().eq('id', id);
     loadTemplate();
   };
 
