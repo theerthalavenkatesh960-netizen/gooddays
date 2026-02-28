@@ -61,6 +61,8 @@
 -- Create user_profiles table
 CREATE TABLE IF NOT EXISTS user_profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email text NOT NULL UNIQUE,
+  password_hash text NOT NULL,
   name text NOT NULL,
   phone text,
   google_id text,

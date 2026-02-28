@@ -38,8 +38,11 @@ public class TasksController : ControllerBase
         {
             UserId = req.UserId,
             Title = req.Title,
-            Description = req.Description,
+            Category = req.Category,
+            Priority = req.Priority,
             DueDate = req.DueDate,
+            Recurring = req.Recurring,
+            Status = req.Status
         };
         _db.Tasks.Add(task);
         await _db.SaveChangesAsync();
@@ -53,10 +56,12 @@ public class TasksController : ControllerBase
         if (task == null) return NotFound();
         
         task.Title = req.Title ?? task.Title;
-        task.Description = req.Description ?? task.Description;
-        task.IsCompleted = req.IsCompleted ?? task.IsCompleted;
-        task.DueDate = req.DueDate ?? task.DueDate;
-        task.UpdatedAt = DateTime.UtcNow;
+        task.Category = req.Category ?? task.Category;
+        task.Priority = req.Priority ?? task.Priority;
+        if (req.DueDate.HasValue) task.DueDate = req.DueDate.Value;
+        if (req.Recurring.HasValue) task.Recurring = req.Recurring.Value;
+        task.Status = req.Status ?? task.Status;
+        if (req.CompletedAt.HasValue) task.CompletedAt = req.CompletedAt;
         
         await _db.SaveChangesAsync();
         return Ok(task);
@@ -74,5 +79,22 @@ public class TasksController : ControllerBase
     }
 }
 
-public record CreateTaskRequest(Guid UserId, string Title, string? Description, DateTime DueDate);
-public record UpdateTaskRequest(string? Title, string? Description, bool? IsCompleted, DateTime? DueDate);
+public record CreateTaskRequest(
+    Guid UserId,
+    string Title,
+    string? Category,
+    string? Priority,
+    DateTime? DueDate,
+    bool Recurring = false,
+    string Status = "pending"
+);
+
+public record UpdateTaskRequest(
+    string? Title,
+    string? Category,
+    string? Priority,
+    DateTime? DueDate,
+    bool? Recurring,
+    string? Status,
+    DateTime? CompletedAt
+);

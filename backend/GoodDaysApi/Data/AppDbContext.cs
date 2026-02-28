@@ -19,7 +19,13 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // ensure emails are unique
+        // map entities to the names used in the Supabase migrations
+        modelBuilder.Entity<User>().ToTable("user_profiles");
+        modelBuilder.Entity<DailyTask>().ToTable("tasks");
+        modelBuilder.Entity<Expense>().ToTable("expenses");
+        // other entities follow default pluralization unless you need a custom name
+
+        // ensure emails are unique for login
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasIndex(u => u.Email).IsUnique();

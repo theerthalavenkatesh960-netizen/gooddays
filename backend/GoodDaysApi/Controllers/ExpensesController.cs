@@ -19,7 +19,7 @@ public class ExpensesController : ControllerBase
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetUserExpenses(Guid userId)
     {
-        var expenses = await _db.Expenses.Where(e => e.UserId == userId).OrderByDescending(e => e.Date).ToListAsync();
+        var expenses = await _db.Expenses.Where(e => e.UserId == userId).OrderByDescending(e => e.CreatedAt).ToListAsync();
         return Ok(expenses);
     }
 
@@ -37,10 +37,9 @@ public class ExpensesController : ControllerBase
         var expense = new Expense
         {
             UserId = req.UserId,
-            Description = req.Description,
+            Note = req.Note,
             Amount = req.Amount,
-            Category = req.Category,
-            Date = req.Date,
+            Category = req.Category
         };
         _db.Expenses.Add(expense);
         await _db.SaveChangesAsync();
@@ -53,10 +52,9 @@ public class ExpensesController : ControllerBase
         var expense = await _db.Expenses.FindAsync(id);
         if (expense == null) return NotFound();
         
-        expense.Description = req.Description ?? expense.Description;
+        expense.Note = req.Note ?? expense.Note;
         expense.Amount = req.Amount ?? expense.Amount;
         expense.Category = req.Category ?? expense.Category;
-        expense.Date = req.Date ?? expense.Date;
         
         await _db.SaveChangesAsync();
         return Ok(expense);
@@ -74,5 +72,5 @@ public class ExpensesController : ControllerBase
     }
 }
 
-public record CreateExpenseRequest(Guid UserId, string Description, decimal Amount, string Category, DateTime Date);
-public record UpdateExpenseRequest(string? Description, decimal? Amount, string? Category, DateTime? Date);
+public record CreateExpenseRequest(Guid UserId, string? Note, decimal Amount, string? Category);
+public record UpdateExpenseRequest(string? Note, decimal? Amount, string? Category);
