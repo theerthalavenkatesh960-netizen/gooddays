@@ -8,18 +8,19 @@ namespace GoodDaysApi.Models;
 public class StudySession
 {
     [Key]
+    [Column("id")]
     public Guid Id { get; set; } = Guid.NewGuid();
     [Required]
     [Column("user_id")]
     public Guid UserId { get; set; }
-    // the Supabase schema only stores minutes and notes; subject is handled
-    // separately via resources/chapters.
+
     [Column("minutes")]
     public int DurationMinutes { get; set; }
     [Column("notes")]
     public string? Notes { get; set; }
     [Column("date")]
     public DateTime Date { get; set; }
+    [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     
     [ForeignKey(nameof(UserId))]

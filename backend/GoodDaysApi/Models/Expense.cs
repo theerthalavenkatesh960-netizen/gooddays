@@ -8,6 +8,7 @@ namespace GoodDaysApi.Models;
 public class Expense
 {
     [Key]
+    [Column("id")]
     public Guid Id { get; set; } = Guid.NewGuid();
     [Required]
     [Column("user_id")]

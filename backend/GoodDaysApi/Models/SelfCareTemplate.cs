@@ -8,6 +8,7 @@ namespace GoodDaysApi.Models;
 public class SelfCareTemplate
 {
     [Key]
+    [Column("id")]
     public Guid Id { get; set; } = Guid.NewGuid();
 
     [Required]

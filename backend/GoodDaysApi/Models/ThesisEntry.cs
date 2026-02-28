@@ -8,6 +8,7 @@ namespace GoodDaysApi.Models;
 public class ThesisEntry
 {
     [Key]
+    [Column("id")]
     public Guid Id { get; set; } = Guid.NewGuid();
     [Required]
     [Column("user_id")]

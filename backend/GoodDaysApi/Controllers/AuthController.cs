@@ -57,8 +57,9 @@ public class AuthController : ControllerBase
         try
         {
             var jwt = handler.ReadJwtToken(token);
-            var sub = jwt.Subject;
-            return Ok(new { session = new { token, user = new { id = sub } } });
+            // Try to read common subject claim names (sub or nameidentifier)
+            var subClaim = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub || c.Type == ClaimTypes.NameIdentifier)?.Value;
+            return Ok(new { session = new { token, user = new { id = subClaim } } });
         }
         catch
         {
@@ -73,7 +74,10 @@ public class AuthController : ControllerBase
         var tokenKey = Encoding.ASCII.GetBytes(key);
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()) }),
+            Subject = new ClaimsIdentity(new[] {
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())
+            }),
             Expires = DateTime.UtcNow.AddDays(7),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(tokenKey), SecurityAlgorithms.HmacSha256Signature)
         };
