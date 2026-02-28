@@ -23,3 +23,15 @@ dist-ssr
 *.sln
 *.sw?
 .env
+# output binaries and intermediates
+**/bin/
+**/obj/
+*.dll
+*.exe
+*.pdb
+*.cache
+
+# Visual Studio workspace files
+.vs/
+*.user
+
