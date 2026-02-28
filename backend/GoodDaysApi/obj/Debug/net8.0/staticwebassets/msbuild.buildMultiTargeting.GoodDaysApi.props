@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="../build/GoodDaysApi.props" />
-</Project>
