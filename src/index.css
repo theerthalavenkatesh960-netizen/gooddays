@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply transition-colors duration-200;
+  }
+
+  body {
+    @apply antialiased;
+  }
+}
+
+[data-theme="light"] {
+  --bg-primary: theme('colors.white');
+  --bg-secondary: theme('colors.gray.50');
+}
+
+[data-theme="dark"] {
+  --bg-primary: theme('colors.gray.800');
+  --bg-secondary: theme('colors.gray.900');
+}
+
+[data-theme="dark"] body {
+  @apply bg-gray-900 text-white;
+}
+
+[data-theme="dark"] .bg-white {
+  @apply bg-gray-800 text-white;
+}
+
+[data-theme="dark"] .bg-gray-50 {
+  @apply bg-gray-900;
+}
+
+[data-theme="dark"] .text-gray-800 {
+  @apply text-gray-100;
+}
+
+[data-theme="dark"] .text-gray-700 {
+  @apply text-gray-200;
+}
+
+[data-theme="dark"] .text-gray-600 {
+  @apply text-gray-300;
+}
+
+[data-theme="dark"] .border-gray-200 {
+  @apply border-gray-700;
+}
+
+[data-theme="blue"] body {
+  @apply bg-gradient-to-br from-blue-50 via-cyan-50 to-sky-50;
+}
+
+[data-theme="green"] body {
+  @apply bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50;
+}
+
+[data-theme="ocean"] body {
+  @apply bg-gradient-to-br from-teal-50 via-cyan-50 to-blue-50;
+}
+
+@layer utilities {
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient 3s ease infinite;
+  }
+
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+}
