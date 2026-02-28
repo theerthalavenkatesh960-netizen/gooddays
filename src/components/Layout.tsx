@@ -122,7 +122,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <span className="text-xl">✨</span>
             </div>
             <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-              ProductiQuest
+              GoodDays
             </h1>
           </div>
 
