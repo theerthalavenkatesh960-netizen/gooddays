@@ -10,7 +10,9 @@ node_modules
 dist
 dist-ssr
 *.local
-
+*/bin/
+*/obj/
+*/debug/
 .vscode/*
 !.vscode/extensions.json
 .idea
