@@ -77,6 +77,25 @@ CREATE POLICY "Users can delete own tasks"
   TO authenticated
   USING (auth.uid() = user_id);
 
+-- trigger to default due_date when not specified
+CREATE OR REPLACE FUNCTION set_default_due_date()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW.due_date IS NULL THEN
+    IF NEW.recurring AND NEW.recurrence_start_date IS NOT NULL THEN
+      NEW.due_date := NEW.recurrence_start_date;
+    ELSE
+      NEW.due_date := now()::date;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_tasks_default_due_date
+BEFORE INSERT ON tasks
+FOR EACH ROW EXECUTE FUNCTION set_default_due_date();
+
 CREATE TABLE IF NOT EXISTS daily_top_three (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,

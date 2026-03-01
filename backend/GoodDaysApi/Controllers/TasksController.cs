@@ -36,38 +36,49 @@ public class TasksController : ControllerBase
     {
         // if the client did not supply a RecurrenceId for a recurring task, generate one
         Guid? recurrenceId = req.Recurring ? (req.RecurrenceId ?? Guid.NewGuid()) : null;
-        
-        if (req.Recurring && req.RecurrenceStartDate.HasValue && req.RecurrenceEndDate.HasValue && req.RecurrenceInterval.HasValue && !string.IsNullOrEmpty(req.RecurrenceUnit))
+
+        // compute default start/end dates
+        var startDate = req.RecurrenceStartDate?.Date ?? DateTime.UtcNow.Date;
+        var endDate = req.RecurrenceEndDate?.Date ?? startDate.AddYears(1);
+
+        // determine effective due date for a non-recurring task
+        DateTime? effectiveDue = req.DueDate;
+        if (!req.Recurring && !effectiveDue.HasValue)
         {
-            // Generate multiple task instances based on recurrence pattern
+            effectiveDue = startDate;
+        }
+
+        if (req.Recurring && req.RecurrenceInterval.HasValue && !string.IsNullOrEmpty(req.RecurrenceUnit))
+        {
+            // generate a series spanning startDate..endDate
             var tasks = GenerateRecurringTasks(
                 req.UserId,
                 req.Title,
                 req.Category,
                 req.Priority,
-                req.RecurrenceStartDate.Value,
-                req.RecurrenceEndDate.Value,
+                startDate,
+                endDate,
                 req.RecurrenceInterval.Value,
                 req.RecurrenceUnit,
                 req.RecurrenceDays,
                 recurrenceId.Value,
                 req.Status
             );
-            
+
             _db.Tasks.AddRange(tasks);
             await _db.SaveChangesAsync();
             return Ok(new { message = "Recurring tasks created", count = tasks.Count, recurrenceId });
         }
         else
         {
-            // Create single task
+            // single task
             var task = new DailyTask
             {
                 UserId = req.UserId,
                 Title = req.Title,
                 Category = req.Category,
                 Priority = req.Priority,
-                DueDate = req.DueDate,
+                DueDate = effectiveDue,
                 Recurring = req.Recurring,
                 RecurrenceStartDate = req.RecurrenceStartDate,
                 RecurrenceEndDate = req.RecurrenceEndDate,
@@ -97,55 +108,120 @@ public class TasksController : ControllerBase
         string status)
     {
         var tasks = new List<DailyTask>();
-        var currentDate = startDate.Date;
-        
-        while (currentDate <= endDate.Date)
+
+        // helper to add a task for a specific date if it's within range
+        void MaybeAdd(DateTime d)
         {
-            // Check if this date matches the recurrence pattern
-            bool shouldAdd = true;
-            
-            if (unit == "weeks" && recurrenceDays != null && recurrenceDays.Length > 0)
+            if (d < startDate || d > endDate) return;
+            tasks.Add(new DailyTask
             {
-                // Weekly: check if the day of week is in recurrenceDays
-                var dayOfWeek = currentDate.DayOfWeek.ToString();
-                shouldAdd = recurrenceDays.Contains(dayOfWeek);
-            }
-            else if (unit == "months" && recurrenceDays != null && recurrenceDays.Length > 0 && int.TryParse(recurrenceDays[0], out int dayOfMonth))
-            {
-                // Monthly: check if it's the specified day
-                shouldAdd = currentDate.Day == dayOfMonth;
-            }
-            
-            if (shouldAdd)
-            {
-                tasks.Add(new DailyTask
-                {
-                    UserId = userId,
-                    Title = title,
-                    Category = category,
-                    Priority = priority,
-                    DueDate = currentDate,
-                    Recurring = true,
-                    RecurrenceId = recurrenceId,
-                    RecurrenceInterval = interval,
-                    RecurrenceUnit = unit,
-                    RecurrenceDays = recurrenceDays,
-                    Status = status,
-                    CreatedAt = DateTime.UtcNow
-                });
-            }
-            
-            // Move to next occurrence
-            currentDate = unit switch
-            {
-                "days" => currentDate.AddDays(interval),
-                "weeks" => currentDate.AddDays(7 * interval),
-                "months" => currentDate.AddMonths(interval),
-                "years" => currentDate.AddYears(interval),
-                _ => currentDate.AddDays(1)
-            };
+                UserId = userId,
+                Title = title,
+                Category = category,
+                Priority = priority,
+                DueDate = d,
+                Recurring = true,
+                RecurrenceId = recurrenceId,
+                RecurrenceInterval = interval,
+                RecurrenceUnit = unit,
+                RecurrenceDays = recurrenceDays,
+                Status = status,
+                CreatedAt = DateTime.UtcNow
+            });
         }
-        
+
+        switch (unit)
+        {
+            case "days":
+            {
+                var d = startDate.Date;
+                while (d <= endDate.Date)
+                {
+                    MaybeAdd(d);
+                    d = d.AddDays(interval);
+                }
+                break;
+            }
+            case "weeks":
+            {
+                // Convert recurrenceDays strings to DayOfWeek enums if provided
+                var daysOfWeek = new List<DayOfWeek>();
+                if (recurrenceDays != null)
+                {
+                    foreach (var s in recurrenceDays)
+                    {
+                        if (Enum.TryParse<DayOfWeek>(s, true, out var dow))
+                            daysOfWeek.Add(dow);
+                    }
+                }
+
+                var weekStart = startDate.Date;
+                while (weekStart <= endDate.Date)
+                {
+                    if (daysOfWeek.Count == 0)
+                    {
+                        // no specific weekdays -> treat start of week as occurrence
+                        MaybeAdd(weekStart);
+                    }
+                    else
+                    {
+                        // add each requested weekday within this week
+                        for (int i = 0; i < 7; i++)
+                        {
+                            var candidate = weekStart.AddDays(i);
+                            if (candidate > endDate) break;
+                            if (daysOfWeek.Contains(candidate.DayOfWeek))
+                                MaybeAdd(candidate);
+                        }
+                    }
+                    weekStart = weekStart.AddDays(7 * interval);
+                }
+                break;
+            }
+            case "months":
+            {
+                // choose day-of-month either from recurrenceDays[0] or startDate.Day
+                int dayOfMonth = startDate.Day;
+                if (recurrenceDays != null && recurrenceDays.Length > 0 && int.TryParse(recurrenceDays[0], out var parsed))
+                    dayOfMonth = parsed;
+
+                var iter = new DateTime(startDate.Year, startDate.Month, 1);
+                while (iter <= endDate.Date)
+                {
+                    var dim = DateTime.DaysInMonth(iter.Year, iter.Month);
+                    var occDay = Math.Min(dayOfMonth, dim);
+                    MaybeAdd(new DateTime(iter.Year, iter.Month, occDay));
+                    iter = iter.AddMonths(interval);
+                }
+                break;
+            }
+            case "years":
+            {
+                var month = startDate.Month;
+                var day = startDate.Day;
+                var iter = new DateTime(startDate.Year, month, 1);
+                while (iter <= endDate.Date)
+                {
+                    var dim = DateTime.DaysInMonth(iter.Year, month);
+                    var occDay = Math.Min(day, dim);
+                    MaybeAdd(new DateTime(iter.Year, month, occDay));
+                    iter = iter.AddYears(interval);
+                }
+                break;
+            }
+            default:
+            {
+                // fallback: daily
+                var d = startDate.Date;
+                while (d <= endDate.Date)
+                {
+                    MaybeAdd(d);
+                    d = d.AddDays(interval);
+                }
+                break;
+            }
+        }
+
         return tasks;
     }
 

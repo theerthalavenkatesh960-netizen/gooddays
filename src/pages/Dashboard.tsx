@@ -158,7 +158,10 @@ export default function Dashboard() {
           </h2>
 
           <div className="space-y-3">
-            {[1, 2, 3].map((num) => {
+            {(!topThree.task_1 && !topThree.task_2 && !topThree.task_3) ? (
+              <p className="text-gray-500">Your top three list is empty. Head over to the Tasks page to add some!</p>
+            ) : (
+              [1, 2, 3].map((num) => {
               const taskKey = `task_${num}` as keyof typeof topThree;
               const completedKey = `completed_${num}` as keyof typeof topThree;
 
@@ -186,7 +189,8 @@ export default function Dashboard() {
                   />
                 </div>
               );
-            })}
+              })
+            )}
           </div>
         </motion.div>
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, CheckCircle2, RotateCcw, Trash2, Filter } from 'lucide-react';
-import { format, isToday, isPast, parseISO } from 'date-fns';
+import { format, isToday, isPast, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 
@@ -21,9 +21,10 @@ export default function Tasks() {
   const [monthlyDay, setMonthlyDay] = useState<number>(1);
   const [recurrenceStart, setRecurrenceStart] = useState('');
   const [recurrenceEnd, setRecurrenceEnd] = useState('');
-  const [filterView, setFilterView] = useState('all');
+  const [filterView, setFilterView] = useState('today');
   const [filterCategory, setFilterCategory] = useState('all');
   const [deleteConfirm, setDeleteConfirm] = useState<{ taskId: string; isRecurring: boolean } | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   useEffect(() => {
     if (user) {
@@ -88,10 +89,18 @@ export default function Tasks() {
   const getFilteredTasks = () => {
     let filtered = tasks;
 
-    if (filterView === 'today') {
-      filtered = filtered.filter(
-        (t) => !t.due_date || isToday(parseISO(t.due_date))
-      );
+    // Primary filtering by selectedDate (if present)
+    if (selectedDate) {
+      filtered = filtered.filter((t) => {
+        if (!t.due_date) return false;
+        try {
+          return isSameDay(parseISO(t.due_date), selectedDate);
+        } catch {
+          return false;
+        }
+      });
+    } else if (filterView === 'today') {
+      filtered = filtered.filter((t) => !t.due_date || isToday(parseISO(t.due_date)));
     } else if (filterView === 'overdue') {
       filtered = filtered.filter(
         (t) => t.due_date && isPast(parseISO(t.due_date)) && !isToday(parseISO(t.due_date)) && t.status !== 'completed'
@@ -317,6 +326,53 @@ export default function Tasks() {
           </div>
         </div>
       </motion.div>
+
+      {/* Date selector & selected date header */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold">{format(selectedDate, 'EEEE, MMM d')}</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedDate(addDays(selectedDate, -7))}
+              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200"
+            >
+              ◀ Week
+            </button>
+            <button
+              onClick={() => setSelectedDate(new Date())}
+              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200"
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setSelectedDate(addDays(selectedDate, 7))}
+              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200"
+            >
+              Week ▶
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <div className="flex gap-2 pb-2">
+            {Array.from({ length: 7 }).map((_, i) => {
+              const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
+              const d = addDays(weekStart, i);
+              const isSelected = isSameDay(d, selectedDate);
+              return (
+                <button
+                  key={d.toISOString()}
+                  onClick={() => setSelectedDate(d)}
+                  className={`min-w-[88px] flex-shrink-0 px-3 py-2 rounded-xl text-center border ${isSelected ? 'bg-emerald-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                >
+                  <div className="text-xs">{format(d, 'EEE')}</div>
+                  <div className="font-semibold">{format(d, 'd')}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       <div className="space-y-3">
         <AnimatePresence>
