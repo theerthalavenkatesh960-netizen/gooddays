@@ -101,6 +101,8 @@ export default function Thesis() {
   const createFollowup = async (data: any) => {
     try {
       await api.createFollowup(data);
+      // refresh followups after creation so modal list updates immediately
+      await loadFollowups();
       loadAll();
     } catch (error) {
       console.error('Error creating followup:', error);
@@ -110,6 +112,7 @@ export default function Thesis() {
   const updateFollowup = async (id: number, data: any) => {
     try {
       await api.updateFollowup(id, data);
+      await loadFollowups();
       loadAll();
     } catch (error) {
       console.error('Error updating followup:', error);
@@ -119,6 +122,7 @@ export default function Thesis() {
   const deleteFollowup = async (id: number) => {
     try {
       await api.deleteFollowup(id);
+      await loadFollowups();
       loadAll();
     } catch (error) {
       console.error('Error deleting followup:', error);
