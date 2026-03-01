@@ -9,10 +9,10 @@ public class DailyTask
 {
     [Key]
     [Column("id")]
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public int Id { get; set; }
     [Required]
     [Column("user_id")]
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
     [Required]
     [Column("title")]
     public string Title { get; set; } = string.Empty;
@@ -32,7 +32,7 @@ public class DailyTask
     [Column("recurrence_days")]
     public string[]? RecurrenceDays { get; set; }
     [Column("recurrence_id")]
-    public Guid? RecurrenceId { get; set; }
+    public int? RecurrenceId { get; set; }
     [Column("recurrence_interval")]
     public int? RecurrenceInterval { get; set; }
     [Column("recurrence_unit")]

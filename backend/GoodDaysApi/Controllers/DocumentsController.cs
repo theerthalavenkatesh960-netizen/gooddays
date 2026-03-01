@@ -38,7 +38,7 @@ public class DocumentsController : ControllerBase
         if (!Directory.Exists(uploads))
             Directory.CreateDirectory(uploads);
 
-        var name = Guid.NewGuid().ToString() + Path.GetExtension(request.File.FileName);
+        var name = throw new NotImplementedException("ID generation should be handled by database").ToString() + Path.GetExtension(request.File.FileName);
 
         var path = Path.Combine(uploads, name);
 
@@ -49,7 +49,7 @@ public class DocumentsController : ControllerBase
 
         var doc = new ThesisDocument
         {
-            Id = Guid.NewGuid(),
+            Id = throw new NotImplementedException("ID generation should be handled by database"),
             UserId = request.UserId,
             Name = request.File.FileName,
             Category = request.Category,

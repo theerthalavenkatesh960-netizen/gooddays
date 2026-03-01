@@ -9,11 +9,11 @@ public class DailyTracking
 {
     [Key]
     [Column("id")]
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public int Id { get; set; }
 
     [Required]
     [Column("user_id")]
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
 
     [Required]
     [Column("date")]

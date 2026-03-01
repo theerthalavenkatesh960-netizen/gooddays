@@ -17,14 +17,14 @@ public class TasksController : ControllerBase
     }
 
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetUserTasks(Guid userId)
+    public async Task<IActionResult> GetUserTasks(int userId)
     {
         var tasks = await _db.Tasks.Where(t => t.UserId == userId).OrderByDescending(t => t.CreatedAt).ToListAsync();
         return Ok(tasks);
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetTask(Guid id)
+    public async Task<IActionResult> GetTask(int id)
     {
         var task = await _db.Tasks.FindAsync(id);
         if (task == null) return NotFound();
@@ -35,7 +35,7 @@ public class TasksController : ControllerBase
     public async Task<IActionResult> CreateTask([FromBody] CreateTaskRequest req)
     {
         // if the client did not supply a RecurrenceId for a recurring task, generate one
-        Guid? recurrenceId = req.Recurring ? (req.RecurrenceId ?? Guid.NewGuid()) : null;
+        Guid? recurrenceId = req.Recurring ? (req.RecurrenceId ?? throw new NotImplementedException("ID generation should be handled by database")) : null;
 
         // compute default start/end dates
         // if client did not provide recurrence window, default to today through 30 days out
@@ -259,7 +259,7 @@ public class TasksController : ControllerBase
             var interval = req.RecurrenceInterval ?? task.RecurrenceInterval ?? 1;
             var unit = req.RecurrenceUnit ?? task.RecurrenceUnit ?? "days";
             var days = req.RecurrenceDays ?? task.RecurrenceDays;
-            var recurrenceId = req.RecurrenceId ?? task.RecurrenceId ?? Guid.NewGuid();
+            var recurrenceId = req.RecurrenceId ?? task.RecurrenceId ?? throw new NotImplementedException("ID generation should be handled by database");
             var title = req.Title ?? task.Title;
             var category = req.Category ?? task.Category;
             var priority = req.Priority ?? task.Priority;

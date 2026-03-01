@@ -17,7 +17,7 @@ public class GamificationController : ControllerBase
     }
 
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetUserGamification(Guid userId)
+    public async Task<IActionResult> GetUserGamification(int userId)
     {
         var entries = await _db.GamificationEntries.Where(g => g.UserId == userId).OrderByDescending(g => g.Date).ToListAsync();
         var totalPoints = entries.Sum(e => e.Points);
@@ -25,7 +25,7 @@ public class GamificationController : ControllerBase
     }
 
     [HttpGet("points/{userId}")]
-    public async Task<IActionResult> GetUserPoints(Guid userId)
+    public async Task<IActionResult> GetUserPoints(int userId)
     {
         var totalPoints = await _db.GamificationEntries.Where(g => g.UserId == userId).SumAsync(g => g.Points);
         return Ok(new { totalPoints });
@@ -49,7 +49,7 @@ public class GamificationController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteEntry(Guid id)
+    public async Task<IActionResult> DeleteEntry(int id)
     {
         var entry = await _db.GamificationEntries.FindAsync(id);
         if (entry == null) return NotFound();

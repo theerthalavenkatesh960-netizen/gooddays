@@ -9,16 +9,16 @@ public class SelfCareLog
 {
     [Key]
     [Column("id")]
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public int Id { get; set; }
     [Required]
     [Column("user_id")]
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
     [Required]
     [Column("date")]
     public DateTime Date { get; set; }
     [Required]
     [Column("template_id")]
-    public Guid TemplateId { get; set; }
+    public int TemplateId { get; set; }
     [Column("completed")]
     public bool Completed { get; set; } = false;
     [Column("created_at")]

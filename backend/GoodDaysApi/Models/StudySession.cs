@@ -9,10 +9,10 @@ public class StudySession
 {
     [Key]
     [Column("id")]
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public int Id { get; set; }
     [Required]
     [Column("user_id")]
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
 
     [Column("minutes")]
     public int DurationMinutes { get; set; }

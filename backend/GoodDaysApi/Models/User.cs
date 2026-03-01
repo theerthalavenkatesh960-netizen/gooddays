@@ -9,7 +9,7 @@ public class User
 {
     [Key]
     [Column("id")]
-    public Guid Id { get; set; }
+    public int Id { get; set; }
 
     [Required]
     [Column("email")]

@@ -18,7 +18,7 @@ public class PatientsController : ControllerBase
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetByUser(string userId)
     {
-        if (!Guid.TryParse(userId, out var uid)) return BadRequest("invalid user id");
+        if (!int.TryParse(userId, out var uid)) return BadRequest("invalid user id");
         var list = await _db.ThesisPatients.Where(p => p.UserId == uid).ToListAsync();
         return Ok(list);
     }
@@ -26,8 +26,8 @@ public class PatientsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ThesisPatient patient)
     {
-        patient.Id = Guid.NewGuid();
-        if (string.IsNullOrEmpty(patient.PatientId)) patient.PatientId = Guid.NewGuid().ToString().Split('-')[0].ToUpper();
+        patient.Id = throw new NotImplementedException("ID generation should be handled by database");
+        if (string.IsNullOrEmpty(patient.PatientId)) patient.PatientId = throw new NotImplementedException("ID generation should be handled by database").ToString().Split('-')[0].ToUpper();
         _db.ThesisPatients.Add(patient);
         await _db.SaveChangesAsync();
         return Ok(patient);
@@ -53,7 +53,7 @@ public class PatientsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(int id)
     {
         var p = await _db.ThesisPatients.FindAsync(id);
         if (p == null) return NotFound();

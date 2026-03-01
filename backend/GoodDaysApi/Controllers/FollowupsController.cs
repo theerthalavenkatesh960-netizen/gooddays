@@ -15,7 +15,7 @@ public class FollowupsController : ControllerBase
     public FollowupsController(AppDbContext db) { _db = db; }
 
     [HttpGet("patient/{patientId}")]
-    public async Task<IActionResult> GetByPatient(Guid patientId)
+    public async Task<IActionResult> GetByPatient(int patientId)
     {
         var list = await _db.ThesisFollowups.Where(f => f.PatientId == patientId).ToListAsync();
         return Ok(list);
@@ -24,7 +24,7 @@ public class FollowupsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ThesisFollowup f)
     {
-        f.Id = Guid.NewGuid();
+        f.Id = throw new NotImplementedException("ID generation should be handled by database");
         _db.ThesisFollowups.Add(f);
         await _db.SaveChangesAsync();
         return Ok(f);
@@ -44,7 +44,7 @@ public class FollowupsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(int id)
     {
         var f = await _db.ThesisFollowups.FindAsync(id);
         if (f == null) return NotFound();

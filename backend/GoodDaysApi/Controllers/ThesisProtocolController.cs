@@ -24,7 +24,7 @@ public class ThesisProtocolController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ThesisProtocol proto)
     {
-        proto.Id = Guid.NewGuid();
+        proto.Id = throw new NotImplementedException("ID generation should be handled by database");
         proto.CreatedAt = DateTime.UtcNow;
         _db.ThesisProtocols.Add(proto);
         await _db.SaveChangesAsync();

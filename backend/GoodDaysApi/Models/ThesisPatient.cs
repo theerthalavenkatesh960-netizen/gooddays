@@ -4,14 +4,14 @@ namespace GoodDaysApi.Models;
 
 public class ThesisPatient
 {
-    public Guid Id { get; set; }
-    public Guid UserId { get; set; }
+    public int Id { get; set; }
+    public int UserId { get; set; }
     public string PatientId { get; set; }
     public string PatientCode { get; set; }
     public string StudyNumber { get; set; }
     public string GroupName { get; set; }
-    public Guid? StudyGroupId { get; set; }
-    public Guid? ProtocolId { get; set; }
+    public int? StudyGroupId { get; set; }
+    public int? ProtocolId { get; set; }
     public DateTime RecruitmentDate { get; set; }
     public DateTime? DateAdded { get; set; } = DateTime.UtcNow;
     public int? Age { get; set; }

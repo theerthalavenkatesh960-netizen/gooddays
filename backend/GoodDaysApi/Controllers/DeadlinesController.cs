@@ -24,7 +24,7 @@ public class DeadlinesController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ThesisDeadline dl)
     {
-        dl.Id = Guid.NewGuid();
+        dl.Id = throw new NotImplementedException("ID generation should be handled by database");
         _db.ThesisDeadlines.Add(dl);
         await _db.SaveChangesAsync();
         return Ok(dl);
@@ -43,7 +43,7 @@ public class DeadlinesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(int id)
     {
         var d = await _db.ThesisDeadlines.FindAsync(id);
         if (d == null) return NotFound();

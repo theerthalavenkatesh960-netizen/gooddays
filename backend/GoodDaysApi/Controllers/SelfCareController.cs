@@ -18,7 +18,7 @@ public class SelfCareController : ControllerBase
 
     [HttpGet("user/{userId}")]
     // returns self-care logs for a user
-    public async Task<IActionResult> GetUserActivities(Guid userId)
+    public async Task<IActionResult> GetUserActivities(int userId)
     {
         try
         {
@@ -36,7 +36,7 @@ public class SelfCareController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetActivity(Guid id)
+    public async Task<IActionResult> GetActivity(int id)
     {
         try
         {
@@ -88,7 +88,7 @@ public class SelfCareController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteActivity(Guid id)
+    public async Task<IActionResult> DeleteActivity(int id)
     {
         try
         {
