@@ -98,6 +98,33 @@ export default function Thesis() {
     }
   };
 
+  const createFollowup = async (data: any) => {
+    try {
+      await api.createFollowup(data);
+      loadAll();
+    } catch (error) {
+      console.error('Error creating followup:', error);
+    }
+  };
+
+  const updateFollowup = async (id: number, data: any) => {
+    try {
+      await api.updateFollowup(id, data);
+      loadAll();
+    } catch (error) {
+      console.error('Error updating followup:', error);
+    }
+  };
+
+  const deleteFollowup = async (id: number) => {
+    try {
+      await api.deleteFollowup(id);
+      loadAll();
+    } catch (error) {
+      console.error('Error deleting followup:', error);
+    }
+  };
+
   const createPatient = async (data: any) => {
     try {
       const payload = { ...data, userId: user.id };
@@ -268,6 +295,10 @@ export default function Thesis() {
               onUpdate={updatePatient}
               onDelete={deletePatient}
               onExport={exportPatients}
+              followups={followupsByPatient}
+              onFollowupCreate={createFollowup}
+              onFollowupUpdate={updateFollowup}
+              onFollowupDelete={deleteFollowup}
             />
           )}
 

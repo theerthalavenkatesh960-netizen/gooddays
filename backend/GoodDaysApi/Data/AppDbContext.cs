@@ -89,7 +89,14 @@ public class AppDbContext : DbContext
         // configure thesis relationships
         modelBuilder.Entity<ThesisPatient>()
             .HasMany(p => p.Followups)
-            .WithOne()
+            .WithOne(f => f.Patient)
+            .HasForeignKey(f => f.PatientId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // also configure the inverse explicitly to avoid EF generating a shadow property
+        modelBuilder.Entity<ThesisFollowup>()
+            .HasOne(f => f.Patient)
+            .WithMany(p => p.Followups)
             .HasForeignKey(f => f.PatientId)
             .OnDelete(DeleteBehavior.Cascade);
 
