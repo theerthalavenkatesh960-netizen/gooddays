@@ -35,9 +35,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<SelfCareLog>().ToTable("self_care_logs");
         modelBuilder.Entity<SelfCareTemplate>().ToTable("self_care_template");
         modelBuilder.Entity<StudySession>().ToTable("study_sessions");
-        // legacy `ThesisEntry` type is being retired; all data now lives in the
-        // `thesis_patients` table represented by `ThesisPatient`.
-        // we no longer create or reference a separate "v2" table.
         modelBuilder.Entity<ThesisPatient>().ToTable("thesis_patients");
         modelBuilder.Entity<ThesisProtocol>().ToTable("thesis_protocols");
         modelBuilder.Entity<ThesisFollowup>().ToTable("thesis_followups");

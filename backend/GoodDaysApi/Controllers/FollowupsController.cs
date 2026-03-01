@@ -35,8 +35,8 @@ public class FollowupsController : ControllerBase
     {
         var f = await _db.ThesisFollowups.FindAsync(id);
         if (f == null) return NotFound();
-        f.Date = body.Date;
-        f.Completed = body.Completed;
+        f.VisitDate = body.VisitDate;
+        f.Status = body.Status;
         f.Notes = body.Notes;
         f.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();

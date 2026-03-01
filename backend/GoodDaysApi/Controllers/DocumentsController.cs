@@ -22,7 +22,8 @@ public class DocumentsController : ControllerBase
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetByUser(string userId)
     {
-        var list = await _db.ThesisDocuments.Where(d => d.UserId == userId).ToListAsync();
+        if (!int.TryParse(userId, out var uid)) return BadRequest("invalid user id");
+        var list = await _db.ThesisDocuments.Where(d => d.UserId == uid).ToListAsync();
         return Ok(list);
     }
 
@@ -49,11 +50,11 @@ public class DocumentsController : ControllerBase
 
         var doc = new ThesisDocument
         {
-            UserId = request.UserId,
-            Name = request.File.FileName,
-            Category = request.Category,
+            UserId = int.Parse(request.UserId),
+            FileName = request.File.FileName,
+            DocumentType = request.Category,
             FilePath = "/uploads/" + name,
-            Date = DateTime.UtcNow
+            UploadedAt = DateTime.UtcNow
         };
 
         _db.ThesisDocuments.Add(doc);
@@ -63,10 +64,10 @@ public class DocumentsController : ControllerBase
         return Ok(new
         {
             doc.Id,
-            doc.Name,
+            doc.FileName,
             url = doc.FilePath,
-            doc.Category,
-            doc.Date
+            doc.DocumentType,
+            doc.UploadedAt
         });
     }
 }

@@ -17,7 +17,8 @@ public class ThesisProtocolController : ControllerBase
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetByUser(string userId)
     {
-        var p = await _db.ThesisProtocols.FirstOrDefaultAsync(x => x.UserId == userId);
+        if (!int.TryParse(userId, out var uid)) return BadRequest("invalid user id");
+        var p = await _db.ThesisProtocols.FirstOrDefaultAsync(x => x.UserId == uid);
         return Ok(p);
     }
 
@@ -39,14 +40,17 @@ public class ThesisProtocolController : ControllerBase
         // simple mapper for fields
         p.Title = body.Title;
         p.GuideName = body.GuideName;
-        p.CoGuideName = body.CoGuideName;
         p.Department = body.Department;
         p.StudyType = body.StudyType;
-        p.ProtocolSubmittedDate = body.ProtocolSubmittedDate;
-        p.ProtocolApprovedDate = body.ProtocolApprovedDate;
-        p.IECApprovalNumber = body.IECApprovalNumber;
-        p.TrialRegistrationNumber = body.TrialRegistrationNumber;
-        p.SynopsisStatus = body.SynopsisStatus;
+        p.StartDate = body.StartDate;
+        p.EndDate = body.EndDate;
+        p.ProtocolApproved = body.ProtocolApproved;
+        p.ApprovalDate = body.ApprovalDate;
+        p.IecNumber = body.IecNumber;
+        p.SynopsisSubmitted = body.SynopsisSubmitted;
+        p.SynopsisApproved = body.SynopsisApproved;
+        p.EthicsSubmitted = body.EthicsSubmitted;
+        p.EthicsApproved = body.EthicsApproved;
         p.TotalSampleSize = body.TotalSampleSize;
         p.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();

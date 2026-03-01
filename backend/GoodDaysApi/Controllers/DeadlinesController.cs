@@ -17,7 +17,8 @@ public class DeadlinesController : ControllerBase
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetByUser(string userId)
     {
-        var list = await _db.ThesisDeadlines.Where(d => d.UserId == userId).ToListAsync();
+        if (!int.TryParse(userId, out var uid)) return BadRequest("invalid user id");
+        var list = await _db.ThesisDeadlines.Where(d => d.UserId == uid).ToListAsync();
         return Ok(list);
     }
 
