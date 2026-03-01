@@ -58,29 +58,46 @@ export default function Tasks() {
   }, [recurring]);
 
   // compute last 5 occurrences indicator for recurring tasks
-  const renderOccurrences = (task: any) => {
-    if (!task.recurrenceId) return null;
-    const same = tasks
-      .filter((t) => t.recurrenceId === task.recurrenceId)
-      .sort((a, b) => {
-        const da = new Date(a.dueDate || a.due_date).getTime();
-        const db = new Date(b.dueDate || b.due_date).getTime();
-        return db - da;
-      })
-      .slice(0, 5);
-    return (
-      <div className="flex gap-1 mr-2">
-        {same.map((t, i) => (
-          <span
-            key={i}
-            className={`inline-block w-3 h-3 rounded-full ${
-              t.isCompleted ? 'bg-emerald-500' : 'bg-red-500'
-            }`}
-          />
-        ))}
-      </div>
-    );
-  };
+const renderOccurrences = (task: any) => {
+  if (!task.recurrenceId) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Start of today → exclude today
+
+  const lastFiveOccurrences = tasks
+    .filter((t) => {
+      if (t.recurrenceId !== task.recurrenceId) return false;
+
+      const due = new Date(t.dueDate || t.due_date);
+      return due < today; // Strictly before today
+    })
+    .sort((a, b) => {
+      const da = new Date(a.dueDate || a.due_date).getTime();
+      const db = new Date(b.dueDate || b.due_date).getTime();
+      return da - db; // Latest previous first
+    })
+    .slice(0, 10); // Only last 5 previous
+
+  if (lastFiveOccurrences.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1 mr-2">
+      {lastFiveOccurrences.map((t, i) => (
+        <span
+          key={t.id || i}
+          title={new Date(t.dueDate || t.due_date).toLocaleDateString()}
+          className={`inline-flex w-4 h-4 items-center justify-center text-white border ${
+            t.isCompleted
+              ? 'bg-emerald-500 border-emerald-600'
+              : 'bg-red-500 border-red-600'
+          }`}
+        >
+          {t.isCompleted ? '✓' : '✗'}
+        </span>
+      ))}
+    </div>
+  );
+};
 
   useEffect(() => {
     if (user) {
@@ -523,7 +540,7 @@ export default function Tasks() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   {/* show last 5 occurrences for recurring tasks */}
                   {renderOccurrences(task)}
                   {task.isCompleted && (
