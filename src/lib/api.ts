@@ -395,11 +395,6 @@ export const api = {
   createSelfCareActivity,
   updateSelfCareActivity,
   deleteSelfCareActivity,
-  getThesisEntries,
-  getThesisEntry,
-  createThesisEntry,
-  updateThesisEntry,
-  deleteThesisEntry,
   getStudySessions,
   getStudySession,
   createStudySession,
@@ -409,6 +404,6 @@ export const api = {
   getUserPoints,
   addPoints,
 };
-export type { User, Session, Task, Expense, SelfCareActivity, ThesisEntry, StudySession };
+export type { User, Session, Task, Expense, SelfCareActivity, StudySession };
 export type { DailyTracking };
 export type { SelfCareTemplate };
