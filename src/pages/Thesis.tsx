@@ -1,452 +1,735 @@
-import { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Plus,
-  Trash2,
-  Settings as SettingsIcon,
-  Download,
-  Edit,
-  FileText,
-  Calendar as CalIcon,
-} from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import * as api from '../lib/api';
-import { useAuth } from '../contexts/AuthContextApi';
+Plus,
+Trash2,
+Settings,
+Download,
+Edit,
+FileText
+} from "lucide-react";
+import * as api from "../lib/api";
+import { useAuth } from "../contexts/AuthContextApi";
 
-const STUDY_TYPES = ['Randomized Trial', 'Observational', 'Prospective', 'Retrospective'];
+type Tab =
+"Dashboard"|
+"Protocol"|
+"Patients"|
+"Followups"|
+"Documents"|
+"Statistics"|
+"Deadlines";
 
-export default function Thesis() {
-  const { user } = useAuth();
-  const [protocol, setProtocol] = useState<any>(null);
-  const [patients, setPatients] = useState<any[]>([]);
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [deadlines, setDeadlines] = useState<any[]>([]);
-  const [editingPatient, setEditingPatient] = useState<any | null>(null);
-  const [showProtocolForm, setShowProtocolForm] = useState(false);
-  const [showAddPatient, setShowAddPatient] = useState(false);
-  const [loading, setLoading] = useState(false);
+const STUDY_TYPES=[
+"Randomized Trial",
+"Observational",
+"Prospective",
+"Retrospective"
+];
 
-  const blankPatient = {
-    patientId: '',
-    studyNumber: '',
-    groupName: 'A',
-    recruitmentDate: new Date().toISOString(),
-    consentTaken: false,
-    inclusionCriteriaMet: false,
-    exclusionCriteriaMet: false,
-    proformaStatus: 'Pending',
-    followupStatus: 'Pending',
-    notes: '',
-  };
+export default function Thesis(){
 
-  const [patientForm, setPatientForm] = useState<any>(blankPatient);
+const {user}=useAuth();
 
-  useEffect(() => {
-    if (user) loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+if(!user) return null;
 
-  const loadAll = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const [p, pts, docs, dls] = await Promise.all([
-        api.getThesisProtocol(user.id),
-        api.getPatients(user.id),
-        api.getDocuments(user.id),
-        api.getDeadlines(user.id),
-      ]);
-      setProtocol(p || null);
-      setPatients(pts || []);
-      setDocuments(docs || []);
-      setDeadlines(dls || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+const [selectedTab,setSelectedTab]=useState<Tab>("Dashboard");
 
-  const saveProtocol = async (data: any) => {
-    if (!user) return;
-    const payload = { ...data, userId: user.id };
-    if (protocol && protocol.id) {
-      await api.updateProtocol(protocol.id, payload);
-    } else {
-      await api.createProtocol(payload);
-    }
-    loadAll();
-    setShowProtocolForm(false);
-  };
+const [protocol,setProtocol]=useState<any>(null);
+const [patients,setPatients]=useState<any[]>([]);
+const [documents,setDocuments]=useState<any[]>([]);
+const [deadlines,setDeadlines]=useState<any[]>([]);
 
-  const createOrUpdatePatient = async () => {
-    if (!user) return;
-    const payload = { ...patientForm, userId: user.id };
-    if (editingPatient && editingPatient.id) {
-      await api.updatePatient(editingPatient.id, payload);
-    } else {
-      await api.createPatient(payload);
-    }
-    setPatientForm(blankPatient);
-    setEditingPatient(null);
-    setShowAddPatient(false);
-    loadAll();
-  };
+const [statsData,setStatsData]=useState<any>(null);
 
-  const removePatient = async (id: string) => {
-    if (!confirm('Delete this patient?')) return;
-    await api.deletePatient(id);
-    loadAll();
-  };
+const [followupsByPatient,setFollowupsByPatient]=useState<Record<string,any[]>>({});
 
-  const uploadDoc = async (file: File, category: string) => {
-    if (!user) return;
-    await api.uploadDocument(user.id, file, category);
-    loadAll();
-  };
+const [showProtocolForm,setShowProtocolForm]=useState(false);
 
-  const exportPatients = async () => {
-    if (!user) return;
-    const csv = await api.exportPatientsCsv(user.id);
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'patients.csv';
-    a.click();
-  };
+const [showAddPatient,setShowAddPatient]=useState(false);
+const [editingPatient,setEditingPatient]=useState<any>(null);
 
-  const stats = useMemo(() => {
-    const total = protocol?.totalSampleSize || 0;
-    const groupCounts = { A: 0, B: 0, C: 0 } as any;
-    patients.forEach((p) => {
-      if (p.groupName) groupCounts[p.groupName] = (groupCounts[p.groupName] || 0) + 1;
-    });
-    const recruited = patients.length;
-    const completedFollowups = patients.reduce((acc, p) => acc + (p.followups?.filter((f:any)=>f.completed).length || 0), 0);
-    const dropouts = patients.reduce((acc, p) => acc + (p.droppedOut ? 1 : 0), 0);
-    return { total, groupCounts, recruited, completedFollowups, dropouts };
-  }, [protocol, patients]);
+const blankPatient={
+patientId:"",
+studyNumber:"",
+groupName:"A",
+recruitmentDate:new Date().toISOString(),
+consentTaken:false,
+inclusionCriteriaMet:false,
+exclusionCriteriaMet:false,
+proformaStatus:"Pending",
+followupStatus:"Pending",
+notes:""
+};
 
-  return (
-    <div>
-      <div className="flex flex-col md:flex-row items-start justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-            Thesis Protocol
-          </h1>
-          <p className="text-sm text-gray-500">Professional residency thesis management</p>
-        </div>
-        <div className="flex gap-2">
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setShowProtocolForm((s) => !s)}
-            className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold flex items-center gap-2"
-          >
-            <SettingsIcon size={16} />
-            Edit Protocol
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={exportPatients}
-            className="px-4 py-2 bg-blue-500 text-white rounded-xl font-semibold flex items-center gap-2"
-          >
-            <Download size={16} />
-            Export Patients
-          </motion.button>
-        </div>
-      </div>
+const [patientForm,setPatientForm]=useState<any>(blankPatient);
 
-      {/* Protocol form */}
-      <AnimatePresence>
-        {showProtocolForm && (
-          <motion.form
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            onSubmit={(e) => {
-              e.preventDefault();
-              const form = new FormData(e.currentTarget as HTMLFormElement);
-              const payload: any = {
-                title: form.get('title'),
-                guideName: form.get('guideName'),
-                coGuideName: form.get('coGuideName'),
-                department: form.get('department'),
-                studyType: form.get('studyType'),
-                protocolSubmittedDate: form.get('protocolSubmittedDate'),
-                protocolApprovedDate: form.get('protocolApprovedDate'),
-                iecApprovalNumber: form.get('iecApprovalNumber'),
-                trialRegistrationNumber: form.get('trialRegistrationNumber'),
-                synopsisStatus: form.get('synopsisStatus'),
-                totalSampleSize: Number(form.get('totalSampleSize') || 0),
-              };
-              saveProtocol(payload);
-            }}
-            className="bg-white rounded-2xl p-6 shadow-xl mb-6"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm text-gray-600">Thesis Title</label>
-                <input defaultValue={protocol?.title || ''} name="title" className="w-full px-3 py-2 rounded-xl border" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Guide Name</label>
-                <input defaultValue={protocol?.guideName || ''} name="guideName" className="w-full px-3 py-2 rounded-xl border" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Co-Guide Name</label>
-                <input defaultValue={protocol?.coGuideName || ''} name="coGuideName" className="w-full px-3 py-2 rounded-xl border" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Department</label>
-                <input defaultValue={protocol?.department || ''} name="department" className="w-full px-3 py-2 rounded-xl border" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Study Type</label>
-                <select defaultValue={protocol?.studyType || STUDY_TYPES[0]} name="studyType" className="w-full px-3 py-2 rounded-xl border">
-                  {STUDY_TYPES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Total Sample Size</label>
-                <input defaultValue={protocol?.totalSampleSize || 0} name="totalSampleSize" type="number" className="w-full px-3 py-2 rounded-xl border" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Protocol Submitted</label>
-                <input defaultValue={protocol?.protocolSubmittedDate ? format(parseISO(protocol.protocolSubmittedDate), 'yyyy-MM-dd') : ''} name="protocolSubmittedDate" type="date" className="w-full px-3 py-2 rounded-xl border" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Protocol Approved</label>
-                <input defaultValue={protocol?.protocolApprovedDate ? format(parseISO(protocol.protocolApprovedDate), 'yyyy-MM-dd') : ''} name="protocolApprovedDate" type="date" className="w-full px-3 py-2 rounded-xl border" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">IEC Approval #</label>
-                <input defaultValue={protocol?.iecApprovalNumber || ''} name="iecApprovalNumber" className="w-full px-3 py-2 rounded-xl border" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Trial Reg. #</label>
-                <input defaultValue={protocol?.trialRegistrationNumber || ''} name="trialRegistrationNumber" className="w-full px-3 py-2 rounded-xl border" />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-600">Synopsis Status</label>
-                <select defaultValue={protocol?.synopsisStatus || 'Not Started'} name="synopsisStatus" className="w-full px-3 py-2 rounded-xl border">
-                  <option>Not Started</option>
-                  <option>Submitted</option>
-                  <option>Approved</option>
-                </select>
-              </div>
-            </div>
+const [showAddFollowup,setShowAddFollowup]=useState(false);
 
-            <div className="mt-4 flex items-center justify-between">
-              <div className="w-2/3">
-                <div className="text-sm text-gray-500">Protocol completion</div>
-                <div className="w-full bg-gray-100 rounded-full h-3 mt-2">
-                  <div className="h-3 rounded-full bg-emerald-500 transition-all"
-                    style={{ width: `${Math.min(100, ((protocol?.completion || 0) * 100) || 20)}%` }} />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <motion.button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-xl">Save</motion.button>
-                <motion.button type="button" onClick={() => setShowProtocolForm(false)} className="px-4 py-2 bg-gray-200 rounded-xl">Cancel</motion.button>
-              </div>
-            </div>
-          </motion.form>
-        )}
-      </AnimatePresence>
+const [followupForm,setFollowupForm]=useState<any>({
+patientId:"",
+visitNumber:1,
+visitDate:"",
+status:"pending",
+notes:""
+});
 
-      {/* Overview: Sample size cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-2xl p-6 shadow">
-          <div className="text-sm text-gray-500">Total Sample Size</div>
-          <div className="text-3xl font-bold">{protocol?.totalSampleSize || 0}</div>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow">
-          <div className="text-sm text-gray-500">Recruited Patients</div>
-          <div className="text-3xl font-bold">{stats.recruited}</div>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow">
-          <div className="text-sm text-gray-500">Completed Followups</div>
-          <div className="text-3xl font-bold">{stats.completedFollowups}</div>
-        </div>
-        <div className="bg-white rounded-2xl p-6 shadow">
-          <div className="text-sm text-gray-500">Dropouts</div>
-          <div className="text-3xl font-bold">{stats.dropouts}</div>
-        </div>
-      </div>
+const [showAddDeadline,setShowAddDeadline]=useState(false);
+const [editingDeadline,setEditingDeadline]=useState<any>(null);
 
-      {/* Groups progress */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {(['A','B','C'] as const).map((g) => {
-          const groupSize = protocol?.[`group_${g}_size`] || 0;
-          const count = stats.groupCounts[g] || 0;
-          const pct = groupSize ? Math.round((count / groupSize) * 100) : 0;
-          return (
-            <motion.div key={g} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-6 shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-500">Group {g}</div>
-                  <div className="text-2xl font-bold">{count}/{groupSize}</div>
-                </div>
-                <div className="text-sm text-gray-500">{pct}%</div>
-              </div>
-              <div className="w-full bg-gray-100 rounded-full h-3 mt-4">
-                <div className={`h-3 rounded-full bg-emerald-500 transition-all`} style={{ width: `${Math.min(100, pct)}%` }} />
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
+const [deadlineForm,setDeadlineForm]=useState<any>({
+title:"",
+date:"",
+completed:false,
+notes:""
+});
 
-      {/* Patient management */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl p-6 shadow mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Patients</h2>
-          <div className="flex gap-2">
-            <motion.button whileHover={{ scale: 1.03 }} onClick={() => { setShowAddPatient(true); setEditingPatient(null); setPatientForm(blankPatient); }} className="px-4 py-2 bg-emerald-500 text-white rounded-xl flex items-center gap-2"><Plus size={14}/> Add Patient</motion.button>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {patients.map((p) => (
-            <motion.div key={p.id} whileHover={{ scale: 1.01 }} className="p-4 rounded-xl border shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold">{p.groupName}</span>
-                    <div className="text-sm text-gray-500">{format(new Date(p.recruitmentDate || p.createdAt || Date.now()), 'MMM d, yyyy')}</div>
-                    <div className={`ml-2 px-3 py-1 rounded-full text-sm font-medium ${p.proformaStatus === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{p.proformaStatus}</div>
-                  </div>
-                  <div className="text-gray-700 mb-2">Study #: {p.studyNumber || p.patientId}</div>
-                  <div className="text-sm text-gray-600 mb-2">{p.notes}</div>
+useEffect(()=>{
 
-                  {/* followup timeline */}
-                  <div className="flex items-center gap-2">
-                    {(p.followups || []).map((f:any, i:number) => (
-                      <div key={i} className="flex items-center gap-1">
-                        <div className={`inline-flex w-6 h-6 items-center justify-center text-white text-xs rounded ${f.completed ? 'bg-emerald-500' : 'bg-red-500'}`}>{f.completed ? '✓' : '✗'}</div>
-                        <div className="text-xs text-gray-500">{f.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+loadAll()
 
-                <div className="flex flex-col items-end gap-2">
-                  <div className="flex gap-2">
-                    <button onClick={() => { setEditingPatient(p); setPatientForm({ ...p }); setShowAddPatient(true); }} className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"><Edit size={16}/></button>
-                    <button onClick={() => removePatient(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
-                  </div>
-                  <div className="text-xs text-gray-400">ID: {p.patientId}</div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
+},[])
 
-      {/* Add / Edit patient drawer */}
-      <AnimatePresence>
-        {showAddPatient && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black bg-opacity-40">
-            <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} className="bg-white rounded-t-2xl md:rounded-2xl p-6 w-full md:w-3/4 max-w-3xl">
-              <h3 className="text-lg font-bold mb-4">{editingPatient ? 'Edit Patient' : 'Add Patient'}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <input value={patientForm.studyNumber} onChange={(e)=>setPatientForm({...patientForm, studyNumber:e.target.value})} placeholder="Study Number" className="px-3 py-2 rounded-xl border" />
-                <select value={patientForm.groupName} onChange={(e)=>setPatientForm({...patientForm, groupName:e.target.value})} className="px-3 py-2 rounded-xl border">
-                  <option value="A">Group A</option>
-                  <option value="B">Group B</option>
-                  <option value="C">Group C</option>
-                </select>
-                <input value={patientForm.recruitmentDate?.slice(0,10)} onChange={(e)=>setPatientForm({...patientForm, recruitmentDate:e.target.value})} type="date" className="px-3 py-2 rounded-xl border" />
-                <label className="flex items-center gap-2"><input type="checkbox" checked={patientForm.consentTaken} onChange={(e)=>setPatientForm({...patientForm, consentTaken:e.target.checked})}/> Consent</label>
-                <label className="flex items-center gap-2"><input type="checkbox" checked={patientForm.inclusionCriteriaMet} onChange={(e)=>setPatientForm({...patientForm, inclusionCriteriaMet:e.target.checked})}/> Inclusion</label>
-                <label className="flex items-center gap-2"><input type="checkbox" checked={patientForm.exclusionCriteriaMet} onChange={(e)=>setPatientForm({...patientForm, exclusionCriteriaMet:e.target.checked})}/> Exclusion</label>
-                <select value={patientForm.proformaStatus} onChange={(e)=>setPatientForm({...patientForm, proformaStatus:e.target.value})} className="px-3 py-2 rounded-xl border">
-                  <option value="Pending">Pending</option>
-                  <option value="Completed">Completed</option>
-                </select>
-                <select value={patientForm.followupStatus} onChange={(e)=>setPatientForm({...patientForm, followupStatus:e.target.value})} className="px-3 py-2 rounded-xl border">
-                  <option value="Pending">Pending</option>
-                  <option value="Ongoing">Ongoing</option>
-                  <option value="Completed">Completed</option>
-                </select>
-                <input value={patientForm.notes} onChange={(e)=>setPatientForm({...patientForm, notes:e.target.value})} placeholder="Notes" className="px-3 py-2 rounded-xl border md:col-span-3" />
-              </div>
-              <div className="mt-4 flex justify-end gap-2">
-                <button onClick={()=>{ setShowAddPatient(false); setEditingPatient(null); setPatientForm(blankPatient); }} className="px-4 py-2 bg-gray-200 rounded-xl">Cancel</button>
-                <button onClick={createOrUpdatePatient} className="px-4 py-2 bg-emerald-500 text-white rounded-xl">Save</button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* Documents & deadlines */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-white rounded-2xl p-6 shadow">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold">Documents</h3>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg cursor-pointer">
-                <FileText size={14} /> Upload
-                <input type="file" onChange={(e)=>{ const f=e.target.files?.[0]; if(f) uploadDoc(f,'protocol'); }} className="hidden" />
-              </label>
-            </div>
-          </div>
-          <div className="space-y-2">
-            {documents.map((d)=> (
-              <div key={d.id} className="flex items-center justify-between p-2 rounded-lg border">
-                <div className="flex items-center gap-3">
-                  <div className="text-sm font-medium">{d.name}</div>
-                  <div className="text-xs text-gray-400">{format(new Date(d.date || d.createdAt), 'MMM d')}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <a href={d.url || '#'} className="px-3 py-1 bg-gray-100 rounded">Download</a>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+useEffect(()=>{
 
-        <div className="bg-white rounded-2xl p-6 shadow">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold">Deadlines</h3>
-            <div className="text-sm text-gray-400">Timeline</div>
-          </div>
-          <div className="space-y-3">
-            {deadlines.map(dl => (
-              <div key={dl.id} className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium">{dl.title}</div>
-                  <div className="text-xs text-gray-400">{format(new Date(dl.date), 'MMM d, yyyy')}</div>
-                </div>
-                <div className={`px-2 py-1 rounded ${dl.completed ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'}`}>{dl.completed ? 'Done' : 'Pending'}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+if(selectedTab==="Followups" && patients.length){
 
-      {/* Simple stats chart (SVG) */}
-      <div className="bg-white rounded-2xl p-6 shadow">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold">Recruitment Overview</h3>
-          <div className="text-sm text-gray-500">Live</div>
-        </div>
-        <div className="flex gap-4 items-end">
-          {(['A','B','C'] as const).map((g,i)=>(
-            <div key={g} className="flex-1">
-              <div className="h-36 flex items-end">
-                <div className="w-full bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-t" style={{height:`${((stats.groupCounts[g]||0)/(protocol?.[`group_${g}_size`]||1))*100||5}%`}} />
-              </div>
-              <div className="text-center mt-2 font-medium">Group {g}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+loadFollowups()
+
+}
+
+if(selectedTab==="Statistics"){
+
+api.getThesisStats(user.id)
+.then(setStatsData)
+
+}
+
+},[selectedTab,patients])
+
+
+const loadAll=async()=>{
+
+const [p,pts,docs,dls]=await Promise.all([
+
+api.getThesisProtocol(user.id),
+
+api.getPatients(user.id),
+
+api.getDocuments(user.id),
+
+api.getDeadlines(user.id)
+
+])
+
+setProtocol(p||null)
+setPatients(pts||[])
+setDocuments(docs||[])
+setDeadlines(dls||[])
+
+}
+
+
+const loadFollowups=async()=>{
+
+const results=await Promise.all(
+
+patients.map(async p=>{
+
+const arr=await api.getFollowups(p.id)
+
+return {id:p.id,arr:arr||[]}
+
+})
+
+)
+
+const map:Record<string,any[]>={}
+
+results.forEach(r=>map[r.id]=r.arr)
+
+setFollowupsByPatient(map)
+
+}
+
+
+
+const saveProtocol=async(data:any)=>{
+
+const payload={...data,userId:user.id}
+
+if(protocol?.id)
+
+await api.updateProtocol(protocol.id,payload)
+
+else
+
+await api.createProtocol(payload)
+
+setShowProtocolForm(false)
+
+loadAll()
+
+}
+
+
+
+const savePatient=async()=>{
+
+const payload={...patientForm,userId:user.id}
+
+if(editingPatient)
+
+await api.updatePatient(editingPatient.id,payload)
+
+else
+
+await api.createPatient(payload)
+
+setShowAddPatient(false)
+setEditingPatient(null)
+setPatientForm(blankPatient)
+
+loadAll()
+
+}
+
+
+const deletePatient=async(id:string)=>{
+
+if(!confirm("Delete patient?")) return
+
+await api.deletePatient(id)
+
+loadAll()
+
+}
+
+
+const exportPatients=async()=>{
+
+const csv=await api.exportPatientsCsv(user.id)
+
+const blob=new Blob([csv])
+
+const url=URL.createObjectURL(blob)
+
+const a=document.createElement("a")
+
+a.href=url
+a.download="patients.csv"
+
+document.body.appendChild(a)
+a.click()
+
+a.remove()
+
+URL.revokeObjectURL(url)
+
+}
+
+
+
+const saveFollowup=async()=>{
+
+await api.createFollowup(followupForm)
+
+setShowAddFollowup(false)
+
+loadFollowups()
+
+}
+
+
+
+const saveDeadline=async()=>{
+
+if(editingDeadline)
+
+await api.updateDeadline(editingDeadline.id,deadlineForm)
+
+else
+
+await api.createDeadline(deadlineForm)
+
+setShowAddDeadline(false)
+setEditingDeadline(null)
+
+loadAll()
+
+}
+
+
+
+const stats=useMemo(()=>{
+
+const total=protocol?.totalSampleSize||0
+
+const recruited=patients.length
+
+const completedFollowups=Object.values(followupsByPatient)
+
+.flat()
+
+.filter((f:any)=>f.status==="completed").length
+
+return{
+
+total,
+recruited,
+completedFollowups
+
+}
+
+},[protocol,patients,followupsByPatient])
+
+
+
+return(
+
+<div className="space-y-6">
+
+<div className="flex justify-between items-center">
+
+<div>
+
+<h1 className="text-3xl font-bold text-emerald-600">
+Thesis Manager
+</h1>
+
+<p className="text-gray-500">
+Residency Research System
+</p>
+
+</div>
+
+
+<div className="flex gap-2 flex-wrap">
+
+{["Dashboard","Protocol","Patients","Followups","Documents","Statistics","Deadlines"]
+
+.map(t=>(
+
+<button
+key={t}
+onClick={()=>setSelectedTab(t as Tab)}
+className={`px-4 py-2 rounded-xl font-semibold ${
+selectedTab===t
+?"bg-emerald-500 text-white"
+:"bg-gray-100"
+}`}
+>
+
+{t}
+
+</button>
+
+))}
+
+</div>
+
+</div>
+
+
+
+{/* DASHBOARD */}
+
+{selectedTab==="Dashboard" &&(
+
+<div className="grid md:grid-cols-3 gap-4">
+
+<div className="bg-white p-6 shadow rounded-2xl">
+
+<div>Total Sample</div>
+
+<div className="text-3xl font-bold">
+
+{stats.total}
+
+</div>
+
+</div>
+
+
+<div className="bg-white p-6 shadow rounded-2xl">
+
+<div>Recruited</div>
+
+<div className="text-3xl font-bold">
+
+{stats.recruited}
+
+</div>
+
+</div>
+
+
+<div className="bg-white p-6 shadow rounded-2xl">
+
+<div>Completed Followups</div>
+
+<div className="text-3xl font-bold">
+
+{stats.completedFollowups}
+
+</div>
+
+<button
+onClick={exportPatients}
+className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-xl flex gap-2 items-center"
+>
+
+<Download size={14}/>
+
+Export CSV
+
+</button>
+
+</div>
+
+</div>
+
+)}
+
+
+
+{/* PROTOCOL */}
+
+{selectedTab==="Protocol" &&(
+
+<div className="bg-white shadow p-6 rounded-2xl">
+
+<button
+onClick={()=>setShowProtocolForm(!showProtocolForm)}
+className="mb-4 px-4 py-2 bg-emerald-500 text-white rounded-xl flex gap-2 items-center"
+>
+
+<Settings size={14}/>
+
+Edit Protocol
+
+</button>
+
+
+<AnimatePresence>
+
+{showProtocolForm&&(
+
+<motion.form
+
+initial={{opacity:0}}
+animate={{opacity:1}}
+exit={{opacity:0}}
+
+onSubmit={e=>{
+
+e.preventDefault()
+
+const f=new FormData(e.currentTarget)
+
+saveProtocol({
+
+title:f.get("title"),
+studyType:f.get("studyType"),
+totalSampleSize:Number(f.get("totalSampleSize"))
+
+})
+
+}}
+
+className="grid md:grid-cols-3 gap-3"
+
+>
+
+
+<input name="title" defaultValue={protocol?.title}
+placeholder="Title"
+className="border p-2 rounded-xl"/>
+
+
+<select name="studyType"
+defaultValue={protocol?.studyType}
+className="border p-2 rounded-xl">
+
+{STUDY_TYPES.map(s=>
+<option key={s}>{s}</option>
+)}
+
+</select>
+
+
+<input name="totalSampleSize"
+type="number"
+defaultValue={protocol?.totalSampleSize}
+className="border p-2 rounded-xl"/>
+
+
+<button className="bg-emerald-500 text-white rounded-xl py-2 col-span-3">
+
+Save
+
+</button>
+
+</motion.form>
+
+)}
+
+</AnimatePresence>
+
+</div>
+
+)}
+
+
+
+{/* PATIENTS */}
+
+{selectedTab==="Patients"&&(
+
+<div>
+
+<div className="flex items-center justify-between mb-4">
+
+<h2 className="text-xl font-bold">Patients</h2>
+
+<div className="flex gap-2">
+
+<motion.button
+whileHover={{scale:1.03}}
+onClick={()=>{
+setShowAddPatient(true)
+setEditingPatient(null)
+setPatientForm(blankPatient)
+}}
+className="px-4 py-2 bg-emerald-500 text-white rounded-xl flex gap-2 items-center"
+>
+
+<Plus size={14}/>
+
+Add Patient
+
+</motion.button>
+
+</div>
+
+</div>
+
+
+<div className="grid md:grid-cols-2 gap-4">
+
+{patients.map(p=>(
+
+<div key={p.id}
+className="border rounded-xl p-4 shadow-sm">
+
+<div className="flex justify-between">
+
+<div>
+
+<div className="font-bold">
+
+{p.studyNumber||p.patientId}
+
+</div>
+
+<div className="text-sm text-gray-500">
+
+Group {p.groupName}
+
+</div>
+
+</div>
+
+
+<div className="flex gap-2">
+
+<button onClick={()=>{
+
+setEditingPatient(p)
+setPatientForm(p)
+setShowAddPatient(true)
+
+}}>
+
+<Edit size={16}/>
+
+</button>
+
+
+<button
+onClick={()=>deletePatient(p.id)}
+className="text-red-500">
+
+<Trash2 size={16}/>
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+))}
+
+</div>
+
+</div>
+
+)}
+
+
+
+{/* FOLLOWUPS */}
+
+{selectedTab==="Followups"&&(
+
+<div className="space-y-4">
+
+<motion.button
+whileHover={{scale:1.03}}
+onClick={()=>setShowAddFollowup(true)}
+className="px-4 py-2 bg-emerald-500 text-white rounded-xl flex gap-2 items-center">
+
+<Plus size={14}/>
+
+Add Followup
+
+</motion.button>
+
+
+{patients.map(p=>(
+
+<div key={p.id}
+className="bg-white shadow rounded-2xl p-4">
+
+<div className="font-bold mb-2">
+
+{p.studyNumber||p.patientId}
+
+</div>
+
+
+{(followupsByPatient[p.id]||[]).map((f:any)=>(
+
+<div key={f.id}
+className="border-b py-2 text-sm">
+
+Visit {f.visitNumber} — {f.status}
+
+</div>
+
+))}
+
+</div>
+
+))}
+
+</div>
+
+)}
+
+
+
+{/* DOCUMENTS */}
+
+{selectedTab==="Documents"&&(
+
+<div className="grid md:grid-cols-3 gap-4">
+
+{documents.map(d=>(
+
+<div key={d.id}
+className="bg-white shadow rounded-2xl p-4">
+
+<FileText/>
+
+<div>{d.name}</div>
+
+</div>
+
+))}
+
+</div>
+
+)}
+
+
+
+{/* STATISTICS */}
+
+{selectedTab==="Statistics"&&(
+
+<div className="bg-white p-6 rounded-2xl shadow">
+
+<div>Total Recruited: {statsData?.totalRecruited||0}</div>
+
+<div>Dropout %: {statsData?.dropoutPercent||0}</div>
+
+<div>Followup %: {statsData?.followupCompletionPercent||0}</div>
+
+</div>
+
+)}
+
+
+
+{/* DEADLINES */}
+
+{selectedTab==="Deadlines"&&(
+
+<div className="space-y-4">
+
+<motion.button
+whileHover={{scale:1.03}}
+onClick={()=>setShowAddDeadline(true)}
+className="px-4 py-2 bg-emerald-500 text-white rounded-xl">
+
+Add Deadline
+
+</motion.button>
+
+
+{deadlines.map(d=>(
+
+<div key={d.id}
+className="bg-white shadow rounded-xl p-4 flex justify-between">
+
+<div>
+
+<div className="font-bold">{d.title}</div>
+
+<div>{d.date}</div>
+
+</div>
+
+
+<button
+onClick={()=>{
+
+setEditingDeadline(d)
+setDeadlineForm(d)
+setShowAddDeadline(true)
+
+}}>
+
+<Edit size={16}/>
+
+</button>
+
+</div>
+
+))}
+
+</div>
+
+)}
+
+
+</div>
+
+)
+
 }

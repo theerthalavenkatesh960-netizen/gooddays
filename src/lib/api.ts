@@ -346,15 +346,15 @@ export async function deleteDeadline(id: string) {
 }
 
 export async function getThesisStats(userId: string) {
-  return request(`thesis/stats/user/${userId}`);
+  return request(`thesis/stats/${userId}`);
 }
 
 export async function exportPatientsCsv(userId: string) {
-  return request(`thesis/export/patients/${userId}`);
+  return request(`thesis/stats/export/patients/${userId}`);
 }
 
 export async function exportStatsCsv(userId: string) {
-  return request(`thesis/export/stats/${userId}`);
+  return request(`thesis/stats/export/stats/${userId}`);
 }
 
 // Study Sessions

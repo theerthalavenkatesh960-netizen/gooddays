@@ -23,6 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<ThesisFollowup> ThesisFollowups { get; set; }
     public DbSet<ThesisDocument> ThesisDocuments { get; set; }
     public DbSet<ThesisDeadline> ThesisDeadlines { get; set; }
+    public DbSet<StudyGroup> StudyGroups { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -41,6 +42,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ThesisFollowup>().ToTable("thesis_followups");
         modelBuilder.Entity<ThesisDocument>().ToTable("thesis_documents");
         modelBuilder.Entity<ThesisDeadline>().ToTable("thesis_deadlines");
+        modelBuilder.Entity<StudyGroup>().ToTable("study_groups");
         modelBuilder.Entity<GamificationEntry>().ToTable("gamification_entries");
         modelBuilder.Entity<DailyTracking>().ToTable("daily_tracking");
         // other entities follow default pluralization unless you need a custom name
