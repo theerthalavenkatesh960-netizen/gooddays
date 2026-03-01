@@ -31,7 +31,19 @@ export default function ThesisProtocol({ protocol, onSave }: ThesisProtocolProps
       { name: "A", targetSize: 60, description: "Treatment Group" },
       { name: "B", targetSize: 45, description: "Control Group" },
       { name: "C", targetSize: 30, description: "Placebo Group" }
-    ])
+    ]),
+    guideName: protocol?.guideName || "",
+    department: protocol?.department || "",
+    college: protocol?.college || "",
+    startDate: protocol?.startDate ? protocol.startDate.split('T')[0] : "",
+    endDate: protocol?.endDate ? protocol.endDate.split('T')[0] : "",
+    protocolApproved: protocol?.protocolApproved || false,
+    approvalDate: protocol?.approvalDate ? protocol.approvalDate.split('T')[0] : "",
+    iecNumber: protocol?.iecNumber || "",
+    synopsisSubmitted: protocol?.synopsisSubmitted || false,
+    synopsisApproved: protocol?.synopsisApproved || false,
+    ethicsSubmitted: protocol?.ethicsSubmitted || false,
+    ethicsApproved: protocol?.ethicsApproved || false,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -77,6 +89,9 @@ export default function ThesisProtocol({ protocol, onSave }: ThesisProtocolProps
                 <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full">{protocol.studyType}</span>
                 <span>Sample Size: {protocol.totalSampleSize}</span>
                 <span>Follow-ups: {protocol.totalFollowups}</span>
+                {protocol.guideName && <span>Guide: {protocol.guideName}</span>}
+                {protocol.department && <span>Dept: {protocol.department}</span>}
+                {protocol.college && <span>College: {protocol.college}</span>}
               </div>
             </div>
 
@@ -120,6 +135,21 @@ export default function ThesisProtocol({ protocol, onSave }: ThesisProtocolProps
               <div>
                 <h3 className="font-semibold text-gray-700 mb-2">Study Duration</h3>
                 <p className="text-gray-600">{protocol.studyDuration}</p>
+              </div>
+            )}
+
+            {/* additional meta */}
+            {(protocol.startDate || protocol.endDate || protocol.iecNumber) && (
+              <div className="mt-4">
+                <h3 className="font-semibold text-gray-700 mb-2">Dates &amp; Approval</h3>
+                <div className="text-sm text-gray-600 space-y-1">
+                  {protocol.startDate && <div>Start: {new Date(protocol.startDate).toLocaleDateString()}</div>}
+                  {protocol.endDate && <div>End: {new Date(protocol.endDate).toLocaleDateString()}</div>}
+                  {protocol.protocolApproved && <div>Protocol approved{protocol.approvalDate ? ` on ${new Date(protocol.approvalDate).toLocaleDateString()}` : ''}</div>}
+                  {protocol.iecNumber && <div>IEC#: {protocol.iecNumber}</div>}
+                  {protocol.synopsisSubmitted && <div>Synopsis submitted{protocol.synopsisApproved ? ' (approved)' : ''}</div>}
+                  {protocol.ethicsSubmitted && <div>Ethics submitted{protocol.ethicsApproved ? ' (approved)' : ''}</div>}
+                </div>
               </div>
             )}
           </div>
@@ -195,6 +225,143 @@ export default function ThesisProtocol({ protocol, onSave }: ThesisProtocolProps
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 min="0"
               />
+            </div>
+          </div>
+
+          {/* guide/department/college */}
+          <div className="grid md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Guide Name
+              </label>
+              <input
+                type="text"
+                value={formData.guideName}
+                onChange={(e) => handleChange('guideName', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Department
+              </label>
+              <input
+                type="text"
+                value={formData.department}
+                onChange={(e) => handleChange('department', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                College
+              </label>
+              <input
+                type="text"
+                value={formData.college}
+                onChange={(e) => handleChange('college', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* dates and approval info */}
+          <div className="grid md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => handleChange('startDate', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={formData.endDate}
+                onChange={(e) => handleChange('endDate', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex items-center gap-2 mt-6">
+              <input
+                type="checkbox"
+                checked={formData.protocolApproved}
+                onChange={(e) => handleChange('protocolApproved', e.target.checked)}
+                className="h-4 w-4 text-teal-600 border-gray-300 rounded"
+              />
+              <label className="text-sm text-gray-700">Protocol approved</label>
+            </div>
+          </div>
+          {formData.protocolApproved && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Approval Date
+              </label>
+              <input
+                type="date"
+                value={formData.approvalDate}
+                onChange={(e) => handleChange('approvalDate', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+            </div>
+          )}
+
+          <div className="grid md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                IEC Number
+              </label>
+              <input
+                type="text"
+                value={formData.iecNumber}
+                onChange={(e) => handleChange('iecNumber', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex items-center gap-2 mt-6">
+              <input
+                type="checkbox"
+                checked={formData.synopsisSubmitted}
+                onChange={(e) => handleChange('synopsisSubmitted', e.target.checked)}
+                className="h-4 w-4 text-teal-600 border-gray-300 rounded"
+              />
+              <label className="text-sm text-gray-700">Synopsis submitted</label>
+            </div>
+            <div className="flex items-center gap-2 mt-6">
+              <input
+                type="checkbox"
+                checked={formData.synopsisApproved}
+                onChange={(e) => handleChange('synopsisApproved', e.target.checked)}
+                className="h-4 w-4 text-teal-600 border-gray-300 rounded"
+              />
+              <label className="text-sm text-gray-700">Synopsis approved</label>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="flex items-center gap-2 mt-6">
+              <input
+                type="checkbox"
+                checked={formData.ethicsSubmitted}
+                onChange={(e) => handleChange('ethicsSubmitted', e.target.checked)}
+                className="h-4 w-4 text-teal-600 border-gray-300 rounded"
+              />
+              <label className="text-sm text-gray-700">Ethics submitted</label>
+            </div>
+            <div className="flex items-center gap-2 mt-6">
+              <input
+                type="checkbox"
+                checked={formData.ethicsApproved}
+                onChange={(e) => handleChange('ethicsApproved', e.target.checked)}
+                className="h-4 w-4 text-teal-600 border-gray-300 rounded"
+              />
+              <label className="text-sm text-gray-700">Ethics approved</label>
             </div>
           </div>
 

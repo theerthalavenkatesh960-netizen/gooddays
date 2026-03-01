@@ -127,6 +127,13 @@ CREATE TABLE IF NOT EXISTS thesis_protocols (
   synopsis_approved boolean DEFAULT false,
   ethics_submitted boolean DEFAULT false,
   ethics_approved boolean DEFAULT false,
+  -- additional fields introduced by frontend form
+  objective text,
+  inclusion_criteria text,
+  exclusion_criteria text,
+  study_duration text,
+  study_groups text,
+  total_followups integer DEFAULT 0,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );

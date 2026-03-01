@@ -32,6 +32,25 @@ public class ThesisProtocol
     
     [Column("total_sample_size")]
     public int TotalSampleSize { get; set; } = 0;
+
+    // fields used by the UI but stored in the same table
+    [Column("objective")]
+    public string? Objective { get; set; }
+
+    [Column("inclusion_criteria")]
+    public string? InclusionCriteria { get; set; }
+
+    [Column("exclusion_criteria")]
+    public string? ExclusionCriteria { get; set; }
+
+    [Column("study_duration")]
+    public string? StudyDuration { get; set; }
+
+    [Column("study_groups")]
+    public string? StudyGroups { get; set; }
+
+    [Column("total_followups")]
+    public int TotalFollowups { get; set; } = 0;
     
     [Column("start_date")]
     public DateTime? StartDate { get; set; }
