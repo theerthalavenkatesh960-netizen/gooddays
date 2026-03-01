@@ -1,18 +1,33 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, CheckCircle2, RotateCcw, Trash2, Filter, Edit } from 'lucide-react';
+import { Plus, CheckCircle2, RotateCcw, Trash2, Filter, Edit, Home, Briefcase, BookOpen, User, Heart, MapPin, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Dumbbell } from 'lucide-react';
 import { format, isToday, isPast, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 
-const categories = ['Home', 'Admin', 'Study', 'Personal', 'Fun'];
+// a richer set of categories with icons for wellness tracking
+const CATEGORY_OPTIONS = [
+  { name: 'Home', icon: Home },
+  { name: 'Work', icon: Briefcase },
+  { name: 'Study', icon: BookOpen },
+  { name: 'Personal', icon: User },
+  { name: 'Wellness', icon: Heart },
+  { name: 'Fitness', icon: Dumbbell },
+  { name: 'Travel', icon: Plane },
+  { name: 'Finance', icon: DollarSign },
+  { name: 'Shopping', icon: ShoppingCart },
+  { name: 'Social', icon: Users },
+  { name: 'Entertainment', icon: Film },
+  { name: 'Health', icon: HeartPulse },
+  { name: 'Music', icon: Music },
+];
 const priorities = ['low', 'medium', 'high'];
 
 export default function Tasks() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
   const [newTask, setNewTask] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('Personal');
+  const [selectedCategory, setSelectedCategory] = useState(CATEGORY_OPTIONS[0].name);
   const [selectedPriority, setSelectedPriority] = useState('medium');
   const [recurring, setRecurring] = useState(false);
   const [recurrenceInterval, setRecurrenceInterval] = useState<number>(1);
@@ -28,6 +43,44 @@ export default function Tasks() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTask, setEditingTask] = useState<any | null>(null);
   const [scheduledDate, setScheduledDate] = useState('');
+
+  // when recurrence toggle flips, initialize default date range
+  useEffect(() => {
+    if (recurring) {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      setRecurrenceStart(today);
+      const d = new Date(); d.setDate(d.getDate() + 30);
+      setRecurrenceEnd(format(d, 'yyyy-MM-dd'));
+    } else {
+      setRecurrenceStart('');
+      setRecurrenceEnd('');
+    }
+  }, [recurring]);
+
+  // compute last 5 occurrences indicator for recurring tasks
+  const renderOccurrences = (task: any) => {
+    if (!task.recurrenceId) return null;
+    const same = tasks
+      .filter((t) => t.recurrenceId === task.recurrenceId)
+      .sort((a, b) => {
+        const da = new Date(a.dueDate || a.due_date).getTime();
+        const db = new Date(b.dueDate || b.due_date).getTime();
+        return db - da;
+      })
+      .slice(0, 5);
+    return (
+      <div className="flex gap-1 mr-2">
+        {same.map((t, i) => (
+          <span
+            key={i}
+            className={`inline-block w-3 h-3 rounded-full ${
+              t.isCompleted ? 'bg-emerald-500' : 'bg-red-500'
+            }`}
+          />
+        ))}
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (user) {
@@ -66,6 +119,16 @@ export default function Tasks() {
     // if not recurring and a scheduled date provided, send it as dueDate
     if (!recurring && scheduledDate) {
       body.dueDate = new Date(scheduledDate);
+    }
+
+    // ensure recurrence defaults on creation/edit
+    if (recurring) {
+      if (!body.recurrenceStartDate) body.recurrenceStartDate = new Date();
+      if (!body.recurrenceEndDate) {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        body.recurrenceEndDate = d;
+      }
     }
 
     if (editingTask) {
@@ -234,9 +297,9 @@ export default function Tasks() {
               className="px-3 py-2 rounded-lg border border-gray-200 outline-none"
             >
               <option value="all">All Categories</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
+              {CATEGORY_OPTIONS.map((cat) => (
+                <option key={cat.name} value={cat.name}>
+                  {cat.name}
                 </option>
               ))}
             </select>
@@ -301,10 +364,28 @@ export default function Tasks() {
               </h3>
               <div className="space-y-3">
                 <input type="text" value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="Task title" className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" />
-                <div className="flex gap-2">
-                  <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="px-3 py-2 rounded-xl border border-gray-200">
-                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                <div className="flex flex-wrap gap-2">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {CATEGORY_OPTIONS.map((c) => {
+                      const Icon = c.icon;
+                      const selected = selectedCategory === c.name;
+                      return (
+                        <button
+                          key={c.name}
+                          type="button"
+                          onClick={() => setSelectedCategory(c.name)}
+                          className={`flex items-center gap-1 px-3 py-1 rounded-full border transition-all ${
+                            selected
+                              ? 'bg-emerald-500 text-white border-emerald-600'
+                              : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                          }`}
+                        >
+                          <Icon size={14} />
+                          <span className="text-xs">{c.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                   <select value={selectedPriority} onChange={(e) => setSelectedPriority(e.target.value)} className="px-3 py-2 rounded-xl border border-gray-200">
                     {priorities.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
@@ -411,7 +492,20 @@ export default function Tasks() {
                   </h3>
                   <div className="flex flex-wrap gap-2 mt-1">
                     <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                      {task.category}
+                        {/* show icon next to category */}
+                        {(() => {
+                          const opt = CATEGORY_OPTIONS.find(c => c.name === task.category);
+                          if (opt) {
+                            const Icon = opt.icon;
+                            return (
+                              <span className="flex items-center gap-1">
+                                <Icon size={12} />
+                                {task.category}
+                              </span>
+                            );
+                          }
+                          return task.category;
+                        })()}
                     </span>
                     <span className={`text-xs px-2 py-1 rounded-full border ${getPriorityColor(task.priority)}`}>
                       {task.priority}
@@ -430,6 +524,8 @@ export default function Tasks() {
                 </div>
 
                 <div className="flex gap-2">
+                  {/* show last 5 occurrences for recurring tasks */}
+                  {renderOccurrences(task)}
                   {task.isCompleted && (
                     <motion.button
                       whileHover={{ scale: 1.1 }}

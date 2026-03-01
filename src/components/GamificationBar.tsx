@@ -18,7 +18,7 @@ const motivationalMessages = [
   "Keep pushing",
 ];
 
-export default function GamificationBar() {
+export default function GamificationBar({ compact = false }: { compact?: boolean }) {
   const { user } = useAuth();
   const [level, setLevel] = useState(1);
   const [points, setPoints] = useState(0);
@@ -71,16 +71,16 @@ export default function GamificationBar() {
       <motion.div
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl p-4 shadow-xl mb-6"
+        className={`bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl ${compact ? 'p-3' : 'p-4'} shadow-xl mb-6`}
       >
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-              <Trophy className="text-yellow-500" size={24} />
+            <div className={`${compact ? 'w-10 h-10' : 'w-12 h-12'} bg-white rounded-full flex items-center justify-center`}> 
+              <Trophy className="text-yellow-500" size={compact ? 18 : 24} />
             </div>
             <div>
-              <h3 className="text-white font-bold text-xl">Level {level}</h3>
-              <p className="text-white text-opacity-90 text-sm">{points} points</p>
+              <h3 className={`text-white font-bold ${compact ? 'text-sm' : 'text-xl'}`}>Level {level}</h3>
+              <p className={`text-white text-opacity-90 ${compact ? 'text-xs' : 'text-sm'}`}>{points} points</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

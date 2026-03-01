@@ -38,8 +38,9 @@ public class TasksController : ControllerBase
         Guid? recurrenceId = req.Recurring ? (req.RecurrenceId ?? Guid.NewGuid()) : null;
 
         // compute default start/end dates
+        // if client did not provide recurrence window, default to today through 30 days out
         var startDate = req.RecurrenceStartDate?.Date ?? DateTime.UtcNow.Date;
-        var endDate = req.RecurrenceEndDate?.Date ?? startDate.AddYears(1);
+        var endDate = req.RecurrenceEndDate?.Date ?? startDate.AddDays(30);
 
         // determine effective due date for a non-recurring task
         DateTime? effectiveDue = req.DueDate;
@@ -121,6 +122,8 @@ public class TasksController : ControllerBase
                 Priority = priority,
                 DueDate = d,
                 Recurring = true,
+                RecurrenceStartDate = startDate,
+                RecurrenceEndDate = endDate,
                 RecurrenceId = recurrenceId,
                 RecurrenceInterval = interval,
                 RecurrenceUnit = unit,
@@ -230,7 +233,69 @@ public class TasksController : ControllerBase
     {
         var task = await _db.Tasks.FindAsync(id);
         if (task == null) return NotFound();
-        
+
+        // determine if recurrence parameters are being modified/toggled
+        bool wasRecurring = task.Recurring;
+        bool nowRecurring = req.Recurring ?? wasRecurring;
+        bool recurrenceParamsChanged = false;
+        if (req.RecurrenceInterval.HasValue || !string.IsNullOrEmpty(req.RecurrenceUnit) || req.RecurrenceStartDate.HasValue || req.RecurrenceEndDate.HasValue || req.RecurrenceDays != null)
+            recurrenceParamsChanged = true;
+
+        // if we switched from non-recurring to recurring, or recurrence parameters changed while recurring,
+        // we regenerate the series
+        if (nowRecurring && (!wasRecurring || recurrenceParamsChanged))
+        {
+            // delete old series if present
+            if (task.RecurrenceId.HasValue)
+            {
+                var related = await _db.Tasks.Where(t => t.RecurrenceId == task.RecurrenceId.Value).ToListAsync();
+                _db.Tasks.RemoveRange(related);
+                await _db.SaveChangesAsync();
+            }
+
+            // figure out new recurrence properties using request values or existing task values
+            var startDate = req.RecurrenceStartDate?.Date ?? task.RecurrenceStartDate?.Date ?? DateTime.UtcNow.Date;
+            var endDate = req.RecurrenceEndDate?.Date ?? task.RecurrenceEndDate?.Date ?? startDate.AddDays(30);
+            var interval = req.RecurrenceInterval ?? task.RecurrenceInterval ?? 1;
+            var unit = req.RecurrenceUnit ?? task.RecurrenceUnit ?? "days";
+            var days = req.RecurrenceDays ?? task.RecurrenceDays;
+            var recurrenceId = req.RecurrenceId ?? task.RecurrenceId ?? Guid.NewGuid();
+            var title = req.Title ?? task.Title;
+            var category = req.Category ?? task.Category;
+            var priority = req.Priority ?? task.Priority;
+            var status = req.Status ?? task.Status;
+
+            var tasks = GenerateRecurringTasks(
+                task.UserId,
+                title,
+                category,
+                priority,
+                startDate,
+                endDate,
+                interval,
+                unit,
+                days,
+                recurrenceId,
+                status
+            );
+
+            _db.Tasks.AddRange(tasks);
+            await _db.SaveChangesAsync();
+            return Ok(new { message = "Recurring tasks updated", count = tasks.Count, recurrenceId });
+        }
+        // if we switched from recurring to non-recurring, delete series except this one
+        if (!nowRecurring && wasRecurring)
+        {
+            if (task.RecurrenceId.HasValue)
+            {
+                var related = await _db.Tasks.Where(t => t.RecurrenceId == task.RecurrenceId.Value && t.Id != id).ToListAsync();
+                _db.Tasks.RemoveRange(related);
+            }
+            task.Recurring = false;
+            task.RecurrenceId = null;
+        }
+
+        // now apply standard updates to the primary task record
         task.Title = req.Title ?? task.Title;
         task.Category = req.Category ?? task.Category;
         task.Priority = req.Priority ?? task.Priority;
