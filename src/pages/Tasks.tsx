@@ -14,8 +14,16 @@ export default function Tasks() {
   const [newTask, setNewTask] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Personal');
   const [selectedPriority, setSelectedPriority] = useState('medium');
+  const [recurring, setRecurring] = useState(false);
+  const [recurrenceInterval, setRecurrenceInterval] = useState<number>(1);
+  const [recurrenceUnit, setRecurrenceUnit] = useState<'days'|'weeks'|'months'|'years'>('days');
+  const [recurrenceDays, setRecurrenceDays] = useState<string[]>([]);
+  const [monthlyDay, setMonthlyDay] = useState<number>(1);
+  const [recurrenceStart, setRecurrenceStart] = useState('');
+  const [recurrenceEnd, setRecurrenceEnd] = useState('');
   const [filterView, setFilterView] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [deleteConfirm, setDeleteConfirm] = useState<{ taskId: string; isRecurring: boolean } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -32,15 +40,37 @@ export default function Tasks() {
 
   const addTask = async () => {
     if (!user || !newTask.trim()) return;
-
-    await api.createTask(user.id, newTask, '', new Date(selectedCategory + ' ' + selectedPriority));
+    await api.createTask({
+      userId: user.id,
+      title: newTask,
+      category: selectedCategory,
+      priority: selectedPriority,
+      dueDate: undefined,
+      recurring,
+      recurrenceInterval,
+      recurrenceUnit,
+      recurrenceStartDate: recurrenceStart ? new Date(recurrenceStart) : undefined,
+      recurrenceEndDate: recurrenceEnd ? new Date(recurrenceEnd) : undefined,
+      recurrenceDays:
+        recurrenceUnit === 'weeks'
+          ? recurrenceDays
+          : recurrenceUnit === 'months'
+          ? [monthlyDay.toString()]
+          : undefined,
+    });
     setNewTask('');
+    setRecurring(false);
+    setRecurrenceInterval(1);
+    setRecurrenceUnit('days');
+    setRecurrenceDays([]);
+    setRecurrenceStart('');
+    setRecurrenceEnd('');
     loadTasks();
   };
 
   const toggleTask = async (task: any) => {
     const isCompleted = !task.isCompleted;
-    await api.updateTask(task.id, task.title, task.description, isCompleted, new Date(task.dueDate));
+    await api.updateTask(task.id, { isCompleted });
 
     if (isCompleted && user) {
       await api.addPoints(user.id, 'task_completed', 10);
@@ -49,8 +79,9 @@ export default function Tasks() {
     loadTasks();
   };
 
-  const deleteTask = async (id: string) => {
-    await api.deleteTask(id);
+  const deleteTask = async (id: string, deleteMode: 'this' | 'series' = 'this') => {
+    await api.deleteTask(id, deleteMode);
+    setDeleteConfirm(null);
     loadTasks();
   };
 
@@ -132,6 +163,101 @@ export default function Tasks() {
             ))}
           </select>
 
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={recurring}
+              onChange={(e) => {
+                const val = e.target.checked;
+                setRecurring(val);
+                if (!val) {
+                  setRecurrenceInterval(1);
+                  setRecurrenceUnit('days');
+                  setRecurrenceDays([]);
+                  setMonthlyDay(1);
+                  setRecurrenceStart('');
+                  setRecurrenceEnd('');
+                }
+              }}
+            />
+            <span className="text-sm">Recurring</span>
+          </label>
+        </div>
+
+        {recurring && (
+          <div className="flex flex-col gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm">Every</label>
+              <input
+                type="number"
+                min={1}
+                value={recurrenceInterval}
+                onChange={(e) => setRecurrenceInterval(parseInt(e.target.value, 10) || 1)}
+                className="w-16 px-3 py-2 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
+              />
+              <select
+                value={recurrenceUnit}
+                onChange={(e) => setRecurrenceUnit(e.target.value as any)}
+                className="px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
+              >
+                <option value="days">day(s)</option>
+                <option value="weeks">week(s)</option>
+                <option value="months">month(s)</option>
+                <option value="years">year(s)</option>
+              </select>
+            </div>
+
+            {recurrenceUnit === 'weeks' && (
+              <div className="flex items-center gap-2">
+                {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((day) => (
+                  <label key={day} className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={recurrenceDays.includes(day)}
+                      onChange={(e) => {
+                        if (e.target.checked) setRecurrenceDays([...recurrenceDays, day]);
+                        else setRecurrenceDays(recurrenceDays.filter(d => d !== day));
+                      }}
+                    />
+                    <span className="text-xs">{day}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {recurrenceUnit === 'months' && (
+              <div className="flex items-center gap-2">
+                <label className="text-sm">on day</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={monthlyDay}
+                  onChange={(e) => setMonthlyDay(parseInt(e.target.value, 10) || 1)}
+                  className="w-16 px-3 py-2 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
+                />
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <input
+                type="date"
+                value={recurrenceStart}
+                onChange={(e) => setRecurrenceStart(e.target.value)}
+                className="px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
+                placeholder="Start"
+              />
+              <input
+                type="date"
+                value={recurrenceEnd}
+                onChange={(e) => setRecurrenceEnd(e.target.value)}
+                className="px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
+                placeholder="End"
+              />
+            </div>
+          </div>
+        )}
+
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -141,7 +267,6 @@ export default function Tasks() {
             <Plus size={20} />
             Add
           </motion.button>
-        </div>
 
         <div className="flex flex-wrap gap-2">
           <button
@@ -239,6 +364,13 @@ export default function Tasks() {
                         {format(parseISO(task.due_date), 'MMM d')}
                       </span>
                     )}
+                    {task.recurring && (
+                      <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">
+                        {`every ${task.recurrenceType || 'day'}`}
+                        {task.recurrenceType === 'weekly' && task.recurrenceDays && ` (${(task.recurrenceDays as string[]).join(',')})`}
+                        {task.recurrenceType === 'monthly' && task.recurrenceDays && ` day ${(task.recurrenceDays as string[])[0]}`}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -256,7 +388,7 @@ export default function Tasks() {
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => deleteTask(task.id)}
+                    onClick={() => setDeleteConfirm({ taskId: task.id, isRecurring: task.recurring })}
                     className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
                   >
                     <Trash2 size={18} />
@@ -273,6 +405,54 @@ export default function Tasks() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setDeleteConfirm(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl p-6 max-w-md shadow-2xl"
+          >
+            <h2 className="text-xl font-bold mb-4 text-gray-900">Delete Task</h2>
+            {deleteConfirm.isRecurring ? (
+              <div className="mb-6">
+                <p className="text-gray-600 mb-4">This is a recurring task. What would you like to delete?</p>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => deleteTask(deleteConfirm.taskId, 'this')}
+                    className="w-full px-4 py-3 bg-yellow-100 text-yellow-700 rounded-xl font-semibold hover:bg-yellow-200 transition-colors"
+                  >
+                    Delete Only This Task
+                  </button>
+                  <button
+                    onClick={() => deleteTask(deleteConfirm.taskId, 'series')}
+                    className="w-full px-4 py-3 bg-red-100 text-red-700 rounded-xl font-semibold hover:bg-red-200 transition-colors"
+                  >
+                    Delete Entire Series
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-600 mb-6">Are you sure you want to delete this task?</p>
+            )}
+            <button
+              onClick={() => setDeleteConfirm(null)}
+              className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }

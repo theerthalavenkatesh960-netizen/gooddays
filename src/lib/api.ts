@@ -1,6 +1,25 @@
 type User = { id: string; email: string; name?: string };
 type Session = { access_token: string; user: User } | null;
-type Task = { id: string; userId: string; title: string; description?: string; isCompleted: boolean; dueDate: string; createdAt: string; updatedAt: string };
+type Task = {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string;
+  category?: string;
+  priority?: string;
+  dueDate?: string;
+  recurring?: boolean;
+  recurrenceInterval?: number;
+  recurrenceUnit?: string;
+  recurrenceId?: string;
+  recurrenceStartDate?: string;
+  recurrenceEndDate?: string;
+  recurrenceDays?: string[]; // array of weekday names or values
+  status?: string;
+  isCompleted?: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
 type Expense = { id: string; userId: string; description: string; amount: number; category: string; date: string; createdAt: string };
 // stored as logs referencing a template
 type SelfCareActivity = { id: string; userId: string; date: string; templateId: string; completed: boolean; createdAt: string };
@@ -58,16 +77,51 @@ export async function getTask(id: string) {
   return request(`tasks/${id}`);
 }
 
-export async function createTask(userId: string, title: string, description?: string, dueDate?: Date) {
-  return request('tasks', { method: 'POST', body: JSON.stringify({ userId, title, description, dueDate }) });
+export interface CreateTaskParams {
+  userId: string;
+  title: string;
+  category?: string;
+  priority?: string;
+  dueDate?: Date;
+  recurring?: boolean;
+  recurrenceInterval?: number;
+  recurrenceUnit?: 'days' | 'weeks' | 'months' | 'years';
+  recurrenceStartDate?: Date;
+  recurrenceEndDate?: Date;
+  recurrenceDays?: string[];
+  status?: string;
 }
 
-export async function updateTask(id: string, title?: string, description?: string, isCompleted?: boolean, dueDate?: Date) {
-  return request(`tasks/${id}`, { method: 'PUT', body: JSON.stringify({ title, description, isCompleted, dueDate }) });
+export async function createTask(params: CreateTaskParams) {
+  // recurrenceDays is already an array, backend expects string[]
+  const body: any = { ...params };
+  return request('tasks', { method: 'POST', body: JSON.stringify(body) });
 }
 
-export async function deleteTask(id: string) {
-  return request(`tasks/${id}`, { method: 'DELETE' });
+export interface UpdateTaskParams {
+  title?: string;
+  category?: string;
+  priority?: string;
+  dueDate?: Date;
+  recurring?: boolean;
+  recurrenceInterval?: number;
+  recurrenceUnit?: 'days' | 'weeks' | 'months' | 'years';
+  recurrenceStartDate?: Date;
+  recurrenceEndDate?: Date;
+  recurrenceDays?: string[];
+  status?: string;
+  completedAt?: Date;
+  isCompleted?: boolean;
+}
+
+export async function updateTask(id: string, params: UpdateTaskParams) {
+  const body: any = { ...params };
+  return request(`tasks/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteTask(id: string, deleteMode: 'this' | 'series' = 'this') {
+  const queryParam = deleteMode === 'series' ? '?deleteMode=series' : '';
+  return request(`tasks/${id}${queryParam}`, { method: 'DELETE' });
 }
 
 // Expenses

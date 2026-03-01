@@ -32,6 +32,13 @@ export default function GamificationBar() {
     }
   }, [user]);
 
+  // whenever points change, show a motivational message
+  useEffect(() => {
+    if (points > 0) {
+      showMotivationalMessage();
+    }
+  }, [points]);
+
   const loadProfile = async () => {
     if (!user) return;
 

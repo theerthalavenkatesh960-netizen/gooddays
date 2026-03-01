@@ -8,12 +8,13 @@ import GamificationBar from '../components/GamificationBar';
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const today = format(new Date(), 'yyyy-MM-dd');
-
   const [topThree, setTopThree] = useState({
     task_1: '',
     task_2: '',
     task_3: '',
+    id_1: '',
+    id_2: '',
+    id_3: '',
     completed_1: false,
     completed_2: false,
     completed_3: false,
@@ -39,14 +40,21 @@ export default function Dashboard() {
     if (!user) return;
 
     const tasks = await api.getTasks(user.id);
-    if (tasks && tasks.length > 0) {
+    if (tasks) {
+      const t1 = tasks[0] || {};
+      const t2 = tasks[1] || {};
+      const t3 = tasks[2] || {};
+      const completedVal = (task: any) => task.isCompleted ?? (task.status === 'completed');
       setTopThree({
-        task_1: tasks[0]?.title || '',
-        task_2: tasks[1]?.title || '',
-        task_3: tasks[2]?.title || '',
-        completed_1: tasks[0]?.isCompleted || false,
-        completed_2: tasks[1]?.isCompleted || false,
-        completed_3: tasks[2]?.isCompleted || false,
+        task_1: t1.title || '',
+        id_1: t1.id || '',
+        task_2: t2.title || '',
+        id_2: t2.id || '',
+        task_3: t3.title || '',
+        id_3: t3.id || '',
+        completed_1: completedVal(t1),
+        completed_2: completedVal(t2),
+        completed_3: completedVal(t3),
       });
     }
   };
@@ -87,13 +95,26 @@ export default function Dashboard() {
   const updateTopThree = async (field: string, value: string | boolean) => {
     if (!user) return;
 
+    const prevAllCompleted = topThree.completed_1 && topThree.completed_2 && topThree.completed_3;
     const updated = { ...topThree, [field]: value };
     setTopThree(updated);
 
-    if (field.startsWith('completed_') && value === true) {
-      const allCompleted = updated.completed_1 && updated.completed_2 && updated.completed_3;
-      if (allCompleted) {
+    // if toggling completion, try to update underlying task
+    if (field.startsWith('completed_')) {
+      const index = parseInt(field.split('_')[1], 10);
+      const idKey = `id_${index}` as keyof typeof topThree;
+      const taskId = (topThree as any)[idKey];
+      if (taskId) {
+        await api.updateTask(taskId, { isCompleted: value === true });
+        // also refresh the tasks list for streaks, top three etc
+        loadTopThree();
+      }
+
+      const newAllCompleted = updated.completed_1 && updated.completed_2 && updated.completed_3;
+      if (newAllCompleted && !prevAllCompleted) {
         await api.addPoints(user.id, 'top_three_complete', 20);
+      } else if (!newAllCompleted && prevAllCompleted) {
+        await api.addPoints(user.id, 'top_three_complete', -20);
       }
     }
   };

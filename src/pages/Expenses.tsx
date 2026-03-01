@@ -9,6 +9,11 @@ const categories = ['Food', 'Transport', 'Home', 'Personal', 'Medical', 'Fun', '
 
 export default function Expenses() {
   const { user } = useAuth();
+  const parseDate = (val: any): Date | null => {
+    if (!val) return null;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+  };
   const [expenses, setExpenses] = useState<any[]>([]);
   const [newExpense, setNewExpense] = useState({
     amount: '',
@@ -36,13 +41,18 @@ export default function Expenses() {
 
   const calculateTotals = (data: any[]) => {
     const today = format(new Date(), 'yyyy-MM-dd');
-    const todayExpenses = data.filter((e) => format(new Date(e.date), 'yyyy-MM-dd') === today);
+    const todayExpenses = data.filter((e) => {
+      const d = parseDate(e.date) || parseDate(e.created_at);
+      return d ? format(d, 'yyyy-MM-dd') === today : false;
+    });
     const todaySum = todayExpenses.reduce((sum, e) => sum + parseFloat(e.amount), 0);
     setTodayTotal(todaySum);
 
     const byMonth: any = {};
     data.forEach((e) => {
-      const month = format(new Date(e.date), 'MMM yyyy');
+      const d = parseDate(e.date) || parseDate(e.created_at);
+      if (!d) return;
+      const month = format(d, 'MMM yyyy');
       byMonth[month] = (byMonth[month] || 0) + parseFloat(e.amount);
     });
     setMonthlyTotals(byMonth);
@@ -71,7 +81,10 @@ export default function Expenses() {
   const exportCSV = () => {
     const headers = ['Date', 'Amount', 'Category', 'Note'];
     const rows = expenses.map((e) => [
-      format(new Date(e.created_at), 'yyyy-MM-dd HH:mm'),
+      (() => {
+        const d = parseDate(e.created_at) || parseDate(e.date);
+        return d ? format(d, 'yyyy-MM-dd HH:mm') : '';
+      })(),
       e.amount,
       e.category,
       e.note,
@@ -190,7 +203,12 @@ export default function Expenses() {
             <div className="flex items-center gap-4 flex-1">
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-800">${parseFloat(expense.amount).toFixed(2)}</div>
-                <div className="text-xs text-gray-500">{format(new Date(expense.date), 'MMM d, h:mm a')}</div>
+                <div className="text-xs text-gray-500">{
+                  (() => {
+                    const d = parseDate(expense.date) || parseDate(expense.created_at);
+                    return d ? format(d, 'MMM d, h:mm a') : '-';
+                  })()
+                }</div>
               </div>
               <div className="flex-1">
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(expense.category)}`}>

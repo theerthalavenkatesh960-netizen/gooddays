@@ -100,6 +100,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   priority text DEFAULT 'medium',
   due_date date,
   recurring boolean DEFAULT false,
+  recurrence_start_date date,
+  recurrence_end_date date,
+  recurrence_days text[],
   status text DEFAULT 'pending',
   created_at timestamptz DEFAULT now(),
   completed_at timestamptz

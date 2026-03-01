@@ -24,6 +24,19 @@ public class DailyTask
     public DateTime? DueDate { get; set; }
     [Column("recurring")]
     public bool Recurring { get; set; } = false;
+    [Column("recurrence_start_date")]
+    public DateTime? RecurrenceStartDate { get; set; }
+    [Column("recurrence_end_date")]
+    public DateTime? RecurrenceEndDate { get; set; }
+    // stored as text[] in Postgres
+    [Column("recurrence_days")]
+    public string[]? RecurrenceDays { get; set; }
+    [Column("recurrence_id")]
+    public Guid? RecurrenceId { get; set; }
+    [Column("recurrence_interval")]
+    public int? RecurrenceInterval { get; set; }
+    [Column("recurrence_unit")]
+    public string? RecurrenceUnit { get; set; }
     [Column("status")]
     public string Status { get; set; } = "pending";
     [Column("created_at")]
@@ -33,4 +46,8 @@ public class DailyTask
 
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
+
+    // helper for JSON serialization: frontend expects an "isCompleted" boolean
+    [NotMapped]
+    public bool IsCompleted => Status?.ToLower() == "completed";
 }
