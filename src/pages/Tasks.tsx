@@ -25,6 +25,8 @@ export default function Tasks() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [deleteConfirm, setDeleteConfirm] = useState<{ taskId: string; isRecurring: boolean } | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -41,12 +43,12 @@ export default function Tasks() {
 
   const addTask = async () => {
     if (!user || !newTask.trim()) return;
-    await api.createTask({
+
+    const body: any = {
       userId: user.id,
       title: newTask,
       category: selectedCategory,
       priority: selectedPriority,
-      dueDate: undefined,
       recurring,
       recurrenceInterval,
       recurrenceUnit,
@@ -58,14 +60,25 @@ export default function Tasks() {
           : recurrenceUnit === 'months'
           ? [monthlyDay.toString()]
           : undefined,
-    });
+    };
+
+    // if not recurring and a scheduled date provided, send it as dueDate
+    if (!recurring && scheduledDate) {
+      body.dueDate = new Date(scheduledDate);
+    }
+
+    await api.createTask(body);
+
+    // reset form
     setNewTask('');
+    setScheduledDate('');
     setRecurring(false);
     setRecurrenceInterval(1);
     setRecurrenceUnit('days');
     setRecurrenceDays([]);
     setRecurrenceStart('');
     setRecurrenceEnd('');
+    setShowAddModal(false);
     loadTasks();
   };
 
@@ -92,19 +105,24 @@ export default function Tasks() {
     // Primary filtering by selectedDate (if present)
     if (selectedDate) {
       filtered = filtered.filter((t) => {
-        if (!t.due_date) return false;
+        const due = t.dueDate ?? t.due_date;
+        if (!due) return false;
         try {
-          return isSameDay(parseISO(t.due_date), selectedDate);
+          return isSameDay(parseISO(due), selectedDate);
         } catch {
           return false;
         }
       });
     } else if (filterView === 'today') {
-      filtered = filtered.filter((t) => !t.due_date || isToday(parseISO(t.due_date)));
+      filtered = filtered.filter((t) => {
+        const due = t.dueDate ?? t.due_date;
+        return !due || isToday(parseISO(due));
+      });
     } else if (filterView === 'overdue') {
-      filtered = filtered.filter(
-        (t) => t.due_date && isPast(parseISO(t.due_date)) && !isToday(parseISO(t.due_date)) && t.status !== 'completed'
-      );
+      filtered = filtered.filter((t) => {
+        const due = t.dueDate ?? t.due_date;
+        return due && isPast(parseISO(due)) && !isToday(parseISO(due)) && t.status !== 'completed';
+      });
     }
 
     if (filterCategory !== 'all') {
@@ -138,144 +156,17 @@ export default function Tasks() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl p-6 shadow-xl mb-6"
       >
-        <div className="flex flex-col md:flex-row gap-3 mb-4">
-          <input
-            type="text"
-            value={newTask}
-            onChange={(e) => setNewTask(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && addTask()}
-            placeholder="Add a new task..."
-            className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none"
-          />
-
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
-          >
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={selectedPriority}
-            onChange={(e) => setSelectedPriority(e.target.value)}
-            className="px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
-          >
-            {priorities.map((pri) => (
-              <option key={pri} value={pri}>
-                {pri.charAt(0).toUpperCase() + pri.slice(1)}
-              </option>
-            ))}
-          </select>
-
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={recurring}
-              onChange={(e) => {
-                const val = e.target.checked;
-                setRecurring(val);
-                if (!val) {
-                  setRecurrenceInterval(1);
-                  setRecurrenceUnit('days');
-                  setRecurrenceDays([]);
-                  setMonthlyDay(1);
-                  setRecurrenceStart('');
-                  setRecurrenceEnd('');
-                }
-              }}
-            />
-            <span className="text-sm">Recurring</span>
-          </label>
-        </div>
-
-        {recurring && (
-          <div className="flex flex-col gap-3 mb-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm">Every</label>
-              <input
-                type="number"
-                min={1}
-                value={recurrenceInterval}
-                onChange={(e) => setRecurrenceInterval(parseInt(e.target.value, 10) || 1)}
-                className="w-16 px-3 py-2 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
-              />
-              <select
-                value={recurrenceUnit}
-                onChange={(e) => setRecurrenceUnit(e.target.value as any)}
-                className="px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
-              >
-                <option value="days">day(s)</option>
-                <option value="weeks">week(s)</option>
-                <option value="months">month(s)</option>
-                <option value="years">year(s)</option>
-              </select>
-            </div>
-
-            {recurrenceUnit === 'weeks' && (
-              <div className="flex items-center gap-2">
-                {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((day) => (
-                  <label key={day} className="flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={recurrenceDays.includes(day)}
-                      onChange={(e) => {
-                        if (e.target.checked) setRecurrenceDays([...recurrenceDays, day]);
-                        else setRecurrenceDays(recurrenceDays.filter(d => d !== day));
-                      }}
-                    />
-                    <span className="text-xs">{day}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {recurrenceUnit === 'months' && (
-              <div className="flex items-center gap-2">
-                <label className="text-sm">on day</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={monthlyDay}
-                  onChange={(e) => setMonthlyDay(parseInt(e.target.value, 10) || 1)}
-                  className="w-16 px-3 py-2 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
-                />
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <input
-                type="date"
-                value={recurrenceStart}
-                onChange={(e) => setRecurrenceStart(e.target.value)}
-                className="px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
-                placeholder="Start"
-              />
-              <input
-                type="date"
-                value={recurrenceEnd}
-                onChange={(e) => setRecurrenceEnd(e.target.value)}
-                className="px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-500 outline-none"
-                placeholder="End"
-              />
-            </div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold flex items-center gap-2"
+            >
+              <Plus size={18} /> New Task
+            </button>
+            <div className="text-sm text-gray-500">Click to open task dialog</div>
           </div>
-        )}
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={addTask}
-            className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold shadow-lg flex items-center justify-center gap-2"
-          >
-            <Plus size={20} />
-            Add
-          </motion.button>
+        </div>
 
         <div className="flex flex-wrap gap-2">
           <button
@@ -363,7 +254,7 @@ export default function Tasks() {
                 <button
                   key={d.toISOString()}
                   onClick={() => setSelectedDate(d)}
-                  className={`min-w-[88px] flex-shrink-0 px-3 py-2 rounded-xl text-center border ${isSelected ? 'bg-emerald-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+                  className={`flex-1 min-w-0 px-3 py-3 rounded-lg text-center border ${isSelected ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
                 >
                   <div className="text-xs">{format(d, 'EEE')}</div>
                   <div className="font-semibold">{format(d, 'd')}</div>
@@ -375,6 +266,78 @@ export default function Tasks() {
       </div>
 
       <div className="space-y-3">
+        {/* Add Task Modal */}
+        {showAddModal && (
+          <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-xl font-semibold mb-4">Create Task</h3>
+              <div className="space-y-3">
+                <input type="text" value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="Task title" className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" />
+                <div className="flex gap-2">
+                  <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="px-3 py-2 rounded-xl border border-gray-200">
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <select value={selectedPriority} onChange={(e) => setSelectedPriority(e.target.value)} className="px-3 py-2 rounded-xl border border-gray-200">
+                    {priorities.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={recurring} onChange={(e) => { setRecurring(e.target.checked); }} /> Recurring
+                  </label>
+                </div>
+
+                {!recurring && (
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm">Schedule for</label>
+                    <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="px-3 py-2 rounded-xl border border-gray-200" />
+                  </div>
+                )}
+
+                {recurring && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <label className="text-sm">Every</label>
+                      <input type="number" min={1} value={recurrenceInterval} onChange={(e) => setRecurrenceInterval(parseInt(e.target.value, 10) || 1)} className="w-16 px-3 py-2 rounded-xl border border-gray-200" />
+                      <select value={recurrenceUnit} onChange={(e) => setRecurrenceUnit(e.target.value as any)} className="px-3 py-2 rounded-xl border border-gray-200">
+                        <option value="days">day(s)</option>
+                        <option value="weeks">week(s)</option>
+                        <option value="months">month(s)</option>
+                        <option value="years">year(s)</option>
+                      </select>
+                    </div>
+
+                    {recurrenceUnit === 'weeks' && (
+                      <div className="flex gap-2">
+                        {['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(d => (
+                          <label key={d} className="flex items-center gap-1">
+                            <input type="checkbox" checked={recurrenceDays.includes(d)} onChange={(e) => { if (e.target.checked) setRecurrenceDays([...recurrenceDays, d]); else setRecurrenceDays(recurrenceDays.filter(x => x !== d)); }} />
+                            <span className="text-xs">{d.slice(0,3)}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+
+                    {recurrenceUnit === 'months' && (
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm">on day</label>
+                        <input type="number" min={1} max={31} value={monthlyDay} onChange={(e) => setMonthlyDay(parseInt(e.target.value, 10) || 1)} className="w-16 px-3 py-2 rounded-xl border border-gray-200" />
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <input type="date" value={recurrenceStart} onChange={(e) => setRecurrenceStart(e.target.value)} className="px-3 py-2 rounded-xl border border-gray-200" />
+                      <input type="date" value={recurrenceEnd} onChange={(e) => setRecurrenceEnd(e.target.value)} className="px-3 py-2 rounded-xl border border-gray-200" />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 mt-4">
+                  <button onClick={addTask} className="px-4 py-2 bg-emerald-500 text-white rounded-xl">Create</button>
+                  <button onClick={() => setShowAddModal(false)} className="px-4 py-2 bg-gray-200 rounded-xl">Cancel</button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
         <AnimatePresence>
           {filteredTasks.map((task, index) => (
             <motion.div
@@ -415,16 +378,14 @@ export default function Tasks() {
                     <span className={`text-xs px-2 py-1 rounded-full border ${getPriorityColor(task.priority)}`}>
                       {task.priority}
                     </span>
-                    {task.due_date && (
-                      <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
-                        {format(parseISO(task.due_date), 'MMM d')}
+                    {((task.dueDate ?? task.due_date)) && (
+                      <span className="text-sm bg-blue-50 text-blue-700 px-3 py-1 rounded-full font-medium">
+                        {format(parseISO((task.dueDate ?? task.due_date)), 'EEE, MMM d')}
                       </span>
                     )}
                     {task.recurring && (
                       <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">
-                        {`every ${task.recurrenceType || 'day'}`}
-                        {task.recurrenceType === 'weekly' && task.recurrenceDays && ` (${(task.recurrenceDays as string[]).join(',')})`}
-                        {task.recurrenceType === 'monthly' && task.recurrenceDays && ` day ${(task.recurrenceDays as string[])[0]}`}
+                        Scheduled • series
                       </span>
                     )}
                   </div>
