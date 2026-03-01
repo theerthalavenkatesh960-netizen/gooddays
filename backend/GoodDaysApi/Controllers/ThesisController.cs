@@ -17,7 +17,7 @@ public class ThesisController : ControllerBase
     }
 
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetUserEntries(Guid userId)
+    public async Task<IActionResult> GetUserEntries(string userId)
     {
         // legacy shortcut API now hits same patients table; older clients will still
         // receive the smaller subset of fields they expect.
@@ -41,7 +41,7 @@ public class ThesisController : ControllerBase
     {
         var entry = new ThesisPatient
         {
-            UserId = req.UserId,
+            UserId = req.UserId.ToString(),
             GroupName = req.Title,
             Notes = req.Content,
             ProformaStatus = req.Status,
@@ -57,12 +57,12 @@ public class ThesisController : ControllerBase
     {
         var entry = await _db.ThesisPatients.FindAsync(id);
         if (entry == null) return NotFound();
-        
-        entry.Title = req.Title ?? entry.Title;
-        entry.Content = req.Content ?? entry.Content;
-        entry.Status = req.Status ?? entry.Status;
-        entry.Date = req.Date ?? entry.Date;
-        
+
+        entry.GroupName = req.Title ?? entry.GroupName;
+        entry.Notes = req.Content ?? entry.Notes;
+        entry.ProformaStatus = req.Status ?? entry.ProformaStatus;
+        entry.RecruitmentDate = req.Date ?? entry.RecruitmentDate;
+
         await _db.SaveChangesAsync();
         return Ok(entry);
     }
@@ -70,9 +70,9 @@ public class ThesisController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteEntry(Guid id)
     {
-        var entry = await _db.ThesisEntries.FindAsync(id);
+        var entry = await _db.ThesisPatients.FindAsync(id);
         if (entry == null) return NotFound();
-        
+
         _db.ThesisPatients.Remove(entry);
         await _db.SaveChangesAsync();
         return Ok();
