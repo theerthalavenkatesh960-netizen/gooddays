@@ -19,7 +19,8 @@ public class ThesisStatsController : ControllerBase
     [HttpGet("{userId}")]
     public async Task<IActionResult> GetStats(string userId)
     {
-        var patients = await _db.ThesisPatients.Where(p => p.UserId == userId).ToListAsync();
+        if (!Guid.TryParse(userId, out var uid)) return BadRequest("invalid user id");
+        var patients = await _db.ThesisPatients.Where(p => p.UserId == uid).ToListAsync();
         var followups = await _db.ThesisFollowups.Where(f => patients.Select(p => p.Id).Contains(f.PatientId)).ToListAsync();
 
         var total = patients.Count;
@@ -64,7 +65,8 @@ public class ThesisStatsController : ControllerBase
     [HttpGet("export/patients/{userId}")]
     public async Task<IActionResult> ExportPatientsCsv(string userId)
     {
-        var patients = await _db.ThesisPatients.Where(p => p.UserId == userId).ToListAsync();
+        if (!Guid.TryParse(userId, out var uid)) return BadRequest("invalid user id");
+        var patients = await _db.ThesisPatients.Where(p => p.UserId == uid).ToListAsync();
         var sb = new StringBuilder();
         sb.AppendLine("PatientCode,StudyNumber,Group,RecruitmentDate,Age,Gender,ProformaStatus,FollowupStatus,DroppedOut,Notes");
         foreach (var p in patients)

@@ -18,7 +18,8 @@ public class PatientsController : ControllerBase
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetByUser(string userId)
     {
-        var list = await _db.ThesisPatients.Where(p => p.UserId == userId).ToListAsync();
+        if (!Guid.TryParse(userId, out var uid)) return BadRequest("invalid user id");
+        var list = await _db.ThesisPatients.Where(p => p.UserId == uid).ToListAsync();
         return Ok(list);
     }
 

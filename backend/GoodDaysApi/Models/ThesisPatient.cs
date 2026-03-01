@@ -5,7 +5,7 @@ namespace GoodDaysApi.Models;
 public class ThesisPatient
 {
     public Guid Id { get; set; }
-    public string UserId { get; set; }
+    public Guid UserId { get; set; }
     public string PatientId { get; set; }
     public string PatientCode { get; set; }
     public string StudyNumber { get; set; }

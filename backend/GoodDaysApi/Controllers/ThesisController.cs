@@ -21,8 +21,9 @@ public class ThesisController : ControllerBase
     {
         // legacy shortcut API now hits same patients table; older clients will still
         // receive the smaller subset of fields they expect.
+        if (!Guid.TryParse(userId, out var uid)) return BadRequest("invalid user id");
         var entries = await _db.ThesisPatients
-            .Where(t => t.UserId == userId)
+            .Where(t => t.UserId == uid)
             .OrderByDescending(t => t.RecruitmentDate /* previously Date */)
             .ToListAsync();
         return Ok(entries);
@@ -41,7 +42,7 @@ public class ThesisController : ControllerBase
     {
         var entry = new ThesisPatient
         {
-            UserId = req.UserId.ToString(),
+            UserId = req.UserId,
             GroupName = req.Title,
             Notes = req.Content,
             ProformaStatus = req.Status,
