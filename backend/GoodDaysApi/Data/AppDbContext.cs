@@ -17,6 +17,12 @@ public class AppDbContext : DbContext
     public DbSet<GamificationEntry> GamificationEntries { get; set; }
     public DbSet<SelfCareTemplate> SelfCareTemplates { get; set; }
     public DbSet<DailyTracking> DailyTrackings { get; set; }
+    // Thesis system new tables
+    public DbSet<ThesisProtocol> ThesisProtocols { get; set; }
+    public DbSet<ThesisPatient> ThesisPatients { get; set; }
+    public DbSet<ThesisFollowup> ThesisFollowups { get; set; }
+    public DbSet<ThesisDocument> ThesisDocuments { get; set; }
+    public DbSet<ThesisDeadline> ThesisDeadlines { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +36,11 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<SelfCareTemplate>().ToTable("self_care_template");
         modelBuilder.Entity<StudySession>().ToTable("study_sessions");
         modelBuilder.Entity<ThesisEntry>().ToTable("thesis_patients");
+        modelBuilder.Entity<ThesisProtocol>().ToTable("thesis_protocols");
+        modelBuilder.Entity<ThesisPatient>().ToTable("thesis_patients_v2");
+        modelBuilder.Entity<ThesisFollowup>().ToTable("thesis_followups");
+        modelBuilder.Entity<ThesisDocument>().ToTable("thesis_documents");
+        modelBuilder.Entity<ThesisDeadline>().ToTable("thesis_deadlines");
         modelBuilder.Entity<GamificationEntry>().ToTable("gamification_entries");
         modelBuilder.Entity<DailyTracking>().ToTable("daily_tracking");
         // other entities follow default pluralization unless you need a custom name
@@ -77,6 +88,13 @@ public class AppDbContext : DbContext
             .HasOne(t => t.User)
             .WithMany()
             .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // configure thesis relationships
+        modelBuilder.Entity<ThesisPatient>()
+            .HasMany(p => p.Followups)
+            .WithOne()
+            .HasForeignKey(f => f.PatientId)
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<StudySession>()

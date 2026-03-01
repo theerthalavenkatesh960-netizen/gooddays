@@ -1,0 +1,55 @@
+using System;
+using System.Threading.Tasks;
+using GoodDaysApi.Data;
+using GoodDaysApi.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace GoodDaysApi.Controllers;
+
+[ApiController]
+[Route("api/thesis/protocol")]
+public class ThesisProtocolController : ControllerBase
+{
+    private readonly AppDbContext _db;
+    public ThesisProtocolController(AppDbContext db) { _db = db; }
+
+    [HttpGet("user/{userId}")]
+    public async Task<IActionResult> GetByUser(string userId)
+    {
+        var p = await _db.ThesisProtocols.FirstOrDefaultAsync(x => x.UserId == userId);
+        return Ok(p);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] ThesisProtocol proto)
+    {
+        proto.Id = Guid.NewGuid();
+        proto.CreatedAt = DateTime.UtcNow;
+        _db.ThesisProtocols.Add(proto);
+        await _db.SaveChangesAsync();
+        return Ok(proto);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] ThesisProtocol body)
+    {
+        var p = await _db.ThesisProtocols.FindAsync(id);
+        if (p == null) return NotFound();
+        // simple mapper for fields
+        p.Title = body.Title;
+        p.GuideName = body.GuideName;
+        p.CoGuideName = body.CoGuideName;
+        p.Department = body.Department;
+        p.StudyType = body.StudyType;
+        p.ProtocolSubmittedDate = body.ProtocolSubmittedDate;
+        p.ProtocolApprovedDate = body.ProtocolApprovedDate;
+        p.IECApprovalNumber = body.IECApprovalNumber;
+        p.TrialRegistrationNumber = body.TrialRegistrationNumber;
+        p.SynopsisStatus = body.SynopsisStatus;
+        p.TotalSampleSize = body.TotalSampleSize;
+        p.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return Ok(p);
+    }
+}

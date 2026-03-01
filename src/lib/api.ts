@@ -265,6 +265,98 @@ export async function deleteThesisEntry(id: string) {
   return request(`thesis/${id}`, { method: 'DELETE' });
 }
 
+// Advanced Thesis API (protocol, patients, followups, documents, deadlines)
+export async function getThesisProtocol(userId: string) {
+  return request(`thesis/protocol/user/${userId}`);
+}
+
+export async function createProtocol(body: any) {
+  return request('thesis/protocol', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateProtocol(id: string, body: any) {
+  return request(`thesis/protocol/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function getPatients(userId: string) {
+  return request(`thesis/patients/user/${userId}`);
+}
+
+export async function createPatient(body: any) {
+  return request('thesis/patients', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updatePatient(id: string, body: any) {
+  return request(`thesis/patients/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deletePatient(id: string) {
+  return request(`thesis/patients/${id}`, { method: 'DELETE' });
+}
+
+export async function getFollowups(patientId: string) {
+  return request(`thesis/followups/patient/${patientId}`);
+}
+
+export async function createFollowup(body: any) {
+  return request('thesis/followups', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateFollowup(id: string, body: any) {
+  return request(`thesis/followups/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteFollowup(id: string) {
+  return request(`thesis/followups/${id}`, { method: 'DELETE' });
+}
+
+// multipart helper for file uploads
+async function requestMultipart(path: string, form: FormData, opts: RequestInit = {}) {
+  const res = await fetch(`${API_BASE}/api/${path}`, { method: opts.method || 'POST', body: form, headers: { ...(getAuthHeader() || {}), ...(opts.headers || {}) } });
+  const text = await res.text();
+  try { return JSON.parse(text); } catch { return text; }
+}
+
+export async function uploadDocument(userId: string, file: File, category: string) {
+  const form = new FormData();
+  form.append('userId', userId);
+  form.append('category', category);
+  form.append('file', file);
+  return requestMultipart('thesis/documents/upload', form);
+}
+
+export async function getDocuments(userId: string) {
+  return request(`thesis/documents/user/${userId}`);
+}
+
+export async function getDeadlines(userId: string) {
+  return request(`thesis/deadlines/user/${userId}`);
+}
+
+export async function createDeadline(body: any) {
+  return request('thesis/deadlines', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateDeadline(id: string, body: any) {
+  return request(`thesis/deadlines/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteDeadline(id: string) {
+  return request(`thesis/deadlines/${id}`, { method: 'DELETE' });
+}
+
+export async function getThesisStats(userId: string) {
+  return request(`thesis/stats/user/${userId}`);
+}
+
+export async function exportPatientsCsv(userId: string) {
+  return request(`thesis/export/patients/${userId}`);
+}
+
+export async function exportStatsCsv(userId: string) {
+  return request(`thesis/export/stats/${userId}`);
+}
+
 // Study Sessions
 export async function getStudySessions(userId: string) {
   return request(`study/user/${userId}`);

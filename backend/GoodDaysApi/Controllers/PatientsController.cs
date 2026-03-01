@@ -1,0 +1,63 @@
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+using GoodDaysApi.Data;
+using GoodDaysApi.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace GoodDaysApi.Controllers;
+
+[ApiController]
+[Route("api/thesis/patients")]
+public class PatientsController : ControllerBase
+{
+    private readonly AppDbContext _db;
+    public PatientsController(AppDbContext db) { _db = db; }
+
+    [HttpGet("user/{userId}")]
+    public async Task<IActionResult> GetByUser(string userId)
+    {
+        var list = await _db.ThesisPatients.Where(p => p.UserId == userId).ToListAsync();
+        return Ok(list);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] ThesisPatient patient)
+    {
+        patient.Id = Guid.NewGuid();
+        if (string.IsNullOrEmpty(patient.PatientId)) patient.PatientId = Guid.NewGuid().ToString().Split('-')[0].ToUpper();
+        _db.ThesisPatients.Add(patient);
+        await _db.SaveChangesAsync();
+        return Ok(patient);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] ThesisPatient body)
+    {
+        var p = await _db.ThesisPatients.FindAsync(id);
+        if (p == null) return NotFound();
+        p.StudyNumber = body.StudyNumber;
+        p.GroupName = body.GroupName;
+        p.RecruitmentDate = body.RecruitmentDate;
+        p.ConsentTaken = body.ConsentTaken;
+        p.InclusionCriteriaMet = body.InclusionCriteriaMet;
+        p.ExclusionCriteriaMet = body.ExclusionCriteriaMet;
+        p.ProformaStatus = body.ProformaStatus;
+        p.FollowupStatus = body.FollowupStatus;
+        p.Notes = body.Notes;
+        p.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return Ok(p);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var p = await _db.ThesisPatients.FindAsync(id);
+        if (p == null) return NotFound();
+        _db.ThesisPatients.Remove(p);
+        await _db.SaveChangesAsync();
+        return Ok();
+    }
+}
