@@ -59,6 +59,10 @@ const getCategoryConfig = (name: string) =>
 
 export default function Expenses() {
   const { user } = useAuth();
+
+  const formatRupee = (num: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num);
+  };
   const [expenses, setExpenses] = useState<any[]>([]);
   const [month, setMonth] = useState(new Date());
   const [showAddForm, setShowAddForm] = useState(false);
@@ -321,7 +325,7 @@ export default function Expenses() {
           className="bg-gradient-to-br from-emerald-400 to-teal-600 rounded-2xl p-6 text-white shadow-xl"
         >
           <p className="text-sm font-semibold opacity-90">Total Spent</p>
-          <p className="text-4xl font-bold mt-2">₹{total.toFixed(0)}</p>
+          <p className="text-4xl font-bold mt-2">{formatRupee(total)}</p>
           <p className="text-xs opacity-75 mt-2">{monthExpenses.length} transactions</p>
         </motion.div>
 
@@ -331,7 +335,7 @@ export default function Expenses() {
           className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl p-6 text-white shadow-xl"
         >
           <p className="text-sm font-semibold opacity-90">Average/Day</p>
-          <p className="text-4xl font-bold mt-2">₹{avgPerDay.toFixed(0)}</p>
+          <p className="text-4xl font-bold mt-2">{formatRupee(avgPerDay)}</p>
           <p className="text-xs opacity-75 mt-2">Based on {new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate()} days</p>
         </motion.div>
 
@@ -341,7 +345,7 @@ export default function Expenses() {
           className="bg-gradient-to-br from-amber-400 to-orange-600 rounded-2xl p-6 text-white shadow-xl"
         >
           <p className="text-sm font-semibold opacity-90">Today's Spend</p>
-          <p className="text-4xl font-bold mt-2">₹{todayTotal.toFixed(0)}</p>
+          <p className="text-4xl font-bold mt-2">{formatRupee(todayTotal)}</p>
           <p className="text-xs opacity-75 mt-2">{format(new Date(), 'MMM d, yyyy')}</p>
         </motion.div>
 
@@ -353,7 +357,7 @@ export default function Expenses() {
           <p className="text-sm font-semibold opacity-90">Top Category</p>
           <p className="text-3xl font-bold mt-2">{categoryTotals[0]?.name || '—'}</p>
           {categoryTotals[0] && (
-            <p className="text-xs opacity-75 mt-2">₹{categoryTotals[0].amount.toFixed(0)}</p>
+            <p className="text-xs opacity-75 mt-2">{formatRupee(categoryTotals[0].amount)}</p>
           )}
         </motion.div>
       </motion.div>
@@ -490,7 +494,7 @@ export default function Expenses() {
                       <div className="flex justify-between items-baseline">
                         <p className="font-semibold text-gray-800">{cat.name}</p>
                         <p className="text-sm text-gray-600">
-                          ₹{cat.amount.toFixed(0)} <span className="text-xs">({percentage.toFixed(1)}%)</span>
+                          {formatRupee(cat.amount)} <span className="text-xs">({percentage.toFixed(1)}%)</span>
                         </p>
                       </div>
                     </div>
@@ -539,7 +543,7 @@ export default function Expenses() {
                       {format(parseISO(day.date), 'MMMM d, yyyy')}
                     </p>
                     {isToday_ && <span className="text-xs bg-emerald-500 text-white px-2 py-1 rounded-full">Today</span>}
-                    <p className="ml-auto text-lg font-bold text-emerald-600">₹{day.total.toFixed(0)}</p>
+                    <p className="ml-auto text-lg font-bold text-emerald-600">{formatRupee(day.total)}</p>
                   </div>
 
                   <div className="space-y-2 pl-8 border-l-2 border-gray-200">
@@ -560,7 +564,7 @@ export default function Expenses() {
                             <p className="font-semibold text-gray-800 truncate">{expense.category || 'Other'}</p>
                             {expense.note && <p className="text-xs text-gray-500 truncate">{expense.note}</p>}
                           </div>
-                          <p className="font-bold text-lg text-gray-800 flex-shrink-0">₹{(parseFloat(expense.amount) || 0).toFixed(0)}</p>
+                          <p className="font-bold text-lg text-gray-800 flex-shrink-0">{formatRupee(parseFloat(expense.amount) || 0)}</p>
                           <motion.button
                             whileHover={{ scale: 1.2 }}
                             whileTap={{ scale: 0.9 }}
