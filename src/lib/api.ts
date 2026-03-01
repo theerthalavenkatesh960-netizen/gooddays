@@ -23,7 +23,6 @@ type Task = {
 type Expense = { id: string; userId: string; description: string; amount: number; category: string; date: string; createdAt: string };
 // stored as logs referencing a template
 type SelfCareActivity = { id: string; userId: string; date: string; templateId: string; completed: boolean; createdAt: string };
-type ThesisEntry = { id: string; userId: string; title: string; content?: string; status?: string; date: string; createdAt: string; updatedAt: string };
 type StudySession = { id: string; userId: string; durationMinutes: number; notes?: string; date: string; createdAt: string };
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || '';
@@ -240,30 +239,9 @@ export async function saveDailyTracking(
   });
 }
 
-// Thesis
-export async function getThesisEntries(userId: string) {
-  return request(`thesis/user/${userId}`);
-}
-
-export async function getThesisEntry(id: string) {
-  return request(`thesis/${id}`);
-}
-
-export async function createThesisEntry(userId: string, title: string, content?: string, status?: string, date?: Date) {
-  const body: any = { userId, title, content, status };
-  if (date) body.date = date.toISOString();
-  return request('thesis', { method: 'POST', body: JSON.stringify(body) });
-}
-
-export async function updateThesisEntry(id: string, title?: string, content?: string, status?: string, date?: Date) {
-  const body: any = { title, content, status };
-  if (date) body.date = date.toISOString();
-  return request(`thesis/${id}`, { method: 'PUT', body: JSON.stringify(body) });
-}
-
-export async function deleteThesisEntry(id: string) {
-  return request(`thesis/${id}`, { method: 'DELETE' });
-}
+// we no longer use the simple "ThesisEntry" concept; all operations go through
+// the patients/protocols API. helpers below (getPatients, etc.) are the
+// canonical functions. the old helpers have been removed to avoid confusion.
 
 // Advanced Thesis API (protocol, patients, followups, documents, deadlines)
 export async function getThesisProtocol(userId: string) {

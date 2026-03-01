@@ -179,7 +179,8 @@ CREATE POLICY "Users can delete own focus sessions"
   TO authenticated
   USING (auth.uid() = user_id);
 
--- thesis & study tracking (from 20260228143736)
+-- Thesis module: settings, protocols, study groups, patients, followups, documents, deadlines
+-- Settings
 CREATE TABLE IF NOT EXISTS thesis_settings (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL UNIQUE,
@@ -207,14 +208,96 @@ CREATE POLICY "Users can update own thesis settings"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+-- Protocols
+CREATE TABLE IF NOT EXISTS thesis_protocols (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  title text,
+  guide_name text,
+  department text,
+  college text,
+  study_type text,
+  total_sample_size integer DEFAULT 0,
+  start_date date,
+  end_date date,
+  protocol_approved boolean DEFAULT false,
+  approval_date date,
+  iec_number text,
+  synopsis_submitted boolean DEFAULT false,
+  synopsis_approved boolean DEFAULT false,
+  ethics_submitted boolean DEFAULT false,
+  ethics_approved boolean DEFAULT false,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE thesis_protocols ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own thesis protocols"
+  ON thesis_protocols FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own thesis protocols"
+  ON thesis_protocols FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own thesis protocols"
+  ON thesis_protocols FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Study groups
+CREATE TABLE IF NOT EXISTS study_groups (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  name text NOT NULL,
+  target_size integer DEFAULT 0,
+  current_size integer DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE study_groups ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own study groups"
+  ON study_groups FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own study groups"
+  ON study_groups FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own study groups"
+  ON study_groups FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Canonical patients table (single source of truth)
 CREATE TABLE IF NOT EXISTS thesis_patients (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
-  date date NOT NULL,
-  group_name text NOT NULL,
-  notes text DEFAULT '',
+  patient_code text,
+  patient_id text,
+  study_number text,
+  group_name text,
+  study_group_id uuid REFERENCES study_groups(id),
+  protocol_id uuid REFERENCES thesis_protocols(id),
+  recruitment_date date,
+  date_added date DEFAULT now(),
+  age integer,
+  gender text,
+  consent_taken boolean DEFAULT false,
+  inclusion_criteria_met boolean DEFAULT false,
+  exclusion_criteria_met boolean DEFAULT false,
   proforma_status text DEFAULT 'pending',
-  created_at timestamptz DEFAULT now()
+  followup_status text DEFAULT 'pending',
+  dropout boolean DEFAULT false,
+  notes text DEFAULT '',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
 );
 ALTER TABLE thesis_patients ENABLE ROW LEVEL SECURITY;
 
@@ -238,6 +321,77 @@ CREATE POLICY "Users can delete own thesis patients"
   ON thesis_patients FOR DELETE
   TO authenticated
   USING (auth.uid() = user_id);
+
+-- Followups
+CREATE TABLE IF NOT EXISTS thesis_followups (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  patient_id uuid REFERENCES thesis_patients(id) ON DELETE CASCADE NOT NULL,
+  visit_number integer,
+  visit_date date,
+  status text DEFAULT 'pending',
+  notes text DEFAULT '',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE thesis_followups ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own thesis followups"
+  ON thesis_followups FOR SELECT
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM thesis_patients p WHERE p.id = patient_id AND p.user_id = auth.uid()));
+
+CREATE POLICY "Users can insert own thesis followups"
+  ON thesis_followups FOR INSERT
+  TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM thesis_patients p WHERE p.id = NEW.patient_id AND p.user_id = auth.uid()));
+
+CREATE POLICY "Users can update own thesis followups"
+  ON thesis_followups FOR UPDATE
+  TO authenticated
+  USING (EXISTS (SELECT 1 FROM thesis_patients p WHERE p.id = patient_id AND p.user_id = auth.uid()));
+
+-- Documents
+CREATE TABLE IF NOT EXISTS thesis_documents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  file_name text NOT NULL,
+  document_type text,
+  file_path text,
+  uploaded_at timestamptz DEFAULT now()
+);
+ALTER TABLE thesis_documents ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own thesis documents"
+  ON thesis_documents FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own thesis documents"
+  ON thesis_documents FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+-- Deadlines
+CREATE TABLE IF NOT EXISTS thesis_deadlines (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  title text NOT NULL,
+  date date NOT NULL,
+  completed boolean DEFAULT false,
+  notes text DEFAULT '',
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE thesis_deadlines ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own thesis deadlines"
+  ON thesis_deadlines FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own thesis deadlines"
+  ON thesis_deadlines FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
 
 CREATE TABLE IF NOT EXISTS study_sessions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

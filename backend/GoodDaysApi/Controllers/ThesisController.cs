@@ -19,14 +19,19 @@ public class ThesisController : ControllerBase
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetUserEntries(Guid userId)
     {
-        var entries = await _db.ThesisEntries.Where(t => t.UserId == userId).OrderByDescending(t => t.Date).ToListAsync();
+        // legacy shortcut API now hits same patients table; older clients will still
+        // receive the smaller subset of fields they expect.
+        var entries = await _db.ThesisPatients
+            .Where(t => t.UserId == userId)
+            .OrderByDescending(t => t.RecruitmentDate /* previously Date */)
+            .ToListAsync();
         return Ok(entries);
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetEntry(Guid id)
     {
-        var entry = await _db.ThesisEntries.FindAsync(id);
+        var entry = await _db.ThesisPatients.FindAsync(id);
         if (entry == null) return NotFound();
         return Ok(entry);
     }
@@ -34,15 +39,15 @@ public class ThesisController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateEntry([FromBody] CreateThesisRequest req)
     {
-        var entry = new ThesisEntry
+        var entry = new ThesisPatient
         {
             UserId = req.UserId,
-            Title = req.Title,
-            Content = req.Content,
-            Status = req.Status,
-            Date = req.Date,
+            GroupName = req.Title,
+            Notes = req.Content,
+            ProformaStatus = req.Status,
+            RecruitmentDate = req.Date,
         };
-        _db.ThesisEntries.Add(entry);
+        _db.ThesisPatients.Add(entry);
         await _db.SaveChangesAsync();
         return Ok(entry);
     }
@@ -50,7 +55,7 @@ public class ThesisController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateEntry(Guid id, [FromBody] UpdateThesisRequest req)
     {
-        var entry = await _db.ThesisEntries.FindAsync(id);
+        var entry = await _db.ThesisPatients.FindAsync(id);
         if (entry == null) return NotFound();
         
         entry.Title = req.Title ?? entry.Title;
@@ -68,7 +73,7 @@ public class ThesisController : ControllerBase
         var entry = await _db.ThesisEntries.FindAsync(id);
         if (entry == null) return NotFound();
         
-        _db.ThesisEntries.Remove(entry);
+        _db.ThesisPatients.Remove(entry);
         await _db.SaveChangesAsync();
         return Ok();
     }

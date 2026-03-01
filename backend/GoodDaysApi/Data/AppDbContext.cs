@@ -12,7 +12,6 @@ public class AppDbContext : DbContext
     public DbSet<Expense> Expenses { get; set; }
     // legacy name kept for compatibility; primary table is SelfCareLogs
     public DbSet<SelfCareLog> SelfCareLogs { get; set; }
-    public DbSet<ThesisEntry> ThesisEntries { get; set; }
     public DbSet<StudySession> StudySessions { get; set; }
     public DbSet<GamificationEntry> GamificationEntries { get; set; }
     public DbSet<SelfCareTemplate> SelfCareTemplates { get; set; }
@@ -36,9 +35,11 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<SelfCareLog>().ToTable("self_care_logs");
         modelBuilder.Entity<SelfCareTemplate>().ToTable("self_care_template");
         modelBuilder.Entity<StudySession>().ToTable("study_sessions");
-        modelBuilder.Entity<ThesisEntry>().ToTable("thesis_patients");
+        // legacy `ThesisEntry` type is being retired; all data now lives in the
+        // `thesis_patients` table represented by `ThesisPatient`.
+        // we no longer create or reference a separate "v2" table.
+        modelBuilder.Entity<ThesisPatient>().ToTable("thesis_patients");
         modelBuilder.Entity<ThesisProtocol>().ToTable("thesis_protocols");
-        modelBuilder.Entity<ThesisPatient>().ToTable("thesis_patients_v2");
         modelBuilder.Entity<ThesisFollowup>().ToTable("thesis_followups");
         modelBuilder.Entity<ThesisDocument>().ToTable("thesis_documents");
         modelBuilder.Entity<ThesisDeadline>().ToTable("thesis_deadlines");
@@ -86,10 +87,11 @@ public class AppDbContext : DbContext
             .HasForeignKey(s => s.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<ThesisEntry>()
-            .HasOne(t => t.User)
+        // the consolidated patient entity also has a user foreign key
+        modelBuilder.Entity<ThesisPatient>()
+            .HasOne<GoodDaysApi.Models.User>()
             .WithMany()
-            .HasForeignKey(t => t.UserId)
+            .HasForeignKey("UserId")
             .OnDelete(DeleteBehavior.Cascade);
 
         // configure thesis relationships
