@@ -66,7 +66,7 @@ public class SelfCareController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateActivity(Guid id, [FromBody] UpdateSelfCareRequest req)
+    public async Task<IActionResult> UpdateActivity(int id, [FromBody] UpdateSelfCareRequest req)
     {
         SelfCareLog? activity;
         try
@@ -105,5 +105,5 @@ public class SelfCareController : ControllerBase
     }
 }
 
-public record CreateSelfCareRequest(Guid UserId, DateTime Date, Guid TemplateId, bool Completed = false);
-public record UpdateSelfCareRequest(DateTime? Date, Guid? TemplateId, bool? Completed);
+public record CreateSelfCareRequest(int UserId, DateTime Date, int TemplateId, bool Completed = false);
+public record UpdateSelfCareRequest(DateTime? Date, int? TemplateId, bool? Completed);

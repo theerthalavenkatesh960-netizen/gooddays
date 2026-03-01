@@ -17,7 +17,7 @@ public class DailyTrackingController : ControllerBase
     }
 
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetForUser(Guid userId, [FromQuery] DateTime date)
+    public async Task<IActionResult> GetForUser(int userId, [FromQuery] DateTime date)
     {
         // ensure we treat the incoming query date as UTC to satisfy Npgsql's
         // requirement that timestamp with time zone values have a Kind of UTC.
@@ -64,4 +64,4 @@ public class DailyTrackingController : ControllerBase
     }
 }
 
-public record SaveDailyTrackingRequest(Guid UserId, DateTime Date, decimal SleepHours, int WorkoutMinutes, int PhoneMinutes, bool Sunlight, int Mood);
+public record SaveDailyTrackingRequest(int UserId, DateTime Date, decimal SleepHours, int WorkoutMinutes, int PhoneMinutes, bool Sunlight, int Mood);

@@ -31,7 +31,7 @@ public class FollowupsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] ThesisFollowup body)
+    public async Task<IActionResult> Update(int id, [FromBody] ThesisFollowup body)
     {
         var f = await _db.ThesisFollowups.FindAsync(id);
         if (f == null) return NotFound();

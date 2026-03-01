@@ -48,7 +48,7 @@ public class ExpensesController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateExpense(Guid id, [FromBody] UpdateExpenseRequest req)
+    public async Task<IActionResult> UpdateExpense(int id, [FromBody] UpdateExpenseRequest req)
     {
         var expense = await _db.Expenses.FindAsync(id);
         if (expense == null) return NotFound();
@@ -74,5 +74,5 @@ public class ExpensesController : ControllerBase
     }
 }
 
-public record CreateExpenseRequest(Guid UserId, string? Note, decimal Amount, string? Category, DateTime? Date);
+public record CreateExpenseRequest(int UserId, string? Note, decimal Amount, string? Category, DateTime? Date);
 public record UpdateExpenseRequest(string? Note, decimal? Amount, string? Category, DateTime? Date);

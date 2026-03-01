@@ -52,4 +52,4 @@ public class SelfCareTemplateController : ControllerBase
     }
 }
 
-public record CreateTemplateRequest(Guid UserId, string Category, string Item, int OrderIndex);
+public record CreateTemplateRequest(int UserId, string Category, string Item, int OrderIndex);

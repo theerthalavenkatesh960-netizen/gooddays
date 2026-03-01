@@ -34,7 +34,7 @@ public class PatientsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] ThesisPatient body)
+    public async Task<IActionResult> Update(int id, [FromBody] ThesisPatient body)
     {
         var p = await _db.ThesisPatients.FindAsync(id);
         if (p == null) return NotFound();

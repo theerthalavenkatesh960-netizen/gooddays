@@ -31,7 +31,7 @@ public class DeadlinesController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] ThesisDeadline body)
+    public async Task<IActionResult> Update(int id, [FromBody] ThesisDeadline body)
     {
         var d = await _db.ThesisDeadlines.FindAsync(id);
         if (d == null) return NotFound();

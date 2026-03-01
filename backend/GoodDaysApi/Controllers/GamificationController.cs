@@ -60,4 +60,4 @@ public class GamificationController : ControllerBase
     }
 }
 
-public record AddPointsRequest(Guid UserId, string ActivityType, int Points);
+public record AddPointsRequest(int UserId, string ActivityType, int Points);

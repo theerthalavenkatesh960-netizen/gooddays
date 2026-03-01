@@ -35,7 +35,7 @@ public class TasksController : ControllerBase
     public async Task<IActionResult> CreateTask([FromBody] CreateTaskRequest req)
     {
         // if the client did not supply a RecurrenceId for a recurring task, generate one
-        Guid? recurrenceId = req.Recurring ? (req.RecurrenceId ?? throw new NotImplementedException("ID generation should be handled by database")) : null;
+        int? recurrenceId = req.Recurring ? (req.RecurrenceId ?? throw new NotImplementedException("ID generation should be handled by database")) : null;
 
         // compute default start/end dates
         // if client did not provide recurrence window, default to today through 30 days out
@@ -96,7 +96,7 @@ public class TasksController : ControllerBase
     }
 
     private List<DailyTask> GenerateRecurringTasks(
-        Guid userId,
+        int userId,
         string title,
         string? category,
         string? priority,
@@ -104,8 +104,7 @@ public class TasksController : ControllerBase
         DateTime endDate,
         int interval,
         string unit,
-        string[]? recurrenceDays,
-        Guid recurrenceId,
+        string[]? recurrenceDays, int recurrenceId,
         string status)
     {
         var tasks = new List<DailyTask>();
@@ -229,7 +228,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskRequest req)
+    public async Task<IActionResult> UpdateTask(int id, [FromBody] UpdateTaskRequest req)
     {
         var task = await _db.Tasks.FindAsync(id);
         if (task == null) return NotFound();
@@ -329,7 +328,7 @@ public class TasksController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteTask(Guid id, [FromQuery] string? deleteMode = null)
+    public async Task<IActionResult> DeleteTask(int id, [FromQuery] string? deleteMode = null)
     {
         var task = await _db.Tasks.FindAsync(id);
         if (task == null) return NotFound();
@@ -353,7 +352,7 @@ public class TasksController : ControllerBase
 }
 
 public record CreateTaskRequest(
-    Guid UserId,
+    int UserId,
     string Title,
     string? Category,
     string? Priority,
@@ -363,7 +362,7 @@ public record CreateTaskRequest(
     DateTime? RecurrenceStartDate = null,
     DateTime? RecurrenceEndDate = null,
     string[]? RecurrenceDays = null,
-    Guid? RecurrenceId = null,
+    int? RecurrenceId = null,
     int? RecurrenceInterval = null,
     string? RecurrenceUnit = null // "days", "weeks", "months", "years"
 );
@@ -378,7 +377,7 @@ public record UpdateTaskRequest(
     DateTime? RecurrenceStartDate = null,
     DateTime? RecurrenceEndDate = null,
     string[]? RecurrenceDays = null,
-    Guid? RecurrenceId = null,
+    int? RecurrenceId = null,
     int? RecurrenceInterval = null,
     string? RecurrenceUnit = null,
     DateTime? CompletedAt = null,

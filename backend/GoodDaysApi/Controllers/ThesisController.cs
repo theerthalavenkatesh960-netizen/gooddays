@@ -54,7 +54,7 @@ public class ThesisController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateEntry(Guid id, [FromBody] UpdateThesisRequest req)
+    public async Task<IActionResult> UpdateEntry(int id, [FromBody] UpdateThesisRequest req)
     {
         var entry = await _db.ThesisPatients.FindAsync(id);
         if (entry == null) return NotFound();
@@ -80,5 +80,5 @@ public class ThesisController : ControllerBase
     }
 }
 
-public record CreateThesisRequest(Guid UserId, string Title, string? Content, string? Status, DateTime Date);
+public record CreateThesisRequest(int UserId, string Title, string? Content, string? Status, DateTime Date);
 public record UpdateThesisRequest(string? Title, string? Content, string? Status, DateTime? Date);

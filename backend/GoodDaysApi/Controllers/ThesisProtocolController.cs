@@ -32,7 +32,7 @@ public class ThesisProtocolController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] ThesisProtocol body)
+    public async Task<IActionResult> Update(int id, [FromBody] ThesisProtocol body)
     {
         var p = await _db.ThesisProtocols.FindAsync(id);
         if (p == null) return NotFound();
