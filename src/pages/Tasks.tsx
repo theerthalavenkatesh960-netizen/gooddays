@@ -57,32 +57,33 @@ export default function Tasks() {
     }
   }, [recurring]);
 
-  // compute last 5 occurrences indicator for recurring tasks
+  // compute last 10 occurrences indicator for recurring tasks based on selected date
 const renderOccurrences = (task: any) => {
   if (!task.recurrenceId) return null;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Start of today → exclude today
+  const baseDate = new Date(selectedDate);
+  baseDate.setHours(0, 0, 0, 0);
 
-  const lastFiveOccurrences = tasks
+  const lastTenOccurrences = tasks
     .filter((t) => {
       if (t.recurrenceId !== task.recurrenceId) return false;
 
       const due = new Date(t.dueDate || t.due_date);
-      return due < today; // Strictly before today
+      due.setHours(0, 0, 0, 0);
+      return due <= baseDate; // Up to and including selected date
     })
     .sort((a, b) => {
       const da = new Date(a.dueDate || a.due_date).getTime();
       const db = new Date(b.dueDate || b.due_date).getTime();
       return da - db; // Latest previous first
     })
-    .slice(0, 10); // Only last 5 previous
+    .slice(0, 10); // Last 10 occurrences
 
-  if (lastFiveOccurrences.length === 0) return null;
+  if (lastTenOccurrences.length === 0) return null;
 
   return (
     <div className="flex items-center gap-1 mr-2">
-      {lastFiveOccurrences.map((t, i) => (
+      {lastTenOccurrences.map((t, i) => (
         <span
           key={t.id || i}
           title={new Date(t.dueDate || t.due_date).toLocaleDateString()}

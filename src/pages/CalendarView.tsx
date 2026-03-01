@@ -390,14 +390,14 @@ ${selected&&"bg-blue-50"}
 </div>
 
 
-<div className="flex gap-1 mt-1 justify-center">
+<div className="flex items-center gap-1 mt-1 justify-center">
 
 
 {Array(data.completed||0)
 .fill(0)
 .slice(0,5)
 .map((_,i)=>(
-<span key={i} className="w-2 h-2 rounded-full bg-green-500"/>
+<span key={i} className="inline-flex w-3 h-3 items-center justify-center text-white text-xs bg-emerald-500 border border-emerald-600">✓</span>
 ))}
 
 
@@ -405,7 +405,7 @@ ${selected&&"bg-blue-50"}
 .fill(0)
 .slice(0,5)
 .map((_,i)=>(
-<span key={i} className="w-2 h-2 rounded-full bg-red-500"/>
+<span key={i} className="inline-flex w-3 h-3 items-center justify-center text-white text-xs bg-red-500 border border-red-600">✗</span>
 ))}
 
 </div>
