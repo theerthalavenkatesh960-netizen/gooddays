@@ -28,7 +28,6 @@ const navItems = [
   { path: '/thesis', label: 'Thesis', icon: BookOpen },
   { path: '/study', label: 'Study', icon: GraduationCap },
   { path: '/expenses', label: 'Expenses', icon: DollarSign },
-  { path: '/selfcare', label: 'Self Care', icon: Heart },
   { path: '/calendar', label: 'Calendar', icon: Calendar },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];

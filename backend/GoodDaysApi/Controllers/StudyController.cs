@@ -17,14 +17,14 @@ public class StudyController : ControllerBase
     }
 
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetUserSessions(Guid userId)
+    public async Task<IActionResult> GetUserSessions(int userId)
     {
         var sessions = await _db.StudySessions.Where(s => s.UserId == userId).OrderByDescending(s => s.Date).ToListAsync();
         return Ok(sessions);
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetSession(Guid id)
+    public async Task<IActionResult> GetSession(int id)
     {
         var session = await _db.StudySessions.FindAsync(id);
         if (session == null) return NotFound();
@@ -47,7 +47,7 @@ public class StudyController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateSession(Guid id, [FromBody] UpdateStudyRequest req)
+    public async Task<IActionResult> UpdateSession(int id, [FromBody] UpdateStudyRequest req)
     {
         var session = await _db.StudySessions.FindAsync(id);
         if (session == null) return NotFound();
@@ -61,7 +61,7 @@ public class StudyController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteSession(Guid id)
+    public async Task<IActionResult> DeleteSession(int id)
     {
         var session = await _db.StudySessions.FindAsync(id);
         if (session == null) return NotFound();
@@ -72,5 +72,5 @@ public class StudyController : ControllerBase
     }
 }
 
-public record CreateStudyRequest(Guid UserId, int DurationMinutes, string? Notes, DateTime Date);
+public record CreateStudyRequest(int UserId, int DurationMinutes, string? Notes, DateTime Date);
 public record UpdateStudyRequest(int? DurationMinutes, string? Notes, DateTime? Date);

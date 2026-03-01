@@ -35,11 +35,11 @@ export default function Settings() {
     if (!user) return;
 
     try {
-      const [tasks, expenses, selfcare, thesis, study] = await Promise.all([
+      const [tasks, expenses, selfcare, patients, study] = await Promise.all([
         api.getTasks(user.id),
         api.getExpenses(user.id),
         api.getSelfCareActivities(user.id),
-        api.getThesisEntries(user.id),
+        api.getPatients(user.id),
         api.getStudySessions(user.id),
       ]);
 
@@ -47,7 +47,7 @@ export default function Settings() {
         tasks,
         expenses,
         selfcare,
-        thesis,
+        patients,
         study,
         user_profile: { id: user.id, name: user.name, email: user.email },
       };

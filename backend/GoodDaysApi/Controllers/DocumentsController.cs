@@ -22,23 +22,61 @@ public class DocumentsController : ControllerBase
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetByUser(string userId)
     {
-        var list = await _db.ThesisDocuments.Where(d => d.UserId == userId).ToListAsync();
+        if (!int.TryParse(userId, out var uid)) return BadRequest("invalid user id");
+        var list = await _db.ThesisDocuments.Where(d => d.UserId == uid).ToListAsync();
         return Ok(list);
     }
 
     [HttpPost("upload")]
-    public async Task<IActionResult> Upload([FromForm] IFormFile file, [FromForm] string userId, [FromForm] string category)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> Upload([FromForm] UploadDocumentRequest request)
     {
-        if (file == null) return BadRequest("file required");
-        var uploads = Path.Combine(_env.ContentRootPath, "wwwroot", "uploads");
-        if (!Directory.Exists(uploads)) Directory.CreateDirectory(uploads);
-        var name = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
-        var path = Path.Combine(uploads, name);
-        using (var fs = new FileStream(path, FileMode.Create)) { await file.CopyToAsync(fs); }
+        if (request.File == null || request.File.Length == 0)
+            return BadRequest("File required");
 
-        var doc = new ThesisDocument { Id = Guid.NewGuid(), UserId = userId, Name = file.FileName, Category = category, FilePath = $"/uploads/{name}" };
+        var uploads = Path.Combine(_env.ContentRootPath, "wwwroot", "uploads");
+
+        if (!Directory.Exists(uploads))
+            Directory.CreateDirectory(uploads);
+
+        var name = Guid.NewGuid().ToString() + Path.GetExtension(request.File.FileName);
+
+        var path = Path.Combine(uploads, name);
+
+        using (var fs = new FileStream(path, FileMode.Create))
+        {
+            await request.File.CopyToAsync(fs);
+        }
+
+        var doc = new ThesisDocument
+        {
+            UserId = int.Parse(request.UserId),
+            FileName = request.File.FileName,
+            DocumentType = request.Category,
+            FilePath = "/uploads/" + name,
+            UploadedAt = DateTime.UtcNow
+        };
+
         _db.ThesisDocuments.Add(doc);
+
         await _db.SaveChangesAsync();
-        return Ok(new { doc.Id, doc.Name, url = doc.FilePath, doc.Category, doc.Date });
+
+        return Ok(new
+        {
+            doc.Id,
+            doc.FileName,
+            url = doc.FilePath,
+            doc.DocumentType,
+            doc.UploadedAt
+        });
     }
+}
+
+public class UploadDocumentRequest
+{
+    public IFormFile File { get; set; }
+
+    public string UserId { get; set; }
+
+    public string Category { get; set; }
 }

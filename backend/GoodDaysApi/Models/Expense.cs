@@ -9,10 +9,10 @@ public class Expense
 {
     [Key]
     [Column("id")]
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public int Id { get; set; }
     [Required]
     [Column("user_id")]
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
 
     [Column("note")]
     public string? Note { get; set; }

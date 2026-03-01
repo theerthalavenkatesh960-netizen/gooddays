@@ -19,17 +19,18 @@ public class ThesisStatsController : ControllerBase
     [HttpGet("{userId}")]
     public async Task<IActionResult> GetStats(string userId)
     {
-        var patients = await _db.ThesisPatients.Where(p => p.UserId == userId).ToListAsync();
+        if (!int.TryParse(userId, out var uid)) return BadRequest("invalid user id");
+        var patients = await _db.ThesisPatients.Where(p => p.UserId == uid).ToListAsync();
         var followups = await _db.ThesisFollowups.Where(f => patients.Select(p => p.Id).Contains(f.PatientId)).ToListAsync();
 
         var total = patients.Count;
-        var dropped = patients.Count(p => p.DroppedOut);
+        var dropped = patients.Count(p => p.Dropout);
         var dropoutPercent = total == 0 ? 0 : Math.Round(100.0 * dropped / total, 2);
 
         // Monthly recruitment
         var monthly = patients
-            .Where(p => p.RecruitmentDate != default)
-            .GroupBy(p => new { Year = p.RecruitmentDate.Year, Month = p.RecruitmentDate.Month })
+            .Where(p => p.RecruitmentDate.HasValue)
+            .GroupBy(p => new { Year = p.RecruitmentDate.Value.Year, Month = p.RecruitmentDate.Value.Month })
             .OrderBy(g => g.Key.Year).ThenBy(g => g.Key.Month)
             .Select(g => new { Year = g.Key.Year, Month = g.Key.Month, Count = g.Count() })
             .ToList();
@@ -47,7 +48,7 @@ public class ThesisStatsController : ControllerBase
 
         // Followup completion
         var totalFollowups = followups.Count;
-        var completedFollowups = followups.Count(f => f.Completed);
+        var completedFollowups = followups.Count(f => f.Status == "completed" || f.Status == "done");
         var followupCompletionPercent = totalFollowups == 0 ? 0 : Math.Round(100.0 * completedFollowups / totalFollowups, 2);
 
         return Ok(new {
@@ -64,21 +65,22 @@ public class ThesisStatsController : ControllerBase
     [HttpGet("export/patients/{userId}")]
     public async Task<IActionResult> ExportPatientsCsv(string userId)
     {
-        var patients = await _db.ThesisPatients.Where(p => p.UserId == userId).ToListAsync();
+        if (!int.TryParse(userId, out var uid)) return BadRequest("invalid user id");
+        var patients = await _db.ThesisPatients.Where(p => p.UserId == uid).ToListAsync();
         var sb = new StringBuilder();
-        sb.AppendLine("PatientCode,StudyNumber,Group,RecruitmentDate,Age,Gender,ProformaStatus,FollowupStatus,DroppedOut,Notes");
+        sb.AppendLine("PatientCode,StudyNumber,Group,RecruitmentDate,Age,Gender,ProformaStatus,FollowupStatus,Dropout,Notes");
         foreach (var p in patients)
         {
             var line = string.Join(",",
                 EscapeCsv(p.PatientCode),
                 EscapeCsv(p.StudyNumber),
                 EscapeCsv(p.GroupName),
-                (p.RecruitmentDate == default ? "" : p.RecruitmentDate.ToString("yyyy-MM-dd")),
+                (p.RecruitmentDate.HasValue ? p.RecruitmentDate.Value.ToString("yyyy-MM-dd") : ""),
                 (p.Age.HasValue ? p.Age.Value.ToString() : ""),
                 EscapeCsv(p.Gender),
                 EscapeCsv(p.ProformaStatus),
                 EscapeCsv(p.FollowupStatus),
-                (p.DroppedOut ? "1" : "0"),
+                (p.Dropout ? "1" : "0"),
                 EscapeCsv(p.Notes)
             );
             sb.AppendLine(line);

@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<GamificationEntry> GamificationEntries { get; set; }
     public DbSet<SelfCareTemplate> SelfCareTemplates { get; set; }
     public DbSet<DailyTracking> DailyTrackings { get; set; }
+    public DbSet<DailyNote> DailyNotes { get; set; }
     // Thesis system new tables
     public DbSet<ThesisProtocol> ThesisProtocols { get; set; }
     public DbSet<ThesisPatient> ThesisPatients { get; set; }
@@ -35,9 +36,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<SelfCareLog>().ToTable("self_care_logs");
         modelBuilder.Entity<SelfCareTemplate>().ToTable("self_care_template");
         modelBuilder.Entity<StudySession>().ToTable("study_sessions");
-        // legacy `ThesisEntry` type is being retired; all data now lives in the
-        // `thesis_patients` table represented by `ThesisPatient`.
-        // we no longer create or reference a separate "v2" table.
         modelBuilder.Entity<ThesisPatient>().ToTable("thesis_patients");
         modelBuilder.Entity<ThesisProtocol>().ToTable("thesis_protocols");
         modelBuilder.Entity<ThesisFollowup>().ToTable("thesis_followups");
@@ -46,6 +44,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<StudyGroup>().ToTable("study_groups");
         modelBuilder.Entity<GamificationEntry>().ToTable("gamification_entries");
         modelBuilder.Entity<DailyTracking>().ToTable("daily_tracking");
+        modelBuilder.Entity<DailyNote>().ToTable("daily_notes");
         // other entities follow default pluralization unless you need a custom name
 
         // ensure emails are unique for login
@@ -81,23 +80,23 @@ public class AppDbContext : DbContext
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<SelfCareLog>()
-            .HasOne(s => s.User)
-            .WithMany()
-            .HasForeignKey(s => s.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        // the consolidated patient entity also has a user foreign key
         modelBuilder.Entity<ThesisPatient>()
-            .HasOne<GoodDaysApi.Models.User>()
+            .HasOne(p => p.User)
             .WithMany()
-            .HasForeignKey("UserId")
+            .HasForeignKey(p => p.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // configure thesis relationships
         modelBuilder.Entity<ThesisPatient>()
             .HasMany(p => p.Followups)
-            .WithOne()
+            .WithOne(f => f.Patient)
+            .HasForeignKey(f => f.PatientId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // also configure the inverse explicitly to avoid EF generating a shadow property
+        modelBuilder.Entity<ThesisFollowup>()
+            .HasOne(f => f.Patient)
+            .WithMany(p => p.Followups)
             .HasForeignKey(f => f.PatientId)
             .OnDelete(DeleteBehavior.Cascade);
 

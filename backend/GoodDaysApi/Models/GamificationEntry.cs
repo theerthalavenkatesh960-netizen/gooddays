@@ -9,10 +9,10 @@ public class GamificationEntry
 {
     [Key]
     [Column("id")]
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public int Id { get; set; }
     [Required]
     [Column("user_id")]
-    public Guid UserId { get; set; }
+    public int UserId { get; set; }
     [Required]
     [Column("activity_type")]
     public string ActivityType { get; set; } = string.Empty;

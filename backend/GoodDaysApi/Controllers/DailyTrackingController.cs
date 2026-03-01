@@ -17,7 +17,7 @@ public class DailyTrackingController : ControllerBase
     }
 
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetForUser(Guid userId, [FromQuery] DateTime date)
+    public async Task<IActionResult> GetForUser(int userId, [FromQuery] DateTime date)
     {
         // ensure we treat the incoming query date as UTC to satisfy Npgsql's
         // requirement that timestamp with time zone values have a Kind of UTC.
@@ -25,6 +25,17 @@ public class DailyTrackingController : ControllerBase
         var record = await _db.DailyTrackings
             .Where(d => d.UserId == userId && d.Date == utcDate)
             .FirstOrDefaultAsync();
+
+        if (record != null)
+        {
+            // fetch note separately; may not exist
+            var noteRec = await _db.DailyNotes
+                .Where(n => n.UserId == userId && n.Date == utcDate)
+                .Select(n => n.Note)
+                .FirstOrDefaultAsync();
+            record.Note = noteRec;
+        }
+
         return Ok(record);
     }
 
@@ -37,6 +48,11 @@ public class DailyTrackingController : ControllerBase
             .Where(d => d.UserId == req.UserId && d.Date == requestDate)
             .FirstOrDefaultAsync();
 
+        // track note separately from the main entity
+        DailyNote? noteRec = await _db.DailyNotes
+            .Where(n => n.UserId == req.UserId && n.Date == requestDate)
+            .FirstOrDefaultAsync();
+
         if (existing != null)
         {
             existing.SleepHours = req.SleepHours;
@@ -44,7 +60,28 @@ public class DailyTrackingController : ControllerBase
             existing.PhoneMinutes = req.PhoneMinutes;
             existing.Sunlight = req.Sunlight;
             existing.Mood = req.Mood;
+
+            // handle note update/removal
+            if (string.IsNullOrWhiteSpace(req.Note))
+            {
+                if (noteRec != null)
+                    _db.DailyNotes.Remove(noteRec);
+            }
+            else
+            {
+                if (noteRec != null)
+                    noteRec.Note = req.Note;
+                else
+                    _db.DailyNotes.Add(new DailyNote
+                    {
+                        UserId = req.UserId,
+                        Date = requestDate,
+                        Note = req.Note
+                    });
+            }
+
             await _db.SaveChangesAsync();
+            existing.Note = req.Note;
             return Ok(existing);
         }
 
@@ -59,9 +96,21 @@ public class DailyTrackingController : ControllerBase
             Mood = req.Mood,
         };
         _db.DailyTrackings.Add(newRec);
+
+        if (!string.IsNullOrWhiteSpace(req.Note))
+        {
+            _db.DailyNotes.Add(new DailyNote
+            {
+                UserId = req.UserId,
+                Date = requestDate,
+                Note = req.Note
+            });
+        }
+
         await _db.SaveChangesAsync();
+        newRec.Note = req.Note;
         return Ok(newRec);
     }
 }
 
-public record SaveDailyTrackingRequest(Guid UserId, DateTime Date, decimal SleepHours, int WorkoutMinutes, int PhoneMinutes, bool Sunlight, int Mood);
+public record SaveDailyTrackingRequest(int UserId, DateTime Date, decimal SleepHours, int WorkoutMinutes, int PhoneMinutes, bool Sunlight, int Mood, string? Note);

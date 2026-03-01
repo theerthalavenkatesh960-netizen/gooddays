@@ -17,7 +17,7 @@ public class UserProfilesController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetProfile(Guid id)
+    public async Task<IActionResult> GetProfile(int id)
     {
         var user = await _db.Users.FindAsync(id);
         if (user == null) return NotFound();

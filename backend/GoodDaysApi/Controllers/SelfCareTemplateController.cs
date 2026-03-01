@@ -17,7 +17,7 @@ public class SelfCareTemplateController : ControllerBase
     }
 
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetTemplates(Guid userId)
+    public async Task<IActionResult> GetTemplates(int userId)
     {
         var items = await _db.SelfCareTemplates
             .Where(t => t.UserId == userId)
@@ -42,7 +42,7 @@ public class SelfCareTemplateController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteTemplate(Guid id)
+    public async Task<IActionResult> DeleteTemplate(int id)
     {
         var item = await _db.SelfCareTemplates.FindAsync(id);
         if (item == null) return NotFound();
@@ -52,4 +52,4 @@ public class SelfCareTemplateController : ControllerBase
     }
 }
 
-public record CreateTemplateRequest(Guid UserId, string Category, string Item, int OrderIndex);
+public record CreateTemplateRequest(int UserId, string Category, string Item, int OrderIndex);

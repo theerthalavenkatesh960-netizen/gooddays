@@ -21,15 +21,16 @@ public class ThesisController : ControllerBase
     {
         // legacy shortcut API now hits same patients table; older clients will still
         // receive the smaller subset of fields they expect.
+        if (!int.TryParse(userId, out var uid)) return BadRequest("invalid user id");
         var entries = await _db.ThesisPatients
-            .Where(t => t.UserId == userId)
+            .Where(t => t.UserId == uid)
             .OrderByDescending(t => t.RecruitmentDate /* previously Date */)
             .ToListAsync();
         return Ok(entries);
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetEntry(Guid id)
+    public async Task<IActionResult> GetEntry(int id)
     {
         var entry = await _db.ThesisPatients.FindAsync(id);
         if (entry == null) return NotFound();
@@ -41,7 +42,7 @@ public class ThesisController : ControllerBase
     {
         var entry = new ThesisPatient
         {
-            UserId = req.UserId.ToString(),
+            UserId = req.UserId,
             GroupName = req.Title,
             Notes = req.Content,
             ProformaStatus = req.Status,
@@ -53,7 +54,7 @@ public class ThesisController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateEntry(Guid id, [FromBody] UpdateThesisRequest req)
+    public async Task<IActionResult> UpdateEntry(int id, [FromBody] UpdateThesisRequest req)
     {
         var entry = await _db.ThesisPatients.FindAsync(id);
         if (entry == null) return NotFound();
@@ -68,7 +69,7 @@ public class ThesisController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteEntry(Guid id)
+    public async Task<IActionResult> DeleteEntry(int id)
     {
         var entry = await _db.ThesisPatients.FindAsync(id);
         if (entry == null) return NotFound();
@@ -79,5 +80,5 @@ public class ThesisController : ControllerBase
     }
 }
 
-public record CreateThesisRequest(Guid UserId, string Title, string? Content, string? Status, DateTime Date);
+public record CreateThesisRequest(int UserId, string Title, string? Content, string? Status, DateTime Date);
 public record UpdateThesisRequest(string? Title, string? Content, string? Status, DateTime? Date);

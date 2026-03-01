@@ -17,14 +17,14 @@ public class ExpensesController : ControllerBase
     }
 
     [HttpGet("user/{userId}")]
-    public async Task<IActionResult> GetUserExpenses(Guid userId)
+    public async Task<IActionResult> GetUserExpenses(int userId)
     {
         var expenses = await _db.Expenses.Where(e => e.UserId == userId).OrderByDescending(e => e.Date).ToListAsync();
         return Ok(expenses);
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetExpense(Guid id)
+    public async Task<IActionResult> GetExpense(int id)
     {
         var expense = await _db.Expenses.FindAsync(id);
         if (expense == null) return NotFound();
@@ -48,7 +48,7 @@ public class ExpensesController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateExpense(Guid id, [FromBody] UpdateExpenseRequest req)
+    public async Task<IActionResult> UpdateExpense(int id, [FromBody] UpdateExpenseRequest req)
     {
         var expense = await _db.Expenses.FindAsync(id);
         if (expense == null) return NotFound();
@@ -63,7 +63,7 @@ public class ExpensesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteExpense(Guid id)
+    public async Task<IActionResult> DeleteExpense(int id)
     {
         var expense = await _db.Expenses.FindAsync(id);
         if (expense == null) return NotFound();
@@ -74,5 +74,5 @@ public class ExpensesController : ControllerBase
     }
 }
 
-public record CreateExpenseRequest(Guid UserId, string? Note, decimal Amount, string? Category, DateTime? Date);
+public record CreateExpenseRequest(int UserId, string? Note, decimal Amount, string? Category, DateTime? Date);
 public record UpdateExpenseRequest(string? Note, decimal? Amount, string? Category, DateTime? Date);

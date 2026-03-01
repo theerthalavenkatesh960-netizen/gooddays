@@ -18,7 +18,7 @@ public class SelfCareController : ControllerBase
 
     [HttpGet("user/{userId}")]
     // returns self-care logs for a user
-    public async Task<IActionResult> GetUserActivities(Guid userId)
+    public async Task<IActionResult> GetUserActivities(int userId)
     {
         try
         {
@@ -36,7 +36,7 @@ public class SelfCareController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetActivity(Guid id)
+    public async Task<IActionResult> GetActivity(int id)
     {
         try
         {
@@ -66,7 +66,7 @@ public class SelfCareController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateActivity(Guid id, [FromBody] UpdateSelfCareRequest req)
+    public async Task<IActionResult> UpdateActivity(int id, [FromBody] UpdateSelfCareRequest req)
     {
         SelfCareLog? activity;
         try
@@ -88,7 +88,7 @@ public class SelfCareController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteActivity(Guid id)
+    public async Task<IActionResult> DeleteActivity(int id)
     {
         try
         {
@@ -105,5 +105,5 @@ public class SelfCareController : ControllerBase
     }
 }
 
-public record CreateSelfCareRequest(Guid UserId, DateTime Date, Guid TemplateId, bool Completed = false);
-public record UpdateSelfCareRequest(DateTime? Date, Guid? TemplateId, bool? Completed);
+public record CreateSelfCareRequest(int UserId, DateTime Date, int TemplateId, bool Completed = false);
+public record UpdateSelfCareRequest(DateTime? Date, int? TemplateId, bool? Completed);
