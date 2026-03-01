@@ -5,8 +5,8 @@ import { Plus, Edit2, Trash2, Search, Download } from "lucide-react";
 interface ThesisPatientsProps {
   patients: any[];
   onCreate: (data: any) => void;
-  onUpdate: (id: string, data: any) => void;
-  onDelete: (id: string) => void;
+  onUpdate: (id: number, data: any) => void;
+  onDelete: (id: number) => void;
   onExport: () => void;
 }
 

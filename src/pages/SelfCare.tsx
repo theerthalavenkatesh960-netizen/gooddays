@@ -134,7 +134,7 @@ export default function SelfCare() {
     }
   };
 
-  const toggleItem = async (templateId: string) => {
+  const toggleItem = async (templateId: number) => {
     if (!user) return;
 
     const isCompleted = todayLogs.has(templateId);
@@ -170,7 +170,7 @@ export default function SelfCare() {
     loadTemplate();
   };
 
-  const deleteItem = async (id: string) => {
+  const deleteItem = async (id: number) => {
     await api.deleteSelfCareTemplate(id);
     loadTemplate();
   };

@@ -5,7 +5,7 @@ import { FileText, Upload, Download, Trash2, Search, Filter } from "lucide-react
 interface ThesisDocumentsProps {
   documents: any[];
   onUpload: (file: File, category: string) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: number) => void;
 }
 
 const DOCUMENT_CATEGORIES = [

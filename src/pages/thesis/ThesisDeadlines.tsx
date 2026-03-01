@@ -5,8 +5,8 @@ import { Plus, Edit2, Trash2, Calendar, CheckCircle2, Circle } from "lucide-reac
 interface ThesisDeadlinesProps {
   deadlines: any[];
   onCreate: (data: any) => void;
-  onUpdate: (id: string, data: any) => void;
-  onDelete: (id: string) => void;
+  onUpdate: (id: number, data: any) => void;
+  onDelete: (id: number) => void;
 }
 
 export default function ThesisDeadlines({ deadlines, onCreate, onUpdate, onDelete }: ThesisDeadlinesProps) {

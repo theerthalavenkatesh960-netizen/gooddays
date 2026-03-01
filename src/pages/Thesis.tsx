@@ -108,7 +108,7 @@ export default function Thesis() {
     }
   };
 
-  const updatePatient = async (id: string, data: any) => {
+  const updatePatient = async (id: number, data: any) => {
     try {
       await api.updatePatient(id, data);
       loadAll();
@@ -117,7 +117,7 @@ export default function Thesis() {
     }
   };
 
-  const deletePatient = async (id: string) => {
+  const deletePatient = async (id: number) => {
     try {
       await api.deletePatient(id);
       loadAll();
@@ -152,7 +152,7 @@ export default function Thesis() {
     }
   };
 
-  const deleteDocument = async (id: string) => {
+  const deleteDocument = async (id: number) => {
     try {
       const response = await fetch(`${(import.meta as any).env?.VITE_API_URL || ''}/api/thesis/documents/${id}`, {
         method: 'DELETE',
@@ -178,7 +178,7 @@ export default function Thesis() {
     }
   };
 
-  const updateDeadline = async (id: string, data: any) => {
+  const updateDeadline = async (id: number, data: any) => {
     try {
       await api.updateDeadline(id, data);
       loadAll();
@@ -187,7 +187,7 @@ export default function Thesis() {
     }
   };
 
-  const deleteDeadline = async (id: string) => {
+  const deleteDeadline = async (id: number) => {
     try {
       await api.deleteDeadline(id);
       loadAll();

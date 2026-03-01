@@ -169,7 +169,7 @@ export default function Expenses() {
     }
   };
 
-  const deleteExpense = async (id: string) => {
+  const deleteExpense = async (id: number) => {
     if (!confirm('Delete this expense?')) return;
     try {
       await api.deleteExpense(id);

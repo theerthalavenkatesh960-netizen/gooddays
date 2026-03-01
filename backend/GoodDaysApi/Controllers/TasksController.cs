@@ -51,6 +51,12 @@ public class TasksController : ControllerBase
 
         if (req.Recurring && req.RecurrenceInterval.HasValue && !string.IsNullOrEmpty(req.RecurrenceUnit))
         {
+            // Generate a recurrence ID if not provided
+            if (!recurrenceId.HasValue)
+            {
+                recurrenceId = (int)(DateTime.UtcNow.Ticks % int.MaxValue);
+            }
+
             // generate a series spanning startDate..endDate
             var tasks = GenerateRecurringTasks(
                 req.UserId,

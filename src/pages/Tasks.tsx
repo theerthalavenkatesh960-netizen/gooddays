@@ -38,7 +38,7 @@ export default function Tasks() {
   const [recurrenceEnd, setRecurrenceEnd] = useState('');
   const [filterView, setFilterView] = useState('today');
   const [filterCategory, setFilterCategory] = useState('all');
-  const [deleteConfirm, setDeleteConfirm] = useState<{ taskId: string; isRecurring: boolean } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ taskId: number; isRecurring: boolean } | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTask, setEditingTask] = useState<any | null>(null);
@@ -70,7 +70,7 @@ const renderOccurrences = (task: any) => {
 
       const due = new Date(t.dueDate || t.due_date);
       due.setHours(0, 0, 0, 0);
-      return due <= baseDate; // Up to and including selected date
+      return due < baseDate; // Up to and including selected date
     })
     .sort((a, b) => {
       const da = new Date(a.dueDate || a.due_date).getTime();
@@ -200,7 +200,7 @@ const renderOccurrences = (task: any) => {
     loadTasks();
   };
 
-  const deleteTask = async (id: string, deleteMode: 'this' | 'series' = 'this') => {
+  const deleteTask = async (id: number, deleteMode: 'this' | 'series' = 'this') => {
     await api.deleteTask(id, deleteMode);
     setDeleteConfirm(null);
     loadTasks();
