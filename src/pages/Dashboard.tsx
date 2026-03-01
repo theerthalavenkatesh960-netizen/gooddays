@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Circle, StickyNote, Flame } from 'lucide-react';
-import { format } from 'date-fns';
+import { CheckCircle2, Circle, StickyNote, Flame, Moon, Dumbbell, Smartphone, Sun, Smile } from 'lucide-react';
+import { format, parseISO, isToday } from 'date-fns';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 import GamificationBar from '../components/GamificationBar';
@@ -28,22 +28,52 @@ export default function Dashboard() {
     workout: Array(7).fill(false),
   });
 
+  const [todayTrack, setTodayTrack] = useState({
+    sleep_hours: 0,
+    workout_minutes: 0,
+    phone_minutes: 0,
+    sunlight: false,
+    mood: 3,
+  });
+
+  const [trackCompleted, setTrackCompleted] = useState(false);
+
   useEffect(() => {
     if (user) {
       loadTopThree();
       loadDailyNote();
       loadStreaks();
+      loadTodayTrack();
     }
   }, [user]);
+
+  const loadTodayTrack = async () => {
+    if (!user) return;
+    // For now, load with default values; in future could fetch from backend
+    setTodayTrack({
+      sleep_hours: 0,
+      workout_minutes: 0,
+      phone_minutes: 0,
+      sunlight: false,
+      mood: 3,
+    });
+  };
 
   const loadTopThree = async () => {
     if (!user) return;
 
     const tasks = await api.getTasks(user.id);
     if (tasks) {
-      const t1 = tasks[0] || {};
-      const t2 = tasks[1] || {};
-      const t3 = tasks[2] || {};
+      // filter to tasks scheduled for today (dueDate or due_date)
+      const todays = (tasks as any[]).filter((t) => {
+        const due = (t.dueDate ?? t.due_date) as string | undefined;
+        if (!due) return false;
+        try { return isToday(parseISO(due)); } catch { return false; }
+      });
+
+      const t1 = todays[0] || {};
+      const t2 = todays[1] || {};
+      const t3 = todays[2] || {};
       const completedVal = (task: any) => task.isCompleted ?? (task.status === 'completed');
       setTopThree({
         task_1: t1.title || '',
@@ -92,6 +122,33 @@ export default function Dashboard() {
     });
   };
 
+  const handleTaskTitleBlur = async (index: number, title: string) => {
+    if (!user || !title.trim()) return;
+
+    const idKey = `id_${index}` as keyof typeof topThree;
+    const currentId = (topThree as any)[idKey];
+
+    if (currentId) {
+      // update existing task
+      await api.updateTask(currentId, { title: title.trim() });
+    } else {
+      // create new task
+      const created = await api.createTask({
+        userId: user.id,
+        title: title.trim(),
+        category: 'Personal',
+        priority: 'medium',
+        dueDate: new Date(),
+        recurring: false,
+      });
+      if (created && created.id) {
+        const updated = { ...topThree, [idKey]: created.id };
+        setTopThree(updated);
+        loadTopThree();
+      }
+    }
+  };
+
   const updateTopThree = async (field: string, value: string | boolean) => {
     if (!user) return;
 
@@ -123,6 +180,15 @@ export default function Dashboard() {
     if (!user) return;
 
     setDailyNote(note);
+  };
+
+  const saveTrackingData = async () => {
+    if (!user) return;
+    
+    // Award 1 point for completing tracking
+    await api.addPoints(user.id, 'daily_tracking_complete', 1);
+    setTrackCompleted(true);
+    setTimeout(() => setTrackCompleted(false), 2000);
   };
 
   const StreakBar = ({ completed }: { completed: boolean[] }) => (
@@ -181,7 +247,8 @@ export default function Dashboard() {
                   <input
                     type="text"
                     value={topThree[taskKey] as string}
-                    onChange={(e) => updateTopThree(taskKey, e.target.value)}
+                    onChange={(e) => setTopThree({ ...topThree, [taskKey]: e.target.value })}
+                    onBlur={(e) => handleTaskTitleBlur(num, e.target.value)}
                     placeholder={`Task ${num}`}
                     className={`flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none ${
                       topThree[completedKey] ? 'line-through text-gray-400' : ''
@@ -218,28 +285,158 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-white rounded-2xl p-6 shadow-xl"
+        className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 shadow-xl mb-6"
       >
-        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-          <Flame className="text-orange-500" size={24} />
-          Weekly Streaks
+        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <span className="text-2xl">✨</span>
+          Today's Tracking
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4">
-            <h3 className="font-semibold text-gray-700 mb-2">Tasks</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {/* Sleep */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+              <Moon size={18} className="text-indigo-500" />
+              Sleep Hours
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="24"
+              step="0.5"
+              value={todayTrack.sleep_hours}
+              onChange={(e) => setTodayTrack({ ...todayTrack, sleep_hours: parseFloat(e.target.value) || 0 })}
+              className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all outline-none"
+            />
+          </div>
+
+          {/* Workout */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+              <Dumbbell size={18} className="text-pink-500" />
+              Workout Minutes
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="1440"
+              step="5"
+              value={todayTrack.workout_minutes}
+              onChange={(e) => setTodayTrack({ ...todayTrack, workout_minutes: parseInt(e.target.value) || 0 })}
+              className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all outline-none"
+            />
+          </div>
+
+          {/* Phone Time */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+              <Smartphone size={18} className="text-blue-500" />
+              Phone Time (minutes)
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="1440"
+              step="5"
+              value={todayTrack.phone_minutes}
+              onChange={(e) => setTodayTrack({ ...todayTrack, phone_minutes: parseInt(e.target.value) || 0 })}
+              className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
+            />
+          </div>
+
+          {/* Sunlight */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+              <Sun size={18} className="text-yellow-500" />
+              Got Sunlight Today?
+            </label>
+            <button
+              onClick={() => setTodayTrack({ ...todayTrack, sunlight: !todayTrack.sunlight })}
+              className={`w-full px-4 py-2 rounded-lg font-semibold transition-all ${
+                todayTrack.sunlight
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {todayTrack.sunlight ? '☀️ Yes' : '☁️ No'}
+            </button>
+          </div>
+        </div>
+
+        {/* Mood Selector */}
+        <div className="mb-4">
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+            <Smile size={18} className="text-red-500" />
+            How are you feeling? ({todayTrack.mood}/5)
+          </label>
+          <div className="flex gap-2 justify-center">
+            {[1, 2, 3, 4, 5].map((mood) => (
+              <motion.button
+                key={mood}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setTodayTrack({ ...todayTrack, mood })}
+                className={`text-3xl px-3 py-2 rounded-lg transition-all ${
+                  todayTrack.mood === mood ? 'ring-2 ring-red-500 scale-110' : 'opacity-50 hover:opacity-75'
+                }`}
+              >
+                {['😢', '😕', '😐', '🙂', '😄'][mood - 1]}
+              </motion.button>
+            ))}
+          </div>
+        </div>
+
+        {/* Save Button */}
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={saveTrackingData}
+          className={`w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 ${
+            trackCompleted
+              ? 'bg-emerald-500 text-white'
+              : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+          }`}
+        >
+          {trackCompleted ? (
+            <>
+              <CheckCircle2 size={20} />
+              Tracked! +1 Point
+            </>
+          ) : (
+            <>
+              <span>💾</span>
+              Save Daily Tracking
+            </>
+          )}
+        </motion.button>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-white rounded-2xl p-4 shadow-xl"
+      >
+        <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
+          <Flame className="text-orange-500" size={18} />
+          This Week
+        </h2>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-2">
+            <h3 className="text-xs font-semibold text-gray-700 mb-1">Tasks</h3>
             <StreakBar completed={streaks.tasks} />
           </div>
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4">
-            <h3 className="font-semibold text-gray-700 mb-2">Study</h3>
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-2">
+            <h3 className="text-xs font-semibold text-gray-700 mb-1">Study</h3>
             <StreakBar completed={streaks.study} />
           </div>
-          <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl p-4">
-            <h3 className="font-semibold text-gray-700 mb-2">Self Care</h3>
+          <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-lg p-2">
+            <h3 className="text-xs font-semibold text-gray-700 mb-1">Self Care</h3>
             <StreakBar completed={streaks.selfcare} />
           </div>
-          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4">
-            <h3 className="font-semibold text-gray-700 mb-2">Workout</h3>
+          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-2">
+            <h3 className="text-xs font-semibold text-gray-700 mb-1">Workout</h3>
             <StreakBar completed={streaks.workout} />
           </div>
         </div>

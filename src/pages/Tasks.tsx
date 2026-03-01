@@ -459,7 +459,15 @@ export default function Tasks() {
                 </div>
               </div>
             ) : (
-              <p className="text-gray-600 mb-6">Are you sure you want to delete this task?</p>
+              <div className="mb-6">
+                <p className="text-gray-600 mb-4">Are you sure you want to delete this task?</p>
+                <button
+                  onClick={() => deleteTask(deleteConfirm.taskId, 'this')}
+                  className="w-full px-4 py-3 bg-red-100 text-red-700 rounded-xl font-semibold hover:bg-red-200 transition-colors mb-3"
+                >
+                  Delete Task
+                </button>
+              </div>
             )}
             <button
               onClick={() => setDeleteConfirm(null)}

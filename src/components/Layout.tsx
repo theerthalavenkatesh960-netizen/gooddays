@@ -27,7 +27,6 @@ const navItems = [
   { path: '/tasks', label: 'Tasks', icon: CheckSquare },
   { path: '/thesis', label: 'Thesis', icon: BookOpen },
   { path: '/study', label: 'Study', icon: GraduationCap },
-  { path: '/track', label: 'Track', icon: Activity },
   { path: '/expenses', label: 'Expenses', icon: DollarSign },
   { path: '/selfcare', label: 'Self Care', icon: Heart },
   { path: '/calendar', label: 'Calendar', icon: Calendar },
