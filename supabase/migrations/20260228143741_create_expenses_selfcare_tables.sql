@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   amount numeric NOT NULL,
   category text DEFAULT 'Other',
   note text DEFAULT '',
+  date timestamptz NOT NULL DEFAULT now(),
   created_at timestamptz DEFAULT now()
 );
 

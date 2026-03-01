@@ -95,6 +95,9 @@ export interface CreateTaskParams {
 export async function createTask(params: CreateTaskParams) {
   // recurrenceDays is already an array, backend expects string[]
   const body: any = { ...params };
+  if (body.dueDate) body.dueDate = (body.dueDate as Date).toISOString();
+  if (body.recurrenceStartDate) body.recurrenceStartDate = (body.recurrenceStartDate as Date).toISOString();
+  if (body.recurrenceEndDate) body.recurrenceEndDate = (body.recurrenceEndDate as Date).toISOString();
   return request('tasks', { method: 'POST', body: JSON.stringify(body) });
 }
 
@@ -116,6 +119,10 @@ export interface UpdateTaskParams {
 
 export async function updateTask(id: string, params: UpdateTaskParams) {
   const body: any = { ...params };
+  if (body.dueDate) body.dueDate = (body.dueDate as Date).toISOString();
+  if (body.recurrenceStartDate) body.recurrenceStartDate = (body.recurrenceStartDate as Date).toISOString();
+  if (body.recurrenceEndDate) body.recurrenceEndDate = (body.recurrenceEndDate as Date).toISOString();
+  if (body.completedAt) body.completedAt = (body.completedAt as Date).toISOString();
   return request(`tasks/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
@@ -133,12 +140,16 @@ export async function getExpense(id: string) {
   return request(`expenses/${id}`);
 }
 
-export async function createExpense(userId: string, description: string, amount: number, category: string, date: Date) {
-  return request('expenses', { method: 'POST', body: JSON.stringify({ userId, description, amount, category, date }) });
+export async function createExpense(userId: string, description: string, amount: number, category: string, date?: Date) {
+  const body: any = { userId, description, amount, category };
+  if (date) body.date = date.toISOString();
+  return request('expenses', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function updateExpense(id: string, description?: string, amount?: number, category?: string, date?: Date) {
-  return request(`expenses/${id}`, { method: 'PUT', body: JSON.stringify({ description, amount, category, date }) });
+  const body: any = { description, amount, category };
+  if (date) body.date = date.toISOString();
+  return request(`expenses/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export async function deleteExpense(id: string) {
@@ -156,7 +167,9 @@ export async function getSelfCareActivity(id: string) {
 
 // create a log entry; templateId should refer to a SelfCareTemplate record
 export async function createSelfCareActivity(userId: string, date: Date, templateId: string, completed = false) {
-  return request('selfcare', { method: 'POST', body: JSON.stringify({ userId, date, templateId, completed }) });
+  const body: any = { userId, templateId, completed };
+  if (date) body.date = date.toISOString();
+  return request('selfcare', { method: 'POST', body: JSON.stringify(body) });
 }
 
 // Self care templates
@@ -185,7 +198,9 @@ export async function deleteSelfCareTemplate(id: string) {
 }
 
 export async function updateSelfCareActivity(id: string, date?: Date, templateId?: string, completed?: boolean) {
-  return request(`selfcare/${id}`, { method: 'PUT', body: JSON.stringify({ date, templateId, completed }) });
+  const body: any = { templateId, completed };
+  if (date) body.date = date.toISOString();
+  return request(`selfcare/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export async function deleteSelfCareActivity(id: string) {
@@ -235,11 +250,15 @@ export async function getThesisEntry(id: string) {
 }
 
 export async function createThesisEntry(userId: string, title: string, content?: string, status?: string, date?: Date) {
-  return request('thesis', { method: 'POST', body: JSON.stringify({ userId, title, content, status, date }) });
+  const body: any = { userId, title, content, status };
+  if (date) body.date = date.toISOString();
+  return request('thesis', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function updateThesisEntry(id: string, title?: string, content?: string, status?: string, date?: Date) {
-  return request(`thesis/${id}`, { method: 'PUT', body: JSON.stringify({ title, content, status, date }) });
+  const body: any = { title, content, status };
+  if (date) body.date = date.toISOString();
+  return request(`thesis/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export async function deleteThesisEntry(id: string) {
@@ -256,11 +275,15 @@ export async function getStudySession(id: string) {
 }
 
 export async function createStudySession(userId: string, durationMinutes: number, notes?: string, date?: Date) {
-  return request('study', { method: 'POST', body: JSON.stringify({ userId, durationMinutes, notes, date }) });
+  const body: any = { userId, durationMinutes, notes };
+  if (date) body.date = date.toISOString();
+  return request('study', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function updateStudySession(id: string, durationMinutes?: number, notes?: string, date?: Date) {
-  return request(`study/${id}`, { method: 'PUT', body: JSON.stringify({ durationMinutes, notes, date }) });
+  const body: any = { durationMinutes, notes };
+  if (date) body.date = date.toISOString();
+  return request(`study/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export async function deleteStudySession(id: string) {

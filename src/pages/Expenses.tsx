@@ -62,6 +62,9 @@ export default function Expenses() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [month, setMonth] = useState(new Date());
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
   const [form, setForm] = useState({
     amount: '',
     category: 'Food',
@@ -81,13 +84,16 @@ export default function Expenses() {
 
   // ========== MEMOIZED CALCULATIONS ==========
   const monthExpenses = useMemo(() => {
+    // if showing all months just return all expenses
+    if (showAll) return expenses;
+
     const start = startOfMonth(month);
     const end = endOfMonth(month);
     return expenses.filter((e) => {
-      const d = new Date(e.date || e.created_at);
+      const d = new Date(e.date || e.createdAt);
       return d >= start && d <= end;
     });
-  }, [expenses, month]);
+  }, [expenses, month, showAll]);
 
   const total = useMemo(
     () => monthExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0),
@@ -104,7 +110,7 @@ export default function Expenses() {
     return expenses
       .filter((e) => {
         try {
-          return format(new Date(e.date || e.created_at), 'yyyy-MM-dd') === today;
+          return format(new Date(e.date || e.createdAt), 'yyyy-MM-dd') === today;
         } catch {
           return false;
         }
@@ -126,7 +132,7 @@ export default function Expenses() {
   const dailyGrouped = useMemo(() => {
     const grouped: { [key: string]: any[] } = {};
     monthExpenses.forEach((e) => {
-      const key = format(new Date(e.date || e.created_at), 'yyyy-MM-dd');
+      const key = format(new Date(e.date || e.createdAt), 'yyyy-MM-dd');
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(e);
     });
@@ -174,8 +180,8 @@ export default function Expenses() {
   };
 
   const exportCSV = () => {
-    const rows = expenses.map((e) => [
-      format(new Date(e.date || e.created_at), 'yyyy-MM-dd'),
+    const rows = filteredExpenses.map((e) => [
+      format(new Date(e.date || e.createdAt), 'yyyy-MM-dd'),
       parseFloat(e.amount || 0).toFixed(2),
       e.category || 'Other',
       e.note || '',
@@ -238,28 +244,68 @@ export default function Expenses() {
         className="mb-8 bg-white rounded-2xl p-6 shadow-lg"
       >
         <div className="flex items-center justify-between">
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handlePrevMonth}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ChevronLeft size={28} className="text-emerald-600" />
-          </motion.button>
+          {!showAll && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handlePrevMonth}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ChevronLeft size={28} className="text-emerald-600" />
+            </motion.button>
+          )}
 
           <h2 className="text-3xl md:text-4xl font-bold text-gray-800 min-w-xs text-center">
-            {format(month, 'MMMM yyyy')}
+            {showAll ? 'All Time' : format(month, 'MMMM yyyy')}
           </h2>
 
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handleNextMonth}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <ChevronRight size={28} className="text-emerald-600" />
-          </motion.button>
+          {!showAll && (
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={handleNextMonth}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ChevronRight size={28} className="text-emerald-600" />
+            </motion.button>
+          )}
         </div>
+      </motion.div>
+      <div className="text-center mb-8">
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className="text-sm text-blue-600 underline"
+        >
+          {showAll ? 'Show monthly view' : 'Show all expenses'}
+        </button>
+      </div>
+
+      {/* Filters */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8 flex flex-col md:flex-row items-center justify-between gap-4"
+      >
+        <select
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value)}
+          className="px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all"
+        >
+          <option value="All">All Categories</option>
+          {CATEGORIES.map((c) => (
+            <option key={c.name} value={c.name}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="text"
+          placeholder="Search notes..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="px-4 py-2 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all w-full md:w-1/2"
+        />
       </motion.div>
 
       {/* Metrics Cards */}

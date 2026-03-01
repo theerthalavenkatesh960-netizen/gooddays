@@ -22,6 +22,11 @@ public class Expense
     public decimal Amount { get; set; }
     [Column("category")]
     public string? Category { get; set; }
+
+    // optional date for the expense; falls back to CreatedAt when not set
+    [Column("date")]
+    public DateTime? Date { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     

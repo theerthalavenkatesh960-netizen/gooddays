@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, CheckCircle2, RotateCcw, Trash2, Filter } from 'lucide-react';
+import { Plus, CheckCircle2, RotateCcw, Trash2, Filter, Edit } from 'lucide-react';
 import { format, isToday, isPast, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
@@ -26,6 +26,7 @@ export default function Tasks() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ taskId: string; isRecurring: boolean } | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<any | null>(null);
   const [scheduledDate, setScheduledDate] = useState('');
 
   useEffect(() => {
@@ -67,7 +68,11 @@ export default function Tasks() {
       body.dueDate = new Date(scheduledDate);
     }
 
-    await api.createTask(body);
+    if (editingTask) {
+      await api.updateTask(editingTask.id, body);
+    } else {
+      await api.createTask(body);
+    }
 
     // reset form
     setNewTask('');
@@ -79,7 +84,28 @@ export default function Tasks() {
     setRecurrenceStart('');
     setRecurrenceEnd('');
     setShowAddModal(false);
+    setEditingTask(null);
     loadTasks();
+  };
+
+  const openEditModal = (task: any) => {
+    setEditingTask(task);
+    setNewTask(task.title || '');
+    setSelectedCategory(task.category || 'Personal');
+    setSelectedPriority(task.priority || 'medium');
+    setRecurring(!!task.recurring);
+    setRecurrenceInterval(task.recurrenceInterval || 1);
+    setRecurrenceUnit(task.recurrenceUnit || 'days');
+    setRecurrenceDays(task.recurrenceDays || []);
+    setMonthlyDay(
+      task.recurrenceUnit === 'months' && task.recurrenceDays && task.recurrenceDays[0]
+        ? parseInt(task.recurrenceDays[0], 10)
+        : 1
+    );
+    setRecurrenceStart(task.recurrenceStartDate ? format(parseISO(task.recurrenceStartDate), 'yyyy-MM-dd') : '');
+    setRecurrenceEnd(task.recurrenceEndDate ? format(parseISO(task.recurrenceEndDate), 'yyyy-MM-dd') : '');
+    setScheduledDate(task.dueDate ? format(parseISO(task.dueDate), 'yyyy-MM-dd') : '');
+    setShowAddModal(true);
   };
 
   const toggleTask = async (task: any) => {
@@ -159,7 +185,7 @@ export default function Tasks() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => { setEditingTask(null); setShowAddModal(true); }}
               className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold flex items-center gap-2"
             >
               <Plus size={18} /> New Task
@@ -270,7 +296,9 @@ export default function Tasks() {
         {showAddModal && (
           <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-xl font-semibold mb-4">Create Task</h3>
+              <h3 className="text-xl font-semibold mb-4">
+                {editingTask ? 'Edit Task' : 'Create Task'}
+              </h3>
               <div className="space-y-3">
                 <input type="text" value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="Task title" className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" />
                 <div className="flex gap-2">
@@ -331,8 +359,18 @@ export default function Tasks() {
                 )}
 
                 <div className="flex items-center gap-2 mt-4">
-                  <button onClick={addTask} className="px-4 py-2 bg-emerald-500 text-white rounded-xl">Create</button>
-                  <button onClick={() => setShowAddModal(false)} className="px-4 py-2 bg-gray-200 rounded-xl">Cancel</button>
+                  <button onClick={addTask} className="px-4 py-2 bg-emerald-500 text-white rounded-xl">
+                    {editingTask ? 'Save' : 'Create'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setEditingTask(null);
+                    }}
+                    className="px-4 py-2 bg-gray-200 rounded-xl"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -400,6 +438,17 @@ export default function Tasks() {
                       className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"
                     >
                       <RotateCcw size={18} />
+                    </motion.button>
+                  )}
+                  {/* edit button */}
+                  {!task.isCompleted && (
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => openEditModal(task)}
+                      className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+                    >
+                      <Edit size={18} />
                     </motion.button>
                   )}
                   <motion.button
