@@ -50,6 +50,10 @@ export default function ThesisPatients({ patients, onCreate, onUpdate, onDelete,
   });
   const [editingFollowup, setEditingFollowup] = useState<any>(null);
 
+  const [showFollowupModal, setShowFollowupModal] = useState(false);
+  const [patientForFollowup, setPatientForFollowup] = useState<any>(null);
+  const [followupMode, setFollowupMode] = useState<'add' | 'view'>('add');
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -102,23 +106,9 @@ export default function ThesisPatients({ patients, onCreate, onUpdate, onDelete,
 
   // start creating a followup for a given patient - open patient detail and prep followup form
   const handleAddFollowupFor = (patient: any) => {
-    setEditingPatient(patient);
-    setFormData({
-      patientId: patient.patientId || "",
-      studyNumber: patient.studyNumber || "",
-      groupName: patient.groupName || "A",
-      age: patient.age || 30,
-      gender: patient.gender || "Male",
-      recruitmentDate: patient.recruitmentDate?.split('T')[0] || new Date().toISOString().split('T')[0],
-      consentTaken: patient.consentTaken || false,
-      inclusionCriteriaMet: patient.inclusionCriteriaMet || false,
-      exclusionCriteriaMet: patient.exclusionCriteriaMet || false,
-      proformaStatus: patient.proformaStatus || "Pending",
-      followupStatus: patient.followupStatus || "Pending",
-      notes: patient.notes || ""
-    });
-    setShowForm(true);
-    // prefill new followup form
+    setPatientForFollowup(patient);
+    setFollowupMode('add');
+    setShowFollowupModal(true);
     setEditingFollowup(null);
     setFollowupForm({
       id: 0,
@@ -139,12 +129,18 @@ export default function ThesisPatients({ patients, onCreate, onUpdate, onDelete,
   };
 
   const saveFollowup = () => {
-    const payload = { ...followupForm, status: followupForm.status?.toLowerCase() };
+    // ensure payload always carries a valid patientId; if the form somehow
+    // lost it we can fall back to the currently selected patient.
+    const payload: any = { ...followupForm, status: followupForm.status?.toLowerCase() };
+    if ((!payload.patientId || payload.patientId === 0) && patientForFollowup) {
+      payload.patientId = patientForFollowup.id;
+    }
     if (editingFollowup) {
       onFollowupUpdate(editingFollowup.id, payload);
     } else {
       onFollowupCreate(payload);
     }
+    closeFollowupModal();
     setEditingFollowup(null);
     setFollowupForm({
       id: 0,
@@ -178,6 +174,13 @@ export default function ThesisPatients({ patients, onCreate, onUpdate, onDelete,
       status: "pending",
       notes: "",
     });
+  };
+
+  const closeFollowupModal = () => {
+    setShowFollowupModal(false);
+    setPatientForFollowup(null);
+    setFollowupMode('add');
+    cancelFollowup();
   };
 
   const filteredPatients = patients.filter(p => {
@@ -268,93 +271,6 @@ export default function ThesisPatients({ patients, onCreate, onUpdate, onDelete,
         {/* additional fields could go here */}
                   </label>
 
-      {editingPatient && (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Follow-ups</h3>
-          <div className="space-y-2 mb-4">
-            {(followups[editingPatient.id] || []).map((f: any) => (
-              <div key={f.id} className="flex items-center justify-between p-2 border rounded">
-                <div>
-                  <div className="text-sm font-medium">Visit {f.visitNumber || '-'}</div>
-                  <div className="text-xs text-gray-600">{f.visitDate ? new Date(f.visitDate).toLocaleDateString() : ''} • {f.status}</div>
-                  {f.notes && <div className="text-xs text-gray-500">{f.notes}</div>}
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => startFollowupEdit(f)} className="text-blue-500">Edit</button>
-                  <button onClick={() => onFollowupDelete(f.id)} className="text-red-500">Delete</button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setEditingFollowup(null);
-              setFollowupForm({
-                id: 0,
-                patientId: editingPatient.id,
-                visitNumber: (followups[editingPatient.id]?.length || 0) + 1,
-                visitDate: new Date().toISOString().split('T')[0],
-                status: "pending",
-                notes: "",
-              });
-            }}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
-          >
-            + Add Follow-up
-          </button>
-
-          {/* followup form */}
-          { (editingFollowup || followupForm.patientId) && (
-            <div className="mt-4 p-4 border rounded bg-gray-50">
-              <h4 className="font-semibold mb-2">{editingFollowup ? 'Edit' : 'New'} Follow-up</h4>
-              <div className="grid md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Visit #</label>
-                  <input
-                    type="number"
-                    value={followupForm.visitNumber}
-                    onChange={e => handleFollowupChange('visitNumber', parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <input
-                    type="date"
-                    value={followupForm.visitDate}
-                    onChange={e => handleFollowupChange('visitDate', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={followupForm.status}
-                    onChange={e => handleFollowupChange('status', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  >
-                    {FOLLOWUP_STATUS.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  <input
-                    type="text"
-                    value={followupForm.notes}
-                    onChange={e => handleFollowupChange('notes', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2 mt-3">
-                <button type="button" onClick={saveFollowup} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Save</button>
-                <button type="button" onClick={cancelFollowup} className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400 transition">Cancel</button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
                   <input
                     type="text"
                     value={formData.studyNumber}
@@ -512,6 +428,102 @@ export default function ThesisPatients({ patients, onCreate, onUpdate, onDelete,
         )}
       </AnimatePresence>
 
+      {/* followup modal */}
+      <AnimatePresence>
+        {showFollowupModal && patientForFollowup && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="bg-white rounded-xl p-6 w-full max-w-lg mx-4"
+            >
+              <h2 className="text-xl font-semibold mb-4">
+                {followupMode === 'add' ? 'Add' : 'Follow-ups for'} {patientForFollowup.patientId}
+              </h2>
+              <div className="mb-4 text-sm">
+                <div>ID: {patientForFollowup.patientId}</div>
+                <div>Study #: {patientForFollowup.studyNumber}</div>
+                <div>Group: {patientForFollowup.groupName}</div>
+              </div>
+              {followupMode === 'view' && (
+                <div className="space-y-2 mb-4">
+                  {(followups[patientForFollowup.id] || []).map((f: any) => (
+                    <div key={f.id} className="flex items-center justify-between p-2 border rounded">
+                      <div>
+                        <div className="text-sm font-medium">Visit {f.visitNumber || '-'}</div>
+                        <div className="text-xs text-gray-600">{f.visitDate ? new Date(f.visitDate).toLocaleDateString() : ''} • {f.status}</div>
+                        {f.notes && <div className="text-xs text-gray-500">{f.notes}</div>}
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => { startFollowupEdit(f); setFollowupMode('add'); }} className="text-blue-500">Edit</button>
+                        <button onClick={() => onFollowupDelete(f.id)} className="text-red-500">Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {followupMode === 'add' && (
+                <> 
+                  <div className="grid md:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Visit #</label>
+                      <input
+                        type="number"
+                        value={followupForm.visitNumber}
+                        onChange={e => handleFollowupChange('visitNumber', parseInt(e.target.value))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                      <input
+                        type="date"
+                        value={followupForm.visitDate}
+                        onChange={e => handleFollowupChange('visitDate', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <select
+                        value={followupForm.status}
+                        onChange={e => handleFollowupChange('status', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      >
+                        {FOLLOWUP_STATUS.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                      <input
+                        type="text"
+                        value={followupForm.notes}
+                        onChange={e => handleFollowupChange('notes', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-end gap-2 mt-4">
+                {followupMode === 'add' ? (
+                  <button onClick={saveFollowup} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
+                ) : (
+                  <button onClick={() => setFollowupMode('add')} className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">Add New</button>
+                )}
+                <button onClick={closeFollowupModal} className="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400">Close</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="bg-white rounded-2xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -589,8 +601,23 @@ export default function ThesisPatients({ patients, onCreate, onUpdate, onDelete,
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
                         <button
-                          title="Add follow-up"
-                          onClick={() => handleAddFollowupFor(patient)}
+                          title="View / add follow-ups"
+                          onClick={() => {
+                            setPatientForFollowup(patient);
+                            setFollowupMode('view');
+                            setShowFollowupModal(true);
+                            setEditingFollowup(null);
+                            // prepare an empty followup for this patient so that
+                            // the "Add New" button will have the correct patientId
+                            setFollowupForm({
+                              id: 0,
+                              patientId: patient.id,
+                              visitNumber: (followups[patient.id]?.length || 0) + 1,
+                              visitDate: new Date().toISOString().split('T')[0],
+                              status: "pending",
+                              notes: "",
+                            });
+                          }}
                           className="text-green-600 hover:text-green-900"
                         >
                           <Plus size={16} />
