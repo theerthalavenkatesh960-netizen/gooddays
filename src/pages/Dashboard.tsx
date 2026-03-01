@@ -67,12 +67,13 @@ export default function Dashboard() {
       const rec: any = await api.getDailyTracking(user.id, today);
       if (rec) {
         setTodayTrack({
-          sleep_hours: rec.sleep_hours?.toString() || '',
-          workout_minutes: rec.workout_minutes?.toString() || '',
-          phone_minutes: rec.phone_minutes?.toString() || '',
+          sleep_hours: (rec.sleepHours ?? rec.sleep_hours)?.toString() || '',
+          workout_minutes: (rec.workoutMinutes ?? rec.workout_minutes)?.toString() || '',
+          phone_minutes: (rec.phoneMinutes ?? rec.phone_minutes)?.toString() || '',
           sunlight: rec.sunlight || false,
           mood: rec.mood || 3,
         });
+        setDailyNote(rec.note || '');
         return;
       }
     }
@@ -117,7 +118,8 @@ export default function Dashboard() {
 
   const loadDailyNote = async () => {
     if (!user) return;
-    // Daily notes would be stored with thesis or similar
+    // notes are stored alongside daily tracking
+    await loadTodayTrack();
   };
 
   const loadStreaks = async () => {
@@ -245,7 +247,7 @@ export default function Dashboard() {
     const phone = parseInt(todayTrack.phone_minutes, 10) || 0;
     const sunlight = todayTrack.sunlight;
     const mood = todayTrack.mood;
-    await api.saveDailyTracking(user.id, date, sleep, workout, phone, sunlight, mood);
+    await api.saveDailyTracking(user.id, date, sleep, workout, phone, sunlight, mood, dailyNote);
 
     // Award 1 point for completing tracking
     await api.addPoints(user.id, 'daily_tracking_complete', 1);
@@ -337,6 +339,7 @@ export default function Dashboard() {
           <textarea
             value={dailyNote}
             onChange={(e) => updateDailyNote(e.target.value)}
+            // onBlur={() => saveTrackingData()}
             placeholder="What's on your mind today?"
             className="w-full h-32 px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all outline-none resize-none"
           />

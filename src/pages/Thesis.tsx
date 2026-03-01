@@ -223,7 +223,7 @@ export default function Thesis() {
               })}
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
                 <span className="text-teal-700 font-semibold">
                   {user.name?.charAt(0) || user.email?.charAt(0) || 'U'}
@@ -233,7 +233,7 @@ export default function Thesis() {
                 <div className="text-sm font-medium">{user.name || 'Dr. User'}</div>
                 <div className="text-xs opacity-75">{user.email}</div>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

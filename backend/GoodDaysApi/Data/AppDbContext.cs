@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<GamificationEntry> GamificationEntries { get; set; }
     public DbSet<SelfCareTemplate> SelfCareTemplates { get; set; }
     public DbSet<DailyTracking> DailyTrackings { get; set; }
+    public DbSet<DailyNote> DailyNotes { get; set; }
     // Thesis system new tables
     public DbSet<ThesisProtocol> ThesisProtocols { get; set; }
     public DbSet<ThesisPatient> ThesisPatients { get; set; }
@@ -43,6 +44,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<StudyGroup>().ToTable("study_groups");
         modelBuilder.Entity<GamificationEntry>().ToTable("gamification_entries");
         modelBuilder.Entity<DailyTracking>().ToTable("daily_tracking");
+        modelBuilder.Entity<DailyNote>().ToTable("daily_notes");
         // other entities follow default pluralization unless you need a custom name
 
         // ensure emails are unique for login
@@ -78,17 +80,10 @@ public class AppDbContext : DbContext
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<SelfCareLog>()
-            .HasOne(s => s.User)
-            .WithMany()
-            .HasForeignKey(s => s.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        // the consolidated patient entity also has a user foreign key
         modelBuilder.Entity<ThesisPatient>()
-            .HasOne<GoodDaysApi.Models.User>()
+            .HasOne(p => p.User)
             .WithMany()
-            .HasForeignKey("UserId")
+            .HasForeignKey(p => p.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // configure thesis relationships

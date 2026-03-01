@@ -211,11 +211,12 @@ export type DailyTracking = {
   id: number;
   userId: number;
   date: string;
-  sleep_hours: number;
-  workout_minutes: number;
-  phone_minutes: number;
+  sleepHours: number;
+  workoutMinutes: number;
+  phoneMinutes: number;
   sunlight: boolean;
   mood: number;
+  note?: string;
   createdAt: string;
 };
 
@@ -231,11 +232,24 @@ export async function saveDailyTracking(
   workout_minutes: number,
   phone_minutes: number,
   sunlight: boolean,
-  mood: number
+  mood: number,
+  note?: string
 ) {
+  // Convert date string (yyyy-MM-dd) to ISO DateTime
+  const dateObj = new Date(date);
+  const payload: any = {
+    userId,
+    date: dateObj.toISOString(),
+    sleepHours: sleep_hours,
+    workoutMinutes: workout_minutes,
+    phoneMinutes: phone_minutes,
+    sunlight,
+    mood,
+  };
+  if (note !== undefined) payload.note = note;
   return request(`dailytracking`, {
     method: 'POST',
-    body: JSON.stringify({ userId, date, sleep_hours, workout_minutes, phone_minutes, sunlight, mood }),
+    body: JSON.stringify(payload),
   });
 }
 

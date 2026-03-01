@@ -34,6 +34,10 @@ public class DailyTracking
     [Column("mood")]
     public int Mood { get; set; } = 3;
 
+    // note is stored in separate table 'daily_notes'; keep in model for convenience but not mapped
+    [NotMapped]
+    public string? Note { get; set; }
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

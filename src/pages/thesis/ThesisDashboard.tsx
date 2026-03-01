@@ -10,7 +10,7 @@ interface ThesisDashboardProps {
 
 export default function ThesisDashboard({ protocol, patients, followups, deadlines }: ThesisDashboardProps) {
   const totalSample = protocol?.totalSampleSize || 135;
-  const recruited = patients.length;
+  const recruited = Array.isArray(patients) ? patients.length : 0;
   const protocolApproved = !!protocol;
 
   const totalFollowupsNeeded = protocol?.totalFollowups || 20;
@@ -18,7 +18,7 @@ export default function ThesisDashboard({ protocol, patients, followups, deadlin
     .flat()
     .filter((f: any) => f.status === "completed").length;
 
-  const dropouts = patients.filter((p: any) => p.followupStatus === "Dropout").length;
+  const dropouts = Array.isArray(patients) ? patients.filter((p: any) => p.followupStatus === "Dropout").length : 0;
 
   const progressPercent = totalSample > 0 ? Math.round((recruited / totalSample) * 100) : 0;
 
@@ -27,7 +27,7 @@ export default function ThesisDashboard({ protocol, patients, followups, deadlin
     .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3);
 
-  const groupProgress = patients.reduce((acc: any, p: any) => {
+  const groupProgress = (Array.isArray(patients) ? patients : []).reduce((acc: any, p: any) => {
     const group = p.groupName || "Unknown";
     if (!acc[group]) acc[group] = { recruited: 0, target: 0 };
     acc[group].recruited += 1;
