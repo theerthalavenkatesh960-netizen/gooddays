@@ -107,13 +107,27 @@ export default function FollowupModal({ show, patient, followups, onClose, onCre
             className="bg-white rounded-xl p-6 w-full max-w-lg mx-4"
             ref={modalRef}
           >
-            <h2 className="text-xl font-semibold mb-4">
-              Follow-ups for {patient.patientId}
-            </h2>
-            <div className="mb-4 text-sm">
-              <div>ID: {patient.patientId}</div>
-              <div>Study #: {patient.studyNumber}</div>
-              <div>Group: {patient.groupName}</div>
+            <h2 className="text-xl font-semibold mb-4">Follow-ups</h2>
+
+            <div className="mb-4 flex flex-wrap items-center gap-3 text-sm">
+              <div className="px-3 py-2 bg-gray-50 border rounded-md">
+                <div className="text-xs text-gray-500">ID</div>
+                <div className="font-medium">{patient.patientId}</div>
+              </div>
+              <div className="px-3 py-2 bg-gray-50 border rounded-md">
+                <div className="text-xs text-gray-500">Study #</div>
+                <div className="font-medium">{patient.studyNumber}</div>
+              </div>
+              <div className="px-3 py-2 bg-gray-50 border rounded-md">
+                <div className="text-xs text-gray-500">Group</div>
+                <div className="font-medium">{patient.groupName}</div>
+              </div>
+              {patient.recruitmentDate && (
+                <div className="px-3 py-2 bg-gray-50 border rounded-md">
+                  <div className="text-xs text-gray-500">Recruited</div>
+                  <div className="font-medium">{new Date(patient.recruitmentDate).toLocaleDateString()}</div>
+                </div>
+              )}
             </div>
 
             {(mode === 'add' || editingFollowup) && (
@@ -170,23 +184,66 @@ export default function FollowupModal({ show, patient, followups, onClose, onCre
             )}
 
             <div className="space-y-2 mb-4 max-h-64 overflow-y-auto">
-              {followups.map((f: any) => (
-                <div key={f.id} className="flex items-center justify-between p-2 border rounded hover:bg-gray-100">
-                  <div>
-                    <div className="text-sm font-medium">Visit {f.visitNumber || '-'}</div>
-                    <div className="text-xs text-gray-600">{f.visitDate ? new Date(f.visitDate).toLocaleDateString() : ''} • {f.status}</div>
-                    {f.notes && <div className="text-xs text-gray-500">{f.notes}</div>}
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => startEdit(f)} className="text-blue-500">
-                      <Edit2 size={16}/>
-                    </button>
-                    <button onClick={() => onDelete(f.id)} className="text-red-500">
-                      <Trash2 size={16}/>
-                    </button>
-                  </div>
-                </div>
-              ))}
+              {(() => {
+                const msPerDay = 1000 * 60 * 60 * 24;
+                // sort followups by date asc for interval calculation
+                const sorted = [...followups].sort((a, b) => {
+                  const da = a.visitDate ? new Date(a.visitDate).getTime() : 0;
+                  const db = b.visitDate ? new Date(b.visitDate).getTime() : 0;
+                  return da - db;
+                });
+
+                return sorted.map((f: any, idx: number) => {
+                  const prev = idx > 0 ? sorted[idx - 1] : null;
+                  let daysBetween: number | null = null;
+                  if (f.visitDate) {
+                    const cur = new Date(f.visitDate).getTime();
+                    if (prev && prev.visitDate) {
+                      daysBetween = Math.round((cur - new Date(prev.visitDate).getTime()) / msPerDay);
+                    } else if (patient.recruitmentDate) {
+                      daysBetween = Math.round((cur - new Date(patient.recruitmentDate).getTime()) / msPerDay);
+                    }
+                  }
+
+                  const statusColors: any = {
+                    'Completed': 'bg-blue-50 text-blue-700 border-blue-200',
+                    'Pending': 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                    'Due': 'bg-green-50 text-green-700 border-green-200',
+                    'Dropout': 'bg-red-50 text-red-700 border-red-200',
+                  };
+
+                  const statusKey = f.status ? (f.status.toString().charAt(0).toUpperCase() + f.status.toString().slice(1)) : 'Pending';
+                  const statusClass = statusColors[statusKey] || 'bg-gray-50 text-gray-700 border-gray-200';
+
+                  return (
+                    <div key={f.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                      <div className="flex items-start gap-3">
+                        <div className="min-w-[88px]">
+                          <div className="text-sm font-medium">Visit {f.visitNumber || '-'}</div>
+                          <div className="text-xs text-gray-600">{f.visitDate ? new Date(f.visitDate).toLocaleDateString() : ''}</div>
+                        </div>
+                        <div>
+                          <div className={`inline-flex items-center gap-2 px-2 py-1 text-xs font-medium rounded ${statusClass} border`}>
+                            <span>{statusKey}</span>
+                          </div>
+                          {f.notes && <div className="text-xs text-gray-500 mt-1">{f.notes}</div>}
+                        </div>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        {daysBetween !== null ? <div>{daysBetween} day{daysBetween === 1 ? '' : 's'}</div> : <div>-</div>}
+                        <div className="flex gap-2 justify-end mt-2">
+                          <button onClick={() => startEdit(f)} className="text-blue-500">
+                            <Edit2 size={16}/>
+                          </button>
+                          <button onClick={() => onDelete(f.id)} className="text-red-500">
+                            <Trash2 size={16}/>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
 
             <div className="flex justify-end gap-2 mt-4">
