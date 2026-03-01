@@ -20,16 +20,34 @@ public class SelfCareController : ControllerBase
     // returns self-care logs for a user
     public async Task<IActionResult> GetUserActivities(Guid userId)
     {
-        var activities = await _db.SelfCareLogs.Where(s => s.UserId == userId).OrderByDescending(s => s.Date).ToListAsync();
-        return Ok(activities);
+        try
+        {
+            var activities = await _db.SelfCareLogs
+                .Where(s => s.UserId == userId)
+                .OrderByDescending(s => s.Date)
+                .ToListAsync();
+            return Ok(activities);
+        }
+        catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P01")
+        {
+            // table missing, just return empty list to avoid breaking the client
+            return Ok(Enumerable.Empty<SelfCareLog>());
+        }
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> GetActivity(Guid id)
     {
-        var activity = await _db.SelfCareLogs.FindAsync(id);
-        if (activity == null) return NotFound();
-        return Ok(activity);
+        try
+        {
+            var activity = await _db.SelfCareLogs.FindAsync(id);
+            if (activity == null) return NotFound();
+            return Ok(activity);
+        }
+        catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P01")
+        {
+            return NotFound();
+        }
     }
 
     [HttpPost]
@@ -50,7 +68,15 @@ public class SelfCareController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateActivity(Guid id, [FromBody] UpdateSelfCareRequest req)
     {
-        var activity = await _db.SelfCareLogs.FindAsync(id);
+        SelfCareLog? activity;
+        try
+        {
+            activity = await _db.SelfCareLogs.FindAsync(id);
+        }
+        catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P01")
+        {
+            return NotFound();
+        }
         if (activity == null) return NotFound();
         
         activity.Date = req.Date ?? activity.Date;
@@ -64,12 +90,18 @@ public class SelfCareController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteActivity(Guid id)
     {
-        var activity = await _db.SelfCareLogs.FindAsync(id);
-        if (activity == null) return NotFound();
-        
-        _db.SelfCareLogs.Remove(activity);
-        await _db.SaveChangesAsync();
-        return Ok();
+        try
+        {
+            var activity = await _db.SelfCareLogs.FindAsync(id);
+            if (activity == null) return NotFound();
+            _db.SelfCareLogs.Remove(activity);
+            await _db.SaveChangesAsync();
+            return Ok();
+        }
+        catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P01")
+        {
+            return NotFound();
+        }
     }
 }
 

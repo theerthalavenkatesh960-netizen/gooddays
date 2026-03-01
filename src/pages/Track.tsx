@@ -10,9 +10,9 @@ export default function Track() {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const [todayData, setTodayData] = useState({
-    sleep_hours: 0,
-    workout_minutes: 0,
-    phone_minutes: 0,
+    sleep_hours: '',
+    workout_minutes: '',
+    phone_minutes: '',
     sunlight: false,
     mood: 3,
   });
@@ -40,9 +40,9 @@ export default function Track() {
       const today_data = data.find(d => format(new Date(d.date), 'yyyy-MM-dd') === today);
       if (today_data) {
         setTodayData({
-          sleep_hours: 0,
-          workout_minutes: today_data.durationMinutes || 0,
-          phone_minutes: 0,
+          sleep_hours: '',
+          workout_minutes: (today_data.durationMinutes || 0).toString(),
+          phone_minutes: '',
           sunlight: false,
           mood: 3,
         });
@@ -122,7 +122,7 @@ export default function Track() {
                 type="number"
                 step="0.5"
                 value={todayData.sleep_hours}
-                onChange={(e) => updateData('sleep_hours', parseFloat(e.target.value) || 0)}
+                onChange={(e) => updateData('sleep_hours', e.target.value)}
                 className="w-full mt-1 px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 outline-none"
               />
             </div>
@@ -137,7 +137,7 @@ export default function Track() {
               <input
                 type="number"
                 value={todayData.workout_minutes}
-                onChange={(e) => updateData('workout_minutes', parseInt(e.target.value) || 0)}
+                onChange={(e) => updateData('workout_minutes', e.target.value)}
                 className="w-full mt-1 px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 outline-none"
               />
             </div>
@@ -152,7 +152,7 @@ export default function Track() {
               <input
                 type="number"
                 value={todayData.phone_minutes}
-                onChange={(e) => updateData('phone_minutes', parseInt(e.target.value) || 0)}
+                onChange={(e) => updateData('phone_minutes', e.target.value)}
                 className="w-full mt-1 px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-red-500 outline-none"
               />
             </div>

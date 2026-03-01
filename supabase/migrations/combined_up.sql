@@ -357,6 +357,110 @@ CREATE POLICY "Users can update own daily tracking"
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+-- expenses and self-care tables (from 20260228143741_create_expenses_selfcare_tables.sql)
+-- these were originally added in a separate migration; include them here so
+-- the combined schema file can be used to bootstrap a fresh database.
+
+-- Create expenses table
+CREATE TABLE IF NOT EXISTS expenses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  amount numeric NOT NULL,
+  category text DEFAULT 'Other',
+  note text DEFAULT '',
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own expenses"
+  ON expenses FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own expenses"
+  ON expenses FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own expenses"
+  ON expenses FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own expenses"
+  ON expenses FOR DELETE
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+-- Create self_care_template table
+CREATE TABLE IF NOT EXISTS self_care_template (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  category text NOT NULL,
+  item text NOT NULL,
+  order_index integer DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE self_care_template ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own self care template"
+  ON self_care_template FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own self care template"
+  ON self_care_template FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own self care template"
+  ON self_care_template FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own self care template"
+  ON self_care_template FOR DELETE
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+-- Create self_care_logs table
+CREATE TABLE IF NOT EXISTS self_care_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  date date NOT NULL,
+  template_id uuid REFERENCES self_care_template(id) ON DELETE CASCADE NOT NULL,
+  completed boolean DEFAULT false,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE(user_id, date, template_id)
+);
+
+ALTER TABLE self_care_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own self care logs"
+  ON self_care_logs FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own self care logs"
+  ON self_care_logs FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own self care logs"
+  ON self_care_logs FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own self care logs"
+  ON self_care_logs FOR DELETE
+  TO authenticated
+  USING (auth.uid() = user_id);
+
 -- gamification helpers
 CREATE OR REPLACE FUNCTION add_points(user_id uuid, points_to_add integer)
 RETURNS void AS $$

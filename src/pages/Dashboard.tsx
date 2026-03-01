@@ -28,13 +28,15 @@ export default function Dashboard() {
     workout: Array(7).fill(false),
   });
 
+  // store as strings so inputs can be cleared; convert when saving
   const [todayTrack, setTodayTrack] = useState({
-    sleep_hours: 0,
-    workout_minutes: 0,
-    phone_minutes: 0,
+    sleep_hours: '',
+    workout_minutes: '',
+    phone_minutes: '',
     sunlight: false,
     mood: 3,
   });
+  const [trackingOptions, setTrackingOptions] = useState<string[]>([]);
 
   const [trackCompleted, setTrackCompleted] = useState(false);
 
@@ -45,15 +47,39 @@ export default function Dashboard() {
       loadStreaks();
       loadTodayTrack();
     }
+    // load tracking options stored in settings
+    const stored = localStorage.getItem('trackingOptions');
+    if (stored) {
+      try {
+        setTrackingOptions(JSON.parse(stored));
+      } catch {}
+    } else {
+      setTrackingOptions(['sleep_hours', 'workout_minutes', 'phone_minutes']);
+    }
   }, [user]);
 
   const loadTodayTrack = async () => {
     if (!user) return;
     // For now, load with default values; in future could fetch from backend
+    // try to load existing record from backend
+    if (user) {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const rec: any = await api.getDailyTracking(user.id, today);
+      if (rec) {
+        setTodayTrack({
+          sleep_hours: rec.sleep_hours?.toString() || '',
+          workout_minutes: rec.workout_minutes?.toString() || '',
+          phone_minutes: rec.phone_minutes?.toString() || '',
+          sunlight: rec.sunlight || false,
+          mood: rec.mood || 3,
+        });
+        return;
+      }
+    }
     setTodayTrack({
-      sleep_hours: 0,
-      workout_minutes: 0,
-      phone_minutes: 0,
+      sleep_hours: '',
+      workout_minutes: '',
+      phone_minutes: '',
       sunlight: false,
       mood: 3,
     });
@@ -109,10 +135,38 @@ export default function Dashboard() {
       api.getSelfCareActivities(user.id),
     ]);
 
-    const taskStreak = last7Days.map(d => tasksData?.some(t => t.isCompleted && format(new Date(t.updatedAt), 'yyyy-MM-dd') === d) || false);
-    const studyStreak = last7Days.map(d => studyData?.some(s => format(new Date(s.date), 'yyyy-MM-dd') === d) || false);
-    const selfcareStreak = last7Days.map(d => selfcareData?.some(s => format(new Date(s.date), 'yyyy-MM-dd') === d) || false);
-    const workoutStreak = last7Days.map(d => selfcareData?.some(s => format(new Date(s.date), 'yyyy-MM-dd') === d && s.activityType.toLowerCase().includes('workout')) || false);
+      const taskStreak = last7Days.map(d =>
+        tasksData?.some(t => {
+          if (!t.isCompleted) return false;
+          const dt = new Date(t.updatedAt);
+          if (isNaN(dt.getTime())) return false;
+          return format(dt, 'yyyy-MM-dd') === d;
+        }) || false
+      );
+      const studyStreak = last7Days.map(d =>
+        studyData?.some(s => {
+          const dt = new Date(s.date);
+          if (isNaN(dt.getTime())) return false;
+          return format(dt, 'yyyy-MM-dd') === d;
+        }) || false
+      );
+      const selfcareStreak = last7Days.map(d =>
+        selfcareData?.some(s => {
+          const dt = new Date(s.date);
+          if (isNaN(dt.getTime())) return false;
+          return format(dt, 'yyyy-MM-dd') === d;
+        }) || false
+      );
+      const workoutStreak = last7Days.map(d =>
+        selfcareData?.some(s => {
+          const dt = new Date(s.date);
+          if (isNaN(dt.getTime())) return false;
+          return (
+            format(dt, 'yyyy-MM-dd') === d &&
+            s.activityType?.toLowerCase().includes('workout')
+          );
+        }) || false
+      );
 
     setStreaks({
       tasks: taskStreak,
@@ -184,7 +238,15 @@ export default function Dashboard() {
 
   const saveTrackingData = async () => {
     if (!user) return;
-    
+    // persist to backend
+    const date = format(new Date(), 'yyyy-MM-dd');
+    const sleep = parseFloat(todayTrack.sleep_hours) || 0;
+    const workout = parseInt(todayTrack.workout_minutes, 10) || 0;
+    const phone = parseInt(todayTrack.phone_minutes, 10) || 0;
+    const sunlight = todayTrack.sunlight;
+    const mood = todayTrack.mood;
+    await api.saveDailyTracking(user.id, date, sleep, workout, phone, sunlight, mood);
+
     // Award 1 point for completing tracking
     await api.addPoints(user.id, 'daily_tracking_complete', 1);
     setTrackCompleted(true);
@@ -294,58 +356,62 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Sleep */}
-          <div>
+          {trackingOptions.includes('sleep_hours') && (
+            <div>
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
               <Moon size={18} className="text-indigo-500" />
               Sleep Hours
             </label>
             <input
               type="number"
-              min="0"
-              max="24"
-              step="0.5"
-              value={todayTrack.sleep_hours}
-              onChange={(e) => setTodayTrack({ ...todayTrack, sleep_hours: parseFloat(e.target.value) || 0 })}
+                min="0"
+                max="24"
+                step="0.5"
+                value={todayTrack.sleep_hours}
+                onChange={(e) => setTodayTrack({ ...todayTrack, sleep_hours: e.target.value })}
               className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all outline-none"
             />
-          </div>
-
+            </div>
+          )}
           {/* Workout */}
-          <div>
+          {trackingOptions.includes('workout_minutes') && (
+            <div>
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
               <Dumbbell size={18} className="text-pink-500" />
               Workout Minutes
             </label>
             <input
               type="number"
-              min="0"
-              max="1440"
-              step="5"
-              value={todayTrack.workout_minutes}
-              onChange={(e) => setTodayTrack({ ...todayTrack, workout_minutes: parseInt(e.target.value) || 0 })}
+                min="0"
+                max="1440"
+                step="5"
+                value={todayTrack.workout_minutes}
+                onChange={(e) => setTodayTrack({ ...todayTrack, workout_minutes: e.target.value })}
               className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all outline-none"
             />
-          </div>
-
+            </div>
+          )}
           {/* Phone Time */}
-          <div>
+          {trackingOptions.includes('phone_minutes') && (
+            <div>
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
               <Smartphone size={18} className="text-blue-500" />
               Phone Time (minutes)
             </label>
             <input
               type="number"
-              min="0"
-              max="1440"
-              step="5"
-              value={todayTrack.phone_minutes}
-              onChange={(e) => setTodayTrack({ ...todayTrack, phone_minutes: parseInt(e.target.value) || 0 })}
+                min="0"
+                max="1440"
+                step="5"
+                value={todayTrack.phone_minutes}
+                onChange={(e) => setTodayTrack({ ...todayTrack, phone_minutes: e.target.value })}
               className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all outline-none"
             />
-          </div>
-
+            </div>
+          )}
           {/* Sunlight */}
-          <div>
+          {trackingOptions.includes('sunlight') && (
+            <div>
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
               <Sun size={18} className="text-yellow-500" />
               Got Sunlight Today?
@@ -360,11 +426,13 @@ export default function Dashboard() {
             >
               {todayTrack.sunlight ? '☀️ Yes' : '☁️ No'}
             </button>
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Mood Selector */}
-        <div className="mb-4">
+        {trackingOptions.includes('mood') && (
+          <div className="mb-4">
           <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
             <Smile size={18} className="text-red-500" />
             How are you feeling? ({todayTrack.mood}/5)
@@ -384,6 +452,30 @@ export default function Dashboard() {
               </motion.button>
             ))}
           </div>
+        </div>
+        )}
+
+        {/* total time estimate */}
+        <div className="text-center text-sm text-gray-600 mb-4">
+          {(() => {
+            let total = 0;
+            if (trackingOptions.includes('sleep_hours')) {
+              const sleep = parseFloat(todayTrack.sleep_hours) || 0;
+              total += Math.round(sleep * 60);
+            }
+            if (trackingOptions.includes('workout_minutes')) {
+              const workout = parseInt(todayTrack.workout_minutes, 10) || 0;
+              total += workout;
+            }
+            if (trackingOptions.includes('phone_minutes')) {
+              const phone = parseInt(todayTrack.phone_minutes, 10) || 0;
+              total += phone;
+            }
+            const hrs = Math.floor(total / 60);
+            const mins = total % 60;
+            if (total === 0) return null;
+            return `Estimated total: ${hrs}h ${mins}m`;
+          })()}
         </div>
 
         {/* Save Button */}

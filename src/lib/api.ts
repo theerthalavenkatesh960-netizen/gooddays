@@ -159,12 +159,70 @@ export async function createSelfCareActivity(userId: string, date: Date, templat
   return request('selfcare', { method: 'POST', body: JSON.stringify({ userId, date, templateId, completed }) });
 }
 
+// Self care templates
+export type SelfCareTemplate = {
+  id: string;
+  userId: string;
+  category: string;
+  item: string;
+  order_index: number;
+  createdAt: string;
+};
+
+export async function getSelfCareTemplates(userId: string) {
+  return request(`selfcaretemplate/user/${userId}`);
+}
+
+export async function createSelfCareTemplate(userId: string, category: string, item: string, order_index: number) {
+  return request('selfcaretemplate', {
+    method: 'POST',
+    body: JSON.stringify({ userId, category, item, order_index }),
+  });
+}
+
+export async function deleteSelfCareTemplate(id: string) {
+  return request(`selfcaretemplate/${id}`, { method: 'DELETE' });
+}
+
 export async function updateSelfCareActivity(id: string, date?: Date, templateId?: string, completed?: boolean) {
   return request(`selfcare/${id}`, { method: 'PUT', body: JSON.stringify({ date, templateId, completed }) });
 }
 
 export async function deleteSelfCareActivity(id: string) {
   return request(`selfcare/${id}`, { method: 'DELETE' });
+}
+
+// Daily tracking (sleep/workout/phone/sunlight/mood)
+export type DailyTracking = {
+  id: string;
+  userId: string;
+  date: string;
+  sleep_hours: number;
+  workout_minutes: number;
+  phone_minutes: number;
+  sunlight: boolean;
+  mood: number;
+  createdAt: string;
+};
+
+export async function getDailyTracking(userId: string, date: string) {
+  // fetch record for given date
+  return request(`dailytracking/user/${userId}?date=${date}`);
+}
+
+export async function saveDailyTracking(
+  userId: string,
+  date: string,
+  sleep_hours: number,
+  workout_minutes: number,
+  phone_minutes: number,
+  sunlight: boolean,
+  mood: number
+) {
+  return request(`dailytracking`, {
+    method: 'POST',
+    body: JSON.stringify({ userId, date, sleep_hours, workout_minutes, phone_minutes, sunlight, mood }),
+  });
 }
 
 // Thesis
@@ -259,3 +317,5 @@ export const api = {
   addPoints,
 };
 export type { User, Session, Task, Expense, SelfCareActivity, ThesisEntry, StudySession };
+export type { DailyTracking };
+export type { SelfCareTemplate };

@@ -1,221 +1,507 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek } from 'date-fns';
+
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameMonth,
+  isToday,
+  startOfWeek,
+  endOfWeek,
+  addMonths,
+  subMonths,
+  addDays
+} from 'date-fns';
+
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 
+
 export default function CalendarView() {
+
   const { user } = useAuth();
+
   const [currentDate, setCurrentDate] = useState(new Date());
+
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
   const [dayData, setDayData] = useState<any>({});
+
   const [selectedDayDetails, setSelectedDayDetails] = useState<any>(null);
 
+  const [tasksData, setTasksData] = useState<any[]>([]);
+
+
   useEffect(() => {
-    if (user) {
-      loadMonthData();
-    }
+
+    if (user) loadMonthData();
+
   }, [user, currentDate]);
 
+
+  useEffect(() => {
+
+    setSelectedDate(null);
+
+    setSelectedDayDetails(null);
+
+  }, [currentDate]);
+
+
+
   const loadMonthData = async () => {
+
     if (!user) return;
 
-    const start = format(startOfMonth(currentDate), 'yyyy-MM-dd');
-    const end = format(endOfMonth(currentDate), 'yyyy-MM-dd');
+    try {
 
-    const [tasks, study, expenses, selfcare] = await Promise.all([
-      api.getTasks(user.id),
-      api.getStudySessions(user.id),
-      api.getExpenses(user.id),
-      api.getSelfCareActivities(user.id),
-    ]);
+      const start = startOfMonth(currentDate);
 
-    const data: any = {};
+      const end = endOfMonth(currentDate);
 
-    tasks?.forEach((t) => {
-      if (t.isCompleted) {
-        const date = format(new Date(t.updatedAt), 'yyyy-MM-dd');
-        data[date] = data[date] || {};
-        data[date].tasks = (data[date].tasks || 0) + 1;
-      }
-    });
+      const startKey = format(start, 'yyyy-MM-dd');
 
-    study?.forEach((s) => {
-      const date = format(new Date(s.date), 'yyyy-MM-dd');
-      data[date] = data[date] || {};
-      data[date].study = s.durationMinutes;
-    });
+      const endKey = format(end, 'yyyy-MM-dd');
 
-    expenses?.forEach((e) => {
-      const date = format(new Date(e.date), 'yyyy-MM-dd');
-      data[date] = data[date] || {};
-      data[date].expenses = (data[date].expenses || 0) + parseFloat(e.amount);
-    });
 
-    selfcare?.forEach((s) => {
-      const date = format(new Date(s.date), 'yyyy-MM-dd');
-      data[date] = data[date] || {};
-      data[date].selfcare = (data[date].selfcare || 0) + 1;
-    });
+      const [tasks, study, expenses, selfcare] = await Promise.all([
+        api.getTasks(user.id),
+        api.getStudySessions(user.id),
+        api.getExpenses(user.id),
+        api.getSelfCareActivities(user.id),
+      ]);
 
-    setDayData(data);
+
+      setTasksData(tasks || []);
+
+      const data: any = {};
+
+
+
+        tasks?.forEach((t: any) => {
+
+          // skip non-completed items and protect against bad timestamp values
+          if (!t.isCompleted) return;
+          const d = new Date(t.updatedAt);
+          if (isNaN(d.getTime())) return;
+          const key = format(d, 'yyyy-MM-dd');
+
+        if (key < startKey || key > endKey) return;
+
+        data[key] ??= {};
+
+        data[key].tasks = (data[key].tasks || 0) + 1;
+
+      });
+
+
+
+        study?.forEach((s: any) => {
+
+          const d = new Date(s.date);
+          if (isNaN(d.getTime())) return;
+          const key = format(d, 'yyyy-MM-dd');
+
+        if (key < startKey || key > endKey) return;
+
+        data[key] ??= {};
+
+        data[key].study = (data[key].study || 0) + s.durationMinutes;
+
+      });
+
+
+
+        expenses?.forEach((e: any) => {
+
+          const d = new Date(e.date);
+          if (isNaN(d.getTime())) return;
+          const key = format(d, 'yyyy-MM-dd');
+
+        if (key < startKey || key > endKey) return;
+
+        data[key] ??= {};
+
+        data[key].expenses = (data[key].expenses || 0) + parseFloat(e.amount);
+
+      });
+
+
+
+      selfcare?.forEach((s: any) => {
+
+          const d = new Date(s.date);
+          if (isNaN(d.getTime())) return;
+          const key = format(d, 'yyyy-MM-dd');
+
+        if (key < startKey || key > endKey) return;
+
+        data[key] ??= {};
+
+        data[key].selfcare = (data[key].selfcare || 0) + 1;
+
+      });
+
+
+
+      setDayData(data);
+
+    }
+    catch (err) {
+
+      console.error("Calendar Load Error:", err);
+
+    }
+
   };
+
+
 
   const getDaysInMonth = () => {
+
     const start = startOfWeek(startOfMonth(currentDate));
+
     const end = endOfWeek(endOfMonth(currentDate));
-    return eachDayOfInterval({ start, end });
+
+    return eachDayOfInterval({
+      start,
+      end
+    });
+
   };
 
-  const handleDayClick = (day: Date) => {
-    setSelectedDate(day);
-    const dateKey = format(day, 'yyyy-MM-dd');
-    setSelectedDayDetails(dayData[dateKey] || null);
+
+
+  const calculateStreak = (task: any, day: Date) => {
+
+    let count = 0;
+
+    let check = day;
+
+    while (true) {
+
+      const key = format(check, 'yyyy-MM-dd');
+
+      const found = tasksData.some((t: any) =>
+        t.isCompleted &&
+        // ensure updatedAt is a valid date before comparing
+        (() => {
+          const d = new Date(t.updatedAt);
+          if (isNaN(d.getTime())) return false;
+          return format(d, 'yyyy-MM-dd') === key;
+        })() &&
+        (
+          t.recurrenceId === task.recurrenceId ||
+          t.title === task.title
+        )
+      );
+
+
+      if (!found) break;
+
+      count++;
+
+      check = addDays(check, -1);
+
+      if (count > 365) break;
+
+    }
+
+    return count;
+
   };
+
+
+
+  const handleDayClick = (day: Date) => {
+    // defensive: ignore invalid dates
+    if (!(day instanceof Date) || isNaN(day.getTime())) {
+      console.warn('handleDayClick received invalid date', day);
+      return;
+    }
+    setSelectedDate(day);
+    const key = format(day, 'yyyy-MM-dd');
+
+    const base = dayData[key] || {};
+
+
+    const completedTasks =
+      tasksData.filter((t: any) => {
+        if (!t.isCompleted) return false;
+        const d = new Date(t.updatedAt);
+        if (isNaN(d.getTime())) return false;
+        return format(d, 'yyyy-MM-dd') === key;
+      });
+
+
+    const taskStreaks =
+      completedTasks.map((t: any) => ({
+
+        task: t,
+
+        streak: calculateStreak(t, day)
+
+      }));
+
+
+
+    setSelectedDayDetails({
+
+      ...base,
+
+      taskStreaks
+
+    });
+
+  };
+
+
 
   const days = getDaysInMonth();
 
+
+
   return (
-    <div>
-      <h1 className="text-4xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-        Calendar
-      </h1>
+
+    <div className="p-6">
+
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+
+        initial={{ opacity: 0, y: 10 }}
+
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-6 shadow-xl mb-6"
+
+        className="bg-white rounded-2xl shadow-lg p-6"
+
       >
+
+
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">
-            {format(currentDate, 'MMMM yyyy')}
-          </h2>
-          <div className="flex gap-2">
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
-              className="p-2 rounded-lg hover:bg-gray-100"
-            >
-              <ChevronLeft size={20} />
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setCurrentDate(new Date())}
-              className="px-4 py-2 rounded-lg bg-emerald-100 text-emerald-700 font-medium"
-            >
-              Today
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
-              className="p-2 rounded-lg hover:bg-gray-100"
-            >
-              <ChevronRight size={20} />
-            </motion.button>
+
+
+          <div className="flex items-center gap-2">
+
+            <CalendarIcon size={24} />
+
+            <h2 className="text-xl font-semibold">
+
+              {format(currentDate, "MMMM yyyy")}
+
+            </h2>
+
           </div>
+
+
+
+          <div className="flex gap-2">
+
+            <button
+
+              onClick={() => setCurrentDate(subMonths(currentDate, 1))}
+
+              className="p-2 rounded-lg hover:bg-gray-100"
+
+            >
+              <ChevronLeft />
+            </button>
+
+
+            <button
+
+              onClick={() => setCurrentDate(addMonths(currentDate, 1))}
+
+              className="p-2 rounded-lg hover:bg-gray-100"
+
+            >
+              <ChevronRight />
+            </button>
+
+          </div>
+
         </div>
 
-        <div className="grid grid-cols-7 gap-2 mb-2">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="text-center text-sm font-semibold text-gray-600 py-2">
-              {day}
+
+
+        <div className="grid grid-cols-7 gap-2 mb-4">
+
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+
+            <div
+              key={d}
+              className="text-center text-sm font-medium text-gray-500"
+            >
+              {d}
             </div>
+
           ))}
+
         </div>
+
+
 
         <div className="grid grid-cols-7 gap-2">
+
           {days.map((day) => {
-            const dateKey = format(day, 'yyyy-MM-dd');
-            const data = dayData[dateKey];
-            const isCurrentMonth = isSameMonth(day, currentDate);
-            const isCurrent = isToday(day);
+
+            const key = format(day, 'yyyy-MM-dd');
+
+            const data = dayData[key] || {};
+
+            const selected =
+              selectedDate &&
+              format(selectedDate, 'yyyy-MM-dd') === key;
+
 
             return (
-              <motion.button
-                key={day.toString()}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+
+              <div
+
+                key={key}
+
                 onClick={() => handleDayClick(day)}
-                className={`aspect-square p-2 rounded-xl border-2 transition-all ${
-                  isCurrent
-                    ? 'border-emerald-500 bg-emerald-50'
-                    : selectedDate && format(selectedDate, 'yyyy-MM-dd') === dateKey
-                    ? 'border-teal-500 bg-teal-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                } ${!isCurrentMonth ? 'opacity-30' : ''}`}
+
+                className={`
+
+                p-2 rounded-lg cursor-pointer border
+
+                ${!isSameMonth(day, currentDate) && "opacity-40"}
+
+                ${isToday(day) && "border-blue-500"}
+
+                ${selected && "bg-blue-50"}
+
+                `}
+
               >
-                <div className={`text-sm font-semibold mb-1 ${isCurrent ? 'text-emerald-600' : 'text-gray-800'}`}>
-                  {format(day, 'd')}
+
+
+                <div className="text-sm">
+
+                  {format(day, "d")}
+
                 </div>
-                {data && isCurrentMonth && (
-                  <div className="space-y-0.5">
-                    {data.tasks && (
-                      <div className="text-xs bg-blue-500 text-white rounded px-1">
-                        {data.tasks}
-                      </div>
-                    )}
-                    {data.focus && (
-                      <div className="text-xs bg-orange-500 text-white rounded px-1">
-                        {data.focus}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </motion.button>
+
+
+                <div className="text-xs space-y-1">
+
+                  {data.tasks && (
+                    // each completed task gets a small dot; limit to five and show
+                    // a plus sign when there are more tasks than dots.
+                    <div className="flex justify-center mt-1 space-x-1">
+                      {Array(Math.min(data.tasks, 5))
+                        .fill(null)
+                        .map((_, i) => (
+                          <span
+                            key={i}
+                            className="inline-block w-1 h-1 bg-blue-500 rounded-full"
+                          />
+                        ))}
+                      {data.tasks > 5 && (
+                        <span className="text-[8px] text-blue-500">+</span>
+                      )}
+                    </div>
+                  )}
+
+                  {data.study && (
+
+                    <div>📘 {data.study}m</div>
+
+                  )}
+
+                  {data.expenses && (
+
+                    <div>₹ {data.expenses}</div>
+
+                  )}
+
+                  {data.selfcare && (
+
+                    <div>🧘 {data.selfcare}</div>
+
+                  )}
+
+                </div>
+
+              </div>
+
             );
+
           })}
+
         </div>
+
+
+
+        {selectedDate && selectedDayDetails && (
+
+          <motion.div
+
+            initial={{ opacity: 0 }}
+
+            animate={{ opacity: 1 }}
+
+            className="mt-6 border-t pt-4"
+
+          >
+
+            <h3 className="font-semibold mb-2">
+
+              {format(selectedDate, "PPP")}
+
+            </h3>
+
+
+            {selectedDayDetails.taskStreaks?.map((s: any, i: number) => (
+
+              <div key={i} className="text-sm mb-1">
+
+                {s.task.title} 🔥 {s.streak}
+
+              </div>
+
+            ))}
+
+
+            <div className="text-sm mt-2">
+
+              Tasks: {selectedDayDetails.tasks || 0}
+
+            </div>
+
+
+            <div className="text-sm">
+
+              Study: {selectedDayDetails.study || 0} min
+
+            </div>
+
+
+            <div className="text-sm">
+
+              Expenses: ₹{selectedDayDetails.expenses || 0}
+
+            </div>
+
+
+            <div className="text-sm">
+
+              Self Care: {selectedDayDetails.selfcare || 0}
+
+            </div>
+
+
+          </motion.div>
+
+        )}
+
       </motion.div>
 
-      {selectedDate && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl p-6 shadow-xl"
-        >
-          <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <CalendarIcon className="text-emerald-500" size={24} />
-            {format(selectedDate, 'MMMM d, yyyy')}
-          </h3>
-
-          {selectedDayDetails ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {selectedDayDetails.tasks && (
-                <div className="bg-blue-50 rounded-xl p-4">
-                  <div className="text-2xl font-bold text-blue-600">{selectedDayDetails.tasks}</div>
-                  <div className="text-sm text-gray-600">Tasks Completed</div>
-                </div>
-              )}
-              {selectedDayDetails.focus && (
-                <div className="bg-orange-50 rounded-xl p-4">
-                  <div className="text-2xl font-bold text-orange-600">{selectedDayDetails.focus}</div>
-                  <div className="text-sm text-gray-600">Focus Sessions</div>
-                </div>
-              )}
-              {selectedDayDetails.study && (
-                <div className="bg-green-50 rounded-xl p-4">
-                  <div className="text-2xl font-bold text-green-600">{selectedDayDetails.study}</div>
-                  <div className="text-sm text-gray-600">Study Minutes</div>
-                </div>
-              )}
-              {selectedDayDetails.expenses && (
-                <div className="bg-red-50 rounded-xl p-4">
-                  <div className="text-2xl font-bold text-red-600">
-                    ${selectedDayDetails.expenses.toFixed(2)}
-                  </div>
-                  <div className="text-sm text-gray-600">Expenses</div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-gray-500">No activity recorded for this day</p>
-          )}
-        </motion.div>
-      )}
     </div>
+
   );
+
 }

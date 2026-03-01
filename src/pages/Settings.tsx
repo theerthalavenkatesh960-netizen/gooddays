@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Upload, Palette } from 'lucide-react';
+import { Download, Upload, Palette, Timer } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContextApi';
 import * as api from '../lib/api';
@@ -17,6 +17,19 @@ export default function Settings() {
   const { theme, setTheme } = useTheme();
   const { user } = useAuth();
   const [message, setMessage] = useState('');
+  const [trackingOptions, setTrackingOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('trackingOptions');
+    if (stored) {
+      try {
+        setTrackingOptions(JSON.parse(stored));
+      } catch {}
+    } else {
+      // default first three
+      setTrackingOptions(['sleep_hours', 'workout_minutes', 'phone_minutes']);
+    }
+  }, []);
 
   const exportData = async () => {
     if (!user) return;
@@ -137,6 +150,51 @@ export default function Settings() {
               </div>
             </motion.button>
           ))}
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl p-6 shadow-xl mb-6"
+      >
+        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+          <Timer className="text-orange-500" size={24} />
+          Daily Tracking Fields
+        </h2>
+        <p className="text-sm text-gray-600 mb-3">Pick up to three metrics to show on the dashboard.</p>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { key: 'sleep_hours', label: 'Sleep Hours' },
+            { key: 'workout_minutes', label: 'Workout (min)' },
+            { key: 'phone_minutes', label: 'Phone Time' },
+            { key: 'sunlight', label: 'Sunlight' },
+            { key: 'mood', label: 'Mood' },
+          ].map((opt) => {
+            const checked = trackingOptions.includes(opt.key);
+            const disabled = !checked && trackingOptions.length >= 3;
+            return (
+              <label key={opt.key} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={(e) => {
+                    let newOpts = [...trackingOptions];
+                    if (e.target.checked) {
+                      newOpts.push(opt.key);
+                    } else {
+                      newOpts = newOpts.filter((k) => k !== opt.key);
+                    }
+                    setTrackingOptions(newOpts);
+                    localStorage.setItem('trackingOptions', JSON.stringify(newOpts));
+                  }}
+                  className="h-4 w-4"
+                />
+                <span className="text-gray-700">{opt.label}</span>
+              </label>
+            );
+          })}
         </div>
       </motion.div>
 

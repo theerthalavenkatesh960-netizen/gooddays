@@ -16,6 +16,7 @@ public class AppDbContext : DbContext
     public DbSet<StudySession> StudySessions { get; set; }
     public DbSet<GamificationEntry> GamificationEntries { get; set; }
     public DbSet<SelfCareTemplate> SelfCareTemplates { get; set; }
+    public DbSet<DailyTracking> DailyTrackings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +31,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<StudySession>().ToTable("study_sessions");
         modelBuilder.Entity<ThesisEntry>().ToTable("thesis_patients");
         modelBuilder.Entity<GamificationEntry>().ToTable("gamification_entries");
+        modelBuilder.Entity<DailyTracking>().ToTable("daily_tracking");
         // other entities follow default pluralization unless you need a custom name
 
         // ensure emails are unique for login

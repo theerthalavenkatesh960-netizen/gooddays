@@ -7,8 +7,9 @@ import { format } from 'date-fns';
 
 export default function FocusTimer() {
   const { user } = useAuth();
-  const [duration, setDuration] = useState(10);
-  const [timeLeft, setTimeLeft] = useState(duration * 60);
+  // store duration as string so input can be cleared; convert when needed
+  const [duration, setDuration] = useState('10');
+  const [timeLeft, setTimeLeft] = useState(10 * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [taskName, setTaskName] = useState('');
   const [showPopup, setShowPopup] = useState(false);
@@ -20,7 +21,8 @@ export default function FocusTimer() {
   }, [user]);
 
   useEffect(() => {
-    setTimeLeft(duration * 60);
+    const mins = parseInt(duration, 10) || 0;
+    setTimeLeft(mins * 60);
   }, [duration]);
 
   useEffect(() => {
@@ -56,6 +58,12 @@ export default function FocusTimer() {
       alert('Please enter a task name');
       return;
     }
+    const mins = parseInt(duration, 10) || 0;
+    if (mins <= 0) {
+      alert('Please set a duration greater than 0');
+      return;
+    }
+    setTimeLeft(mins * 60);
     setIsRunning(true);
     setStartTime(new Date());
   };
@@ -66,7 +74,8 @@ export default function FocusTimer() {
 
   const handleStop = () => {
     setIsRunning(false);
-    setTimeLeft(duration * 60);
+    const mins = parseInt(duration, 10) || 0;
+    setTimeLeft(mins * 60);
     setTaskName('');
     setStartTime(null);
   };
@@ -134,10 +143,10 @@ export default function FocusTimer() {
           <input
             type="number"
             value={duration}
-            onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 10))}
+            onChange={(e) => setDuration(e.target.value)}
             disabled={isRunning}
             className="w-20 px-2 py-1 rounded-lg border border-orange-200 text-center text-sm"
-            min="1"
+            min="0"
           />
           <span className="text-sm text-gray-600 ml-2">minutes</span>
         </div>

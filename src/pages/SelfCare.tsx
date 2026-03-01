@@ -14,6 +14,8 @@ export default function SelfCare() {
   const [newItem, setNewItem] = useState({ category: 'AM', item: '' });
   const [completionPercent, setCompletionPercent] = useState(0);
   const [streak, setStreak] = useState(0);
+  // per-template streak counts
+  const [itemStreaks, setItemStreaks] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (user) {
@@ -23,21 +25,38 @@ export default function SelfCare() {
     }
   }, [user]);
 
+  // when template changes (after loading from server) recalc logs/streaks
+  useEffect(() => {
+    if (user && template.length > 0) {
+      loadTodayLogs();
+      loadStreak();
+    }
+  }, [user, template]);
+
   const loadTemplate = async () => {
     if (!user) return;
-
-    const defaultItems = [
-      { category: 'AM', item: 'Face Wash', order_index: 0 },
-      { category: 'AM', item: 'Moisturizer', order_index: 1 },
-      { category: 'AM', item: 'Sunscreen', order_index: 2 },
-      { category: 'PM', item: 'Cleanse', order_index: 3 },
-      { category: 'PM', item: 'Treatment', order_index: 4 },
-      { category: 'PM', item: 'Moisturize', order_index: 5 },
-      { category: 'Hair', item: 'Serum', order_index: 6 },
-      { category: 'Hair', item: 'Scalp Care', order_index: 7 },
-    ];
-
-    setTemplate(defaultItems);
+    // fetch saved template items from backend
+    const data = await api.getSelfCareTemplates(user.id);
+    if (data && data.length > 0) {
+      setTemplate(data);
+    } else {
+      // fallback defaults and persist them
+      const defaultItems = [
+        { category: 'AM', item: 'Face Wash', order_index: 0 },
+        { category: 'AM', item: 'Moisturizer', order_index: 1 },
+        { category: 'AM', item: 'Sunscreen', order_index: 2 },
+        { category: 'PM', item: 'Cleanse', order_index: 3 },
+        { category: 'PM', item: 'Treatment', order_index: 4 },
+        { category: 'PM', item: 'Moisturize', order_index: 5 },
+        { category: 'Hair', item: 'Serum', order_index: 6 },
+        { category: 'Hair', item: 'Scalp Care', order_index: 7 },
+      ];
+      setTemplate(defaultItems);
+      // optionally persist defaults for user
+      defaultItems.forEach(async (it) => {
+        await api.createSelfCareTemplate(user.id, it.category, it.item, it.order_index);
+      });
+    }
   };
 
   const loadTodayLogs = async () => {
@@ -46,7 +65,23 @@ export default function SelfCare() {
     const data = await api.getSelfCareActivities(user.id);
     if (data) {
       const todayActivities = data.filter(d => format(new Date(d.date), 'yyyy-MM-dd') === today);
-      const completed = new Set(todayActivities.map((log) => log.id));
+      let completed = new Set(todayActivities.map((log) => log.id));
+
+      // if no logs today but there were some yesterday, auto-copy them
+      if (todayActivities.length === 0) {
+        const yesterday = format(new Date(new Date().setDate(new Date().getDate() - 1)), 'yyyy-MM-dd');
+        const yesterdayActivities = data.filter(d => format(new Date(d.date), 'yyyy-MM-dd') === yesterday);
+        if (yesterdayActivities.length > 0) {
+          for (const y of yesterdayActivities) {
+            await api.createSelfCareActivity(user.id, new Date(today), y.templateId, true);
+          }
+          // re-fetch to get the newly created entries with their ids
+          const refreshed = await api.getSelfCareActivities(user.id);
+          const newToday = refreshed.filter(d => format(new Date(d.date), 'yyyy-MM-dd') === today);
+          completed = new Set(newToday.map((log) => log.id));
+        }
+      }
+
       setTodayLogs(completed);
 
       const total = template.length;
@@ -78,6 +113,24 @@ export default function SelfCare() {
       }
 
       setStreak(streakCount);
+      // compute per-item streaks
+      const streaks: Record<string, number> = {};
+      template.forEach((tpl) => {
+        let count = 0;
+        let check = new Date();
+        while (true) {
+          const key = format(check, 'yyyy-MM-dd');
+          const found = data.some(
+            (s) => format(new Date(s.date), 'yyyy-MM-dd') === key && s.templateId === tpl.id && s.completed
+          );
+          if (found) {
+            count++;
+            check.setDate(check.getDate() - 1);
+          } else break;
+        }
+        streaks[tpl.id] = count;
+      });
+      setItemStreaks(streaks);
     }
   };
 
@@ -86,27 +139,39 @@ export default function SelfCare() {
 
     const isCompleted = todayLogs.has(templateId);
     const newLogs = new Set(todayLogs);
+    const todayDate = new Date();
 
     if (isCompleted) {
       newLogs.delete(templateId);
+      // remove log entry if exists
+      const activities = await api.getSelfCareActivities(user.id);
+      const log = activities.find(
+        (a: any) => a.templateId === templateId && format(new Date(a.date), 'yyyy-MM-dd') === format(todayDate, 'yyyy-MM-dd')
+      );
+      if (log) await api.deleteSelfCareActivity(log.id);
     } else {
       newLogs.add(templateId);
+      await api.createSelfCareActivity(user.id, todayDate, templateId, true);
       await api.addPoints(user.id, 'selfcare_activity', 15);
     }
 
     setTodayLogs(newLogs);
     const percent = Math.round((newLogs.size / template.length) * 100);
     setCompletionPercent(percent);
+    loadStreak();
   };
 
   const addItem = async () => {
     if (!user || !newItem.item.trim()) return;
 
+    // create template on server
+    await api.createSelfCareTemplate(user.id, newItem.category, newItem.item, template.length);
     setNewItem({ category: 'AM', item: '' });
     loadTemplate();
   };
 
   const deleteItem = async (id: string) => {
+    await api.deleteSelfCareTemplate(id);
     loadTemplate();
   };
 
@@ -232,6 +297,11 @@ export default function SelfCare() {
                         >
                           {item.item}
                         </span>
+                        {itemStreaks[item.id] > 0 && (
+                          <span className="text-xs text-gray-500 ml-2">
+                            🔁 {itemStreaks[item.id]}d
+                          </span>
+                        )}
                       </div>
                       <motion.button
                         whileHover={{ scale: 1.1 }}

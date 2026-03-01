@@ -9,7 +9,7 @@ export default function Study() {
   const { user } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  const [todayMinutes, setTodayMinutes] = useState(0);
+  const [todayMinutes, setTodayMinutes] = useState('');
   const [todayNotes, setTodayNotes] = useState('');
   const [weeklyMinutes, setWeeklyMinutes] = useState(0);
   const [studyStreak, setStudyStreak] = useState(0);
@@ -30,7 +30,7 @@ export default function Study() {
         (s: any) => format(new Date(s.date), 'yyyy-MM-dd') === today
       );
       if (todaySession) {
-        setTodayMinutes(todaySession.durationMinutes);
+        setTodayMinutes(todaySession.durationMinutes?.toString() || '');
         setTodayNotes(todaySession.notes || '');
       }
     }
@@ -81,9 +81,9 @@ export default function Study() {
       (s: any) => format(new Date(s.date), 'yyyy-MM-dd') === today
     );
     if (todaySession) {
-      await api.updateStudySession(todaySession.id, todayMinutes, todayNotes, new Date(today));
+      await api.updateStudySession(todaySession.id, parseInt(todayMinutes, 10) || 0, todayNotes, new Date(today));
     } else {
-      await api.createStudySession(user.id, todayMinutes, todayNotes, new Date(today));
+      await api.createStudySession(user.id, parseInt(todayMinutes, 10) || 0, todayNotes, new Date(today));
     }
     loadWeeklyMinutes();
     loadStreak();
@@ -128,7 +128,7 @@ export default function Study() {
           <input
             type="number"
             value={todayMinutes}
-            onChange={(e) => setTodayMinutes(parseInt(e.target.value) || 0)}
+            onChange={(e) => setTodayMinutes(e.target.value)}
             className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-500 outline-none"
           />
         </div>
