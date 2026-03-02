@@ -37,6 +37,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [timerOpen, setTimerOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -65,7 +66,31 @@ export default function Layout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <FocusTimer />
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setTimerOpen(!timerOpen)}
+            className="mx-4 mt-4 flex items-center justify-between px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold shadow-md hover:shadow-lg transition-shadow"
+          >
+            <span className="flex items-center gap-2">
+              <Timer size={18} />
+              Focus Timer
+            </span>
+            <span className="text-xl">{timerOpen ? '−' : '+'}</span>
+          </motion.button>
+
+          <AnimatePresence>
+            {timerOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <FocusTimer />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navItems.map((item) => {
@@ -138,7 +163,31 @@ export default function Layout({ children }: { children: ReactNode }) {
               className="bg-white border-b border-gray-200 overflow-hidden"
             >
               <div className="p-4">
-                <FocusTimer />
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setTimerOpen(!timerOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold shadow-md mb-3"
+                >
+                  <span className="flex items-center gap-2">
+                    <Timer size={18} />
+                    Focus Timer
+                  </span>
+                  <span className="text-xl">{timerOpen ? '−' : '+'}</span>
+                </motion.button>
+
+                <AnimatePresence>
+                  {timerOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <FocusTimer />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </motion.div>
           )}
