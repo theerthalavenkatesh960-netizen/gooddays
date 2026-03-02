@@ -30,10 +30,10 @@ export default function Tasks() {
   const [selectedCategory, setSelectedCategory] = useState(CATEGORY_OPTIONS[0].name);
   const [selectedPriority, setSelectedPriority] = useState('medium');
   const [recurring, setRecurring] = useState(false);
-  const [recurrenceInterval, setRecurrenceInterval] = useState<number>(1);
+  const [recurrenceInterval, setRecurrenceInterval] = useState<number>(0);
   const [recurrenceUnit, setRecurrenceUnit] = useState<'days'|'weeks'|'months'|'years'>('days');
   const [recurrenceDays, setRecurrenceDays] = useState<string[]>([]);
-  const [monthlyDay, setMonthlyDay] = useState<number>(1);
+  const [monthlyDay, setMonthlyDay] = useState<number>(0);
   const [recurrenceStart, setRecurrenceStart] = useState('');
   const [recurrenceEnd, setRecurrenceEnd] = useState('');
   const [filterView, setFilterView] = useState('today');
@@ -423,7 +423,7 @@ const renderOccurrences = (task: any) => {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <label className="text-sm">Every</label>
-                      <input type="number" min={1} value={recurrenceInterval} onChange={(e) => setRecurrenceInterval(parseInt(e.target.value, 10) || 1)} className="w-16 px-3 py-2 rounded-xl border border-gray-200" />
+                      <input type="number" value={recurrenceInterval === 0 ? '' : recurrenceInterval} onChange={(e) => setRecurrenceInterval(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} className="w-16 px-3 py-2 rounded-xl border border-gray-200" />
                       <select value={recurrenceUnit} onChange={(e) => setRecurrenceUnit(e.target.value as any)} className="px-3 py-2 rounded-xl border border-gray-200">
                         <option value="days">day(s)</option>
                         <option value="weeks">week(s)</option>
@@ -446,7 +446,7 @@ const renderOccurrences = (task: any) => {
                     {recurrenceUnit === 'months' && (
                       <div className="flex items-center gap-2">
                         <label className="text-sm">on day</label>
-                        <input type="number" min={1} max={31} value={monthlyDay} onChange={(e) => setMonthlyDay(parseInt(e.target.value, 10) || 1)} className="w-16 px-3 py-2 rounded-xl border border-gray-200" />
+                        <input type="number" max={31} value={monthlyDay === 0 ? '' : monthlyDay} onChange={(e) => setMonthlyDay(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} className="w-16 px-3 py-2 rounded-xl border border-gray-200" />
                       </div>
                     )}
 
