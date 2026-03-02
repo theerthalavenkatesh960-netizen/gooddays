@@ -73,7 +73,7 @@ export default function Track() {
     setTodayData(updated);
 
     if (field === 'workout_minutes' && value > 0) {
-      await api.addPoints(user.id, 'workout', 10);
+      await api.addPoints(user.id, 'workout', 1);
     }
 
     loadWeeklyAverages();

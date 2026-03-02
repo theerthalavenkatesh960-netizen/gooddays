@@ -194,7 +194,7 @@ const renderOccurrences = (task: any) => {
     await api.updateTask(task.id, { isCompleted });
 
     if (isCompleted && user) {
-      await api.addPoints(user.id, 'task_completed', 10);
+      await api.addPoints(user.id, 'task_completed', 1);
     }
 
     loadTasks();

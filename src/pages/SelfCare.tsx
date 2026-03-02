@@ -152,7 +152,7 @@ export default function SelfCare() {
     } else {
       newLogs.add(templateId);
       await api.createSelfCareActivity(user.id, todayDate, templateId, true);
-      await api.addPoints(user.id, 'selfcare_activity', 15);
+      await api.addPoints(user.id, 'selfcare_activity', 2);
     }
 
     setTodayLogs(newLogs);

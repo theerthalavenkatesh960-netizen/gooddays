@@ -225,9 +225,9 @@ export default function Dashboard() {
 
       const newAllCompleted = updated.completed_1 && updated.completed_2 && updated.completed_3;
       if (newAllCompleted && !prevAllCompleted) {
-        await api.addPoints(user.id, 'top_three_complete', 20);
+        await api.addPoints(user.id, 'top_three_complete', 2);
       } else if (!newAllCompleted && prevAllCompleted) {
-        await api.addPoints(user.id, 'top_three_complete', -20);
+        await api.addPoints(user.id, 'top_three_complete', -2);
       }
     }
   };

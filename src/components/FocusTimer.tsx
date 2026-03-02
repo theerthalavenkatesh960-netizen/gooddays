@@ -95,7 +95,7 @@ export default function FocusTimer() {
         format(new Date(), 'yyyy-MM-dd')
       );
 
-      await api.addPoints(user.id, 'focus_session', 5);
+      await api.addPoints(user.id, 'focus_session', 1);
 
       setShowPopup(false);
       handleStop();
