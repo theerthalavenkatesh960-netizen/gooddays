@@ -87,18 +87,18 @@ export default function ThesisDashboard({ protocol, patients, followups, deadlin
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-teal-700">Residency Thesis Management System</h1>
+      <h1 className="text-xl md:text-2xl font-bold text-teal-700">Residency Thesis Management System</h1>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-md p-6"
+          className="bg-white rounded-2xl shadow-md p-4 md:p-6"
         >
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Thesis Progress</h2>
+          <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-4">Thesis Progress</h2>
 
-          <div className="flex gap-8">
-            <div className="relative w-48 h-48">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
+            <div className="relative w-40 h-40 sm:w-48 sm:h-48 mx-auto sm:mx-0">
               <svg className="w-full h-full transform -rotate-90">
                 <circle
                   cx="96"
@@ -133,18 +133,18 @@ export default function ThesisDashboard({ protocol, patients, followups, deadlin
               </div>
             </div>
 
-            <div className="flex-1 space-y-3">
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="text-green-500" size={24} />
+            <div className="flex-1 space-y-2 md:space-y-3">
+              <div className="flex items-center gap-2 md:gap-3 text-sm md:text-base">
+                <CheckCircle2 className="text-green-500 flex-shrink-0" size={20} />
                 <span className="text-gray-700">Protocol Approved</span>
               </div>
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className={protocolApproved ? "text-green-500" : "text-gray-300"} size={24} />
-                <span className="text-gray-700">{recruited} / {totalSample} Patients Recruited</span>
+              <div className="flex items-center gap-2 md:gap-3 text-sm md:text-base">
+                <CheckCircle2 className={protocolApproved ? "text-green-500" : "text-gray-300"} size={20} />
+                <span className="text-gray-700">{recruited} / {totalSample} Patients</span>
               </div>
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="text-green-500" size={24} />
-                <span className="text-gray-700">{completedFollowups} / {totalFollowupsNeeded} Follow-Ups Completed</span>
+              <div className="flex items-center gap-2 md:gap-3 text-sm md:text-base">
+                <CheckCircle2 className="text-green-500 flex-shrink-0" size={20} />
+                <span className="text-gray-700">{completedFollowups} / {totalFollowupsNeeded} Follow-Ups</span>
               </div>
             </div>
           </div>
@@ -154,21 +154,21 @@ export default function ThesisDashboard({ protocol, patients, followups, deadlin
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-2xl shadow-md p-6"
+          className="bg-white rounded-2xl shadow-md p-4 md:p-6"
         >
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Upcoming Deadlines</h2>
+          <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-4">Upcoming Deadlines</h2>
 
-          <div className="space-y-3">
+          <div className="space-y-2 md:space-y-3">
             {upcomingDeadlines.length === 0 ? (
-              <p className="text-gray-500">No upcoming deadlines</p>
+              <p className="text-gray-500 text-sm md:text-base">No upcoming deadlines</p>
             ) : (
               upcomingDeadlines.map((d: any, idx: number) => (
-                <div key={d.id} className="flex items-center justify-between py-2 border-b last:border-0">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                    <span className="font-medium text-gray-700">{d.title}</span>
+                <div key={d.id} className="flex items-center justify-between py-2 border-b last:border-0 text-sm md:text-base">
+                  <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                    <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></div>
+                    <span className="font-medium text-gray-700 truncate">{d.title}</span>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
                     <div className={`w-3 h-3 rounded-full ${idx === 2 ? 'bg-red-500' : 'bg-orange-500'}`}></div>
                     <span className="text-gray-600">{new Date(d.date).toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>
                   </div>
@@ -179,62 +179,62 @@ export default function ThesisDashboard({ protocol, patients, followups, deadlin
         </motion.div>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-gradient-to-br from-orange-400 to-orange-500 rounded-2xl shadow-md p-6 text-white"
+          className="bg-gradient-to-br from-orange-400 to-orange-500 rounded-2xl shadow-md p-4 md:p-6 text-white"
         >
-          <div className="text-sm font-medium mb-2">Total Sample Size</div>
-          <div className="text-4xl font-bold">{totalSample}</div>
+          <div className="text-xs md:text-sm font-medium mb-2">Total Sample Size</div>
+          <div className="text-2xl md:text-4xl font-bold">{totalSample}</div>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-md p-6 text-white"
+          className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-md p-4 md:p-6 text-white"
         >
-          <div className="text-sm font-medium mb-2">Patients Recruited</div>
-          <div className="text-4xl font-bold">{recruited}</div>
+          <div className="text-xs md:text-sm font-medium mb-2">Patients Recruited</div>
+          <div className="text-2xl md:text-4xl font-bold">{recruited}</div>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-md p-6 text-white"
+          className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-md p-4 md:p-6 text-white"
         >
-          <div className="text-sm font-medium mb-2">Follow-Ups Completed</div>
-          <div className="text-4xl font-bold">{completedFollowups}</div>
+          <div className="text-xs md:text-sm font-medium mb-2">Follow-Ups Completed</div>
+          <div className="text-2xl md:text-4xl font-bold">{completedFollowups}</div>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="bg-gradient-to-br from-red-400 to-red-500 rounded-2xl shadow-md p-6 text-white"
+          className="bg-gradient-to-br from-red-400 to-red-500 rounded-2xl shadow-md p-4 md:p-6 text-white"
         >
-          <div className="text-sm font-medium mb-2">Dropouts</div>
-          <div className="text-4xl font-bold">{dropouts}</div>
+          <div className="text-xs md:text-sm font-medium mb-2">Dropouts</div>
+          <div className="text-2xl md:text-4xl font-bold">{dropouts}</div>
         </motion.div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-white rounded-2xl shadow-md p-6"
+          className="bg-white rounded-2xl shadow-md p-4 md:p-6"
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">Recruitment Overview</h2>
-            <button className="text-sm text-teal-600 font-medium">More</button>
+            <h2 className="text-lg md:text-xl font-bold text-gray-800">Recruitment Overview</h2>
+            <button className="text-xs md:text-sm text-teal-600 font-medium">More</button>
           </div>
 
-          <div className="mb-2 text-sm text-gray-600">Patients Recruited</div>
-          <div className="flex items-end gap-2 h-32">
+          <div className="mb-2 text-xs md:text-sm text-gray-600">Patients Recruited</div>
+          <div className="flex items-end gap-1 md:gap-2 h-24 md:h-32">
             {recruitmentData.map((count, idx) => (
               <div key={months[idx]} className="flex-1 flex flex-col items-center gap-1">
                 <div className="w-full bg-gradient-to-t from-orange-400 to-orange-300 rounded-t"
@@ -249,11 +249,11 @@ export default function ThesisDashboard({ protocol, patients, followups, deadlin
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45 }}
-          className="bg-white rounded-2xl shadow-md p-6"
+          className="bg-white rounded-2xl shadow-md p-4 md:p-6"
         >
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Group Progress</h2>
+          <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-4">Group Progress</h2>
 
-          <div className="space-y-3">
+          <div className="space-y-2 md:space-y-3">
             {Object.entries(groupProgress).map(([name, data]: [string, any]) => {
               const percent = data.target > 0 ? (data.recruited / data.target) * 100 : 0;
               const colors: any = {
@@ -264,13 +264,13 @@ export default function ThesisDashboard({ protocol, patients, followups, deadlin
 
               return (
                 <div key={name}>
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center justify-between mb-1 text-sm md:text-base">
                     <span className="font-medium text-gray-700">Group {name}</span>
-                    <span className="text-sm text-gray-600">{data.recruited} / {data.target}</span>
+                    <span className="text-xs md:text-sm text-gray-600">{data.recruited} / {data.target}</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-6">
+                  <div className="w-full bg-gray-200 rounded-full h-4 md:h-6">
                     <div
-                      className={`${colors[name] || 'bg-gray-500'} h-6 rounded-full transition-all`}
+                      className={`${colors[name] || 'bg-gray-500'} h-4 md:h-6 rounded-full transition-all`}
                       style={{ width: `${Math.min(percent, 100)}%` }}
                     ></div>
                   </div>

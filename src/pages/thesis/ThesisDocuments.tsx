@@ -73,22 +73,23 @@ export default function ThesisDocuments({ documents, onUpload, onDelete }: Thesi
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-teal-700">Document Management</h1>
-        <div className="flex items-center gap-3">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h1 className="text-xl md:text-2xl font-bold text-teal-700">Document Management</h1>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
           <select
             value={uploadCategory}
             onChange={(e) => setUploadCategory(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm"
+            className="px-2 md:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-xs md:text-sm w-full sm:w-auto"
           >
             {DOCUMENT_CATEGORIES.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
-          <label className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition cursor-pointer">
+          <label className="flex items-center justify-center sm:justify-start gap-2 px-3 md:px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition cursor-pointer text-sm md:text-base w-full sm:w-auto">
             <Upload size={18} />
-            Upload Document
+            <span className="hidden sm:inline">Upload Document</span>
+            <span className="sm:hidden">Upload</span>
             <input
               type="file"
               onChange={handleFileUpload}
@@ -99,7 +100,7 @@ export default function ThesisDocuments({ documents, onUpload, onDelete }: Thesi
         </div>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col md:flex-row gap-3 md:gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           <input
@@ -107,13 +108,13 @@ export default function ThesisDocuments({ documents, onUpload, onDelete }: Thesi
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search documents..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm md:text-base"
           />
         </div>
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+          className="px-3 md:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm md:text-base"
         >
           <option value="All">All Categories</option>
           {DOCUMENT_CATEGORIES.map(cat => (
@@ -122,7 +123,7 @@ export default function ThesisDocuments({ documents, onUpload, onDelete }: Thesi
         </select>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {filteredDocs.map((doc, idx) => {
           const status = getStatusBadge(doc.category);
 
@@ -132,7 +133,7 @@ export default function ThesisDocuments({ documents, onUpload, onDelete }: Thesi
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className="bg-white rounded-xl shadow-md p-5 hover:shadow-lg transition"
+              className="bg-white rounded-xl shadow-md p-4 md:p-5 hover:shadow-lg transition"
             >
               <div className="flex items-start justify-between mb-3">
                 {getDocIcon(doc.name)}
@@ -146,7 +147,7 @@ export default function ThesisDocuments({ documents, onUpload, onDelete }: Thesi
               </div>
 
               <div className="mb-2">
-                <div className="font-medium text-gray-800 text-sm mb-1 truncate" title={doc.name}>
+                <div className="font-medium text-gray-800 text-xs md:text-sm mb-1 truncate" title={doc.name}>
                   {doc.name}
                 </div>
                 <div className="text-xs text-gray-500">{doc.category}</div>
