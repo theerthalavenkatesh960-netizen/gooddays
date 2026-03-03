@@ -152,24 +152,24 @@ export default function ThesisStatistics({ patients, followups, protocol }: Thes
           <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-4 md:mb-6">Gender Distribution</h2>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
-            <div className="relative w-32 h-32 sm:w-48 sm:h-48">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle cx="96" cy="96" r="80" fill="#3b82f6" />
+            <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 mx-auto sm:mx-0 flex-shrink-0">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
+                <circle cx="100" cy="100" r="90" fill="#3b82f6" />
                 <circle
-                  cx="96"
-                  cy="96"
-                  r="80"
+                  cx="100"
+                  cy="100"
+                  r="90"
                   fill="transparent"
                   stroke="#ef4444"
-                  strokeWidth="160"
-                  strokeDasharray={`${femalePercent * 5.03} 503`}
+                  strokeWidth="180"
+                  strokeDasharray={`${femalePercent * 5.65} 565`}
                   strokeLinecap="butt"
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-sm md:text-2xl font-bold text-white">Male</div>
-                  <div className="text-sm md:text-xl font-bold text-white">{malePercent}%</div>
+                  <div className="text-xs md:text-lg font-bold text-white">Male</div>
+                  <div className="text-sm md:text-2xl font-bold text-white">{malePercent}%</div>
                 </div>
               </div>
             </div>

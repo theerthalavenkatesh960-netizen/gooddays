@@ -98,24 +98,24 @@ export default function ThesisDashboard({ protocol, patients, followups, deadlin
           <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-4">Thesis Progress</h2>
 
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
-            <div className="relative w-40 h-40 sm:w-48 sm:h-48 mx-auto sm:mx-0">
-              <svg className="w-full h-full transform -rotate-90">
+            <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 mx-auto sm:mx-0 flex-shrink-0">
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
                 <circle
-                  cx="96"
-                  cy="96"
-                  r="80"
+                  cx="100"
+                  cy="100"
+                  r="90"
                   stroke="#e5e7eb"
-                  strokeWidth="20"
+                  strokeWidth="16"
                   fill="none"
                 />
                 <circle
-                  cx="96"
-                  cy="96"
-                  r="80"
+                  cx="100"
+                  cy="100"
+                  r="90"
                   stroke="url(#progressGradient)"
-                  strokeWidth="20"
+                  strokeWidth="16"
                   fill="none"
-                  strokeDasharray={`${progressPercent * 5.03} 503`}
+                  strokeDasharray={`${progressPercent * 5.65} 565`}
                   strokeLinecap="round"
                 />
                 <defs>
@@ -128,7 +128,7 @@ export default function ThesisDashboard({ protocol, patients, followups, deadlin
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-4xl font-bold text-gray-800">{progressPercent}%</div>
+                  <div className="text-2xl md:text-4xl font-bold text-gray-800">{progressPercent}%</div>
                 </div>
               </div>
             </div>
