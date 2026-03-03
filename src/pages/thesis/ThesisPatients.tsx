@@ -117,16 +117,17 @@ export default function ThesisPatients({ patients, onCreate, onUpdate, onDelete,
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-teal-700">Patient Management</h1>
-        <div className="flex gap-3">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+        <h1 className="text-xl md:text-2xl font-bold text-teal-700">Patient Management</h1>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
             onClick={onExport}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            className="flex items-center justify-center sm:justify-start gap-2 px-3 md:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm md:text-base"
           >
             <Download size={18} />
-            Export CSV
+            <span className="hidden sm:inline">Export CSV</span>
+            <span className="sm:hidden">Export</span>
           </button>
           <button
             onClick={() => {
@@ -134,15 +135,16 @@ export default function ThesisPatients({ patients, onCreate, onUpdate, onDelete,
               setEditingPatient(null);
               setShowForm(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition"
+            className="flex items-center justify-center sm:justify-start gap-2 px-3 md:px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-sm md:text-base"
           >
             <Plus size={18} />
-            Add Patient
+            <span className="hidden sm:inline">Add Patient</span>
+            <span className="sm:hidden">Add</span>
           </button>
         </div>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col md:flex-row gap-3 md:gap-4">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           <input
@@ -150,13 +152,13 @@ export default function ThesisPatients({ patients, onCreate, onUpdate, onDelete,
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by patient ID or study number..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm md:text-base"
           />
         </div>
         <select
           value={filterGroup}
           onChange={(e) => setFilterGroup(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+          className="px-3 md:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm md:text-base"
         >
           <option value="All">All Groups</option>
           {GROUPS.map(g => <option key={g} value={g}>Group {g}</option>)}
@@ -364,7 +366,7 @@ export default function ThesisPatients({ patients, onCreate, onUpdate, onDelete,
         onDelete={onFollowupDelete}
       />
 
-      <div className="bg-white rounded-2xl shadow-md overflow-hidden">
+      <div className="hidden md:block bg-white rounded-2xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
@@ -477,6 +479,97 @@ export default function ThesisPatients({ patients, onCreate, onUpdate, onDelete,
             </div>
           )}
         </div>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+        {filteredPatients.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            No patients found
+          </div>
+        ) : (
+          filteredPatients.map((patient, idx) => {
+            const statusColors: any = {
+              'Completed': 'bg-blue-100 text-blue-700',
+              'Pending': 'bg-yellow-100 text-yellow-700',
+              'Due': 'bg-green-100 text-green-700',
+              'In Progress': 'bg-orange-100 text-orange-700',
+              'Dropout': 'bg-red-100 text-red-700',
+            };
+
+            return (
+              <motion.div
+                key={patient.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                className="bg-white rounded-xl shadow-md p-4 space-y-3"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-bold text-gray-900">#{patient.studyNumber}</div>
+                    <div className="text-sm text-gray-600">{patient.patientId}</div>
+                  </div>
+                  <div className="text-sm font-medium text-gray-700">
+                    Group {patient.groupName}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <div className="text-gray-600">Age / Gender</div>
+                    <div className="font-medium text-gray-900">{patient.age} / {patient.gender}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-600">Recruited</div>
+                    <div className="font-medium text-gray-900">{new Date(patient.recruitmentDate).toLocaleDateString()}</div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Proforma:</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[patient.proformaStatus] || 'bg-gray-100 text-gray-700'}`}>
+                      {patient.proformaStatus}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Follow-up:</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[patient.followupStatus] || 'bg-gray-100 text-gray-700'}`}>
+                      {patient.followupStatus}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t border-gray-200">
+                  <button
+                    title="View / add follow-ups"
+                    onClick={() => openFollowupModal(patient)}
+                    className="flex-1 py-2 px-3 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition"
+                  >
+                    Follow-ups
+                  </button>
+                  <button
+                    onClick={() => handleEdit(patient)}
+                    className="flex-1 py-2 px-3 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm('Delete this patient?')) {
+                        onDelete(patient.id);
+                      }
+                    }}
+                    className="flex-1 py-2 px-3 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })
+        )}
       </div>
     </div>
   );

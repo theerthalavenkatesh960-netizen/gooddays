@@ -106,16 +106,16 @@ export default function ThesisDeadlines({ deadlines, onCreate, onUpdate, onDelet
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-teal-700">Deadlines & Milestones</h1>
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h1 className="text-xl md:text-2xl font-bold text-teal-700">Deadlines & Milestones</h1>
         <button
           onClick={() => {
             resetForm();
             setEditingDeadline(null);
             setShowForm(true);
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition"
+          className="flex items-center justify-center sm:justify-start gap-2 px-3 md:px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-sm md:text-base w-full sm:w-auto"
         >
           <Plus size={18} />
           Add Deadline
@@ -128,9 +128,9 @@ export default function ThesisDeadlines({ deadlines, onCreate, onUpdate, onDelet
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-white rounded-2xl shadow-md p-6"
+            className="bg-white rounded-2xl shadow-md p-4 md:p-6"
           >
-            <h2 className="text-xl font-bold text-gray-800 mb-4">
+            <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-4">
               {editingDeadline ? 'Edit Deadline' : 'Add New Deadline'}
             </h2>
 
@@ -143,7 +143,7 @@ export default function ThesisDeadlines({ deadlines, onCreate, onUpdate, onDelet
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleChange('title', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-3 md:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm md:text-base"
                   placeholder="e.g., Data Analysis, Thesis Submission"
                   required
                 />
@@ -157,7 +157,7 @@ export default function ThesisDeadlines({ deadlines, onCreate, onUpdate, onDelet
                   type="date"
                   value={formData.date}
                   onChange={(e) => handleChange('date', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-3 md:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm md:text-base"
                   required
                 />
               </div>
@@ -169,7 +169,7 @@ export default function ThesisDeadlines({ deadlines, onCreate, onUpdate, onDelet
                 <textarea
                   value={formData.notes}
                   onChange={(e) => handleChange('notes', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-3 md:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent text-sm md:text-base"
                   rows={3}
                   placeholder="Additional details or requirements..."
                 />
@@ -185,10 +185,10 @@ export default function ThesisDeadlines({ deadlines, onCreate, onUpdate, onDelet
                 <span className="text-sm text-gray-700">Mark as completed</span>
               </label>
 
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition"
+                  className="flex-1 px-4 md:px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-sm md:text-base"
                 >
                   {editingDeadline ? 'Update Deadline' : 'Add Deadline'}
                 </button>
@@ -199,7 +199,7 @@ export default function ThesisDeadlines({ deadlines, onCreate, onUpdate, onDelet
                     setEditingDeadline(null);
                     resetForm();
                   }}
-                  className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                  className="flex-1 px-4 md:px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-sm md:text-base"
                 >
                   Cancel
                 </button>
@@ -209,7 +209,7 @@ export default function ThesisDeadlines({ deadlines, onCreate, onUpdate, onDelet
         )}
       </AnimatePresence>
 
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-2 md:gap-4">
         <div className="bg-gradient-to-br from-orange-400 to-orange-500 rounded-xl p-4 text-white">
           <div className="text-sm font-medium mb-1">Total Deadlines</div>
           <div className="text-3xl font-bold">{deadlines.length}</div>
@@ -325,12 +325,12 @@ export default function ThesisDeadlines({ deadlines, onCreate, onUpdate, onDelet
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-1 md:gap-2 flex-shrink-0">
                   <button
                     onClick={() => handleEdit(deadline)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-600 p-1"
                   >
-                    <Edit2 size={18} />
+                    <Edit2 size={16} />
                   </button>
                   <button
                     onClick={() => {
@@ -338,9 +338,9 @@ export default function ThesisDeadlines({ deadlines, onCreate, onUpdate, onDelet
                         onDelete(deadline.id);
                       }
                     }}
-                    className="text-gray-400 hover:text-red-600"
+                    className="text-gray-400 hover:text-red-600 p-1"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </motion.div>
@@ -350,13 +350,13 @@ export default function ThesisDeadlines({ deadlines, onCreate, onUpdate, onDelet
       )}
 
       {deadlines.length === 0 && (
-        <div className="bg-white rounded-2xl shadow-md p-12 text-center">
-          <Calendar className="mx-auto mb-4 text-gray-400" size={48} />
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">No deadlines yet</h3>
-          <p className="text-gray-500 mb-4">Add your first deadline to start tracking your thesis milestones</p>
+        <div className="bg-white rounded-2xl shadow-md p-6 md:p-12 text-center">
+          <Calendar className="mx-auto mb-4 text-gray-400" size={40} />
+          <h3 className="text-base md:text-lg font-semibold text-gray-700 mb-2">No deadlines yet</h3>
+          <p className="text-gray-500 mb-4 text-sm md:text-base">Add your first deadline to start tracking your thesis milestones</p>
           <button
             onClick={() => setShowForm(true)}
-            className="inline-flex items-center gap-2 px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition"
+            className="inline-flex items-center justify-center gap-2 px-4 md:px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-sm md:text-base"
           >
             <Plus size={18} />
             Add Deadline

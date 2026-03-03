@@ -65,12 +65,12 @@ export default function ThesisProtocol({ protocol, onSave }: ThesisProtocolProps
     } catch {}
 
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-teal-700">Study Protocol</h1>
+      <div className="space-y-4 md:space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <h1 className="text-xl md:text-2xl font-bold text-teal-700">Study Protocol</h1>
           <button
             onClick={() => setIsEditing(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition"
+            className="flex items-center justify-center sm:justify-start gap-2 px-3 md:px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition text-sm md:text-base w-full sm:w-auto"
           >
             <Edit2 size={18} />
             Edit Protocol
@@ -80,13 +80,13 @@ export default function ThesisProtocol({ protocol, onSave }: ThesisProtocolProps
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-md p-8"
+          className="bg-white rounded-2xl shadow-md p-4 md:p-8"
         >
-          <div className="space-y-6">
+          <div className="space-y-4 md:space-y-6">
             <div>
-              <h2 className="text-xl font-bold text-gray-800 mb-2">{protocol.title}</h2>
-              <div className="flex gap-4 text-sm text-gray-600">
-                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full">{protocol.studyType}</span>
+              <h2 className="text-lg md:text-xl font-bold text-gray-800 mb-2">{protocol.title}</h2>
+              <div className="flex flex-wrap gap-2 md:gap-4 text-xs md:text-sm text-gray-600">
+                <span className="px-2 md:px-3 py-1 bg-blue-100 text-blue-700 rounded-full">{protocol.studyType}</span>
                 <span>Sample Size: {protocol.totalSampleSize}</span>
                 <span>Follow-ups: {protocol.totalFollowups}</span>
                 {protocol.guideName && <span>Guide: {protocol.guideName}</span>}
@@ -97,34 +97,34 @@ export default function ThesisProtocol({ protocol, onSave }: ThesisProtocolProps
 
             {protocol.objective && (
               <div>
-                <h3 className="font-semibold text-gray-700 mb-2">Objective</h3>
-                <p className="text-gray-600">{protocol.objective}</p>
+                <h3 className="font-semibold text-gray-700 mb-2 text-sm md:text-base">Objective</h3>
+                <p className="text-gray-600 text-sm md:text-base">{protocol.objective}</p>
               </div>
             )}
 
             {protocol.inclusionCriteria && (
               <div>
-                <h3 className="font-semibold text-gray-700 mb-2">Inclusion Criteria</h3>
-                <p className="text-gray-600 whitespace-pre-line">{protocol.inclusionCriteria}</p>
+                <h3 className="font-semibold text-gray-700 mb-2 text-sm md:text-base">Inclusion Criteria</h3>
+                <p className="text-gray-600 whitespace-pre-line text-sm md:text-base">{protocol.inclusionCriteria}</p>
               </div>
             )}
 
             {protocol.exclusionCriteria && (
               <div>
-                <h3 className="font-semibold text-gray-700 mb-2">Exclusion Criteria</h3>
-                <p className="text-gray-600 whitespace-pre-line">{protocol.exclusionCriteria}</p>
+                <h3 className="font-semibold text-gray-700 mb-2 text-sm md:text-base">Exclusion Criteria</h3>
+                <p className="text-gray-600 whitespace-pre-line text-sm md:text-base">{protocol.exclusionCriteria}</p>
               </div>
             )}
 
             {studyGroups.length > 0 && (
               <div>
-                <h3 className="font-semibold text-gray-700 mb-3">Study Groups</h3>
-                <div className="grid md:grid-cols-3 gap-4">
+                <h3 className="font-semibold text-gray-700 mb-3 text-sm md:text-base">Study Groups</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                   {studyGroups.map((group: any, idx: number) => (
-                    <div key={idx} className="border rounded-lg p-4">
-                      <div className="font-semibold text-gray-800">Group {group.name}</div>
-                      <div className="text-sm text-gray-600">Target: {group.targetSize} patients</div>
-                      <div className="text-sm text-gray-500 mt-1">{group.description}</div>
+                    <div key={idx} className="border rounded-lg p-3 md:p-4">
+                      <div className="font-semibold text-gray-800 text-sm md:text-base">Group {group.name}</div>
+                      <div className="text-xs md:text-sm text-gray-600">Target: {group.targetSize} patients</div>
+                      <div className="text-xs md:text-sm text-gray-500 mt-1">{group.description}</div>
                     </div>
                   ))}
                 </div>
@@ -133,16 +133,16 @@ export default function ThesisProtocol({ protocol, onSave }: ThesisProtocolProps
 
             {protocol.studyDuration && (
               <div>
-                <h3 className="font-semibold text-gray-700 mb-2">Study Duration</h3>
-                <p className="text-gray-600">{protocol.studyDuration}</p>
+                <h3 className="font-semibold text-gray-700 mb-2 text-sm md:text-base">Study Duration</h3>
+                <p className="text-gray-600 text-sm md:text-base">{protocol.studyDuration}</p>
               </div>
             )}
 
             {/* additional meta */}
             {(protocol.startDate || protocol.endDate || protocol.iecNumber) && (
               <div className="mt-4">
-                <h3 className="font-semibold text-gray-700 mb-2">Dates &amp; Approval</h3>
-                <div className="text-sm text-gray-600 space-y-1">
+                <h3 className="font-semibold text-gray-700 mb-2 text-sm md:text-base">Dates &amp; Approval</h3>
+                <div className="text-xs md:text-sm text-gray-600 space-y-1">
                   {protocol.startDate && <div>Start: {new Date(protocol.startDate).toLocaleDateString()}</div>}
                   {protocol.endDate && <div>End: {new Date(protocol.endDate).toLocaleDateString()}</div>}
                   {protocol.protocolApproved && <div>Protocol approved{protocol.approvalDate ? ` on ${new Date(protocol.approvalDate).toLocaleDateString()}` : ''}</div>}

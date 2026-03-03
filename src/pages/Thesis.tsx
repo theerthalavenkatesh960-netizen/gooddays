@@ -232,7 +232,7 @@ export default function Thesis() {
       <div className="bg-teal-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-8">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 md:gap-8 scrollbar-hide">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = selectedTab === tab.name;
@@ -241,14 +241,14 @@ export default function Thesis() {
                   <button
                     key={tab.name}
                     onClick={() => setSelectedTab(tab.name)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                    className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg font-medium transition-all whitespace-nowrap text-sm md:text-base ${
                       isActive
                         ? 'bg-white text-teal-700 shadow-md'
                         : 'text-white hover:bg-teal-500'
                     }`}
                   >
-                    <Icon size={20} />
-                    <span>{tab.name}</span>
+                    <Icon size={18} className="md:w-5 md:h-5" />
+                    <span className="hidden sm:inline">{tab.name}</span>
                   </button>
                 );
               })}
@@ -269,7 +269,7 @@ export default function Thesis() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
         <motion.div
           key={selectedTab}
           initial={{ opacity: 0, y: 20 }}
