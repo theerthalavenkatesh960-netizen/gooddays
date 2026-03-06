@@ -13,6 +13,7 @@ import Expenses from './pages/Expenses';
 import SelfCare from './pages/SelfCare';
 import CalendarView from './pages/CalendarView';
 import Settings from './pages/Settings';
+import FinancialTracker from './pages/FinancialTracker';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -127,6 +128,16 @@ function App() {
                 <PrivateRoute>
                   <Layout>
                     <Settings />
+                  </Layout>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/financial"
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <FinancialTracker />
                   </Layout>
                 </PrivateRoute>
               }
