@@ -7,31 +7,37 @@ public class AppDbContext : DbContext
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
-    public DbSet<User> Users { get; set; }
-    public DbSet<DailyTask> Tasks { get; set; }
-    public DbSet<Expense> Expenses { get; set; }
-    // legacy name kept for compatibility; primary table is SelfCareLogs
-    public DbSet<SelfCareLog> SelfCareLogs { get; set; }
-    public DbSet<StudySession> StudySessions { get; set; }
-    public DbSet<GamificationEntry> GamificationEntries { get; set; }
-    public DbSet<SelfCareTemplate> SelfCareTemplates { get; set; }
-    public DbSet<DailyTracking> DailyTrackings { get; set; }
-    public DbSet<DailyNote> DailyNotes { get; set; }
-    // Thesis system new tables
-    public DbSet<ThesisProtocol> ThesisProtocols { get; set; }
-    public DbSet<ThesisPatient> ThesisPatients { get; set; }
-    public DbSet<ThesisFollowup> ThesisFollowups { get; set; }
-    public DbSet<ThesisDocument> ThesisDocuments { get; set; }
-    public DbSet<ThesisDeadline> ThesisDeadlines { get; set; }
-    public DbSet<StudyGroup> StudyGroups { get; set; }
+    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<DailyTask> Tasks { get; set; } = null!;
+    public DbSet<Expense> Expenses { get; set; } = null!;
+    public DbSet<SelfCareLog> SelfCareLogs { get; set; } = null!;
+    public DbSet<SelfCareTemplate> SelfCareTemplates { get; set; } = null!;
+    public DbSet<StudySession> StudySessions { get; set; } = null!;
+    public DbSet<ThesisPatient> ThesisPatients { get; set; } = null!;
+    public DbSet<ThesisProtocol> ThesisProtocols { get; set; } = null!;
+    public DbSet<ThesisFollowup> ThesisFollowups { get; set; } = null!;
+    public DbSet<ThesisDocument> ThesisDocuments { get; set; } = null!;
+    public DbSet<ThesisDeadline> ThesisDeadlines { get; set; } = null!;
+    public DbSet<StudyGroup> StudyGroups { get; set; } = null!;
+    public DbSet<GamificationEntry> GamificationEntries { get; set; } = null!;
+    public DbSet<DailyTracking> DailyTrackings { get; set; } = null!;
+    public DbSet<DailyNote> DailyNotes { get; set; } = null!;
+
+    // Financial Life Tracker entities
+    public DbSet<FinancialGoal> FinancialGoals { get; set; } = null!;
+    public DbSet<InvestmentBucket> InvestmentBuckets { get; set; } = null!;
+    public DbSet<MonthlyTask> MonthlyTasks { get; set; } = null!;
+    public DbSet<MonthlyTaskCompletion> MonthlyTaskCompletions { get; set; } = null!;
+    public DbSet<FinancialRule> FinancialRules { get; set; } = null!;
+    public DbSet<MonthlySnapshot> MonthlySnapshots { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // map entities to the names used in the Supabase migrations
-        modelBuilder.Entity<User>().ToTable("user_profiles");
-        modelBuilder.Entity<DailyTask>().ToTable("tasks");
+        // Existing table mappings
+        modelBuilder.Entity<User>().ToTable("users");
+        modelBuilder.Entity<DailyTask>().ToTable("daily_tasks");
         modelBuilder.Entity<Expense>().ToTable("expenses");
         modelBuilder.Entity<SelfCareLog>().ToTable("self_care_logs");
         modelBuilder.Entity<SelfCareTemplate>().ToTable("self_care_template");
@@ -45,9 +51,16 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<GamificationEntry>().ToTable("gamification_entries");
         modelBuilder.Entity<DailyTracking>().ToTable("daily_tracking");
         modelBuilder.Entity<DailyNote>().ToTable("daily_notes");
-        // other entities follow default pluralization unless you need a custom name
 
-        // ensure emails are unique for login
+        // Financial Life Tracker table mappings
+        modelBuilder.Entity<FinancialGoal>().ToTable("financial_goals");
+        modelBuilder.Entity<InvestmentBucket>().ToTable("investment_buckets");
+        modelBuilder.Entity<MonthlyTask>().ToTable("monthly_tasks");
+        modelBuilder.Entity<MonthlyTaskCompletion>().ToTable("monthly_task_completions");
+        modelBuilder.Entity<FinancialRule>().ToTable("financial_rules");
+        modelBuilder.Entity<MonthlySnapshot>().ToTable("monthly_snapshots");
+
+        // Ensure emails are unique for login
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasIndex(u => u.Email).IsUnique();
@@ -55,7 +68,7 @@ public class AppDbContext : DbContext
             entity.Property(u => u.PasswordHash).IsRequired();
         });
 
-        // configure relationships to User with cascade deletes
+        // Configure relationships to User with cascade deletes
         modelBuilder.Entity<DailyTask>()
             .HasOne(d => d.User)
             .WithMany()
@@ -86,14 +99,13 @@ public class AppDbContext : DbContext
             .HasForeignKey(p => p.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // configure thesis relationships
+        // Configure thesis relationships
         modelBuilder.Entity<ThesisPatient>()
             .HasMany(p => p.Followups)
             .WithOne(f => f.Patient)
             .HasForeignKey(f => f.PatientId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // also configure the inverse explicitly to avoid EF generating a shadow property
         modelBuilder.Entity<ThesisFollowup>()
             .HasOne(f => f.Patient)
             .WithMany(p => p.Followups)
@@ -111,5 +123,28 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(g => g.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Configure Financial Life Tracker relationships
+        modelBuilder.Entity<MonthlyTask>()
+            .HasOne(t => t.Bucket)
+            .WithMany(b => b.Tasks)
+            .HasForeignKey(t => t.BucketId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<MonthlyTaskCompletion>()
+            .HasOne(c => c.Task)
+            .WithMany(t => t.Completions)
+            .HasForeignKey(c => c.TaskId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Unique constraint for monthly snapshots
+        modelBuilder.Entity<MonthlySnapshot>()
+            .HasIndex(s => new { s.Month, s.Year })
+            .IsUnique();
+
+        // Unique constraint for task completions per month
+        modelBuilder.Entity<MonthlyTaskCompletion>()
+            .HasIndex(c => new { c.TaskId, c.Month, c.Year })
+            .IsUnique();
     }
 }
