@@ -1,7 +1,6 @@
 using GoodDaysApi.DTOs.Financial;
 using GoodDaysApi.Services.Financial;
 using Microsoft.AspNetCore.Mvc;
-
 namespace GoodDaysApi.Controllers;
 
 [ApiController]
@@ -30,14 +29,14 @@ public class FinancialTasksController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateTaskRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateFinanceTaskRequest request)
     {
         var task = await _financialService.CreateTaskAsync(request);
         return Ok(task);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateTaskRequest request)
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateFinanceTaskRequest request)
     {
         var task = await _financialService.UpdateTaskAsync(id, request);
         if (task == null) return NotFound();
@@ -45,7 +44,7 @@ public class FinancialTasksController : ControllerBase
     }
 
     [HttpPost("{id}/complete")]
-    public async Task<IActionResult> Complete(Guid id, [FromBody] CompleteTaskRequest request)
+    public async Task<IActionResult> Complete(Guid id, [FromBody] CompleteFinanceTaskRequest request)
     {
         var result = await _financialService.CompleteTaskAsync(id, request);
         if (!result) return NotFound();

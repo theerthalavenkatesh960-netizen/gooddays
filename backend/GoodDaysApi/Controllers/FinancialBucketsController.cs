@@ -6,11 +6,11 @@ namespace GoodDaysApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class BucketsController : ControllerBase
+public class FinancialBucketsController : ControllerBase
 {
     private readonly IFinancialService _financialService;
 
-    public BucketsController(IFinancialService financialService)
+    public FinancialBucketsController(IFinancialService financialService)
     {
         _financialService = financialService;
     }
@@ -31,14 +31,14 @@ public class BucketsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateBucketRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateFinanceBucketRequest request)
     {
         var bucket = await _financialService.CreateBucketAsync(request);
         return CreatedAtAction(nameof(GetById), new { id = bucket.Id }, bucket);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateBucketRequest request)
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateFinanceBucketRequest request)
     {
         var bucket = await _financialService.UpdateBucketAsync(id, request);
         if (bucket == null) return NotFound();

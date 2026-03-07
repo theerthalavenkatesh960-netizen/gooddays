@@ -16,7 +16,7 @@ public class TaskDto
     public string? Notes { get; set; }
 }
 
-public class CreateTaskRequest
+public class CreateFinanceTaskRequest
 {
     public Guid BucketId { get; set; }
     public string Title { get; set; } = string.Empty;
@@ -27,7 +27,7 @@ public class CreateTaskRequest
     public int? RecurrenceDay { get; set; }
 }
 
-public class UpdateTaskRequest
+public class UpdateFinanceTaskRequest
 {
     public string? Title { get; set; }
     public string? Description { get; set; }
@@ -37,7 +37,7 @@ public class UpdateTaskRequest
     public int? RecurrenceDay { get; set; }
 }
 
-public class CompleteTaskRequest
+public class CompleteFinanceTaskRequest
 {
     public decimal? ActualAmount { get; set; }
     public string? Notes { get; set; }
