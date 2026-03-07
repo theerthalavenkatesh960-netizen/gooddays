@@ -1,6 +1,6 @@
 namespace GoodDaysApi.DTOs.Financial;
 
-public class FinanceBucketDto
+public class FinancialBucketDto
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
@@ -15,7 +15,7 @@ public class FinanceBucketDto
     public List<TaskDto>? Tasks { get; set; }
 }
 
-public class CreateFinanceBucketRequest
+public class CreateFinancialBucketRequest
 {
     public string Name { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
@@ -25,7 +25,7 @@ public class CreateFinanceBucketRequest
     public int SortOrder { get; set; }
 }
 
-public class UpdateFinanceBucketRequest
+public class UpdateFinancialBucketRequest
 {
     public string? Name { get; set; }
     public string? Category { get; set; }

@@ -16,7 +16,7 @@ public class FinancialService : IFinancialService
     }
 
     // ========== BUCKETS ==========
-    public async Task<List<FinanceBucketDto>> GetAllBucketsAsync()
+    public async Task<List<FinancialBucketDto>> GetAllBucketsAsync()
     {
         var now = DateTime.UtcNow;
         var currentMonth = now.Month;
@@ -28,7 +28,7 @@ public class FinancialService : IFinancialService
             .OrderBy(b => b.SortOrder)
             .ToListAsync();
 
-        var result = new List<FinanceBucketDto>();
+        var result = new List<FinancialBucketDto>();
 
         foreach (var bucket in buckets)
         {
@@ -43,7 +43,7 @@ public class FinancialService : IFinancialService
             var completedTasks = completions.Count(c => c.IsCompleted);
             var completionPercent = totalTasks > 0 ? (decimal)completedTasks / totalTasks * 100 : 0;
 
-            result.Add(new FinanceBucketDto
+            result.Add(new FinancialBucketDto
             {
                 Id = bucket.Id,
                 Name = bucket.Name,
@@ -61,7 +61,7 @@ public class FinancialService : IFinancialService
         return result;
     }
 
-    public async Task<FinanceBucketDto?> GetBucketByIdAsync(Guid id)
+    public async Task<FinancialBucketDto?> GetBucketByIdAsync(Guid id)
     {
         var now = DateTime.UtcNow;
         var currentMonth = now.Month;
@@ -100,7 +100,7 @@ public class FinancialService : IFinancialService
         var completedTasks = tasks.Count(t => t.IsCompleted);
         var completionPercent = totalTasks > 0 ? (decimal)completedTasks / totalTasks * 100 : 0;
 
-        return new FinanceBucketDto
+        return new FinancialBucketDto
         {
             Id = bucket.Id,
             Name = bucket.Name,
@@ -116,7 +116,7 @@ public class FinancialService : IFinancialService
         };
     }
 
-    public async Task<FinanceBucketDto> CreateBucketAsync(CreateFinanceBucketRequest request)
+    public async Task<FinancialBucketDto> CreateBucketAsync(CreateFinancialBucketRequest request)
     {
         var bucket = new InvestmentBucket
         {
@@ -131,7 +131,7 @@ public class FinancialService : IFinancialService
         _db.InvestmentBuckets.Add(bucket);
         await _db.SaveChangesAsync();
 
-        return new FinanceBucketDto
+        return new FinancialBucketDto
         {
             Id = bucket.Id,
             Name = bucket.Name,
@@ -146,7 +146,7 @@ public class FinancialService : IFinancialService
         };
     }
 
-    public async Task<FinanceBucketDto?> UpdateBucketAsync(Guid id, UpdateFinanceBucketRequest request)
+    public async Task<FinancialBucketDto?> UpdateBucketAsync(Guid id, UpdateFinancialBucketRequest request)
     {
         var bucket = await _db.InvestmentBuckets.FirstOrDefaultAsync(b => b.Id == id);
         if (bucket == null) return null;

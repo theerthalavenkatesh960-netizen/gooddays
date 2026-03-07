@@ -5,7 +5,7 @@ public class DashboardDto
     public string CurrentMonth { get; set; } = string.Empty;
     public decimal OverallCompletionPercent { get; set; }
     public int Streak { get; set; }
-    public List<FinanceBucketDto> Buckets { get; set; } = new();
+    public List<FinancialBucketDto> Buckets { get; set; } = new();
     public MonthlySnapshotDto? MonthlySnapshot { get; set; }
     public List<RuleDto> Rules { get; set; } = new();
     public List<TaskDto> UpcomingTasks { get; set; } = new();

@@ -31,14 +31,14 @@ public class FinancialBucketsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateFinanceBucketRequest request)
+    public async Task<IActionResult> Create([FromBody] CreateFinancialBucketRequest request)
     {
         var bucket = await _financialService.CreateBucketAsync(request);
         return CreatedAtAction(nameof(GetById), new { id = bucket.Id }, bucket);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateFinanceBucketRequest request)
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateFinancialBucketRequest request)
     {
         var bucket = await _financialService.UpdateBucketAsync(id, request);
         if (bucket == null) return NotFound();

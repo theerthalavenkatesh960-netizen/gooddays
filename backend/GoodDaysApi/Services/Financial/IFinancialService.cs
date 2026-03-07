@@ -5,10 +5,10 @@ namespace GoodDaysApi.Services.Financial;
 public interface IFinancialService
 {
     // Buckets
-    Task<List<FinanceBucketDto>> GetAllBucketsAsync();
-    Task<FinanceBucketDto?> GetBucketByIdAsync(Guid id);
-    Task<FinanceBucketDto> CreateBucketAsync(CreateFinanceBucketRequest request);
-    Task<FinanceBucketDto?> UpdateBucketAsync(Guid id, UpdateFinanceBucketRequest request);
+    Task<List<FinancialBucketDto>> GetAllBucketsAsync();
+    Task<FinancialBucketDto?> GetBucketByIdAsync(Guid id);
+    Task<FinancialBucketDto> CreateBucketAsync(CreateFinancialBucketRequest request);
+    Task<FinancialBucketDto?> UpdateBucketAsync(Guid id, UpdateFinancialBucketRequest request);
     Task<bool> DeleteBucketAsync(Guid id);
 
     // Tasks
