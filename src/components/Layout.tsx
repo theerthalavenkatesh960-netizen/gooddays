@@ -27,6 +27,7 @@ const navItems = [
   { path: '/tasks', label: 'Tasks', icon: CheckSquare },
   { path: '/thesis', label: 'Thesis', icon: BookOpen },
   { path: '/expenses', label: 'Expenses', icon: DollarSign },
+  { path: '/financial-tracker', label: 'FinancialTracker', icon: DollarSign },
   { path: '/calendar', label: 'Calendar', icon: Calendar },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];

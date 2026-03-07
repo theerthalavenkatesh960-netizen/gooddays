@@ -103,6 +103,16 @@ function App() {
               }
             />
             <Route
+              path="/financial-tracker"
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <FinancialTracker />
+                  </Layout>
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/selfcare"
               element={
                 <PrivateRoute>
