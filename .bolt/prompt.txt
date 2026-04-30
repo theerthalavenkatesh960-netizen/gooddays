@@ -1,0 +1,628 @@
+PHASE 1 — Database Tables (PostgreSQL)
+-------------------------------------------------
+Create the following PostgreSQL tables for a 
+Financial Life Tracker module:
+
+1. financial_goals
+─────────────────
+id: UUID (PK)
+name: VARCHAR(100)
+target_amount: DECIMAL(12,2)
+target_date: DATE
+created_at: TIMESTAMP
+is_active: BOOLEAN
+
+2. investment_buckets
+─────────────────────
+id: UUID (PK)
+name: VARCHAR(100)
+category: ENUM(
+  'EMERGENCY_FUND',
+  'HEALTH',
+  'TRAVEL',
+  'MISCELLANEOUS',
+  'WEALTH',
+  'TRADING'
+)
+monthly_target: DECIMAL(10,2)
+color_hex: VARCHAR(7)
+icon: VARCHAR(50)
+is_active: BOOLEAN
+sort_order: INT
+created_at: TIMESTAMP
+
+3. monthly_tasks
+────────────────
+id: UUID (PK)
+bucket_id: UUID (FK → investment_buckets)
+title: VARCHAR(200)
+description: TEXT
+task_type: ENUM(
+  'SIP_PAYMENT',
+  'EMI_PAYMENT',
+  'INSURANCE_REVIEW',
+  'PORTFOLIO_REVIEW',
+  'EMERGENCY_FUND_CHECK',
+  'TRAVEL_FUND_CHECK',
+  'CUSTOM'
+)
+amount: DECIMAL(10,2)
+is_recurring: BOOLEAN
+recurrence_day: INT (day of month)
+is_active: BOOLEAN
+created_at: TIMESTAMP
+
+4. monthly_task_completions
+────────────────────────────
+id: UUID (PK)
+task_id: UUID (FK → monthly_tasks)
+month: INT
+year: INT
+is_completed: BOOLEAN
+completed_at: TIMESTAMP
+actual_amount: DECIMAL(10,2)
+notes: VARCHAR(500)
+created_at: TIMESTAMP
+
+5. financial_rules
+──────────────────
+id: UUID (PK)
+title: VARCHAR(200)
+description: TEXT
+category: ENUM(
+  'INVESTMENT',
+  'TRADING',
+  'MINDSET',
+  'LIFESTYLE'
+)
+display_style: ENUM(
+  'BANNER',
+  'CARD',
+  'POPUP',
+  'SIDEBAR'
+)
+is_active: BOOLEAN
+sort_order: INT
+created_at: TIMESTAMP
+
+6. monthly_snapshots
+─────────────────────
+id: UUID (PK)
+month: INT
+year: INT
+total_income: DECIMAL(10,2)
+total_expenses: DECIMAL(10,2)
+total_invested: DECIMAL(10,2)
+emergency_fund_balance: DECIMAL(10,2)
+travel_fund_balance: DECIMAL(10,2)
+portfolio_estimated_value: DECIMAL(12,2)
+notes: TEXT
+created_at: TIMESTAMP
+
+Seed the financial_rules table with these rules:
+1. "Never panic sell — crashes are buying opportunities"
+2. "Increase SIP by 10% every salary hike"
+3. "Stay invested through market volatility"
+4. "Emergency fund first — always!"
+5. "Never touch investment money for lifestyle"
+6. "Trading money is separate — max ₹15,000/month"
+7. "Check portfolio max once a week"
+8. "Every unspent buffer goes to investments"
+9. "50% of every salary hike goes to investments"
+10. "Boring consistency beats smart moves every time"
+
+---------------------------------------------------------------
+PHASE 2 — .NET Core API Controllers
+---------------------------------------------------------------
+Build the following .NET Core 8 Web API controllers
+for a Financial Life Tracker module.
+Use PostgreSQL with Entity Framework Core.
+Follow clean architecture with:
+→ Controllers
+→ Services
+→ Repository pattern
+→ DTOs for all requests/responses
+
+─────────────────────────────────────
+CONTROLLER 1: BucketsController
+─────────────────────────────────────
+Endpoints:
+GET    /api/buckets
+       → Returns all active buckets
+         with current month completion %
+
+GET    /api/buckets/{id}
+       → Returns single bucket with
+         all tasks and completion status
+
+POST   /api/buckets
+       → Create new bucket
+         (name, category, monthly_target,
+          color_hex, icon)
+
+PUT    /api/buckets/{id}
+       → Update bucket details
+         (configurable monthly target!)
+
+DELETE /api/buckets/{id}
+       → Soft delete (is_active = false)
+
+─────────────────────────────────────
+CONTROLLER 2: TasksController
+─────────────────────────────────────
+Endpoints:
+GET    /api/tasks
+       → Returns all active tasks
+         with this month's completion status
+
+GET    /api/tasks/monthly/{month}/{year}
+       → Returns ALL tasks for that month
+         with completion status
+         grouped by bucket
+
+POST   /api/tasks
+       → Create new task
+         (title, description, bucket_id,
+          task_type, amount, is_recurring,
+          recurrence_day)
+
+PUT    /api/tasks/{id}
+       → Update task details
+
+POST   /api/tasks/{id}/complete
+       → Mark task as complete for
+         current month
+         Body: { actual_amount, notes }
+
+POST   /api/tasks/{id}/uncomplete
+       → Undo completion for current month
+
+DELETE /api/tasks/{id}
+       → Soft delete task
+
+─────────────────────────────────────
+CONTROLLER 3: DashboardController
+─────────────────────────────────────
+Endpoints:
+GET    /api/dashboard/current
+       → Returns full dashboard data:
+         {
+           current_month: string,
+           overall_completion_percent: number,
+           buckets: [
+             {
+               id, name, category,
+               color_hex, icon,
+               monthly_target,
+               completion_percent,
+               tasks_total,
+               tasks_completed,
+               tasks: [...]
+             }
+           ],
+           monthly_snapshot: {...},
+           rules: [...],
+           streak: number,
+           (how many months 100% completed)
+           upcoming_tasks: [
+             tasks due in next 7 days
+           ],
+           missed_tasks: [
+             tasks not completed from
+             previous month
+           ]
+         }
+
+GET    /api/dashboard/history
+       → Returns last 12 months
+         completion data for chart
+
+─────────────────────────────────────
+CONTROLLER 4: RulesController
+─────────────────────────────────────
+Endpoints:
+GET    /api/rules
+       → Returns all active rules
+         grouped by category
+
+POST   /api/rules
+       → Create new rule
+
+PUT    /api/rules/{id}
+       → Update rule
+         (title, description,
+          display_style, is_active)
+
+DELETE /api/rules/{id}
+       → Soft delete
+
+─────────────────────────────────────
+CONTROLLER 5: SnapshotsController
+─────────────────────────────────────
+Endpoints:
+GET    /api/snapshots
+       → Returns all monthly snapshots
+         sorted newest first
+
+GET    /api/snapshots/{month}/{year}
+       → Returns specific month snapshot
+
+POST   /api/snapshots
+       → Create or update monthly snapshot
+         (upsert by month+year)
+         Fields:
+         total_income,
+         total_expenses,
+         total_invested,
+         emergency_fund_balance,
+         travel_fund_balance,
+         portfolio_estimated_value,
+         notes
+
+─────────────────────────────────────
+AUTO-GENERATE MONTHLY TASKS SERVICE:
+─────────────────────────────────────
+Create a background service that runs
+on 1st of every month:
+
+→ Checks all recurring tasks
+→ Auto-creates task_completions entries
+   for the new month with is_completed=false
+→ This ensures every month starts
+   with a fresh task checklist!
+
+──────────────────────────────────────────────────────────────────────────
+PHASE 3 — React Frontend Page
+──────────────────────────────────────────────────────────────────────────
+Build a React page called "FinancialTracker"
+using Tailwind CSS with these sections:
+
+Tech stack:
+→ React with TypeScript
+→ Tailwind CSS
+→ Recharts for graphs
+→ React Query for API calls
+→ Dark theme (like Zerodha/trading app)
+  Background: #131722
+  Text: #c8d0e0
+  Green: #26a65b
+  Red: #e05050
+  Gold: #f0c040
+
+─────────────────────────────────────
+SECTION 1: HEADER
+─────────────────────────────────────
+→ Current month and year
+→ Overall completion % (big number)
+→ Streak badge
+  "🔥 X months consistent!"
+→ Motivational rule of the day
+  (random from rules table)
+  shown as a highlighted banner
+
+─────────────────────────────────────
+SECTION 2: BUCKET CARDS ROW
+─────────────────────────────────────
+One card per bucket showing:
+→ Bucket icon and name
+→ Monthly target amount
+→ Completion progress bar
+   (colored with bucket color)
+→ X/Y tasks completed
+→ Click to expand and see tasks
+
+─────────────────────────────────────
+SECTION 3: TASK CHECKLIST
+─────────────────────────────────────
+When bucket card is clicked:
+→ Expand to show all tasks
+→ Each task shows:
+   - Title
+   - Amount
+   - Checkbox to mark complete
+   - When completed: show
+     actual amount + timestamp
+   - Notes field (optional)
+→ Completing a task:
+   - Checkbox click → 
+     small modal asking
+     "Actual amount: ₹___"
+     "Notes (optional)"
+     Confirm button
+   - On confirm → API call
+   - Task shows green checkmark ✅
+   - Progress bar updates!
+
+─────────────────────────────────────
+SECTION 4: RULES REMINDER PANEL
+─────────────────────────────────────
+→ Sidebar or bottom section
+→ Shows ALL active rules
+→ Categorized tabs:
+   Investment | Trading | Mindset | Lifestyle
+→ Each rule as a card with
+   category color accent
+→ Rules can be toggled active/inactive
+→ Add new rule button
+
+─────────────────────────────────────
+SECTION 5: PROGRESS CHART
+─────────────────────────────────────
+→ Bar chart showing last 12 months
+→ X axis: months
+→ Y axis: completion percentage
+→ Color: green if 100%, 
+         yellow if 70-99%,
+         red if below 70%
+→ Hover shows:
+   month, completion %, 
+   total invested that month
+
+─────────────────────────────────────
+SECTION 6: MONTHLY SNAPSHOT
+─────────────────────────────────────
+→ Simple form at bottom of page
+→ Fields:
+   Total Income this month
+   Total Expenses
+   Total Invested
+   Emergency Fund Balance
+   Travel Fund Balance
+   Portfolio Current Value
+   Notes
+→ Save button
+→ Shows previous month for comparison
+→ Shows:
+   Savings rate % 
+   (invested/income × 100)
+   Investment rate %
+
+─────────────────────────────────────
+SECTION 7: ALERTS AND REMINDERS
+─────────────────────────────────────
+→ Top of page shows alerts if:
+   "⚠️ 3 tasks pending from last month!"
+   "📅 5 tasks due this week!"
+   "🎉 You completed 100% last month!"
+   "💡 EMI ending next month —
+       plan your reallocation!"
+→ These are configurable in rules table
+
+─────────────────────────────────────
+CONFIGURE PANEL (Settings Icon):
+─────────────────────────────────────
+→ Slide-out panel from right
+→ Manage buckets:
+   Add/edit/delete buckets
+   Change monthly targets
+   Change colors and icons
+→ Manage tasks:
+   Add/edit/delete tasks
+   Change amounts
+   Toggle recurring on/off
+→ Manage rules:
+   Add/edit/delete rules
+   Change display style
+   Reorder rules
+
+
+─────────────────────────────────────
+PHASE 4 — Seed Data Prompt
+─────────────────────────────────────
+Seed the database with this exact
+financial setup for user:
+
+BUCKETS AND TASKS:
+
+1. Emergency Fund (🛡️ #4a7acc)
+   Monthly target: ₹20,000
+   Tasks:
+   → Transfer ₹20,000 to liquid fund
+     (recurring, day 1)
+
+2. Health (❤️ #e05050)  
+   Monthly target: ₹700
+   Tasks:
+   → Pay health insurance premium
+     ₹6,000 annually = ~₹500/month
+     (recurring, day 5)
+   → Monthly health check-in
+     (are you eating well, sleeping well?)
+     Amount: 0
+
+3. Travel Fund (✈️ #26a65b)
+   Monthly target: ₹7,000
+   Tasks:
+   → Transfer ₹7,000 to travel savings
+     (recurring, day 1)
+
+4. Investments — Wealth (📈 #f0c040)
+   Monthly target: ₹1,01,000
+   Tasks:
+   → Nifty 50 Index Fund SIP ₹35,000
+     (recurring, day 5)
+   → Midcap Fund SIP ₹25,000
+     (recurring, day 5)
+   → Flexicap Fund SIP ₹20,000
+     (recurring, day 5)
+   → US ETF ₹13,000
+     (recurring, day 7)
+   → Gold Fund SIP ₹8,000
+     (recurring, day 5)
+
+5. EMIs (🏦 #8899bb)
+   Monthly target: ₹49,000
+   Tasks:
+   → Car EMI ₹35,000
+     (recurring, day 3, till Oct 2026)
+   → Other EMI ₹14,000
+     (recurring, day 3, till Mar 2027)
+   → Chitti ₹12,000
+     (recurring, day 1)
+
+6. Buffer (🎯 #c8a020)
+   Monthly target: ₹10,000
+   Tasks:
+   → Set aside buffer ₹10,000
+     (recurring, day 1)
+   → Transfer unspent buffer
+     to investments at month end
+     (recurring, day 28)
+
+7. Trading (📊 #e05050)
+   Monthly target: ₹0
+   Tasks:
+   → Complete current section
+     of trading course
+     Amount: 0
+   → Paper trade this week
+     Amount: 0
+   → Review last week's
+     paper trades
+     Amount: 0
+   NOTE: Trading bucket activates
+   after Oct 2026 only!
+   Set is_active = false for now!
+
+IMPORTANT MILESTONES TO STORE
+AS FUTURE TASKS:
+
+→ Oct 2026:
+  "Car EMI ends — reallocate ₹35,000"
+  "Activate trading bucket"
+  "Increase Midcap SIP by ₹15,000"
+
+→ Month 25:
+  "Chitti matures — ₹3,60,000 arrives!"
+  "Deploy ₹2,00,000 to index/midcap STP"
+  "Top up emergency fund to ₹3,00,000"
+  "Book a trip! ₹60,000 travel fund" 😄
+
+→ Mar 2027:
+  "Second EMI ends — reallocate ₹14,000"
+  "Increase investments by ₹10,000"
+
+
+─────────────────────────────────────
+PHASE 5 — Rules Seed Data
+─────────────────────────────────────
+Seed financial_rules with these
+specifically for this user:
+
+INVESTMENT RULES:
+─────────────────
+1. "Never panic sell"
+   "Crashes are sales. Your SIP buys
+    MORE units when market falls.
+    That's the whole magic!"
+   display: BANNER
+
+2. "Increase SIP every salary hike"
+   "50% of every hike goes to investments
+    immediately before lifestyle adjusts!"
+   display: CARD
+
+3. "Boring consistency wins"
+   "Your SIP running for 6 years
+    uninterrupted will beat every
+    smart move you make trying to
+    optimize it!"
+   display: CARD
+
+4. "Deploy lump sums slowly"
+   "Never invest large amounts at once.
+    Spread over 4-8 months minimum!"
+   display: CARD
+
+TRADING RULES:
+──────────────
+5. "Maximum 1 trade per day"
+   "More trades = more emotion
+    = more losses. 1 trade. 1 setup.
+    Walk away!"
+   display: BANNER
+
+6. "Never average down"
+   "If stop loss hits — EXIT.
+    Never buy more of a losing trade!"
+   display: BANNER
+
+7. "No direction switching"
+   "If trade is wrong — EXIT.
+    Wait for next day's fresh setup.
+    Never immediately switch direction!"
+   display: BANNER
+
+8. "Check higher timeframe first"
+   "Always check Weekly → Daily → Hourly
+    before entering any trade.
+    Trade in direction of bigger trend!"
+   display: CARD
+
+9. "Volume confirms everything"
+   "High volume = real move.
+    Low volume = fake move.
+    Always check volume!"
+   display: CARD
+
+MINDSET RULES:
+──────────────
+10. "You are not the worst trader"
+    "₹1,745 was tuition fee —
+     the cheapest lesson you'll
+     ever get about yourself!"
+    display: CARD 😄
+
+11. "The market will always be there"
+    "There is zero reason to rush.
+     The right setup with confirmation
+     is worth waiting for!"
+    display: CARD
+
+12. "Protect capital like oxygen"
+    "You are a scuba diver.
+     Capital is your oxygen tank.
+     Manage it like your life
+     depends on it — it does!"
+    display: BANNER
+
+LIFESTYLE RULES:
+────────────────
+13. "Emergency fund is sacred"
+    "Touch emergency fund only for
+     genuine emergencies.
+     Medical. Job loss. Nothing else!"
+    display: CARD
+
+14. "Travel fund is guilt-free"
+    "₹7,000 goes in every month.
+     When you travel — enjoy fully!
+     It's already paid for!"
+    display: CARD
+
+15. "Salary is your superpower"
+    "Focus on growing income.
+     1% more on investments = small.
+     20% more salary = massive!"
+    display: CARD
+
+─────────────────────────────────────
+Build Order For Bolt/Copilot:
+─────────────────────────────────────
+Give these phases in this order:
+
+Phase 1 → Database tables
+          (get this right first!)
+
+Phase 2 → .NET Core API
+          (test each controller
+           before moving on)
+
+Phase 3 → React frontend
+          (connect to your API)
+
+Phase 4 → Seed data
+          (your exact numbers!)
+
+Phase 5 → Rules seed data
+          (your personal rules!)

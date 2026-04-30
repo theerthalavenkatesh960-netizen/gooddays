@@ -26,8 +26,8 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/tasks', label: 'Tasks', icon: CheckSquare },
   { path: '/thesis', label: 'Thesis', icon: BookOpen },
-  { path: '/study', label: 'Study', icon: GraduationCap },
   { path: '/expenses', label: 'Expenses', icon: DollarSign },
+  { path: '/financial-tracker', label: 'FinancialTracker', icon: DollarSign },
   { path: '/calendar', label: 'Calendar', icon: Calendar },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
@@ -217,8 +217,8 @@ export default function Layout({ children }: { children: ReactNode }) {
           </motion.div>
         </main>
 
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 grid grid-cols-5 gap-1 shadow-2xl z-50">
-          {navItems.slice(0, 5).map((item) => {
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 flex gap-1 overflow-x-auto shadow-2xl z-50 scrollbar-hide">
+          {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
 
@@ -230,17 +230,28 @@ export default function Layout({ children }: { children: ReactNode }) {
                   navigate(item.path);
                   setMobileMenuOpen(false);
                 }}
-                className={`flex flex-col items-center gap-1 px-2 py-2 rounded-xl transition-all ${
+                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all flex-shrink-0 ${
                   isActive
                     ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white'
-                    : 'text-gray-600'
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
+                title={item.label}
               >
                 <Icon size={20} />
                 <span className="text-xs font-medium">{item.label}</span>
               </motion.button>
             );
           })}
+
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={handleSignOut}
+            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all text-gray-600 hover:text-red-600 flex-shrink-0"
+            title="Sign Out"
+          >
+            <LogOut size={20} />
+            <span className="text-xs font-medium">Sign Out</span>
+          </motion.button>
         </nav>
       </div>
     </div>

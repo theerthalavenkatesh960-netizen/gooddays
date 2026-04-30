@@ -1,4 +1,5 @@
 using GoodDaysApi.Data;
+using GoodDaysApi.Services.Financial;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -11,12 +12,11 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// enable CORS for the frontend app
+// Enable CORS for the frontend app
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
     {
-        // allow any origin (for development). change for production if needed.
         policy.AllowAnyOrigin()
               .AllowAnyHeader()
               .AllowAnyMethod();
@@ -31,6 +31,10 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 builder.Services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(connectionString));
+
+// Register Financial Services
+builder.Services.AddScoped<IFinancialService, FinancialService>();
+builder.Services.AddHostedService<MonthlyTaskGeneratorService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "change_this_to_a_secure_random_key";
 var key = Encoding.ASCII.GetBytes(jwtKey);
@@ -69,16 +73,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseRouting();
-
-// enable CORS middleware using the defined policy
 app.UseCors("FrontendPolicy");
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();
 
-// Minimal class placeholders so file compiles when building in a real env
 public partial class Program { }
