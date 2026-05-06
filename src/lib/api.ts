@@ -25,7 +25,7 @@ type Expense = { id: number; userId: number; description: string; amount: number
 type SelfCareActivity = { id: number; userId: number; date: string; templateId: number; completed: boolean; createdAt: string };
 type StudySession = { id: number; userId: number; durationMinutes: number; notes?: string; date: string; createdAt: string };
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || '';
+const API_BASE = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
 function getAuthHeader(): Record<string, string> {
   const session = getSession();
@@ -38,8 +38,18 @@ async function request(path: string, opts: RequestInit = {}) {
   try { return JSON.parse(text); } catch { return text; }
 }
 
+function resolveErrorMessage(payload: any, fallback: string): string {
+  if (typeof payload === 'string' && payload.trim().length > 0) return payload;
+  if (payload && typeof payload.message === 'string' && payload.message.trim().length > 0) return payload.message;
+  if (payload && typeof payload.error === 'string' && payload.error.trim().length > 0) return payload.error;
+  return fallback;
+}
+
 export async function signIn(email: string, password: string): Promise<Session> {
   const json = await request('auth/signin', { method: 'POST', body: JSON.stringify({ email, password }) });
+  if (!json?.token || !json?.user) {
+    throw new Error(resolveErrorMessage(json, 'Invalid email or password'));
+  }
   const session = { access_token: json.token, user: json.user } as Session;
   localStorage.setItem('gd_session', JSON.stringify(session));
   return session;
@@ -47,6 +57,9 @@ export async function signIn(email: string, password: string): Promise<Session> 
 
 export async function signUp(email: string, password: string, name?: string): Promise<Session> {
   const json = await request('auth/signup', { method: 'POST', body: JSON.stringify({ email, password, name }) });
+  if (!json?.token || !json?.user) {
+    throw new Error(resolveErrorMessage(json, 'Failed to sign up'));
+  }
   const session = { access_token: json.token, user: json.user } as Session;
   localStorage.setItem('gd_session', JSON.stringify(session));
   return session;
