@@ -53,7 +53,7 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<User>().ToTable("users");
+        modelBuilder.Entity<User>().ToTable("user_profiles");
         modelBuilder.Entity<DailyTask>().ToTable("daily_tasks");
         modelBuilder.Entity<Expense>().ToTable("expenses");
         modelBuilder.Entity<SelfCareLog>().ToTable("self_care_logs");
