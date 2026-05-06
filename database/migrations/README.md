@@ -8,7 +8,7 @@ This directory contains SQL migration files for the GoodDays application databas
 **Purpose:** Create complete database schema
 **Status:** Primary migration - use this to initialize database
 **Data Impact:** Creates schema only (no data loss)
-**Tables:** 44 tables across 7 functional areas
+**Tables:** 29 tables across 7 functional areas
 
 **Tables Included:**
 - **Core (9 tables):** user_profiles, tasks, daily_tracking, daily_notes, expenses, study_sessions, self_care_template, self_care_logs, gamification_entries
@@ -49,7 +49,7 @@ psql -U postgres -d gooddays -f 001_up.sql
 ### Verify Installation
 ```bash
 psql -U postgres -d gooddays -c "SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = 'public';"
-# Expected: 44 tables
+# Expected: 29 tables
 ```
 
 ### Reset Database (if needed)

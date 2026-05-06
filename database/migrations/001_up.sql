@@ -1,12 +1,14 @@
 -- ===================================================================
 -- GoodDays Application - Database Schema (UP)
 -- Migration: 001_up.sql
--- Description: Creates all application tables (44 tables)
+-- Description: Creates all application tables (29 tables)
 -- Tables: Core, Financial, Workouts, Goals, Reminders, Journal, Weekly Review
 -- Run: psql -U postgres -d gooddays -f 001_up.sql
 -- ===================================================================
 
 BEGIN;
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ===================================================================
 -- CORE: USER PROFILES
