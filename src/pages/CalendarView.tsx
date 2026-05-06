@@ -10,7 +10,8 @@ Book,
 Briefcase,
 Heart,
 Dumbbell,
-DollarSign
+DollarSign,
+Bell
 } from 'lucide-react';
 
 import {
@@ -45,6 +46,8 @@ const [dayData,setDayData]=useState<any>({});
 const [selectedDayDetails,setSelectedDayDetails]=useState<any>(null);
 
 const [tasksData,setTasksData]=useState<any[]>([]);
+
+const [remindersData,setRemindersData]=useState<any[]>([]);
 
 
 
@@ -90,15 +93,18 @@ const startKey=format(start,'yyyy-MM-dd');
 const endKey=format(end,'yyyy-MM-dd');
 
 
-const [tasks,study,expenses,selfcare]=await Promise.all([
+const [tasks,study,expenses,selfcare,reminders,reminderHistory]=await Promise.all([
 api.getTasks(user.id),
 api.getStudySessions(user.id),
 api.getExpenses(user.id),
-api.getSelfCareActivities(user.id)
+api.getSelfCareActivities(user.id),
+api.getReminders(),
+api.getReminderHistory()
 ]);
 
 
 setTasksData(tasks||[]);
+setRemindersData(reminders||[]);
 
 
 const data:any={};
@@ -182,6 +188,23 @@ if(key<startKey || key>endKey)return;
 data[key]??={};
 
 data[key].selfcare=(data[key].selfcare||0)+1;
+
+});
+
+
+reminderHistory?.forEach((log:any)=>{
+
+const d=new Date(log.date||log.markedDoneAt);
+
+if(isNaN(d.getTime()))return;
+
+const key=format(d,'yyyy-MM-dd');
+
+if(key<startKey || key>endKey)return;
+
+data[key]??={};
+
+data[key].reminders=(data[key].reminders||0)+1;
 
 });
 
@@ -280,7 +303,8 @@ streak:calculateStreak(t,day)
 setSelectedDayDetails({
 ...base,
 tasks,
-taskStreaks
+taskStreaks,
+reminders:remindersData
 });
 
 };
@@ -419,6 +443,16 @@ ${selected&&"bg-blue-50"}
 </div>
 }
 
+{data.reminders>0 &&
+<div className="text-xs text-center mt-1 flex items-center justify-center gap-1">
+
+<Bell size={12} className="text-blue-500"/>
+
+<span className="text-blue-500 font-medium">{data.reminders}</span>
+
+</div>
+}
+
 </div>
 
 );
@@ -488,6 +522,61 @@ className="flex items-center gap-3 p-3 border rounded-lg"
 
 }
 
+
+</div>
+
+</div>
+
+))}
+
+</div>
+
+</motion.div>
+
+)}
+
+
+{selectedDayDetails && selectedDayDetails.reminders?.length>0 &&(
+
+<motion.div
+initial={{opacity:0,y:10}}
+animate={{opacity:1,y:0}}
+className="mt-6 bg-white rounded-2xl p-4 shadow-lg"
+>
+
+<h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+
+<Bell size={18} className="text-blue-500"/>
+
+Reminders on {format(selectedDate!,"PPP")}
+
+</h3>
+
+
+<div className="space-y-2">
+
+{selectedDayDetails.reminders.map((r:any)=>(
+
+<div
+key={r.id}
+className="flex items-center gap-3 p-3 border rounded-lg border-blue-200 bg-blue-50"
+>
+
+<Bell size={16} className="text-blue-500"/>
+
+<div className="flex-1">
+
+<div className="font-semibold text-gray-900">
+
+{remindersData.find((rem:any)=>rem.id === r.reminderId)?.title || 'Reminder'}
+
+</div>
+
+<div className="text-xs text-gray-500">
+
+{remindersData.find((rem:any)=>rem.id === r.reminderId)?.time || 'Time not set'} • {r.markedDone?'✓ Completed':'Pending'}
+
+</div>
 
 </div>
 

@@ -233,7 +233,9 @@ export async function saveDailyTracking(
   phone_minutes: number,
   sunlight: boolean,
   mood: number,
-  note?: string
+  note?: string,
+  waterCups?: number,
+  waterGoalCups?: number
 ) {
   // Convert date string (yyyy-MM-dd) to ISO DateTime
   const dateObj = new Date(date);
@@ -247,6 +249,8 @@ export async function saveDailyTracking(
     mood,
   };
   if (note !== undefined) payload.note = note;
+  if (waterCups !== undefined) payload.waterCups = waterCups;
+  if (waterGoalCups !== undefined) payload.waterGoalCups = waterGoalCups;
   return request(`dailytracking`, {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -421,3 +425,83 @@ export const api = {
 export type { User, Session, Task, Expense, SelfCareActivity, StudySession };
 export type { DailyTracking };
 export type { SelfCareTemplate };
+
+// ─── Workout API ──────────────────────────────────────────────────────────────
+
+export async function getExercises() { return request('exercises'); }
+export async function createExercise(body: any) { return request('exercises', { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateExercise(id: number, body: any) { return request(`exercises/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteExercise(id: number) { return request(`exercises/${id}`, { method: 'DELETE' }); }
+
+export async function getSplits() { return request('workout/splits'); }
+export async function createSplit(body: any) { return request('workout/splits', { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateSplit(id: number, body: any) { return request(`workout/splits/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteSplit(id: number) { return request(`workout/splits/${id}`, { method: 'DELETE' }); }
+
+export async function getWorkoutPlans(from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  return request(`workout/plans?${params}`);
+}
+export async function getWorkoutPlanByDate(date: string) { return request(`workout/plans/date/${date}`); }
+export async function createWorkoutPlan(body: any) { return request('workout/plans', { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateWorkoutPlan(id: number, body: any) { return request(`workout/plans/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+
+export async function logWorkoutSet(planId: number, body: any) { return request(`workout/plans/${planId}/sets`, { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateWorkoutSet(id: number, body: any) { return request(`workout/sets/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteWorkoutSet(id: number) { return request(`workout/sets/${id}`, { method: 'DELETE' }); }
+
+export async function getPersonalRecords() { return request('workout/prs'); }
+export async function getWorkoutAnalytics(weeks?: number) { return request(`workout/analytics/volume${weeks ? `?weeks=${weeks}` : ''}`); }
+
+export async function addWorkoutImage(planId: number, body: any) { return request(`workout/plans/${planId}/images`, { method: 'POST', body: JSON.stringify(body) }); }
+export async function deleteWorkoutImage(id: number) { return request(`workout/images/${id}`, { method: 'DELETE' }); }
+
+// ─── Goals API ────────────────────────────────────────────────────────────────
+
+export async function getGoals() { return request('goals'); }
+export async function createGoal(body: any) { return request('goals', { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateGoal(id: number, body: any) { return request(`goals/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteGoal(id: number) { return request(`goals/${id}`, { method: 'DELETE' }); }
+
+export async function getGoalNotes(goalId: number) { return request(`goals/${goalId}/notes`); }
+export async function createGoalNote(goalId: number, body: any) { return request(`goals/${goalId}/notes`, { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateGoalNote(id: number, body: any) { return request(`goals/notes/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteGoalNote(id: number) { return request(`goals/notes/${id}`, { method: 'DELETE' }); }
+
+export async function getGoalLogs(goalId: number) { return request(`goals/${goalId}/logs`); }
+export async function addGoalLog(goalId: number, body: any) { return request(`goals/${goalId}/logs`, { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateGoalLog(id: number, body: any) { return request(`goals/logs/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+
+export async function getFlashcards(goalId: number) { return request(`goals/${goalId}/flashcards`); }
+export async function getFlashcardReviewQueue(goalId: number) { return request(`goals/${goalId}/flashcards/review`); }
+export async function createFlashcard(goalId: number, body: any) { return request(`goals/${goalId}/flashcards`, { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateFlashcard(id: number, body: any) { return request(`goals/flashcards/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteFlashcard(id: number) { return request(`goals/flashcards/${id}`, { method: 'DELETE' }); }
+
+// ─── Reminders API ────────────────────────────────────────────────────────────
+
+export async function getReminders() { return request('reminders'); }
+export async function createReminder(body: any) { return request('reminders', { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateReminder(id: number, body: any) { return request(`reminders/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteReminder(id: number) { return request(`reminders/${id}`, { method: 'DELETE' }); }
+export async function getTodayReminderLogs() { return request('reminders/logs/today'); }
+export async function toggleReminderDone(id: number) { return request(`reminders/${id}/log`, { method: 'POST' }); }
+export async function getReminderHistory(days?: number) { return request(`reminders/history${days ? `?days=${days}` : ''}`); }
+
+// ─── Journal API ──────────────────────────────────────────────────────────────
+
+export async function getJournalEntries(page?: number) { return request(`journal${page ? `?page=${page}` : ''}`); }
+export async function getMemoryWall() { return request('journal/memory-wall'); }
+export async function createJournalEntry(body: any) { return request('journal', { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateJournalEntry(id: number, body: any) { return request(`journal/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteJournalEntry(id: number) { return request(`journal/${id}`, { method: 'DELETE' }); }
+
+// ─── Weekly Review API ────────────────────────────────────────────────────────
+
+export async function getWeeklyReviews() { return request('weeklyreviews'); }
+export async function getCurrentWeekReview() { return request('weeklyreviews/current'); }
+export async function getWeekSummary(weekStart: string) { return request(`weeklyreviews/summary/${weekStart}`); }
+export async function upsertWeeklyReview(body: any) { return request('weeklyreviews', { method: 'POST', body: JSON.stringify(body) }); }
+

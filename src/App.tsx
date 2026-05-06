@@ -6,14 +6,17 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Tasks from './pages/Tasks';
-import Thesis from './pages/Thesis';
 import Study from './pages/Study';
 import Track from './pages/Track';
-import Expenses from './pages/Expenses';
 import SelfCare from './pages/SelfCare';
 import CalendarView from './pages/CalendarView';
 import Settings from './pages/Settings';
-import FinancialTracker from './pages/FinancialTracker';
+import Finance from './pages/Finance';
+import Workout from './pages/Workout';
+import Goals from './pages/Goals';
+import Reminders from './pages/Reminders';
+import Journal from './pages/Journal';
+import WeeklyReview from './pages/WeeklyReview';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -63,11 +66,51 @@ function App() {
               }
             />
             <Route
-              path="/thesis"
+              path="/workout"
               element={
                 <PrivateRoute>
                   <Layout>
-                    <Thesis />
+                    <Workout />
+                  </Layout>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/goals"
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <Goals />
+                  </Layout>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/reminders"
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <Reminders />
+                  </Layout>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/journal"
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <Journal />
+                  </Layout>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/weekly-review"
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <WeeklyReview />
                   </Layout>
                 </PrivateRoute>
               }
@@ -93,21 +136,11 @@ function App() {
               }
             />
             <Route
-              path="/expenses"
+              path="/finance"
               element={
                 <PrivateRoute>
                   <Layout>
-                    <Expenses />
-                  </Layout>
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/financial-tracker"
-              element={
-                <PrivateRoute>
-                  <Layout>
-                    <FinancialTracker />
+                    <Finance />
                   </Layout>
                 </PrivateRoute>
               }
@@ -138,16 +171,6 @@ function App() {
                 <PrivateRoute>
                   <Layout>
                     <Settings />
-                  </Layout>
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/financial"
-              element={
-                <PrivateRoute>
-                  <Layout>
-                    <FinancialTracker />
                   </Layout>
                 </PrivateRoute>
               }
