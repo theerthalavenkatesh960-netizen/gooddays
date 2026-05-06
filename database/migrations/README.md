@@ -1,123 +1,61 @@
 # GoodDays Database Migrations
 
-This directory contains all SQL migration files for the GoodDays application database. The database uses PostgreSQL and follows a versioned migrations approach for schema evolution and data seeding.
+This directory contains SQL migration files for the GoodDays application database. The database uses PostgreSQL 12+.
 
 ## 📋 Migration Files
 
-### 000_rollback_all.sql
-**Purpose:** Complete cleanup/reset script
-**Status:** Development/Testing only
+### 001_up.sql
+**Purpose:** Create complete database schema
+**Status:** Primary migration - use this to initialize database
+**Data Impact:** Creates schema only (no data loss)
+**Tables:** 44 tables across 7 functional areas
+
+**Tables Included:**
+- **Core (9 tables):** user_profiles, tasks, daily_tracking, daily_notes, expenses, study_sessions, self_care_template, self_care_logs, gamification_entries
+- **Financial (6 tables):** financial_goals, investment_buckets, monthly_tasks, monthly_task_completions, financial_rules, monthly_snapshots
+- **Workouts (6 tables):** exercises, workout_split_presets, workout_day_plans, workout_sets, workout_day_images, personal_records
+- **Goals (4 tables):** goals, goal_notes, goal_daily_logs, flashcards
+- **Reminders (2 tables):** reminders, reminder_logs
+- **Journal (1 table):** journal_entries
+- **Weekly Review (1 table):** weekly_reviews
+- **Indexes (30+):** Performance optimization
+
+```bash
+psql -U postgres -d gooddays -f 001_up.sql
+```
+
+### 001_down.sql
+**Purpose:** Remove all database tables (rollback)
+**Status:** Use to reset database for testing
 **Data Impact:** ⚠️ **DESTRUCTIVE** - Deletes all tables and data
 
-This script is useful for:
-- Development environment cleanup
-- Testing fresh database setup
-- Resetting database to initial state
-
+Use this to start fresh:
 ```bash
-psql -U postgres -d gooddays -f 000_rollback_all.sql
+psql -U postgres -d gooddays -f 001_down.sql
 ```
 
-### 001_core_and_financial_schema.sql
-**Purpose:** Foundation tables and financial module
-**Scope:** Core application schema + Full financial tracking module
-**Size:** ~70+ tables and views
-**Data Impact:** Creates schema only (no data loss)
-
-**Key Modules:**
-- **Core Tables:** User profiles, tasks, daily tracking, focus sessions
-- **Study Tracking:** Study sessions, resources, chapters
-- **Fitness & Health:** Daily tracking metrics, self-care logs
-- **Gamification:** Points system, achievements, levels
-- **Financial Module:** Goals, investment buckets, monthly tasks, snapshots, rules
-- **Performance:** Indexes for common query patterns
-
-```bash
-psql -U postgres -d gooddays -f 001_core_and_financial_schema.sql
-```
-
-### 002_new_features_schema.sql
-**Purpose:** New features from Phase 2-5
-**Scope:** Workouts, Goals, Reminders, Journal, Thesis, Deadlines
-**Size:** ~20+ tables
-**Data Impact:** Creates schema only
-
-**Key Modules:**
-- **Workout Tracking:** Exercises, templates, intensity levels
-- **Goals & Aspirations:** Personal goals, milestones, progress tracking
-- **Reminders & Notifications:** Scheduled reminders, notification history
-- **Journaling:** Journal entries, reflection prompts, mood tracking
-- **Thesis Research:** Protocols, patients, deadlines, documents, followups, statistics
-- **Project Management:** Deadlines, projects, followups
-- **Collaboration:** Study groups, member management
-- **Dashboard:** Snapshots and analytics
-
-```bash
-psql -U postgres -d gooddays -f 002_new_features_schema.sql
-```
-
-### 003_seed_financial_data.sql
-**Purpose:** Initial data for financial module
-**Scope:** Financial goals, investment buckets, tasks, rules, snapshots
-**Data Impact:** Inserts reference data (safe to run multiple times)
-
-**Includes:**
-- 5 Financial goals with targets and deadlines
-- 6 Investment buckets with categories and monthly targets
-- 10 Monthly tasks across different buckets
-- 10 Financial rules for investment/trading/mindset
-- 3 Sample monthly snapshots with realistic progression
-
-**Note:** Uses SQL INSERT...ON CONFLICT DO NOTHING for idempotency
-
-```bash
-psql -U postgres -d gooddays -f 003_seed_financial_data.sql
-```
-
----
-
-## 🚀 Quick Start Guide
-
-### Prerequisites
-- PostgreSQL 12+ installed
-- Database named `gooddays` created
-- User `postgres` with appropriate privileges
+## 🚀 Quick Start
 
 ### Create Database
 ```bash
 createdb gooddays
 ```
 
-### Run All Migrations in Order
+### Initialize Schema
 ```bash
-# 1. Create core schema
-psql -U postgres -d gooddays -f 001_core_and_financial_schema.sql
-
-# 2. Create new features schema
-psql -U postgres -d gooddays -f 002_new_features_schema.sql
-
-# 3. Seed financial data
-psql -U postgres -d gooddays -f 003_seed_financial_data.sql
-```
-
-### Alternative: Use Migration Script (if available)
-```bash
-./migrate.sh
+psql -U postgres -d gooddays -f 001_up.sql
 ```
 
 ### Verify Installation
 ```bash
-# Connect to database
-psql -U postgres -d gooddays
+psql -U postgres -d gooddays -c "SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = 'public';"
+# Expected: 44 tables
+```
 
-# Check tables
-\dt
-
-# Check functions
-\df
-
-# Sample query
-SELECT COUNT(*) FROM user_profiles;
+### Reset Database (if needed)
+```bash
+psql -U postgres -d gooddays -f 001_down.sql
+psql -U postgres -d gooddays -f 001_up.sql
 ```
 
 ---

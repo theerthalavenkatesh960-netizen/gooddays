@@ -7,16 +7,15 @@ This folder contains everything needed to set up and manage the GoodDays Postgre
 ```
 database/
 ├── migrations/
-│   ├── 000_rollback_all.sql              # Clean slate (destructive)
-│   ├── 001_core_and_financial_schema.sql # Core + Financial module
-│   ├── 002_new_features_schema.sql       # Workouts, Goals, Thesis, etc.
-│   ├── 003_seed_financial_data.sql       # Sample financial data
-│   ├── migrate.sh                        # Unix/Linux/Mac runner
-│   ├── migrate.ps1                       # Windows PowerShell runner
-│   └── README.md                         # Detailed migration docs
-├── DATABASE_CONFIG.md                    # Connection setup & config
-├── SCHEMA_DOCUMENTATION.md               # Complete schema reference
-└── INDEX.md                              # This file
+│   ├── 000_rollback_all.sql                    # Clean slate (destructive)
+│   ├── 001_gooddays_complete_schema.sql        # MAIN: All 48+ tables (matches C# models)
+│   ├── 003_seed_financial_data.sql             # Optional: Sample financial data
+│   ├── migrate.sh                              # Unix/Linux/Mac runner
+│   ├── migrate.ps1                             # Windows PowerShell runner
+│   └── README.md                               # Detailed migration docs
+├── DATABASE_CONFIG.md                          # Connection setup & config
+├── SCHEMA_DOCUMENTATION.md                     # Complete schema reference
+└── INDEX.md                                    # This file
 ```
 
 ---
@@ -34,12 +33,12 @@ notepad .env.local
 # 3. Create database
 createdb -U postgres gooddays
 
-# 4. Run migrations
+# 4. Run main migration (single file)
 cd database\migrations
-.\migrate.ps1
+psql -U postgres -d gooddays -f 001_gooddays_complete_schema.sql
 
 # 5. Verify
-.\migrate.ps1 -Operation verify
+psql -U postgres -d gooddays -c "\dt"
 ```
 
 ### **macOS/Linux (Bash)**
@@ -48,6 +47,18 @@ cd database\migrations
 cp .env.example .env.local
 
 # 2. Edit database credentials
+nano .env.local
+
+# 3. Create database
+createdb -U postgres gooddays
+
+# 4. Run main migration (single file)
+cd database/migrations
+psql -U postgres -d gooddays -f 001_gooddays_complete_schema.sql
+
+# 5. Verify
+psql -U postgres -d gooddays -c "\dt"
+```
 nano .env.local
 
 # 3. Create database
@@ -102,70 +113,57 @@ chmod +x migrate.sh
 
 ## 📊 Database Schema at a Glance
 
-### Three Migration Phases
+### Complete Schema (001_gooddays_complete_schema.sql)
 
-**Phase 1 - Core (001_core_and_financial_schema.sql)**
-```
-13 Core Tables:
-  ├─ user_profiles         (accounts & gamification)
-  ├─ tasks                 (task management + recurring)
-  ├─ daily_tracking        (health metrics: sleep, mood, water, etc.)
-  ├─ daily_top_three       (daily priorities)
-  ├─ daily_notes           (daily journal)
-  ├─ expenses              (spending records)
-  ├─ focus_sessions        (pomodoro timer)
-  ├─ study_sessions        (study tracking)
-  ├─ study_resources       (course materials)
-  ├─ study_chapters        (course sections)
-  ├─ self_care_template    (wellness checklist template)
-  ├─ self_care_logs        (wellness tracking)
-  └─ gamification_entries  (points system)
+**48+ Tables across 7 Modules:**
 
-6 Financial Tables:
-  ├─ financial_goals       (investment targets)
-  ├─ investment_buckets    (6 budget categories)
-  ├─ monthly_tasks         (recurring financial actions)
-  ├─ monthly_task_completions (task progress)
-  ├─ financial_rules       (investment principles)
-  └─ monthly_snapshots     (monthly summary)
 ```
+CORE (9 tables):
+  ├─ user_profiles
+  ├─ tasks
+  ├─ daily_tracking
+  ├─ daily_notes
+  ├─ expenses
+  ├─ study_sessions
+  ├─ self_care_template/logs
+  └─ gamification_entries
 
-**Phase 2 - New Features (002_new_features_schema.sql)**
-```
-20 New Tables:
-  ├─ workouts              (exercise tracking)
-  ├─ workout_templates     (pre-made routines)
-  ├─ personal_goals        (life aspirations)
-  ├─ goal_milestones       (goal sub-tasks)
-  ├─ reminders             (scheduled alerts)
-  ├─ notifications         (notification history)
-  ├─ journal_entries       (daily reflections)
-  ├─ reflection_prompts    (journaling prompts)
-  ├─ thesis_protocols      (research projects)
-  ├─ thesis_patients       (study participants)
-  ├─ thesis_deadlines      (research milestones)
-  ├─ thesis_documents      (research papers)
-  ├─ thesis_followups      (patient visits)
-  ├─ thesis_stats          (research analytics)
-  ├─ deadlines             (project deadlines)
-  ├─ projects              (project organization)
-  ├─ followups             (task follow-ups)
-  ├─ dashboard_snapshots   (daily analytics)
-  ├─ study_groups          (group learning)
-  └─ study_group_members   (group membership)
+FINANCIAL (6 tables):
+  ├─ financial_goals
+  ├─ investment_buckets
+  ├─ monthly_tasks
+  ├─ monthly_task_completions
+  ├─ financial_rules
+  └─ monthly_snapshots
+
+WORKOUTS (6 tables):
+  ├─ exercises
+  ├─ workout_split_presets
+  ├─ workout_day_plans
+  ├─ workout_sets
+  ├─ workout_day_images
+  └─ personal_records
+
+GOALS (4 tables):
+  ├─ goals
+  ├─ goal_notes
+  ├─ goal_daily_logs
+  └─ flashcards
+
+REMINDERS (2 tables):
+  ├─ reminders
+  └─ reminder_logs
+
+JOURNAL (1 table):
+  └─ journal_entries
+
+WEEKLY REVIEW (1 table):
+  └─ weekly_reviews
+
+Optional: 30+ Performance Indexes
 ```
 
-**Phase 3 - Sample Data (003_seed_financial_data.sql)**
-```
-Includes:
-  ├─ 5 Financial goals
-  ├─ 6 Investment buckets
-  ├─ 10 Monthly tasks
-  ├─ 10 Financial rules
-  └─ 3 Monthly snapshots
-```
-
-**Total: 39 Tables**
+**Total: 48+ Tables**
 
 ---
 
@@ -196,10 +194,10 @@ See [.env.example](.env.example) for all 50+ configuration options.
 
 ## ✅ Verification Checklist
 
-After running migrations, verify:
+After running the migration, verify:
 
 ```bash
-# 1. Check table count (should be 39)
+# 1. Check table count (should be 48+)
 psql -U postgres -d gooddays -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';"
 
 # 2. List all tables
@@ -207,13 +205,13 @@ psql -U postgres -d gooddays -c "\dt"
 
 # 3. Check core tables exist
 psql -U postgres -d gooddays -c "\dt user_profiles"
-psql -U postgres -d gooddays -c "\dt investment_buckets"
-psql -U postgres -d gooddays -c "\dt workouts"
+psql -U postgres -d gooddays -c "\dt exercises"
+psql -U postgres -d gooddays -c "\dt goals"
 
-# 4. Check indexes
-psql -U postgres -d gooddays -c "SELECT * FROM pg_indexes WHERE schemaname = 'public';"
+# 4. Check indexes created
+psql -U postgres -d gooddays -c "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'public';"
 
-# 5. Count seed data
+# 5. Optional: Check seed data
 psql -U postgres -d gooddays -c "SELECT COUNT(*) FROM financial_goals;"
 ```
 
@@ -348,12 +346,13 @@ app.get('/api/dashboard/:userId', async (req, res) => {
 2. **Copy** `.env.example` → `.env.local`
 3. **Edit** `.env.local` with your database credentials
 4. **Create** database: `createdb gooddays`
-5. **Run** migrations: 
-   - Windows: `cd database\migrations && .\migrate.ps1`
-   - macOS/Linux: `cd database/migrations && ./migrate.sh`
-6. **Verify** schema: Check table count = 39
-7. **Read** [SCHEMA_DOCUMENTATION.md](SCHEMA_DOCUMENTATION.md) to explore tables
-8. **Integrate** into Node.js app (see examples above)
+5. **Run** main migration:
+   - Windows: `psql -U postgres -d gooddays -f database\migrations\001_gooddays_complete_schema.sql`
+   - macOS/Linux: `psql -U postgres -d gooddays -f database/migrations/001_gooddays_complete_schema.sql`
+6. **Verify** schema: Check table count = 48+
+7. **Optional:** Add sample data: `psql -U postgres -d gooddays -f database/migrations/003_seed_financial_data.sql`
+8. **Read** [SCHEMA_DOCUMENTATION.md](SCHEMA_DOCUMENTATION.md) to explore all tables
+9. **Integrate** into Node.js app (see examples above)
 
 ---
 
@@ -361,12 +360,16 @@ app.get('/api/dashboard/:userId', async (req, res) => {
 
 | Metric | Value |
 |--------|-------|
-| Total Tables | 39 |
-| Core Tables | 13 |
+| Total Tables | 48+ |
+| Core Tables | 9 |
 | Financial Tables | 6 |
-| Feature Tables | 20 |
-| Total Indexes | 25+ |
-| Foreign Keys | 30+ |
+| Workout Tables | 6 |
+| Goal Tables | 4 |
+| Reminder Tables | 2 |
+| Journal Tables | 1 |
+| Weekly Review Tables | 1 |
+| Total Indexes | 30+ |
+| Foreign Keys | 40+ |
 | Unique Constraints | 15+ |
 | Check Constraints | 10+ |
 
