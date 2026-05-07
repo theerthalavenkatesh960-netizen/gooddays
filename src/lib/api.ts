@@ -532,4 +532,8 @@ export async function getWeeklyReviews() { return request('weeklyreviews'); }
 export async function getCurrentWeekReview() { return request('weeklyreviews/current'); }
 export async function getWeekSummary(weekStart: string) { return request(`weeklyreviews/summary/${weekStart}`); }
 export async function upsertWeeklyReview(body: any) { return request('weeklyreviews', { method: 'POST', body: JSON.stringify(body) }); }
+export async function generateWeeklyReview(weekStart?: string) {
+  const qs = weekStart ? `?weekStart=${weekStart}` : '';
+  return request(`weeklyreviews/generate${qs}`, { method: 'POST' });
+}
 

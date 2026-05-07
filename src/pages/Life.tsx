@@ -194,9 +194,16 @@ function ReviewTab() {
     }).catch(() => setReviews([])).finally(() => setLoading(false));
   }, []);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setGenerating(true);
-    setTimeout(() => setGenerating(false), 3000);
+    try {
+      const result = await api.generateWeeklyReview();
+      if (result) setReviews(prev => [result, ...prev.filter((r: any) => r.id !== result.id)]);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   return (
@@ -247,16 +254,39 @@ function ReviewTab() {
       ) : (
         reviews.slice(0, 5).map((r: any) => (
           <div key={r.id} className="rounded-2xl p-4 mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {r.weekStart ? format(new Date(r.weekStart), 'd MMM') : 'Weekly Review'}
-              </span>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  {r.weekStartDate ? format(new Date(r.weekStartDate), 'd MMM yyyy') : 'Weekly Review'}
+                </span>
+                {r.aiGenerated && (
+                  <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>AI</span>
+                )}
+              </div>
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 {r.createdAt ? format(new Date(r.createdAt), 'd MMM') : ''}
               </span>
             </div>
+            {/* Quick stats */}
+            <div className="flex gap-3 mb-3">
+              {r.tasksCompleted > 0 && <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>✅ {r.tasksCompleted} tasks</span>}
+              {r.workoutDays > 0 && <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>🏋️ {r.workoutDays} days</span>}
+              {r.moodAvg > 0 && <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>😊 {r.moodAvg} mood</span>}
+            </div>
             {r.aiSummary && (
-              <p className="text-xs italic line-clamp-3" style={{ color: 'var(--text-secondary)' }}>"{r.aiSummary}"</p>
+              <p className="text-xs italic mb-2" style={{ color: 'var(--text-secondary)' }}>"{r.aiSummary}"</p>
+            )}
+            {r.aiPatternNoticed && (
+              <div className="p-2 rounded-lg mb-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--accent)' }}>Pattern</p>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{r.aiPatternNoticed}</p>
+              </div>
+            )}
+            {r.aiNextFocus && (
+              <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--accent-green)11', border: '1px solid var(--accent-green)33' }}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--accent-green)' }}>Next Week</p>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{r.aiNextFocus}</p>
+              </div>
             )}
           </div>
         ))

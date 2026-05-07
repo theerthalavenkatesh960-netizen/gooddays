@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHttpClient();
 
 // Enable CORS — allow all origins so the Netlify-hosted SPA can reach this API.
 builder.Services.AddCors(options =>
