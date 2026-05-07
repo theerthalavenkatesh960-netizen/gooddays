@@ -550,10 +550,6 @@ const renderOccurrences = (task: any) => {
           {filteredTasks.map((task, index) => (
             <motion.div
               key={task.id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ delay: index * 0.05 }}
               className={`bg-white rounded-xl p-2 sm:p-2.5 shadow-lg hover:shadow-xl transition-all ${
                 task.isCompleted ? 'opacity-60' : ''
               }`}
