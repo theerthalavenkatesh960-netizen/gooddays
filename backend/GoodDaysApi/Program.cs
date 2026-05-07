@@ -12,26 +12,32 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Enable CORS for known frontend origins (Vite dev + production URL from config)
+// Enable CORS for local dev origins and optional configured production URL.
 var configuredFrontendUrl = builder.Configuration["Frontend:Url"];
-var corsOrigins = new[]
-{
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    configuredFrontendUrl
-}
-.OfType<string>()
-.Where(o => !string.IsNullOrWhiteSpace(o))
-.Distinct(StringComparer.OrdinalIgnoreCase)
-.ToArray();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
     {
-        policy.WithOrigins(corsOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        policy
+            .SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin)) return false;
+
+                if (!string.IsNullOrWhiteSpace(configuredFrontendUrl) &&
+                    origin.Equals(configuredFrontendUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                return origin.StartsWith("http://localhost:", StringComparison.OrdinalIgnoreCase)
+                    || origin.StartsWith("https://localhost:", StringComparison.OrdinalIgnoreCase)
+                    || origin.StartsWith("http://127.0.0.1:", StringComparison.OrdinalIgnoreCase)
+                    || origin.StartsWith("https://127.0.0.1:", StringComparison.OrdinalIgnoreCase);
+            })
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
