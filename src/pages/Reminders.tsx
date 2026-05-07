@@ -4,6 +4,24 @@ import { Bell, Plus, Trash2, X, Clock, ToggleLeft, ToggleRight, Calendar, CheckC
 import { format, subDays, addDays } from 'date-fns';
 import * as api from '../lib/api';
 
+const CUSTOM_UNITS = ['days', 'weeks', 'months', 'yearly'] as const;
+
+function parseCustomSchedule(activeDays?: string) {
+  if (!activeDays) return { interval: 1, unit: 'days' as const };
+  const match = activeDays.match(/^interval:(\d+);unit:(days|weeks|months|yearly)$/);
+  if (!match) return { interval: 1, unit: 'days' as const };
+  return {
+    interval: Math.max(1, parseInt(match[1], 10) || 1),
+    unit: (match[2] as typeof CUSTOM_UNITS[number]),
+  };
+}
+
+function formatReminderFrequency(reminder: any) {
+  if (reminder.frequency !== 'custom') return reminder.frequency;
+  const { interval, unit } = parseCustomSchedule(reminder.activeDays);
+  return `Every ${interval} ${unit}`;
+}
+
 export default function Reminders() {
   const [reminders, setReminders] = useState<any[]>([]);
   const [reminderLogs, setReminderLogs] = useState<any[]>([]);
@@ -15,6 +33,8 @@ export default function Reminders() {
     time: '09:00', 
     frequency: 'daily', 
     activeDays: 'Mon,Tue,Wed,Thu,Fri',
+    customInterval: 1,
+    customUnit: 'days',
     isEnabled: true 
   });
   const [loading, setLoading] = useState(true);
@@ -39,15 +59,31 @@ export default function Reminders() {
   async function createReminder() {
     if (!newReminder.title || !newReminder.time) return;
     try {
+      const customInterval = Math.max(1, Number(newReminder.customInterval) || 1);
+      const customSchedule = `interval:${customInterval};unit:${newReminder.customUnit}`;
+
       const reminder = await api.createReminder({
         title: newReminder.title,
         time: newReminder.time,
         frequency: newReminder.frequency,
-        activeDays: newReminder.frequency === 'daily' ? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun' : newReminder.activeDays || 'Mon,Tue,Wed,Thu,Fri',
+        activeDays:
+          newReminder.frequency === 'daily'
+            ? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun'
+            : newReminder.frequency === 'weekly'
+            ? newReminder.activeDays || 'Mon,Tue,Wed,Thu,Fri'
+            : customSchedule,
         isEnabled: newReminder.isEnabled
       });
       setReminders(p => [...p, reminder]);
-      setNewReminder({ title: '', time: '09:00', frequency: 'daily', activeDays: 'Mon,Tue,Wed,Thu,Fri', isEnabled: true });
+      setNewReminder({
+        title: '',
+        time: '09:00',
+        frequency: 'daily',
+        activeDays: 'Mon,Tue,Wed,Thu,Fri',
+        customInterval: 1,
+        customUnit: 'days',
+        isEnabled: true,
+      });
       setShowCreate(false);
     } catch (e) { console.error(e); }
   }
@@ -123,8 +159,8 @@ export default function Reminders() {
                   <div className="flex-1">
                     <p className={`font-bold ${reminder.isEnabled ? 'text-gray-900' : 'text-gray-400'}`}>{reminder.title}</p>
                     <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
-                      <Clock size={14} /> {reminder.time} • {reminder.frequency}
-                      {reminder.frequency !== 'daily' && reminder.activeDays && (
+                      <Clock size={14} /> {reminder.time} • {formatReminderFrequency(reminder)}
+                      {reminder.frequency === 'weekly' && reminder.activeDays && (
                         <span className="text-xs">{reminder.activeDays}</span>
                       )}
                     </p>
@@ -202,7 +238,12 @@ export default function Reminders() {
                     setNewReminder(p => ({ 
                       ...p, 
                       frequency: freq,
-                      activeDays: freq === 'daily' ? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun' : 'Mon,Tue,Wed,Thu,Fri'
+                      activeDays:
+                        freq === 'daily'
+                          ? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun'
+                          : freq === 'weekly'
+                          ? 'Mon,Tue,Wed,Thu,Fri'
+                          : p.activeDays
                     }));
                   }}
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400">
@@ -212,7 +253,7 @@ export default function Reminders() {
                   </select>
                 </div>
 
-                {newReminder.frequency !== 'daily' && (
+                {newReminder.frequency === 'weekly' && (
                   <div>
                     <label className="text-sm font-medium text-gray-600 block mb-2">Active Days</label>
                     <div className="grid grid-cols-4 gap-2">
@@ -232,6 +273,31 @@ export default function Reminders() {
                           </motion.button>
                         );
                       })}
+                    </div>
+                  </div>
+                )}
+
+                {newReminder.frequency === 'custom' && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 block mb-2">Custom Interval</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        value={newReminder.customInterval}
+                        onChange={e => setNewReminder(p => ({ ...p, customInterval: Math.max(1, Number(e.target.value) || 1) }))}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      />
+                      <select
+                        value={newReminder.customUnit}
+                        onChange={e => setNewReminder(p => ({ ...p, customUnit: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                      >
+                        <option value="days">Days</option>
+                        <option value="weeks">Weeks</option>
+                        <option value="months">Months</option>
+                        <option value="yearly">Yearly</option>
+                      </select>
                     </div>
                   </div>
                 )}

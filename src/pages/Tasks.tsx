@@ -59,45 +59,61 @@ export default function Tasks() {
     }
   }, [recurring]);
 
-  // compute last 10 occurrences indicator for recurring tasks based on selected date
+  // Show completion history and missed count without treating future dates as missed.
 const renderOccurrences = (task: any) => {
   if (!task.recurrenceId) return null;
 
-  const baseDate = new Date(selectedDate);
-  baseDate.setHours(0, 0, 0, 0);
+  const selected = new Date(selectedDate);
+  selected.setHours(0, 0, 0, 0);
 
-  const lastTenOccurrences = tasks
-    .filter((t) => {
-      if (t.recurrenceId !== task.recurrenceId) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-      const due = new Date(t.dueDate || t.due_date);
-      due.setHours(0, 0, 0, 0);
-      return due < baseDate; // Up to and including selected date
-    })
+  // For future views, evaluate history only through today.
+  const historyCutoff = selected > today ? today : selected;
+
+  const seriesHistory = tasks.filter((t) => {
+    if (t.recurrenceId !== task.recurrenceId) return false;
+
+    const dueValue = t.dueDate || t.due_date;
+    if (!dueValue) return false;
+
+    const due = new Date(dueValue);
+    due.setHours(0, 0, 0, 0);
+    return due <= historyCutoff;
+  });
+
+  const completedOccurrences = seriesHistory
+    .filter((t) => t.isCompleted || t.status === 'completed')
     .sort((a, b) => {
       const da = new Date(a.dueDate || a.due_date).getTime();
       const db = new Date(b.dueDate || b.due_date).getTime();
-      return da - db; // Latest previous first
+      return db - da;
     })
-    .slice(0, 10); // Last 10 occurrences
+    .slice(0, 10);
 
-  if (lastTenOccurrences.length === 0) return null;
+  const missedCount = seriesHistory.filter((t) => !(t.isCompleted || t.status === 'completed')).length;
+
+  if (completedOccurrences.length === 0 && missedCount === 0) return null;
 
   return (
-    <div className="flex items-center gap-1 mr-2">
-      {lastTenOccurrences.map((t, i) => (
-        <span
-          key={t.id || i}
-          title={new Date(t.dueDate || t.due_date).toLocaleDateString()}
-          className={`inline-flex w-4 h-4 items-center justify-center text-white border ${
-            t.isCompleted
-              ? 'bg-emerald-500 border-emerald-600'
-              : 'bg-red-500 border-red-600'
-          }`}
-        >
-          {t.isCompleted ? '✓' : '✗'}
-        </span>
-      ))}
+    <div className="flex items-center gap-2 mr-2">
+      {completedOccurrences.length > 0 && (
+        <div className="flex items-center gap-1">
+          {completedOccurrences.map((t, i) => (
+            <span
+              key={t.id || i}
+              title={new Date(t.dueDate || t.due_date).toLocaleDateString()}
+              className="inline-flex w-4 h-4 items-center justify-center text-white border bg-emerald-500 border-emerald-600"
+            >
+              ✓
+            </span>
+          ))}
+        </div>
+      )}
+      <span className="text-xs px-2 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">
+        Missed: {missedCount}
+      </span>
     </div>
   );
 };
@@ -112,7 +128,7 @@ const renderOccurrences = (task: any) => {
     if (!user) return;
 
     const data = await api.getTasks(user.id);
-    if (data && data.length > 0) setTasks(data);
+    setTasks(Array.isArray(data) ? data : []);
   };
 
   const addTask = async () => {
