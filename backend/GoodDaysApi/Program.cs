@@ -20,24 +20,22 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FrontendPolicy", policy =>
     {
         policy
-            .SetIsOriginAllowed(origin =>
-            {
-                if (string.IsNullOrWhiteSpace(origin)) return false;
-
-                if (!string.IsNullOrWhiteSpace(configuredFrontendUrl) &&
-                    origin.Equals(configuredFrontendUrl, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-
-                return origin.StartsWith("http://localhost:", StringComparison.OrdinalIgnoreCase)
-                    || origin.StartsWith("https://localhost:", StringComparison.OrdinalIgnoreCase)
-                    || origin.StartsWith("http://127.0.0.1:", StringComparison.OrdinalIgnoreCase)
-                    || origin.StartsWith("https://127.0.0.1:", StringComparison.OrdinalIgnoreCase);
-            })
+            .WithOrigins(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:3000",
+                "http://127.0.0.1:3000"
+            )
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowAnyMethod();
+
+        // also allow any other configured production URL
+        if (!string.IsNullOrWhiteSpace(configuredFrontendUrl))
+        {
+            policy.WithOrigins(configuredFrontendUrl)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
     });
 });
 
