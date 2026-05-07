@@ -1,121 +1,76 @@
-Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
-:5173/:1 <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">Understand this warning
-:5173/:1 Error while trying to use the following icon from the Manifest: http://localhost:5173/icons/apple-touch-icon.png (Download error or resource isn't a valid image)Understand this warning
-:5000/api/workout/analytics/volume:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/reminders:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/goals:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/workout/analytics/volume:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/tasks/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/dailytracking/user/1?date=2026-05-06:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Dashboard.tsx:141 Uncaught (in promise) TypeError: tasks.filter is not a function
-    at loadTopThree (Dashboard.tsx:141:39)
-(anonymous) @ Dashboard.tsx:141Understand this error
-:5000/api/reminders:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/workout/analytics/volume:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/goals:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/study/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/reminders:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/workout/analytics/volume:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/goals:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/reminders:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/goals:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/dailytracking/user/1?date=2026-05-06:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/tasks/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Dashboard.tsx:187 Uncaught (in promise) TypeError: tasksData?.some is not a function
-    at Dashboard.tsx:187:20
-    at Array.map (<anonymous>)
-    at loadStreaks (Dashboard.tsx:186:36)
-(anonymous) @ Dashboard.tsx:187
-(anonymous) @ Dashboard.tsx:186Understand this error
-:5000/api/study/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/dailytracking/user/1?date=2026-05-06:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/tasks/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Dashboard.tsx:141 Uncaught (in promise) TypeError: tasks.filter is not a function
-    at loadTopThree (Dashboard.tsx:141:39)
-(anonymous) @ Dashboard.tsx:141Understand this error
-:5000/api/study/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/dailytracking/user/1?date=2026-05-06:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/tasks/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Dashboard.tsx:187 Uncaught (in promise) TypeError: tasksData?.some is not a function
-    at Dashboard.tsx:187:20
-    at Array.map (<anonymous>)
-    at loadStreaks (Dashboard.tsx:186:36)
-(anonymous) @ Dashboard.tsx:187
-(anonymous) @ Dashboard.tsx:186Understand this error
-:5000/api/study/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/dailytracking/user/1?date=2026-05-06:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/tasks/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Dashboard.tsx:141 Uncaught (in promise) TypeError: tasks.filter is not a function
-    at loadTopThree (Dashboard.tsx:141:39)
-(anonymous) @ Dashboard.tsx:141Understand this error
-:5000/api/dailytracking/user/1?date=2026-05-06:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/tasks/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Dashboard.tsx:187 Uncaught (in promise) TypeError: tasksData?.some is not a function
-    at Dashboard.tsx:187:20
-    at Array.map (<anonymous>)
-    at loadStreaks (Dashboard.tsx:186:36)
-(anonymous) @ Dashboard.tsx:187
-(anonymous) @ Dashboard.tsx:186Understand this error
-:5000/api/dailytracking/user/1?date=2026-05-06:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/tasks/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Dashboard.tsx:141 Uncaught (in promise) TypeError: tasks.filter is not a function
-    at loadTopThree (Dashboard.tsx:141:39)
-(anonymous) @ Dashboard.tsx:141Understand this error
-:5000/api/dailytracking/user/1?date=2026-05-06:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/tasks/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Dashboard.tsx:187 Uncaught (in promise) TypeError: tasksData?.some is not a function
-    at Dashboard.tsx:187:20
-    at Array.map (<anonymous>)
-    at loadStreaks (Dashboard.tsx:186:36)
-(anonymous) @ Dashboard.tsx:187
-(anonymous) @ Dashboard.tsx:186Understand this error
-:5000/api/expenses/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-2Expenses.tsx:96 Uncaught TypeError: expenses.filter is not a function
-    at Expenses.tsx:96:21
-    at updateMemo (chunk-QT63QQJV.js?v=a2dd2979:12210:27)
-    at Object.useMemo (chunk-QT63QQJV.js?v=a2dd2979:12726:24)
-    at useMemo (chunk-RLJ2RCJQ.js?v=a2dd2979:1094:29)
-    at Expenses (Expenses.tsx:90:25)
-    at renderWithHooks (chunk-QT63QQJV.js?v=a2dd2979:11548:26)
-    at updateFunctionComponent (chunk-QT63QQJV.js?v=a2dd2979:14582:28)
-    at beginWork (chunk-QT63QQJV.js?v=a2dd2979:15924:22)
-    at HTMLUnknownElement.callCallback2 (chunk-QT63QQJV.js?v=a2dd2979:3674:22)
-    at Object.invokeGuardedCallbackDev (chunk-QT63QQJV.js?v=a2dd2979:3699:24)Understand this error
-chunk-QT63QQJV.js?v=a2dd2979:14032 The above error occurred in the <Expenses> component:
+6:47:18 AM [vite] Pre-transform error: /Users/coolinghippopotamous/Projects/gooddays/src/pages/CalendarView.tsx: Adjacent JSX elements must be wrapped in an enclosing tag. Did you want a JSX fragment <>...</>? (620:0)
 
-    at Expenses (http://localhost:5173/src/pages/Expenses.tsx?t=1778069665636:75:20)
-    at div
-    at Finance (http://localhost:5173/src/pages/Finance.tsx?t=1778069665636:29:37)
-    at div
-    at MotionDOMComponent (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=a2dd2979:8733:40)
-    at main
-    at div
-    at div
-    at Layout (http://localhost:5173/src/components/Layout.tsx?t=1778069665636:64:34)
-    at PrivateRoute (http://localhost:5173/src/App.tsx?t=1778069665636:37:25)
-    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:6355:26)
-    at Routes (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:7222:3)
-    at div
-    at ThemeProvider (http://localhost:5173/src/contexts/ThemeContext.tsx?t=1778069665636:21:33)
-    at AuthProvider (http://localhost:5173/src/contexts/AuthContextApi.tsx?t=1778069665636:21:32)
-    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:7152:13)
-    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:10363:3)
-    at App
+  618 | </div>
+  619 |
+> 620 | </div>
+      | ^
+  621 | )}
+  622 |
+  623 | </div>
+6:47:19 AM [vite] Internal server error: /Users/coolinghippopotamous/Projects/gooddays/src/pages/CalendarView.tsx: Adjacent JSX elements must be wrapped in an enclosing tag. Did you want a JSX fragment <>...</>? (620:0)
 
-Consider adding an error boundary to your tree to customize error handling behavior.
-Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
-logCapturedError @ chunk-QT63QQJV.js?v=a2dd2979:14032Understand this error
-chunk-QT63QQJV.js?v=a2dd2979:19413 Uncaught TypeError: expenses.filter is not a function
-    at Expenses.tsx:96:21
-    at updateMemo (chunk-QT63QQJV.js?v=a2dd2979:12210:27)
-    at Object.useMemo (chunk-QT63QQJV.js?v=a2dd2979:12726:24)
-    at useMemo (chunk-RLJ2RCJQ.js?v=a2dd2979:1094:29)
-    at Expenses (Expenses.tsx:90:25)
-    at renderWithHooks (chunk-QT63QQJV.js?v=a2dd2979:11548:26)
-    at updateFunctionComponent (chunk-QT63QQJV.js?v=a2dd2979:14582:28)
-    at beginWork (chunk-QT63QQJV.js?v=a2dd2979:15924:22)
-    at beginWork$1 (chunk-QT63QQJV.js?v=a2dd2979:19753:22)
-    at performUnitOfWork (chunk-QT63QQJV.js?v=a2dd2979:19198:20)Understand this error
-:5000/api/expenses/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/expenses/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-:5000/api/expenses/user/1:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
+  618 | </div>
+  619 |
+> 620 | </div>
+      | ^
+  621 | )}
+  622 |
+  623 | </div>
+  Plugin: vite:react-babel
+  File: /Users/coolinghippopotamous/Projects/gooddays/src/pages/CalendarView.tsx:620:0
+  618|  </div>
+  619|  
+  620|  </div>
+     |  ^
+  621|  )}
+  622|  
+      at constructor (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:362:19)
+      at TypeScriptParserMixin.raise (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:3259:19)
+      at TypeScriptParserMixin.jsxParseElementAt (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:6789:18)
+      at TypeScriptParserMixin.jsxParseElement (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:6796:17)
+      at TypeScriptParserMixin.parseExprAtom (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:6806:19)
+      at TypeScriptParserMixin.parseExprSubscripts (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10591:23)
+      at TypeScriptParserMixin.parseUpdate (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10576:21)
+      at TypeScriptParserMixin.parseMaybeUnary (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10556:23)
+      at TypeScriptParserMixin.parseMaybeUnary (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:9483:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10410:61)
+      at TypeScriptParserMixin.parseExprOps (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10415:23)
+      at TypeScriptParserMixin.parseMaybeConditional (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10392:23)
+      at TypeScriptParserMixin.parseMaybeAssign (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10355:21)
+      at /Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:9421:39
+      at TypeScriptParserMixin.tryParse (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:3597:20)
+      at TypeScriptParserMixin.parseMaybeAssign (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:9421:18)
+      at /Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10325:39
+      at TypeScriptParserMixin.allowInAnd (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:11937:12)
+      at TypeScriptParserMixin.parseMaybeAssignAllowIn (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10325:17)
+      at TypeScriptParserMixin.parseParenAndDistinguishExpression (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:11196:28)
+      at TypeScriptParserMixin.parseExprAtom (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10849:23)
+      at TypeScriptParserMixin.parseExprAtom (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:6811:20)
+      at TypeScriptParserMixin.parseExprSubscripts (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10591:23)
+      at TypeScriptParserMixin.parseUpdate (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10576:21)
+      at TypeScriptParserMixin.parseMaybeUnary (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10556:23)
+      at TypeScriptParserMixin.parseMaybeUnary (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:9483:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10410:61)
+      at TypeScriptParserMixin.parseExprOpBaseRightExpr (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10496:34)
+      at TypeScriptParserMixin.parseExprOpRightExpr (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10491:21)
+      at TypeScriptParserMixin.parseExprOp (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10458:27)
+      at TypeScriptParserMixin.parseExprOp (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:9026:18)
+      at TypeScriptParserMixin.parseExprOp (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10464:21)
+      at TypeScriptParserMixin.parseExprOp (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:9026:18)
+      at TypeScriptParserMixin.parseExprOps (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10419:17)
+      at TypeScriptParserMixin.parseMaybeConditional (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10392:23)
+      at TypeScriptParserMixin.parseMaybeAssign (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10355:21)
+      at TypeScriptParserMixin.parseMaybeAssign (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:9432:20)
+      at TypeScriptParserMixin.parseExpressionBase (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10309:23)
+      at /Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10305:39
+      at TypeScriptParserMixin.allowInAnd (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:11937:12)
+      at TypeScriptParserMixin.parseExpression (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10305:17)
+      at TypeScriptParserMixin.jsxParseExpressionContainer (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:6679:31)
+      at TypeScriptParserMixin.jsxParseElementAt (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:6758:36)
+      at TypeScriptParserMixin.jsxParseElement (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:6796:17)
+      at TypeScriptParserMixin.parseExprAtom (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:6806:19)
+      at TypeScriptParserMixin.parseExprSubscripts (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10591:23)
+      at TypeScriptParserMixin.parseUpdate (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10576:21)
+      at TypeScriptParserMixin.parseMaybeUnary (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10556:23)
+      at TypeScriptParserMixin.parseMaybeUnary (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:9483:18)
+      at TypeScriptParserMixin.parseMaybeUnaryOrPrivate (/Users/coolinghippopotamous/Projects/gooddays/node_modules/@babel/parser/lib/index.js:10410:61)
