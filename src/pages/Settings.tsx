@@ -11,6 +11,7 @@ const themes = [
   { id: 'blue', name: 'Ocean Blue', gradient: 'from-blue-400 to-cyan-500' },
   { id: 'green', name: 'Forest Green', gradient: 'from-green-400 to-emerald-500' },
   { id: 'ocean', name: 'Deep Ocean', gradient: 'from-teal-400 to-cyan-600' },
+  { id: 'futuristic', name: 'OS Dark', gradient: 'from-[#0a0a0f] to-[#1e222d]' },
 ];
 
 export default function Settings() {
@@ -97,54 +98,78 @@ export default function Settings() {
   };
 
   return (
-    <div>
-      <h1 className="text-4xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-        Settings
+    <div style={theme === 'futuristic' ? { background: '#0a0a0f', minHeight: '100vh', padding: '0 0 32px' } : {}}>
+      <h1 className="text-4xl font-bold mb-6"
+        style={theme === 'futuristic'
+          ? { background: 'linear-gradient(90deg, #f59e0b, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }
+          : {}}
+      >
+        {theme === 'futuristic' ? '// SETTINGS' : 'Settings'}
       </h1>
 
       {message && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-emerald-100 text-emerald-700 px-4 py-3 rounded-xl mb-6 font-semibold"
+          style={theme === 'futuristic'
+            ? { background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f1', color: '#a5b4fc', borderRadius: '12px', padding: '12px 16px', marginBottom: '24px', fontWeight: 600, letterSpacing: '0.05em' }
+            : { backgroundColor: '#d1fae5', color: '#065f46', borderRadius: '12px', padding: '12px 16px', marginBottom: '24px', fontWeight: 600 }}
         >
           {message}
         </motion.div>
       )}
 
+      {/* Theme Card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-6 shadow-xl mb-6"
+        style={theme === 'futuristic'
+          ? { background: '#0f1117', border: '1px solid #2a2e39', borderRadius: '20px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }
+          : {}}
+        className={theme !== 'futuristic' ? 'bg-white rounded-2xl p-6 shadow-xl mb-6' : ''}
       >
-        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <Palette className="text-emerald-500" size={24} />
-          Theme
+        <h2
+          className="text-2xl font-bold mb-4 flex items-center gap-2"
+          style={theme === 'futuristic' ? { color: '#c8d0e0' } : {}}
+        >
+          <Palette style={theme === 'futuristic' ? { color: '#a855f7' } : { color: '#10b981' }} size={24} />
+          {theme === 'futuristic' ? 'DISPLAY_MODE' : 'Theme'}
         </h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           {themes.map((themeOption) => (
             <motion.button
               key={themeOption.id}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setTheme(themeOption.id as any)}
-              className={`relative overflow-hidden rounded-2xl p-6 transition-all ${
-                theme === themeOption.id ? 'ring-4 ring-emerald-500' : 'ring-2 ring-gray-200'
-              }`}
+              className={`relative overflow-hidden rounded-2xl p-6 transition-all`}
+              style={theme === 'futuristic'
+                ? {
+                    border: theme === themeOption.id ? '2px solid #a855f7' : '1px solid #2a2e39',
+                    boxShadow: theme === themeOption.id ? '0 0 16px rgba(168,85,247,0.3)' : 'none',
+                  }
+                : {
+                    outline: theme === themeOption.id ? '4px solid #10b981' : '2px solid #e5e7eb',
+                    outlineOffset: '0px',
+                  }}
             >
               <div className={`absolute inset-0 bg-gradient-to-br ${themeOption.gradient}`} />
               <div className="relative z-10">
-                <div className={`font-bold mb-1 ${themeOption.id === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                <div className={`font-bold mb-1 text-sm ${
+                  themeOption.id === 'dark' || themeOption.id === 'futuristic' ? 'text-white' : 'text-gray-800'
+                }`}>
                   {themeOption.name}
                 </div>
                 {theme === themeOption.id && (
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center"
+                    className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center"
+                    style={{ background: theme === 'futuristic' ? '#a855f7' : 'white' }}
                   >
-                    <div className="w-3 h-3 bg-emerald-500 rounded-full" />
+                    <div className="w-2.5 h-2.5 rounded-full"
+                      style={{ background: theme === 'futuristic' ? 'white' : '#10b981' }} />
                   </motion.div>
                 )}
               </div>
@@ -153,16 +178,25 @@ export default function Settings() {
         </div>
       </motion.div>
 
+      {/* Daily Tracking Card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-6 shadow-xl mb-6"
+        style={theme === 'futuristic'
+          ? { background: '#0f1117', border: '1px solid #2a2e39', borderRadius: '20px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }
+          : {}}
+        className={theme !== 'futuristic' ? 'bg-white rounded-2xl p-6 shadow-xl mb-6' : ''}
       >
-        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <Timer className="text-orange-500" size={24} />
-          Daily Tracking Fields
+        <h2
+          className="text-2xl font-bold mb-4 flex items-center gap-2"
+          style={theme === 'futuristic' ? { color: '#c8d0e0' } : {}}
+        >
+          <Timer style={theme === 'futuristic' ? { color: '#f59e0b' } : { color: '#f97316' }} size={24} />
+          {theme === 'futuristic' ? 'TRACKING_METRICS' : 'Daily Tracking Fields'}
         </h2>
-        <p className="text-sm text-gray-600 mb-3">Pick up to three metrics to show on the dashboard.</p>
+        <p style={theme === 'futuristic' ? { color: '#6b7280', fontSize: '13px', marginBottom: '12px', letterSpacing: '0.05em' } : { color: '#4b5563', fontSize: '14px', marginBottom: '12px' }}>
+          Pick up to three metrics to show on the dashboard.
+        </p>
         <div className="grid grid-cols-2 gap-3">
           {[
             { key: 'sleep_hours', label: 'Sleep Hours' },
@@ -174,7 +208,7 @@ export default function Settings() {
             const checked = trackingOptions.includes(opt.key);
             const disabled = !checked && trackingOptions.length >= 3;
             return (
-              <label key={opt.key} className="flex items-center gap-2">
+              <label key={opt.key} className="flex items-center gap-2" style={{ cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.4 : 1 }}>
                 <input
                   type="checkbox"
                   checked={checked}
@@ -190,47 +224,74 @@ export default function Settings() {
                     localStorage.setItem('trackingOptions', JSON.stringify(newOpts));
                   }}
                   className="h-4 w-4"
+                  style={theme === 'futuristic' ? { accentColor: '#6366f1' } : {}}
                 />
-                <span className="text-gray-700">{opt.label}</span>
+                <span style={theme === 'futuristic' ? { color: '#9ca3af', fontSize: '13px', letterSpacing: '0.05em', fontFamily: 'monospace' } : { color: '#374151' }}>
+                  {theme === 'futuristic' ? opt.key : opt.label}
+                </span>
               </label>
             );
           })}
         </div>
       </motion.div>
 
+      {/* Data Management Card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-white rounded-2xl p-6 shadow-xl"
+        style={theme === 'futuristic'
+          ? { background: '#0f1117', border: '1px solid #2a2e39', borderRadius: '20px', padding: '24px', boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }
+          : {}}
+        className={theme !== 'futuristic' ? 'bg-white rounded-2xl p-6 shadow-xl' : ''}
       >
-        <h2 className="text-2xl font-bold mb-4">Data Management</h2>
+        <h2
+          className="text-2xl font-bold mb-4"
+          style={theme === 'futuristic' ? { color: '#c8d0e0' } : {}}
+        >
+          {theme === 'futuristic' ? 'DATA_MANAGEMENT' : 'Data Management'}
+        </h2>
 
         <div className="space-y-3">
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={exportData}
-            className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg"
+            className="w-full py-4 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg"
+            style={theme === 'futuristic'
+              ? { background: 'linear-gradient(135deg, #6366f1, #4f46e5)', border: '1px solid rgba(99,102,241,0.4)', letterSpacing: '0.1em', fontSize: '13px', fontFamily: 'monospace' }
+              : { background: 'linear-gradient(135deg, #3b82f6, #06b6d4)' }}
           >
             <Download size={20} />
-            Export Backup (JSON)
+            {theme === 'futuristic' ? 'EXPORT_BACKUP.JSON' : 'Export Backup (JSON)'}
           </motion.button>
 
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={importData}
-            className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg"
+            className="w-full py-4 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg"
+            style={theme === 'futuristic'
+              ? { background: 'linear-gradient(135deg, #10b981, #059669)', border: '1px solid rgba(16,185,129,0.4)', letterSpacing: '0.1em', fontSize: '13px', fontFamily: 'monospace' }
+              : { background: 'linear-gradient(135deg, #22c55e, #10b981)' }}
           >
             <Upload size={20} />
-            Import Backup (JSON)
+            {theme === 'futuristic' ? 'IMPORT_BACKUP.JSON' : 'Import Backup (JSON)'}
           </motion.button>
         </div>
 
-        <div className="mt-6 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-xl">
-          <p className="text-sm text-gray-700">
-            <strong>Note:</strong> Your backup includes all your tasks, notes, sessions, and settings. Keep it safe!
+        <div
+          className="mt-6 p-4 rounded-xl"
+          style={theme === 'futuristic'
+            ? { background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }
+            : { backgroundColor: '#fefce8', border: '2px solid #fde68a' }}
+        >
+          <p style={theme === 'futuristic'
+            ? { color: '#9ca3af', fontSize: '12px', letterSpacing: '0.05em', fontFamily: 'monospace' }
+            : { color: '#374151', fontSize: '14px' }
+          }>
+            <strong style={theme === 'futuristic' ? { color: '#f59e0b' } : {}}>Note:</strong>{' '}
+            Your backup includes all your tasks, notes, sessions, and settings. Keep it safe!
           </p>
         </div>
       </motion.div>

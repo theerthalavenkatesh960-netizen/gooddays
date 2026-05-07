@@ -1,6 +1,24 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { setLoadingHandler } from '../lib/api';
+import { useTheme } from './ThemeContext';
+
+// ─── Shared constants ─────────────────────────────────────────────────────────
+const NODES = [
+  { id: 'discipline', label: 'Discipline', color: '#f59e0b', x: 50,  y: 10  },
+  { id: 'health',     label: 'Health',     color: '#10b981', x: 15,  y: 45  },
+  { id: 'focus',      label: 'Focus',      color: '#6366f1', x: 85,  y: 45  },
+  { id: 'mindset',    label: 'Mindset',    color: '#a855f7', x: 25,  y: 82  },
+  { id: 'wealth',     label: 'Wealth',     color: '#3b82f6', x: 75,  y: 82  },
+];
+const EDGES = [[0,1],[0,2],[1,3],[2,4],[1,4],[2,3]];
+const MESSAGES = [
+  'Building Discipline...',
+  'Improving Focus...',
+  'Strengthening Mindset...',
+  'Compounding Progress...',
+  'Leveling Up Your Life...',
+];
 
 interface LoadingContextType {
   startLoading: () => void;
@@ -15,6 +33,14 @@ const LoadingContext = createContext<LoadingContextType>({
 export function LoadingProvider({ children }: { children: React.ReactNode }) {
   const [count, setCount] = useState(0);
   const countRef = useRef(0);
+  // Show full-screen loader only on first mount (startup)
+  const [startup, setStartup] = useState(true);
+
+  useEffect(() => {
+    // Hide startup loader after 3.5s (enough for one full animation loop)
+    const t = setTimeout(() => setStartup(false), 3500);
+    return () => clearTimeout(t);
+  }, []);
 
   const startLoading = useCallback(() => {
     countRef.current += 1;
@@ -35,7 +61,10 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
     <LoadingContext.Provider value={{ startLoading, stopLoading }}>
       {children}
       <AnimatePresence>
-        {count > 0 && <SkillTreeLoader key="loader" />}
+        {startup && <SkillTreeLoader key="startup" />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {!startup && count > 0 && <MiniLoader key="mini" />}
       </AnimatePresence>
     </LoadingContext.Provider>
   );
@@ -45,28 +74,7 @@ export function useLoading() {
   return useContext(LoadingContext);
 }
 
-// ─── Skill Tree Loader ────────────────────────────────────────────────────────
-
-const NODES = [
-  { id: 'discipline', label: 'Discipline', color: '#f59e0b', glow: 'rgba(245,158,11,0.6)',  x: 50,  y: 10  },
-  { id: 'health',     label: 'Health',     color: '#10b981', glow: 'rgba(16,185,129,0.6)',  x: 15,  y: 45  },
-  { id: 'focus',      label: 'Focus',      color: '#6366f1', glow: 'rgba(99,102,241,0.6)',  x: 85,  y: 45  },
-  { id: 'mindset',    label: 'Mindset',    color: '#a855f7', glow: 'rgba(168,85,247,0.6)',  x: 25,  y: 82  },
-  { id: 'wealth',     label: 'Wealth',     color: '#3b82f6', glow: 'rgba(59,130,246,0.6)',  x: 75,  y: 82  },
-];
-
-const EDGES = [
-  [0, 1], [0, 2], [1, 3], [2, 4], [1, 4], [2, 3],
-];
-
-const MESSAGES = [
-  'Building Discipline...',
-  'Improving Focus...',
-  'Strengthening Mindset...',
-  'Compounding Progress...',
-  'Leveling Up Your Life...',
-];
-
+// ─── Skill Tree Loader (full-screen startup) ─────────────────────────────────
 function SkillTreeLoader() {
   const [unlocked, setUnlocked] = useState<number[]>([]);
   const [msgIndex, setMsgIndex] = useState(0);
@@ -263,6 +271,129 @@ function SkillTreeLoader() {
 
       </div>
     </motion.div>
+  );
+}
+
+// ─── Mini Loader (API calls, bottom-right corner) ─────────────────────────────
+function MiniLoader() {
+  const { theme } = useTheme();
+  const [unlocked, setUnlocked] = useState<number[]>([]);
+
+  useEffect(() => {
+    let step = 0;
+    const interval = setInterval(() => {
+      step = (step + 1) % (NODES.length + 1);
+      setUnlocked(step === 0 ? [] : Array.from({ length: step }, (_, i) => i));
+    }, 400);
+    return () => clearInterval(interval);
+  }, []);
+
+  const isEdgeActive = (a: number, b: number) =>
+    unlocked.includes(a) && unlocked.includes(b);
+
+  // Theme-aware palette
+  const palettes: Record<string, { bg: string; border: string; bar: string; text: string; emptyNode: string; emptyEdge: string; backdropColor: string }> = {
+    light:      { bg: 'rgba(255,255,255,0.96)', border: '1px solid rgba(0,0,0,0.08)', bar: 'linear-gradient(90deg,#10b981,#6366f1)', text: '#374151', emptyNode: '#e5e7eb', emptyEdge: '#d1d5db', backdropColor: 'rgba(0,0,0,0.25)' },
+    dark:       { bg: 'rgba(17,24,39,0.97)',    border: '1px solid rgba(255,255,255,0.1)', bar: 'linear-gradient(90deg,#6366f1,#a855f7)', text: '#9ca3af', emptyNode: '#374151', emptyEdge: '#4b5563', backdropColor: 'rgba(0,0,0,0.55)' },
+    blue:       { bg: 'rgba(23,37,84,0.96)',    border: '1px solid rgba(96,165,250,0.3)', bar: 'linear-gradient(90deg,#3b82f6,#06b6d4)', text: '#93c5fd', emptyNode: '#1e3a5f', emptyEdge: '#2563eb', backdropColor: 'rgba(0,0,39,0.4)' },
+    green:      { bg: 'rgba(5,46,22,0.96)',     border: '1px solid rgba(52,211,153,0.3)', bar: 'linear-gradient(90deg,#10b981,#34d399)', text: '#6ee7b7', emptyNode: '#064e3b', emptyEdge: '#065f46', backdropColor: 'rgba(0,30,0,0.4)' },
+    ocean:      { bg: 'rgba(8,51,68,0.96)',     border: '1px solid rgba(20,184,166,0.3)', bar: 'linear-gradient(90deg,#0d9488,#06b6d4)', text: '#5eead4', emptyNode: '#134e4a', emptyEdge: '#0f766e', backdropColor: 'rgba(0,20,30,0.4)' },
+    futuristic: { bg: 'rgba(10,10,15,0.97)',    border: '1px solid rgba(99,102,241,0.35)', bar: 'linear-gradient(90deg,#6366f1,#a855f7)', text: '#9ca3af', emptyNode: '#1e1e2e', emptyEdge: '#2a2a3a', backdropColor: 'rgba(0,0,0,0.65)' },
+  };
+  const p = palettes[theme] ?? palettes.futuristic;
+
+  return (
+    <>
+      {/* Full page blur backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 9997,
+          background: p.backdropColor,
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+        }}
+      />
+      {/* Centered loader card */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.85 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.85 }}
+        transition={{ duration: 0.25, type: 'spring', stiffness: 300, damping: 22 }}
+        style={{
+          position: 'fixed',
+          top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 9998,
+          background: p.bg,
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: p.border,
+          borderRadius: '20px',
+          padding: '24px 28px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '12px',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.35)',
+          minWidth: '160px',
+        }}
+      >
+        {/* Skill tree SVG */}
+        <svg viewBox="0 0 100 100" width="80" height="80" style={{ overflow: 'visible' }}>
+          <defs>
+            {NODES.map(node => (
+              <filter key={node.id} id={`mglow-${node.id}`} x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            ))}
+          </defs>
+          {EDGES.map(([a, b], i) => {
+            const na = NODES[a], nb = NODES[b];
+            const active = isEdgeActive(a, b);
+            return (
+              <line key={i} x1={na.x} y1={na.y} x2={nb.x} y2={nb.y}
+                stroke={active ? NODES[a].color : p.emptyEdge}
+                strokeWidth={active ? 1.2 : 0.7} strokeLinecap="round"
+                opacity={active ? 0.95 : 0.4}
+              />
+            );
+          })}
+          {NODES.map((node, i) => {
+            const active = unlocked.includes(i);
+            return (
+              <g key={node.id}>
+                <circle cx={node.x} cy={node.y} r={5}
+                  fill={active ? node.color : p.emptyNode}
+                  stroke={active ? node.color : p.emptyEdge}
+                  strokeWidth={0.8}
+                  filter={active ? `url(#mglow-${node.id})` : undefined}
+                  opacity={active ? 1 : 0.4}
+                />
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* Progress bar */}
+        <div style={{ width: '100%' }}>
+          <p style={{ color: p.text, fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '6px', textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
+            Loading...
+          </p>
+          <div style={{ width: '100%', height: '3px', background: p.emptyNode, borderRadius: '4px', overflow: 'hidden' }}>
+            <motion.div
+              style={{ height: '100%', background: p.bar, borderRadius: '4px' }}
+              animate={{ x: ['-100%', '100%'] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          </div>
+        </div>
+      </motion.div>
+    </>
   );
 }
 

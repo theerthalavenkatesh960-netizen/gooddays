@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings,
@@ -16,6 +16,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from 'recharts';
 import * as finApi from '../lib/financialApi';
 import CompleteTaskModal from '../components/financial/CompleteTaskModal';
@@ -52,9 +53,10 @@ export default function FinancialTracker() {
   const loadHistory = async () => {
     try {
       const data = await finApi.getHistory();
-      setHistory(data);
+      setHistory(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to load history:', error);
+      setHistory([]);
     }
   };
 
@@ -94,10 +96,11 @@ export default function FinancialTracker() {
     return '#e05050';
   };
 
-  const randomRule =
-    dashboard?.rules && dashboard.rules.length > 0
-      ? dashboard.rules[Math.floor(Math.random() * dashboard.rules.length)]
-      : null;
+  const randomRule = useMemo(() => {
+    const rules = dashboard?.rules;
+    if (!rules || rules.length === 0) return null;
+    return rules[Math.floor(Math.random() * rules.length)];
+  }, [dashboard?.rules?.length]);
 
   if (loading) {
     return (
@@ -266,7 +269,7 @@ export default function FinancialTracker() {
                   <div className="w-full h-2 bg-[#2a2e39] rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
-                      animate={{ width: `${bucket.completionPercent}%` }}
+                      animate={{ width: `${Math.min(100, bucket.completionPercent ?? 0)}%` }}
                       transition={{ duration: 0.5, delay: index * 0.05 }}
                       className="h-full rounded-full"
                       style={{
@@ -278,14 +281,14 @@ export default function FinancialTracker() {
 
                 {/* SECTION 3: TASK CHECKLIST (Expanded) */}
                 <AnimatePresence>
-                  {expandedBucket === bucket.id && bucket.tasks && (
+                  {expandedBucket === bucket.id && (bucket.tasks ?? []).length > 0 && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       className="mt-4 space-y-2"
                     >
-                      {bucket.tasks.map((task) => (
+                      {(bucket.tasks ?? []).map((task) => (
                         <div
                           key={task.id}
                           className="flex items-start gap-2 p-2 bg-[#2a2e39] rounded-lg"
@@ -316,9 +319,9 @@ export default function FinancialTracker() {
                             >
                               {task.title}
                             </p>
-                            {task.amount > 0 && (
+                            {(task.amount ?? 0) > 0 && (
                               <p className="text-xs text-[#787b86]">
-                                ₹{task.amount.toLocaleString()}
+                                ₹{(task.amount ?? 0).toLocaleString()}
                                 {task.recurrenceDay &&
                                   ` • Day ${task.recurrenceDay}`}
                               </p>
@@ -327,7 +330,7 @@ export default function FinancialTracker() {
                               <p className="text-xs text-[#26a65b]">
                                 ✓ Completed{' '}
                                 {new Date(task.completedAt).toLocaleDateString()}
-                                {task.actualAmount &&
+                                {task.actualAmount != null &&
                                   ` • ₹${task.actualAmount.toLocaleString()}`}
                               </p>
                             )}
@@ -356,7 +359,7 @@ export default function FinancialTracker() {
           >
             <h2 className="text-xl font-bold mb-4">12-Month Progress</h2>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={history}>
+              <BarChart data={Array.isArray(history) ? history : []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#2a2e39" />
                 <XAxis dataKey="month" stroke="#787b86" />
                 <YAxis stroke="#787b86" />
@@ -368,35 +371,27 @@ export default function FinancialTracker() {
                     color: '#c8d0e0',
                   }}
                   formatter={(value: any, name: string) => {
+                    const num = typeof value === 'number' ? value : parseFloat(value) || 0;
                     if (name === 'completionPercent') {
-                      return [`${value.toFixed(0)}%`, 'Completion'];
+                      return [`${num.toFixed(0)}%`, 'Completion'];
                     }
                     return [
-                      `₹${value.toLocaleString()}`,
+                      `₹${num.toLocaleString()}`,
                       'Total Invested',
                     ];
                   }}
                 />
                 <Bar
                   dataKey="completionPercent"
-                  fill="#26a65b"
                   radius={[8, 8, 0, 0]}
-                  shape={(props: any) => {
-                    const { x, y, width, height, completionPercent } = props;
-                    const fill = getBarColor(completionPercent);
-                    return (
-                      <rect
-                        x={x}
-                        y={y}
-                        width={width}
-                        height={height}
-                        fill={fill}
-                        rx={8}
-                        ry={8}
-                      />
-                    );
-                  }}
-                />
+                >
+                  {(Array.isArray(history) ? history : []).map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={getBarColor(entry.completionPercent ?? 0)}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </motion.div>
