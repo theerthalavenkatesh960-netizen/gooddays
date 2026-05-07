@@ -156,11 +156,11 @@ export async function deleteBucket(id: string) {
 
 // Tasks
 export async function getTasks() {
-  return request('tasks');
+  return request('financial-tasks');
 }
 
 export async function getTasksByMonth(month: number, year: number) {
-  return request(`tasks/monthly/${month}/${year}`);
+  return request(`financial-tasks/monthly/${month}/${year}`);
 }
 
 export async function createTask(data: {
@@ -172,7 +172,7 @@ export async function createTask(data: {
   isRecurring: boolean;
   recurrenceDay?: number;
 }) {
-  return request('tasks', {
+  return request('financial-tasks', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -189,7 +189,7 @@ export async function updateTask(
     recurrenceDay?: number;
   }
 ) {
-  return request(`tasks/${id}`, {
+  return request(`financial-tasks/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   });
@@ -199,18 +199,18 @@ export async function completeTask(
   id: string,
   data: { actualAmount?: number; notes?: string }
 ) {
-  return request(`tasks/${id}/complete`, {
+  return request(`financial-tasks/${id}/complete`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
 export async function uncompleteTask(id: string) {
-  return request(`tasks/${id}/uncomplete`, { method: 'POST' });
+  return request(`financial-tasks/${id}/uncomplete`, { method: 'POST' });
 }
 
 export async function deleteTask(id: string) {
-  return request(`tasks/${id}`, { method: 'DELETE' });
+  return request(`financial-tasks/${id}`, { method: 'DELETE' });
 }
 
 // Dashboard

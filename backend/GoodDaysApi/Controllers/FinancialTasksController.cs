@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace GoodDaysApi.Controllers;
 
 [ApiController]
-[Route("api/tasks")]
+[Route("api/financial-tasks")]
 public class FinancialTasksController : ControllerBase
 {
     private readonly IFinancialService _financialService;
