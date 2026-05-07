@@ -272,10 +272,6 @@ const renderOccurrences = (task: any) => {
 
   return (
     <div>
-      <h1 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-        Tasks & Reminders
-      </h1>
-
       {/* Tab switcher */}
       <div className="flex gap-1 mb-3 sm:mb-5 bg-gray-100 p-1 rounded-xl w-fit">
         <button
@@ -411,15 +407,37 @@ const renderOccurrences = (task: any) => {
       <div className="space-y-2.5">
         {/* Add Task Modal */}
         {showAddModal && (
-          <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-xl font-semibold mb-4">
-                {editingTask ? 'Edit Task' : 'Create Task'}
-              </h3>
-              <div className="space-y-3">
-                <input type="text" value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="Task title" className="w-full px-4 py-3 rounded-xl border border-gray-200 outline-none" />
-                <div className="flex flex-wrap gap-2">
-                  <div className="flex items-center gap-1 flex-wrap">
+          <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => { setShowAddModal(false); setEditingTask(null); }}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-md flex flex-col shadow-2xl"
+              style={{ maxHeight: 'min(90dvh, calc(100vh - 32px))' }}
+              onClick={(e) => e.stopPropagation()}>
+
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                <h3 className="text-base font-semibold text-gray-900">
+                  {editingTask ? 'Edit Task' : 'Create Task'}
+                </h3>
+                <button onClick={() => { setShowAddModal(false); setEditingTask(null); }} className="text-gray-400 hover:text-gray-600">
+                  <span className="text-xl leading-none">&times;</span>
+                </button>
+              </div>
+
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                {/* Title */}
+                <input
+                  type="text"
+                  value={newTask}
+                  onChange={(e) => setNewTask(e.target.value)}
+                  placeholder="Task title"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-emerald-400"
+                />
+
+                {/* Category chips */}
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">Category</p>
+                  <div className="flex flex-wrap gap-1.5">
                     {CATEGORY_OPTIONS.map((c) => {
                       const Icon = c.icon;
                       const selected = selectedCategory === c.name;
@@ -428,39 +446,54 @@ const renderOccurrences = (task: any) => {
                           key={c.name}
                           type="button"
                           onClick={() => setSelectedCategory(c.name)}
-                          className={`flex items-center gap-1 px-3 py-1 rounded-full border transition-all ${
+                          className={`flex items-center gap-1 px-2 py-1 rounded-full border text-[11px] transition-all ${
                             selected
                               ? 'bg-emerald-500 text-white border-emerald-600'
                               : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
                           }`}
                         >
-                          <Icon size={14} />
-                          <span className="text-xs">{c.name}</span>
+                          <Icon size={11} />
+                          {c.name}
                         </button>
                       );
                     })}
                   </div>
-                  <select value={selectedPriority} onChange={(e) => setSelectedPriority(e.target.value)} className="px-3 py-2 rounded-xl border border-gray-200">
-                    {priorities.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" checked={recurring} onChange={(e) => { setRecurring(e.target.checked); }} /> Recurring
+                </div>
+
+                {/* Priority + Recurring row */}
+                <div className="flex items-center gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Priority</p>
+                    <select value={selectedPriority} onChange={(e) => setSelectedPriority(e.target.value)}
+                      className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 outline-none">
+                      {priorities.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-1.5 pt-4 cursor-pointer">
+                    <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} className="w-3.5 h-3.5" />
+                    <span className="text-xs font-medium text-gray-700">Recurring</span>
                   </label>
                 </div>
 
+                {/* Schedule date */}
                 {!recurring && (
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm">Schedule for</label>
-                    <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className="px-3 py-2 rounded-xl border border-gray-200" />
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Schedule for</p>
+                    <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)}
+                      className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 outline-none" />
                   </div>
                 )}
 
+                {/* Recurrence options */}
                 {recurring && (
-                  <div className="space-y-2">
+                  <div className="space-y-2 bg-gray-50 rounded-xl p-3">
                     <div className="flex items-center gap-2">
-                      <label className="text-sm">Every</label>
-                      <input type="number" value={recurrenceInterval === 0 ? '' : recurrenceInterval} onChange={(e) => setRecurrenceInterval(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} className="w-16 px-3 py-2 rounded-xl border border-gray-200" />
-                      <select value={recurrenceUnit} onChange={(e) => setRecurrenceUnit(e.target.value as any)} className="px-3 py-2 rounded-xl border border-gray-200">
+                      <span className="text-xs text-gray-600">Every</span>
+                      <input type="number" value={recurrenceInterval === 0 ? '' : recurrenceInterval}
+                        onChange={(e) => setRecurrenceInterval(e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
+                        className="w-12 px-2 py-1.5 text-xs rounded-lg border border-gray-200" />
+                      <select value={recurrenceUnit} onChange={(e) => setRecurrenceUnit(e.target.value as any)}
+                        className="px-2 py-1.5 text-xs rounded-lg border border-gray-200">
                         <option value="days">day(s)</option>
                         <option value="weeks">week(s)</option>
                         <option value="months">month(s)</option>
@@ -469,10 +502,11 @@ const renderOccurrences = (task: any) => {
                     </div>
 
                     {recurrenceUnit === 'weeks' && (
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         {['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].map(d => (
                           <label key={d} className="flex items-center gap-1">
-                            <input type="checkbox" checked={recurrenceDays.includes(d)} onChange={(e) => { if (e.target.checked) setRecurrenceDays([...recurrenceDays, d]); else setRecurrenceDays(recurrenceDays.filter(x => x !== d)); }} />
+                            <input type="checkbox" checked={recurrenceDays.includes(d)}
+                              onChange={(e) => { if (e.target.checked) setRecurrenceDays([...recurrenceDays, d]); else setRecurrenceDays(recurrenceDays.filter(x => x !== d)); }} />
                             <span className="text-xs">{d.slice(0,3)}</span>
                           </label>
                         ))}
@@ -481,32 +515,33 @@ const renderOccurrences = (task: any) => {
 
                     {recurrenceUnit === 'months' && (
                       <div className="flex items-center gap-2">
-                        <label className="text-sm">on day</label>
-                        <input type="number" max={31} value={monthlyDay === 0 ? '' : monthlyDay} onChange={(e) => setMonthlyDay(e.target.value === '' ? 0 : parseInt(e.target.value, 10))} className="w-16 px-3 py-2 rounded-xl border border-gray-200" />
+                        <span className="text-xs text-gray-600">on day</span>
+                        <input type="number" max={31} value={monthlyDay === 0 ? '' : monthlyDay}
+                          onChange={(e) => setMonthlyDay(e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
+                          className="w-12 px-2 py-1.5 text-xs rounded-lg border border-gray-200" />
                       </div>
                     )}
 
                     <div className="flex gap-2">
-                      <input type="date" value={recurrenceStart} onChange={(e) => setRecurrenceStart(e.target.value)} className="px-3 py-2 rounded-xl border border-gray-200" />
-                      <input type="date" value={recurrenceEnd} onChange={(e) => setRecurrenceEnd(e.target.value)} className="px-3 py-2 rounded-xl border border-gray-200" />
+                      <input type="date" value={recurrenceStart} onChange={(e) => setRecurrenceStart(e.target.value)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg border border-gray-200" />
+                      <input type="date" value={recurrenceEnd} onChange={(e) => setRecurrenceEnd(e.target.value)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg border border-gray-200" />
                     </div>
                   </div>
                 )}
+              </div>
 
-                <div className="flex items-center gap-2 mt-4">
-                  <button onClick={addTask} className="px-4 py-2 bg-emerald-500 text-white rounded-xl">
-                    {editingTask ? 'Save' : 'Create'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddModal(false);
-                      setEditingTask(null);
-                    }}
-                    className="px-4 py-2 bg-gray-200 rounded-xl"
-                  >
-                    Cancel
-                  </button>
-                </div>
+              {/* Footer */}
+              <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 bg-white" style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+                <button onClick={addTask} disabled={!newTask.trim()}
+                  className="flex-1 py-2 bg-emerald-500 text-white rounded-xl text-sm font-semibold disabled:opacity-40">
+                  {editingTask ? 'Save' : 'Create'}
+                </button>
+                <button onClick={() => { setShowAddModal(false); setEditingTask(null); }}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-semibold">
+                  Cancel
+                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -519,33 +554,33 @@ const renderOccurrences = (task: any) => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ delay: index * 0.05 }}
-              className={`bg-white rounded-xl p-2.5 sm:p-3 shadow-lg hover:shadow-xl transition-all ${
+              className={`bg-white rounded-xl p-2 sm:p-2.5 shadow-lg hover:shadow-xl transition-all ${
                 task.isCompleted ? 'opacity-60' : ''
               }`}
             >
-                <div className="flex items-center gap-2 sm:gap-4">
+                <div className="flex items-center gap-1.5 sm:gap-3">
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => toggleTask(task)}
                 >
                   {task.isCompleted ? (
-                      <CheckCircle2 className="text-emerald-500" size={20} />
+                      <CheckCircle2 className="text-emerald-500" size={18} />
                   ) : (
-                      <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
+                      <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
                   )}
                 </motion.button>
 
                 <div className="flex-1">
                   <h3
-                      className={`font-semibold text-sm sm:text-base ${
+                      className={`font-semibold text-xs sm:text-sm ${
                       task.isCompleted ? 'line-through text-gray-400' : 'text-gray-800'
                     }`}
                   >
                     {task.title}
                   </h3>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    <span className="text-[11px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">
                         {/* show icon next to category */}
                         {(() => {
                           const opt = CATEGORY_OPTIONS.find(c => c.name === task.category);
@@ -553,7 +588,7 @@ const renderOccurrences = (task: any) => {
                             const Icon = opt.icon;
                             return (
                               <span className="flex items-center gap-1">
-                                <Icon size={12} />
+                                <Icon size={10} />
                                 {task.category}
                               </span>
                             );
@@ -561,23 +596,23 @@ const renderOccurrences = (task: any) => {
                           return task.category;
                         })()}
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded-full border ${getPriorityColor(task.priority)}`}>
+                    <span className={`text-[11px] px-1.5 py-0.5 rounded-full border ${getPriorityColor(task.priority)}`}>
                       {task.priority}
                     </span>
                     {((task.dueDate ?? task.due_date)) && (
-                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">
+                      <span className="text-[11px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">
                         {format(parseISO((task.dueDate ?? task.due_date)), 'EEE, MMM d')}
                       </span>
                     )}
                     {task.recurring && (
-                      <span className="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full">
+                      <span className="text-[11px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">
                         Scheduled • series
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
                   {/* show last 5 occurrences for recurring tasks */}
                   {renderOccurrences(task)}
                   {task.isCompleted && (
@@ -585,9 +620,9 @@ const renderOccurrences = (task: any) => {
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => toggleTask(task)}
-                      className="p-1.5 sm:p-2 text-blue-500 hover:bg-blue-50 rounded-lg"
+                      className="p-1 sm:p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg"
                     >
-                      <RotateCcw size={16} />
+                      <RotateCcw size={14} />
                     </motion.button>
                   )}
                   {/* edit button */}
@@ -596,18 +631,18 @@ const renderOccurrences = (task: any) => {
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => openEditModal(task)}
-                      className="p-1.5 sm:p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+                      className="p-1 sm:p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg"
                     >
-                      <Edit size={16} />
+                      <Edit size={14} />
                     </motion.button>
                   )}
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setDeleteConfirm({ taskId: task.id, isRecurring: task.recurring })}
-                    className="p-1.5 sm:p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                    className="p-1 sm:p-1.5 text-red-500 hover:bg-red-50 rounded-lg"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={14} />
                   </motion.button>
                 </div>
               </div>
