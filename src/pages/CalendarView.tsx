@@ -616,8 +616,6 @@ className="flex items-center gap-3 p-3 border rounded-lg border-blue-200 bg-blue
 
 
 </div>
-
-</div>
 )}
 
 </div>
