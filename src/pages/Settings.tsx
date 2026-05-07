@@ -1,300 +1,226 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Upload, Palette, Timer } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
+import {
+  ChevronLeft, ChevronRight, User, Moon, Palette, Download,
+  Upload, LogOut, Bell, Shield, Target, Dumbbell, Wallet,
+  Check, Sun, Droplets
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContextApi';
-import * as api from '../lib/api';
+import { useTheme } from '../contexts/ThemeContext';
 
-const themes = [
-  { id: 'light', name: 'Light', gradient: 'from-white to-gray-100' },
-  { id: 'dark', name: 'Dark', gradient: 'from-gray-800 to-gray-900' },
-  { id: 'blue', name: 'Ocean Blue', gradient: 'from-blue-400 to-cyan-500' },
-  { id: 'green', name: 'Forest Green', gradient: 'from-green-400 to-emerald-500' },
-  { id: 'ocean', name: 'Deep Ocean', gradient: 'from-teal-400 to-cyan-600' },
-  { id: 'futuristic', name: 'OS Dark', gradient: 'from-[#0a0a0f] to-[#1e222d]' },
+type Theme = 'light' | 'dark' | 'blue' | 'green' | 'ocean' | 'futuristic';
+
+const THEMES: { id: Theme; label: string; accent: string; bg: string }[] = [
+  { id: 'dark',        label: 'Dark',        accent: '#6C63FF', bg: '#0A0A0F' },
+  { id: 'futuristic',  label: 'Futuristic',  accent: '#8B7CF8', bg: '#04040A' },
+  { id: 'light',       label: 'Light',       accent: '#5B52F0', bg: '#F5F5F7' },
+  { id: 'blue',        label: 'Ocean Blue',  accent: '#3B82F6', bg: '#080D14' },
+  { id: 'green',       label: 'Forest',      accent: '#10B981', bg: '#060D0A' },
+  { id: 'ocean',       label: 'Teal',        accent: '#06B6D4', bg: '#060A0D' },
 ];
 
+function SettingRow({ icon: Icon, label, value, onPress, color }: {
+  icon: React.ElementType;
+  label: string;
+  value?: string;
+  onPress?: () => void;
+  color?: string;
+}) {
+  return (
+    <button
+      onClick={onPress}
+      className="w-full flex items-center gap-3 p-4 press"
+      style={{ minHeight: 52 }}
+    >
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: (color ?? 'var(--accent)') + '22' }}>
+        <Icon size={18} style={{ color: color ?? 'var(--accent)' }} />
+      </div>
+      <span className="flex-1 text-left text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</span>
+      {value && <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{value}</span>}
+      <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
+    </button>
+  );
+}
+
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-5">
+      <p className="section-label px-4 mb-2">{title}</p>
+      <div className="rounded-2xl overflow-hidden divide-y" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', border: '1px solid var(--border)' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function Settings() {
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
-  const { user } = useAuth();
-  const [message, setMessage] = useState('');
-  const [trackingOptions, setTrackingOptions] = useState<string[]>([]);
+  const [calorieGoal, setCalorieGoal] = useState('2400');
+  const [trackingOptions, setTrackingOptions] = useState<string[]>(['sleep_hours','workout_minutes','phone_minutes']);
 
   useEffect(() => {
     const stored = localStorage.getItem('trackingOptions');
-    if (stored) {
-      try {
-        setTrackingOptions(JSON.parse(stored));
-      } catch {}
-    } else {
-      // default first three
-      setTrackingOptions(['sleep_hours', 'workout_minutes', 'phone_minutes']);
-    }
+    if (stored) { try { setTrackingOptions(JSON.parse(stored)); } catch {} }
+    const cg = localStorage.getItem('calorieGoal');
+    if (cg) setCalorieGoal(cg);
   }, []);
 
-  const exportData = async () => {
-    if (!user) return;
-
-    try {
-      const [tasks, expenses, selfcare, patients, study] = await Promise.all([
-        api.getTasks(user.id),
-        api.getExpenses(user.id),
-        api.getSelfCareActivities(user.id),
-        api.getPatients(user.id),
-        api.getStudySessions(user.id),
-      ]);
-
-      const data: any = {
-        tasks,
-        expenses,
-        selfcare,
-        patients,
-        study,
-        user_profile: { id: user.id, name: user.name, email: user.email },
-      };
-
-      const json = JSON.stringify(data, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `backup-${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-
-      setMessage('Backup exported successfully!');
-      setTimeout(() => setMessage(''), 3000);
-    } catch (error) {
-      setMessage('Error exporting backup');
-      setTimeout(() => setMessage(''), 3000);
-    }
+  const toggleTrackOpt = (opt: string) => {
+    const next = trackingOptions.includes(opt)
+      ? trackingOptions.filter(o => o !== opt)
+      : [...trackingOptions, opt];
+    setTrackingOptions(next);
+    localStorage.setItem('trackingOptions', JSON.stringify(next));
   };
 
-  const importData = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-
-    input.onchange = async (e: any) => {
-      const file = e.target.files[0];
-      if (!file || !user) return;
-
-      try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-
-        // Import data would be handled via API endpoints
-        setMessage('Backup imported successfully!');
-        setTimeout(() => {
-          setMessage('');
-          window.location.reload();
-        }, 2000);
-      } catch (error) {
-        setMessage('Error importing backup');
-        setTimeout(() => setMessage(''), 3000);
-      }
-    };
-
-    input.click();
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/login');
   };
+
+  const exportData = () => {
+    const data = { user, theme, exportedAt: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'gooddays-backup.json'; a.click();
+  };
+
+  const TRACK_OPTS = [
+    { id: 'sleep_hours',      label: 'Sleep',   icon: Moon,    color: '#6C63FF' },
+    { id: 'workout_minutes',  label: 'Workout', icon: Dumbbell,color: '#FF6B6B' },
+    { id: 'phone_minutes',    label: 'Phone',   icon: Bell,    color: '#8888A0' },
+    { id: 'mood',             label: 'Mood',    icon: Sun,     color: '#FFD93D' },
+    { id: 'water',            label: 'Water',   icon: Droplets,color: '#06B6D4' },
+  ];
 
   return (
-    <div style={theme === 'futuristic' ? { background: '#0a0a0f', minHeight: '100vh', padding: '0 0 32px' } : {}}>
-      <h1 className="text-4xl font-bold mb-6"
-        style={theme === 'futuristic'
-          ? { background: 'linear-gradient(90deg, #f59e0b, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }
-          : {}}
-      >
-        {theme === 'futuristic' ? '// SETTINGS' : 'Settings'}
-      </h1>
+    <div className="pt-4 pb-nav" style={{ backgroundColor: 'var(--bg)' }}>
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 mb-5">
+        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
+          <ChevronLeft size={18} style={{ color: 'var(--text-secondary)' }} />
+        </button>
+        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Settings</h1>
+      </div>
 
-      {message && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={theme === 'futuristic'
-            ? { background: 'rgba(99,102,241,0.15)', border: '1px solid #6366f1', color: '#a5b4fc', borderRadius: '12px', padding: '12px 16px', marginBottom: '24px', fontWeight: 600, letterSpacing: '0.05em' }
-            : { backgroundColor: '#d1fae5', color: '#065f46', borderRadius: '12px', padding: '12px 16px', marginBottom: '24px', fontWeight: 600 }}
-        >
-          {message}
-        </motion.div>
-      )}
+      {/* Profile */}
+      <div className="mx-4 mb-5 p-4 rounded-2xl flex items-center gap-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-bold flex-shrink-0" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
+          {user?.name?.[0]?.toUpperCase() ?? user?.email?.[0]?.toUpperCase() ?? 'U'}
+        </div>
+        <div>
+          <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{user?.name ?? 'User'}</p>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{user?.email}</p>
+        </div>
+        <button className="ml-auto press p-2">
+          <ChevronRight size={18} style={{ color: 'var(--text-muted)' }} />
+        </button>
+      </div>
 
-      {/* Theme Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={theme === 'futuristic'
-          ? { background: '#0f1117', border: '1px solid #2a2e39', borderRadius: '20px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }
-          : {}}
-        className={theme !== 'futuristic' ? 'bg-white rounded-2xl p-6 shadow-xl mb-6' : ''}
-      >
-        <h2
-          className="text-2xl font-bold mb-4 flex items-center gap-2"
-          style={theme === 'futuristic' ? { color: '#c8d0e0' } : {}}
-        >
-          <Palette style={theme === 'futuristic' ? { color: '#a855f7' } : { color: '#10b981' }} size={24} />
-          {theme === 'futuristic' ? 'DISPLAY_MODE' : 'Theme'}
-        </h2>
-
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-          {themes.map((themeOption) => (
-            <motion.button
-              key={themeOption.id}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setTheme(themeOption.id as any)}
-              className={`relative overflow-hidden rounded-2xl p-6 transition-all`}
-              style={theme === 'futuristic'
-                ? {
-                    border: theme === themeOption.id ? '2px solid #a855f7' : '1px solid #2a2e39',
-                    boxShadow: theme === themeOption.id ? '0 0 16px rgba(168,85,247,0.3)' : 'none',
-                  }
-                : {
-                    outline: theme === themeOption.id ? '4px solid #10b981' : '2px solid #e5e7eb',
-                    outlineOffset: '0px',
-                  }}
+      {/* Appearance — Theme */}
+      <div className="mb-5">
+        <p className="section-label px-4 mb-3">Appearance</p>
+        <div className="grid grid-cols-3 gap-3 px-4">
+          {THEMES.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTheme(t.id)}
+              className="p-3 rounded-2xl press flex flex-col items-center gap-2"
+              style={{
+                backgroundColor: t.bg,
+                border: `2px solid ${theme === t.id ? t.accent : 'var(--border)'}`,
+              }}
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${themeOption.gradient}`} />
-              <div className="relative z-10">
-                <div className={`font-bold mb-1 text-sm ${
-                  themeOption.id === 'dark' || themeOption.id === 'futuristic' ? 'text-white' : 'text-gray-800'
-                }`}>
-                  {themeOption.name}
+              <div className="w-8 h-8 rounded-full" style={{ backgroundColor: t.accent }} />
+              <span className="text-[11px] font-medium" style={{ color: theme === t.id ? t.accent : '#888' }}>
+                {t.label}
+              </span>
+              {theme === t.id && (
+                <div className="absolute bottom-2 right-2">
+                  <Check size={10} style={{ color: t.accent }} />
                 </div>
-                {theme === themeOption.id && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center"
-                    style={{ background: theme === 'futuristic' ? '#a855f7' : 'white' }}
-                  >
-                    <div className="w-2.5 h-2.5 rounded-full"
-                      style={{ background: theme === 'futuristic' ? 'white' : '#10b981' }} />
-                  </motion.div>
-                )}
-              </div>
-            </motion.button>
+              )}
+            </button>
           ))}
         </div>
-      </motion.div>
+      </div>
 
-      {/* Daily Tracking Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={theme === 'futuristic'
-          ? { background: '#0f1117', border: '1px solid #2a2e39', borderRadius: '20px', padding: '24px', marginBottom: '24px', boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }
-          : {}}
-        className={theme !== 'futuristic' ? 'bg-white rounded-2xl p-6 shadow-xl mb-6' : ''}
-      >
-        <h2
-          className="text-2xl font-bold mb-4 flex items-center gap-2"
-          style={theme === 'futuristic' ? { color: '#c8d0e0' } : {}}
-        >
-          <Timer style={theme === 'futuristic' ? { color: '#f59e0b' } : { color: '#f97316' }} size={24} />
-          {theme === 'futuristic' ? 'TRACKING_METRICS' : 'Daily Tracking Fields'}
-        </h2>
-        <p style={theme === 'futuristic' ? { color: '#6b7280', fontSize: '13px', marginBottom: '12px', letterSpacing: '0.05em' } : { color: '#4b5563', fontSize: '14px', marginBottom: '12px' }}>
-          Pick up to three metrics to show on the dashboard.
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { key: 'sleep_hours', label: 'Sleep Hours' },
-            { key: 'workout_minutes', label: 'Workout (min)' },
-            { key: 'phone_minutes', label: 'Phone Time' },
-            { key: 'sunlight', label: 'Sunlight' },
-            { key: 'mood', label: 'Mood' },
-          ].map((opt) => {
-            const checked = trackingOptions.includes(opt.key);
-            const disabled = !checked && trackingOptions.length >= 3;
-            return (
-              <label key={opt.key} className="flex items-center gap-2" style={{ cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.4 : 1 }}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  disabled={disabled}
-                  onChange={(e) => {
-                    let newOpts = [...trackingOptions];
-                    if (e.target.checked) {
-                      newOpts.push(opt.key);
-                    } else {
-                      newOpts = newOpts.filter((k) => k !== opt.key);
-                    }
-                    setTrackingOptions(newOpts);
-                    localStorage.setItem('trackingOptions', JSON.stringify(newOpts));
-                  }}
-                  className="h-4 w-4"
-                  style={theme === 'futuristic' ? { accentColor: '#6366f1' } : {}}
-                />
-                <span style={theme === 'futuristic' ? { color: '#9ca3af', fontSize: '13px', letterSpacing: '0.05em', fontFamily: 'monospace' } : { color: '#374151' }}>
-                  {theme === 'futuristic' ? opt.key : opt.label}
-                </span>
-              </label>
-            );
-          })}
+      {/* Daily Tracking */}
+      <div className="mb-5">
+        <p className="section-label px-4 mb-2">Daily Tracking Metrics</p>
+        <div className="px-4">
+          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="grid grid-cols-3 gap-2">
+              {TRACK_OPTS.map(opt => {
+                const Icon = opt.icon;
+                const on = trackingOptions.includes(opt.id);
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => toggleTrackOpt(opt.id)}
+                    className="flex flex-col items-center gap-2 p-3 rounded-xl press"
+                    style={{
+                      backgroundColor: on ? opt.color + '22' : 'var(--surface-elevated)',
+                      border: `1px solid ${on ? opt.color + '66' : 'var(--border)'}`,
+                    }}
+                  >
+                    <Icon size={18} style={{ color: on ? opt.color : 'var(--text-muted)' }} />
+                    <span className="text-[11px] font-medium" style={{ color: on ? opt.color : 'var(--text-muted)' }}>
+                      {opt.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Data Management Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        style={theme === 'futuristic'
-          ? { background: '#0f1117', border: '1px solid #2a2e39', borderRadius: '20px', padding: '24px', boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }
-          : {}}
-        className={theme !== 'futuristic' ? 'bg-white rounded-2xl p-6 shadow-xl' : ''}
-      >
-        <h2
-          className="text-2xl font-bold mb-4"
-          style={theme === 'futuristic' ? { color: '#c8d0e0' } : {}}
-        >
-          {theme === 'futuristic' ? 'DATA_MANAGEMENT' : 'Data Management'}
-        </h2>
-
-        <div className="space-y-3">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={exportData}
-            className="w-full py-4 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg"
-            style={theme === 'futuristic'
-              ? { background: 'linear-gradient(135deg, #6366f1, #4f46e5)', border: '1px solid rgba(99,102,241,0.4)', letterSpacing: '0.1em', fontSize: '13px', fontFamily: 'monospace' }
-              : { background: 'linear-gradient(135deg, #3b82f6, #06b6d4)' }}
-          >
-            <Download size={20} />
-            {theme === 'futuristic' ? 'EXPORT_BACKUP.JSON' : 'Export Backup (JSON)'}
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={importData}
-            className="w-full py-4 text-white rounded-xl font-semibold flex items-center justify-center gap-2 shadow-lg"
-            style={theme === 'futuristic'
-              ? { background: 'linear-gradient(135deg, #10b981, #059669)', border: '1px solid rgba(16,185,129,0.4)', letterSpacing: '0.1em', fontSize: '13px', fontFamily: 'monospace' }
-              : { background: 'linear-gradient(135deg, #22c55e, #10b981)' }}
-          >
-            <Upload size={20} />
-            {theme === 'futuristic' ? 'IMPORT_BACKUP.JSON' : 'Import Backup (JSON)'}
-          </motion.button>
+      {/* Nutrition */}
+      <SectionCard title="Nutrition">
+        <div className="flex items-center gap-3 p-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--accent-warm)22' }}>
+            <Target size={18} style={{ color: 'var(--accent-warm)' }} />
+          </div>
+          <span className="flex-1 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Daily Calorie Goal</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            value={calorieGoal}
+            onChange={e => { setCalorieGoal(e.target.value); localStorage.setItem('calorieGoal', e.target.value); }}
+            className="w-20 text-right text-sm font-bold num outline-none bg-transparent"
+            style={{ color: 'var(--text-primary)' }}
+          />
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>kcal</span>
         </div>
+      </SectionCard>
 
-        <div
-          className="mt-6 p-4 rounded-xl"
-          style={theme === 'futuristic'
-            ? { background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)' }
-            : { backgroundColor: '#fefce8', border: '2px solid #fde68a' }}
+      {/* Data */}
+      <SectionCard title="Data">
+        <SettingRow icon={Download} label="Export Backup" onPress={exportData} color="var(--accent-green)" />
+        <SettingRow icon={Upload}   label="Import Backup" color="var(--accent-green)" />
+      </SectionCard>
+
+      {/* Account */}
+      <SectionCard title="Account">
+        <SettingRow icon={Shield} label="Security & Privacy" />
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-3 p-4 press"
+          style={{ minHeight: 52 }}
         >
-          <p style={theme === 'futuristic'
-            ? { color: '#9ca3af', fontSize: '12px', letterSpacing: '0.05em', fontFamily: 'monospace' }
-            : { color: '#374151', fontSize: '14px' }
-          }>
-            <strong style={theme === 'futuristic' ? { color: '#f59e0b' } : {}}>Note:</strong>{' '}
-            Your backup includes all your tasks, notes, sessions, and settings. Keep it safe!
-          </p>
-        </div>
-      </motion.div>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--accent-warm)22' }}>
+            <LogOut size={18} style={{ color: 'var(--accent-warm)' }} />
+          </div>
+          <span className="flex-1 text-left text-sm font-medium" style={{ color: 'var(--accent-warm)' }}>Sign Out</span>
+        </button>
+      </SectionCard>
+
+      <p className="text-center text-[10px] pb-4" style={{ color: 'var(--text-muted)' }}>GoodDays · v1.0</p>
     </div>
   );
 }
