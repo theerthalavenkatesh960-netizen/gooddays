@@ -1,97 +1,202 @@
-Request URL
-http://localhost:5000/api/workout/analytics/volume
-Request Method
-GET
-Status Code
-200 OK
-Remote Address
-[::1]:5000
-Referrer Policy
-strict-origin-when-cross-origin
+Error: <circle> attribute r: Expected length, "undefined".Understand this error
+3recharts.js?v=a2dd2979:18442 Uncaught TypeError: data.map is not a function
+    at combineAppliedValues (recharts.js?v=a2dd2979:18442:17)
+    at recomputationWrapper (recharts.js?v=a2dd2979:5479:25)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5491:40)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at collectInputSelectorResults (recharts.js?v=a2dd2979:5335:47)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5487:36)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at collectInputSelectorResults (recharts.js?v=a2dd2979:5335:47)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5487:36)Understand this error
+recharts.js?v=a2dd2979:18447 Uncaught TypeError: data.map is not a function
+    at recharts.js?v=a2dd2979:18447:72
+    at Array.flatMap (<anonymous>)
+    at combineAppliedValues (recharts.js?v=a2dd2979:18447:46)
+    at recomputationWrapper (recharts.js?v=a2dd2979:5479:25)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5491:40)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at collectInputSelectorResults (recharts.js?v=a2dd2979:5335:47)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5487:36)
+    at memoized (recharts.js?v=a2dd2979:5418:21)Understand this error
+5recharts.js?v=a2dd2979:18442 Uncaught TypeError: data.map is not a function
+    at combineAppliedValues (recharts.js?v=a2dd2979:18442:17)
+    at recomputationWrapper (recharts.js?v=a2dd2979:5479:25)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5491:40)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at collectInputSelectorResults (recharts.js?v=a2dd2979:5335:47)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5487:36)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at collectInputSelectorResults (recharts.js?v=a2dd2979:5335:47)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5487:36)Understand this error
+recharts.js?v=a2dd2979:18447 Uncaught TypeError: data.map is not a function
+    at recharts.js?v=a2dd2979:18447:72
+    at Array.flatMap (<anonymous>)
+    at combineAppliedValues (recharts.js?v=a2dd2979:18447:46)
+    at recomputationWrapper (recharts.js?v=a2dd2979:5479:25)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5491:40)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at collectInputSelectorResults (recharts.js?v=a2dd2979:5335:47)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5487:36)
+    at memoized (recharts.js?v=a2dd2979:5418:21)Understand this error
+2recharts.js?v=a2dd2979:18442 Uncaught TypeError: data.map is not a function
+    at combineAppliedValues (recharts.js?v=a2dd2979:18442:17)
+    at recomputationWrapper (recharts.js?v=a2dd2979:5479:25)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5491:40)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at collectInputSelectorResults (recharts.js?v=a2dd2979:5335:47)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5487:36)
+    at memoized (recharts.js?v=a2dd2979:5418:21)
+    at collectInputSelectorResults (recharts.js?v=a2dd2979:5335:47)
+    at dependenciesChecker (recharts.js?v=a2dd2979:5487:36)Understand this error
+chunk-QT63QQJV.js?v=a2dd2979:14032 The above error occurred in the <EventSynchronizer> component:
 
-is successfuk 
+    at EventSynchronizer (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35699:3)
+    at div
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35818:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35830:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35857:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:36032:5
+    at Provider (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:10542:11)
+    at RechartsStoreProvider (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35389:21)
+    at CartesianChart2 (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:36145:50)
+    at ResponsiveContainerContextProvider (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:9235:5)
+    at div
+    at div
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:9253:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:9363:36
+    at div
+    at MotionDOMComponent (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=a2dd2979:8733:40)
+    at div
+    at div
+    at div
+    at FinancialTracker (http://localhost:5173/src/pages/FinancialTracker.tsx:42:37)
+    at div
+    at Finance (http://localhost:5173/src/pages/Finance.tsx:29:37)
+    at div
+    at MotionDOMComponent (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=a2dd2979:8733:40)
+    at main
+    at div
+    at div
+    at Layout (http://localhost:5173/src/components/Layout.tsx:52:34)
+    at PrivateRoute (http://localhost:5173/src/App.tsx?t=1778122085874:32:25)
+    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:6355:26)
+    at Routes (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:7222:3)
+    at div
+    at ThemeProvider (http://localhost:5173/src/contexts/ThemeContext.tsx:21:33)
+    at LoadingProvider (http://localhost:5173/src/contexts/LoadingContext.tsx?t=1778122085874:27:35)
+    at AuthProvider (http://localhost:5173/src/contexts/AuthContextApi.tsx:21:32)
+    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:7152:13)
+    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:10363:3)
+    at App
 
-Request URL
-http://localhost:5000/api/workout/analytics/volume
-Referrer Policy
-strict-origin-when-cross-origin
-just below it , this fails
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-QT63QQJV.js?v=a2dd2979:14032Understand this error
+chunk-QT63QQJV.js?v=a2dd2979:14032 The above error occurred in the <CartesianGrid> component:
 
-Replace the current loader with a premium RPG-style “Skill Tree Loader” for a self-improvement / life operating system app.
+    at CartesianGrid (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:30243:20)
+    at ClipPathProvider (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:28331:5)
+    at AllZIndexPortals (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35489:5)
+    at svg
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:3084:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35553:15
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35612:5
+    at div
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35818:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35830:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35857:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:36032:5
+    at Provider (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:10542:11)
+    at RechartsStoreProvider (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35389:21)
+    at CartesianChart2 (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:36145:50)
+    at ResponsiveContainerContextProvider (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:9235:5)
+    at div
+    at div
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:9253:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:9363:36
+    at div
+    at MotionDOMComponent (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=a2dd2979:8733:40)
+    at div
+    at div
+    at div
+    at FinancialTracker (http://localhost:5173/src/pages/FinancialTracker.tsx:42:37)
+    at div
+    at Finance (http://localhost:5173/src/pages/Finance.tsx:29:37)
+    at div
+    at MotionDOMComponent (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=a2dd2979:8733:40)
+    at main
+    at div
+    at div
+    at Layout (http://localhost:5173/src/components/Layout.tsx:52:34)
+    at PrivateRoute (http://localhost:5173/src/App.tsx?t=1778122085874:32:25)
+    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:6355:26)
+    at Routes (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:7222:3)
+    at div
+    at ThemeProvider (http://localhost:5173/src/contexts/ThemeContext.tsx:21:33)
+    at LoadingProvider (http://localhost:5173/src/contexts/LoadingContext.tsx?t=1778122085874:27:35)
+    at AuthProvider (http://localhost:5173/src/contexts/AuthContextApi.tsx:21:32)
+    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:7152:13)
+    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:10363:3)
+    at App
 
-STYLE:
-- Dark futuristic UI
-- Minimal but immersive
-- Feels like a gamified productivity OS
-- Smooth animations only (no flashy effects)
-- Premium Apple + cyberpunk + self-improvement aesthetic
-- Background: #0a0a0f
-- Accent colors:
-  - Discipline → Amber
-  - Health → Emerald
-  - Wealth → Blue
-  - Mindset → Purple
-  - Focus → Indigo
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-QT63QQJV.js?v=a2dd2979:14032Understand this error
+chunk-QT63QQJV.js?v=a2dd2979:14032 The above error occurred in the <XAxisImpl> component:
 
-LOADER CONCEPT:
-Create a centered animated skill tree with interconnected glowing nodes.
+    at XAxisImpl (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:33996:5)
+    at XAxisSettingsDispatcher
+    at ClipPathProvider (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:28331:5)
+    at AllZIndexPortals (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35489:5)
+    at svg
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:3084:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35553:15
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35612:5
+    at div
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35818:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35830:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35857:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:36032:5
+    at Provider (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:10542:11)
+    at RechartsStoreProvider (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:35389:21)
+    at CartesianChart2 (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:36145:50)
+    at ResponsiveContainerContextProvider (http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:9235:5)
+    at div
+    at div
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:9253:5
+    at http://localhost:5173/node_modules/.vite/deps/recharts.js?v=a2dd2979:9363:36
+    at div
+    at MotionDOMComponent (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=a2dd2979:8733:40)
+    at div
+    at div
+    at div
+    at FinancialTracker (http://localhost:5173/src/pages/FinancialTracker.tsx:42:37)
+    at div
+    at Finance (http://localhost:5173/src/pages/Finance.tsx:29:37)
+    at div
+    at MotionDOMComponent (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=a2dd2979:8733:40)
+    at main
+    at div
+    at div
+    at Layout (http://localhost:5173/src/components/Layout.tsx:52:34)
+    at PrivateRoute (http://localhost:5173/src/App.tsx?t=1778122085874:32:25)
+    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:6355:26)
+    at Routes (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:7222:3)
+    at div
+    at ThemeProvider (http://localhost:5173/src/contexts/ThemeContext.tsx:21:33)
+    at LoadingProvider (http://localhost:5173/src/contexts/LoadingContext.tsx?t=1778122085874:27:35)
+    at AuthProvider (http://localhost:5173/src/contexts/AuthContextApi.tsx:21:32)
+    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:7152:13)
+    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:10363:3)
+    at App
 
-Core nodes:
-- Discipline
-- Health
-- Wealth
-- Mindset
-- Focus
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-QT63QQJV.js?v=a2dd2979:14032Understand this error
 
-ANIMATION FLOW:
-1. Loader starts with dim inactive nodes
-2. Thin connection lines appear gradually
-3. Nodes unlock one-by-one with smooth glow animation
-4. Each unlocked node slightly pulses
-5. Active path lines illuminate between connected skills
-6. Entire loader loops smoothly until app is ready
-
-NODE BEHAVIOR:
-- Locked state:
-  - low opacity
-  - soft gray glow
-- Unlock animation:
-  - scale up slightly
-  - glow pulse
-  - connection line lights up
-- Active state:
-  - subtle breathing animation
-  - premium soft shadow/glow
-
-TEXT BELOW LOADER:
-Rotating micro-messages every 2 seconds:
-
-“Building Discipline...”
-“Improving Focus...”
-“Strengthening Mindset...”
-“Compounding Progress...”
-“Leveling Up Your Life...”
-
-TYPOGRAPHY:
-- Clean modern font
-- Small uppercase labels
-- Subtle letter spacing
-- Soft gray text
-
-TECH:
-- Use Framer Motion for animations
-- Keep performance optimized
-- Mobile responsive
-- Loader should scale elegantly on smaller screens
-- Avoid heavy particles or excessive blur
-
-IMPORTANT:
-- Replace existing loader entirely
-- Keep loading logic intact
-- Only redesign visuals + animation system
-- Maintain current app theme consistency
-- Make transitions extremely smooth and polished
-
-GOAL:
-The loader should feel like:
-“A personal growth operating system initializing.”
