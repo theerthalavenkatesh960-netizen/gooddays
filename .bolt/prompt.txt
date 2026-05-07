@@ -119,3 +119,84 @@ and in tasks and reminders i guess i only need 1 with the best like task and rem
 in instagram, i might see a list of things and i want to add all those things as a goal and within goal this list should be added and each of it can be striked off once done. so need this feature.
 
 i will journal as well make it even advanced and better,  weekly review should be generated using ai or something based on all the things logged in the app, may be ai
+
+
+############################################
+Replace the current loader with a premium RPG-style “Skill Tree Loader” for a self-improvement / life operating system app.
+
+STYLE:
+- Dark futuristic UI
+- Minimal but immersive
+- Feels like a gamified productivity OS
+- Smooth animations only (no flashy effects)
+- Premium Apple + cyberpunk + self-improvement aesthetic
+- Background: #0a0a0f
+- Accent colors:
+  - Discipline → Amber
+  - Health → Emerald
+  - Wealth → Blue
+  - Mindset → Purple
+  - Focus → Indigo
+
+LOADER CONCEPT:
+Create a centered animated skill tree with interconnected glowing nodes.
+
+Core nodes:
+- Discipline
+- Health
+- Wealth
+- Mindset
+- Focus
+
+ANIMATION FLOW:
+1. Loader starts with dim inactive nodes
+2. Thin connection lines appear gradually
+3. Nodes unlock one-by-one with smooth glow animation
+4. Each unlocked node slightly pulses
+5. Active path lines illuminate between connected skills
+6. Entire loader loops smoothly until app is ready
+
+NODE BEHAVIOR:
+- Locked state:
+  - low opacity
+  - soft gray glow
+- Unlock animation:
+  - scale up slightly
+  - glow pulse
+  - connection line lights up
+- Active state:
+  - subtle breathing animation
+  - premium soft shadow/glow
+
+TEXT BELOW LOADER:
+Rotating micro-messages every 2 seconds:
+
+“Building Discipline...”
+“Improving Focus...”
+“Strengthening Mindset...”
+“Compounding Progress...”
+“Leveling Up Your Life...”
+
+TYPOGRAPHY:
+- Clean modern font
+- Small uppercase labels
+- Subtle letter spacing
+- Soft gray text
+
+TECH:
+- Use Framer Motion for animations
+- Keep performance optimized
+- Mobile responsive
+- Loader should scale elegantly on smaller screens
+- Avoid heavy particles or excessive blur
+
+IMPORTANT:
+- Replace existing loader entirely
+- Keep loading logic intact
+- Only redesign visuals + animation system
+- Maintain current app theme consistency
+- Make transitions extremely smooth and polished
+
+GOAL:
+The loader should feel like:
+“A personal growth operating system initializing.”
