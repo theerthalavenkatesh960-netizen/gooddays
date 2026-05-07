@@ -114,6 +114,5 @@ public class RemindersController : ControllerBase
             .Select(g => new { date = g.Key, count = g.Count() })
             .ToList();
         return Ok(grouped);
-        return Ok(logs);
     }
 }

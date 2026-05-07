@@ -81,8 +81,18 @@ public class WorkoutController : ControllerBase
             .Include(p => p.Images)
             .Where(p => p.UserId == userId);
 
-        if (DateTime.TryParse(from, out var fromDate)) query = query.Where(p => p.Date >= fromDate);
-        if (DateTime.TryParse(to, out var toDate)) query = query.Where(p => p.Date <= toDate);
+        if (DateOnly.TryParse(from, out var fromDate))
+        {
+            var fromUtc = DateTime.SpecifyKind(fromDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+            query = query.Where(p => p.Date >= fromUtc);
+        }
+
+        if (DateOnly.TryParse(to, out var toDate))
+        {
+            // Use an exclusive upper bound to include the full 'to' date.
+            var toExclusiveUtc = DateTime.SpecifyKind(toDate.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+            query = query.Where(p => p.Date < toExclusiveUtc);
+        }
 
         return Ok(await query.OrderByDescending(p => p.Date).ToListAsync());
     }
@@ -102,11 +112,15 @@ public class WorkoutController : ControllerBase
     public async Task<IActionResult> GetPlanByDate(string date)
     {
         var userId = GetUserId();
-        if (!DateTime.TryParse(date, out var parsedDate)) return BadRequest("Invalid date");
+        if (!DateOnly.TryParse(date, out var parsedDate)) return BadRequest("Invalid date");
+
+        var dayStartUtc = DateTime.SpecifyKind(parsedDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+        var dayEndUtc = dayStartUtc.AddDays(1);
+
         var plan = await _db.WorkoutDayPlans
             .Include(p => p.Sets)
             .Include(p => p.Images)
-            .FirstOrDefaultAsync(p => p.UserId == userId && p.Date.Date == parsedDate.Date);
+            .FirstOrDefaultAsync(p => p.UserId == userId && p.Date >= dayStartUtc && p.Date < dayEndUtc);
         return Ok(plan); // can be null — frontend handles "no plan yet" state
     }
 
@@ -114,6 +128,7 @@ public class WorkoutController : ControllerBase
     public async Task<IActionResult> CreatePlan([FromBody] WorkoutDayPlan body)
     {
         body.UserId = GetUserId();
+        body.Date = DateTime.SpecifyKind(body.Date, DateTimeKind.Utc);
         body.CreatedAt = DateTime.UtcNow;
         _db.WorkoutDayPlans.Add(body);
         await _db.SaveChangesAsync();
@@ -126,6 +141,7 @@ public class WorkoutController : ControllerBase
         var userId = GetUserId();
         var plan = await _db.WorkoutDayPlans.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
         if (plan is null) return NotFound();
+        plan.Date = DateTime.SpecifyKind(body.Date, DateTimeKind.Utc);
         plan.DayLabel = body.DayLabel;
         plan.PlannedExercises = body.PlannedExercises;
         plan.IsCompleted = body.IsCompleted;

@@ -191,7 +191,7 @@ export default function FinancialTracker() {
               <h3 className="text-sm text-[#787b86]">Completion</h3>
             </div>
             <p className="text-5xl font-bold text-[#f0c040]">
-              {dashboard?.overallCompletionPercent.toFixed(0)}%
+              {(dashboard?.overallCompletionPercent ?? 0).toFixed(0)}%
             </p>
           </motion.div>
 
@@ -260,7 +260,7 @@ export default function FinancialTracker() {
                         color: bucket.colorHex || '#26a65b',
                       }}
                     >
-                      {bucket.completionPercent.toFixed(0)}%
+                      {(bucket.completionPercent ?? 0).toFixed(0)}%
                     </span>
                   </div>
                   <div className="w-full h-2 bg-[#2a2e39] rounded-full overflow-hidden">
