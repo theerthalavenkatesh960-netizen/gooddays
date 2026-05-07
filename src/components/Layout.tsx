@@ -3,19 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   CheckSquare,
-  GraduationCap,
-  Activity,
   DollarSign,
-  Heart,
   Calendar,
   Settings,
   LogOut,
   Timer,
   Dumbbell,
   Target,
-  Bell,
-  BookOpen,
-  ClipboardList,
   MoreHorizontal,
   ChevronRight,
   X as XIcon,
@@ -28,17 +22,11 @@ import FocusTimer from './FocusTimer';
 
 const primaryNavItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/tasks', label: 'Tasks', icon: CheckSquare },
+  { path: '/tasks', label: 'Tasks & Reminders', icon: CheckSquare },
   { path: '/workout', label: 'Workout', icon: Dumbbell },
   { path: '/goals', label: 'Goals', icon: Target },
-  { path: '/reminders', label: 'Reminders', icon: Bell },
-  { path: '/study', label: 'Study', icon: GraduationCap },
-  { path: '/journal', label: 'Journal', icon: BookOpen },
   { path: '/finance', label: 'Finance', icon: DollarSign },
-  { path: '/selfcare', label: 'Self-Care', icon: Heart },
-  { path: '/track', label: 'Daily Track', icon: Activity },
-  { path: '/weekly-review', label: 'Weekly Review', icon: ClipboardList },
-  { path: '/calendar', label: 'Calendar', icon: Calendar },
+  { path: '/calendar', label: 'Calendar & Review', icon: Calendar },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -48,7 +36,7 @@ const mobileNavItems = [
   { path: '/workout', label: 'Workout', icon: Dumbbell },
   { path: '/goals', label: 'Goals', icon: Target },
   { path: '/tasks', label: 'Tasks', icon: CheckSquare },
-  { path: '/track', label: 'Track', icon: Activity },
+  { path: '/calendar', label: 'Calendar', icon: Calendar },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {

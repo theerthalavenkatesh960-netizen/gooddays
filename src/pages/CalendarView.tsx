@@ -31,11 +31,14 @@ parseISO
 
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
+import WeeklyReview from './WeeklyReview';
+import Journal from './Journal';
 
 
 export default function CalendarView() {
 
 const { user } = useAuth();
+const [activeTab, setActiveTab] = useState<'calendar' | 'weekly-review' | 'journal'>('calendar');
 
 const [currentDate,setCurrentDate]=useState(new Date());
 
@@ -319,6 +322,26 @@ return(
 
 <div className="p-6">
 
+<h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Calendar & Review</h1>
+
+{/* Tab switcher */}
+<div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl w-fit">
+  {(['calendar', 'weekly-review', 'journal'] as const).map((tab) => (
+    <button
+      key={tab}
+      onClick={() => setActiveTab(tab)}
+      className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all capitalize ${
+        activeTab === tab ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'
+      }`}
+    >
+      {tab === 'weekly-review' ? 'Weekly Review' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+    </button>
+  ))}
+</div>
+
+{activeTab === 'weekly-review' && <WeeklyReview />}
+{activeTab === 'journal' && <Journal />}
+{activeTab === 'calendar' && <>
 
 <motion.div
 initial={{opacity:0,y:10}}
@@ -590,6 +613,11 @@ className="flex items-center gap-3 p-3 border rounded-lg border-blue-200 bg-blue
 
 )}
 
+
+</div>
+
+</>
+}
 
 </div>
 

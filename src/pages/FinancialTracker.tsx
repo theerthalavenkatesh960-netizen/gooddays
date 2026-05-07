@@ -101,7 +101,7 @@ export default function FinancialTracker() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#131722]">
+      <div className="flex items-center justify-center py-20 bg-[#131722] rounded-xl">
         <div className="text-[#c8d0e0] text-xl">Loading...</div>
       </div>
     );
@@ -114,7 +114,7 @@ export default function FinancialTracker() {
         <AnimatePresence>
           {dashboard && (
             <>
-              {dashboard.missedTasks.length > 0 && (
+              {(dashboard.missedTasks?.length ?? 0) > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -123,14 +123,14 @@ export default function FinancialTracker() {
                 >
                   <AlertCircle className="text-[#e05050]" size={24} />
                   <span>
-                    ⚠️ {dashboard.missedTasks.length} task
-                    {dashboard.missedTasks.length > 1 ? 's' : ''} pending from
+                    ⚠️ {dashboard.missedTasks?.length} task
+                    {(dashboard.missedTasks?.length ?? 0) > 1 ? 's' : ''} pending from
                     last month!
                   </span>
                 </motion.div>
               )}
 
-              {dashboard.upcomingTasks.length > 0 && (
+              {(dashboard.upcomingTasks?.length ?? 0) > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -139,8 +139,8 @@ export default function FinancialTracker() {
                 >
                   <Calendar className="text-[#f0c040]" size={24} />
                   <span>
-                    📅 {dashboard.upcomingTasks.length} task
-                    {dashboard.upcomingTasks.length > 1 ? 's' : ''} due this
+                    📅 {dashboard.upcomingTasks?.length} task
+                    {(dashboard.upcomingTasks?.length ?? 0) > 1 ? 's' : ''} due this
                     week!
                   </span>
                 </motion.div>

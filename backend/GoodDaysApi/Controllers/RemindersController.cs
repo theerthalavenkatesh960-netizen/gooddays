@@ -108,9 +108,12 @@ public class RemindersController : ControllerBase
         var reminderIds = await _db.Reminders.Where(r => r.UserId == userId).Select(r => r.Id).ToListAsync();
         var logs = await _db.ReminderLogs
             .Where(l => reminderIds.Contains(l.ReminderId) && l.Date >= since && l.MarkedDone)
+            .ToListAsync();
+        var grouped = logs
             .GroupBy(l => l.Date.ToString("yyyy-MM-dd"))
             .Select(g => new { date = g.Key, count = g.Count() })
-            .ToListAsync();
+            .ToList();
+        return Ok(grouped);
         return Ok(logs);
     }
 }

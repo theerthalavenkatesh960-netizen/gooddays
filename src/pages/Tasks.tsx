@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, CheckCircle2, RotateCcw, Trash2, Filter, Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Dumbbell } from 'lucide-react';
+import { Plus, CheckCircle2, RotateCcw, Trash2, Filter, Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Dumbbell, Bell } from 'lucide-react';
 import { format, isToday, isPast, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
+import Reminders from './Reminders';
 
 // a richer set of categories with icons for wellness tracking
 const CATEGORY_OPTIONS = [
@@ -25,6 +26,7 @@ const priorities = ['low', 'medium', 'high'];
 
 export default function Tasks() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'tasks' | 'reminders'>('tasks');
   const [tasks, setTasks] = useState<any[]>([]);
   const [newTask, setNewTask] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(CATEGORY_OPTIONS[0].name);
@@ -254,10 +256,28 @@ const renderOccurrences = (task: any) => {
 
   return (
     <div>
-      <h1 className="text-4xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-        Tasks
+      <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+        Tasks & Reminders
       </h1>
 
+      {/* Tab switcher */}
+      <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl w-fit">
+        <button
+          onClick={() => setActiveTab('tasks')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${activeTab === 'tasks' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+        >
+          Tasks
+        </button>
+        <button
+          onClick={() => setActiveTab('reminders')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${activeTab === 'reminders' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+        >
+          <Bell size={15} /> Reminders
+        </button>
+      </div>
+
+      {activeTab === 'reminders' && <Reminders />}
+      {activeTab === 'tasks' && <div>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -641,6 +661,7 @@ const renderOccurrences = (task: any) => {
           </motion.div>
         </motion.div>
       )}
+    </div>}
     </div>
   );
 }
