@@ -36,8 +36,8 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <LoadingProvider>
         <ThemeProvider>
+          <LoadingProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
@@ -112,8 +112,8 @@ function App() {
               }
             />
           </Routes>
+          </LoadingProvider>
         </ThemeProvider>
-        </LoadingProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -74,8 +74,26 @@ export function useLoading() {
   return useContext(LoadingContext);
 }
 
+// ─── Theme palette helper (shared by both loaders) ───────────────────────────
+function useLoaderPalette() {
+  const { theme } = useTheme();
+  const palettes: Record<string, {
+    bg: string; border: string; bar: string; text: string; subtext: string;
+    emptyNode: string; emptyEdge: string; backdropColor: string;
+  }> = {
+    light:      { bg: 'rgba(255,255,255,0.97)', border: '1px solid rgba(0,0,0,0.08)', bar: 'linear-gradient(90deg,#10b981,#6366f1,#3b82f6)', text: '#374151',   subtext: '#6b7280', emptyNode: '#e5e7eb', emptyEdge: '#d1d5db', backdropColor: 'rgba(0,0,0,0.3)' },
+    dark:       { bg: 'rgba(17,24,39,0.97)',    border: '1px solid rgba(255,255,255,0.1)', bar: 'linear-gradient(90deg,#6366f1,#a855f7,#3b82f6)',  text: '#e5e7eb',   subtext: '#9ca3af', emptyNode: '#374151', emptyEdge: '#4b5563', backdropColor: 'rgba(0,0,0,0.6)' },
+    blue:       { bg: 'rgba(15,23,42,0.97)',    border: '1px solid rgba(96,165,250,0.3)', bar: 'linear-gradient(90deg,#3b82f6,#06b6d4,#60a5fa)',  text: '#bfdbfe',   subtext: '#93c5fd', emptyNode: '#1e3a5f', emptyEdge: '#2563eb', backdropColor: 'rgba(0,10,40,0.5)' },
+    green:      { bg: 'rgba(2,44,34,0.97)',     border: '1px solid rgba(52,211,153,0.3)', bar: 'linear-gradient(90deg,#10b981,#34d399,#6ee7b7)',  text: '#d1fae5',   subtext: '#6ee7b7', emptyNode: '#064e3b', emptyEdge: '#065f46', backdropColor: 'rgba(0,20,10,0.5)' },
+    ocean:      { bg: 'rgba(4,47,46,0.97)',     border: '1px solid rgba(20,184,166,0.3)', bar: 'linear-gradient(90deg,#0d9488,#06b6d4,#67e8f9)',  text: '#ccfbf1',   subtext: '#5eead4', emptyNode: '#134e4a', emptyEdge: '#0f766e', backdropColor: 'rgba(0,15,20,0.5)' },
+    futuristic: { bg: 'rgba(10,10,15,0.97)',    border: '1px solid rgba(99,102,241,0.35)', bar: 'linear-gradient(90deg,#6366f1,#a855f7,#3b82f6)', text: '#c8d0e0',   subtext: '#6b7280', emptyNode: '#1e1e2e', emptyEdge: '#2a2a3a', backdropColor: 'rgba(0,0,0,0.7)' },
+  };
+  return palettes[theme] ?? palettes.futuristic;
+}
+
 // ─── Skill Tree Loader (full-screen startup) ─────────────────────────────────
 function SkillTreeLoader() {
+  const p = useLoaderPalette();
   const [unlocked, setUnlocked] = useState<number[]>([]);
   const [msgIndex, setMsgIndex] = useState(0);
 
@@ -110,7 +128,7 @@ function SkillTreeLoader() {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      style={{ background: 'rgba(10,10,15,0.92)', backdropFilter: 'blur(8px)' }}
+      style={{ background: p.backdropColor, backdropFilter: 'blur(8px)' }}
       className="fixed inset-0 z-[9999] flex items-center justify-center"
     >
       <div className="flex flex-col items-center gap-6 px-4" style={{ maxWidth: 340, width: '100%' }}>
@@ -138,7 +156,7 @@ function SkillTreeLoader() {
                 <motion.line
                   key={i}
                   x1={na.x} y1={na.y} x2={nb.x} y2={nb.y}
-                  stroke={active ? NODES[a].color : '#2a2a3a'}
+                  stroke={active ? NODES[a].color : p.emptyEdge}
                   strokeWidth={active ? 0.6 : 0.4}
                   strokeLinecap="round"
                   initial={{ opacity: 0.2 }}
@@ -172,8 +190,8 @@ function SkillTreeLoader() {
                   {/* Node circle */}
                   <motion.circle
                     cx={node.x} cy={node.y} r={3.5}
-                    fill={active ? node.color : '#1e1e2e'}
-                    stroke={active ? node.color : '#3a3a5a'}
+                    fill={active ? node.color : p.emptyNode}
+                    stroke={active ? node.color : p.emptyEdge}
                     strokeWidth={0.6}
                     filter={active ? `url(#glow-${node.id})` : undefined}
                     initial={{ scale: 1, opacity: 0.3 }}
@@ -188,7 +206,7 @@ function SkillTreeLoader() {
                   {/* Icon dot */}
                   <circle
                     cx={node.x} cy={node.y} r={1}
-                    fill={active ? '#fff' : '#3a3a5a'}
+                    fill={active ? '#fff' : p.emptyEdge}
                     opacity={active ? 0.9 : 0.3}
                   />
 
@@ -199,7 +217,7 @@ function SkillTreeLoader() {
                     fontSize="3.5"
                     fontFamily="system-ui, -apple-system, sans-serif"
                     letterSpacing="0.3"
-                    fill={active ? node.color : '#4a4a6a'}
+                    fill={active ? node.color : p.emptyEdge}
                     animate={{ opacity: active ? 1 : 0.35 }}
                     transition={{ duration: 0.5 }}
                     style={{ userSelect: 'none', textTransform: 'uppercase' }}
@@ -215,7 +233,7 @@ function SkillTreeLoader() {
         {/* App name */}
         <div style={{ textAlign: 'center' }}>
           <p style={{
-            color: '#6b7280',
+            color: p.subtext,
             fontSize: '10px',
             letterSpacing: '0.25em',
             textTransform: 'uppercase',
@@ -235,7 +253,7 @@ function SkillTreeLoader() {
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.4, ease: 'easeInOut' }}
                 style={{
-                  color: '#9ca3af',
+                  color: p.text,
                   fontSize: '11px',
                   letterSpacing: '0.08em',
                   fontFamily: 'system-ui, sans-serif',
@@ -254,14 +272,14 @@ function SkillTreeLoader() {
         <div style={{
           width: '120px',
           height: '2px',
-          background: '#1e1e2e',
+          background: p.emptyNode,
           borderRadius: '4px',
           overflow: 'hidden',
         }}>
           <motion.div
             style={{
               height: '100%',
-              background: 'linear-gradient(90deg, #6366f1, #a855f7, #3b82f6)',
+              background: p.bar,
               borderRadius: '4px',
             }}
             animate={{ x: ['-100%', '100%'] }}
@@ -276,7 +294,7 @@ function SkillTreeLoader() {
 
 // ─── Mini Loader (API calls, bottom-right corner) ─────────────────────────────
 function MiniLoader() {
-  const { theme } = useTheme();
+  const p = useLoaderPalette();
   const [unlocked, setUnlocked] = useState<number[]>([]);
 
   useEffect(() => {
@@ -290,17 +308,6 @@ function MiniLoader() {
 
   const isEdgeActive = (a: number, b: number) =>
     unlocked.includes(a) && unlocked.includes(b);
-
-  // Theme-aware palette
-  const palettes: Record<string, { bg: string; border: string; bar: string; text: string; emptyNode: string; emptyEdge: string; backdropColor: string }> = {
-    light:      { bg: 'rgba(255,255,255,0.96)', border: '1px solid rgba(0,0,0,0.08)', bar: 'linear-gradient(90deg,#10b981,#6366f1)', text: '#374151', emptyNode: '#e5e7eb', emptyEdge: '#d1d5db', backdropColor: 'rgba(0,0,0,0.25)' },
-    dark:       { bg: 'rgba(17,24,39,0.97)',    border: '1px solid rgba(255,255,255,0.1)', bar: 'linear-gradient(90deg,#6366f1,#a855f7)', text: '#9ca3af', emptyNode: '#374151', emptyEdge: '#4b5563', backdropColor: 'rgba(0,0,0,0.55)' },
-    blue:       { bg: 'rgba(23,37,84,0.96)',    border: '1px solid rgba(96,165,250,0.3)', bar: 'linear-gradient(90deg,#3b82f6,#06b6d4)', text: '#93c5fd', emptyNode: '#1e3a5f', emptyEdge: '#2563eb', backdropColor: 'rgba(0,0,39,0.4)' },
-    green:      { bg: 'rgba(5,46,22,0.96)',     border: '1px solid rgba(52,211,153,0.3)', bar: 'linear-gradient(90deg,#10b981,#34d399)', text: '#6ee7b7', emptyNode: '#064e3b', emptyEdge: '#065f46', backdropColor: 'rgba(0,30,0,0.4)' },
-    ocean:      { bg: 'rgba(8,51,68,0.96)',     border: '1px solid rgba(20,184,166,0.3)', bar: 'linear-gradient(90deg,#0d9488,#06b6d4)', text: '#5eead4', emptyNode: '#134e4a', emptyEdge: '#0f766e', backdropColor: 'rgba(0,20,30,0.4)' },
-    futuristic: { bg: 'rgba(10,10,15,0.97)',    border: '1px solid rgba(99,102,241,0.35)', bar: 'linear-gradient(90deg,#6366f1,#a855f7)', text: '#9ca3af', emptyNode: '#1e1e2e', emptyEdge: '#2a2a3a', backdropColor: 'rgba(0,0,0,0.65)' },
-  };
-  const p = palettes[theme] ?? palettes.futuristic;
 
   return (
     <>
