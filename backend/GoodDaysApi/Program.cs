@@ -12,12 +12,24 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Enable CORS for the frontend app
+// Enable CORS for known frontend origins (Vite dev + production URL from config)
+var configuredFrontendUrl = builder.Configuration["Frontend:Url"];
+var corsOrigins = new[]
+{
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    configuredFrontendUrl
+}
+.OfType<string>()
+.Where(o => !string.IsNullOrWhiteSpace(o))
+.Distinct(StringComparer.OrdinalIgnoreCase)
+.ToArray();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(corsOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
