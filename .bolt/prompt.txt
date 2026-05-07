@@ -1,19 +1,24 @@
-chunk-QT63QQJV.js?v=a2dd2979:14032 The above error occurred in the <RulesPanel> component:
+Uncaught TypeError: streaks.study is not iterable
+    at Dashboard.tsx:757:77
+    at Dashboard (Dashboard.tsx:775:9)
+    at renderWithHooks (chunk-QT63QQJV.js?v=a2dd2979:11548:26)
+    at mountIndeterminateComponent (chunk-QT63QQJV.js?v=a2dd2979:14926:21)
+    at beginWork (chunk-QT63QQJV.js?v=a2dd2979:15914:22)
+    at HTMLUnknownElement.callCallback2 (chunk-QT63QQJV.js?v=a2dd2979:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-QT63QQJV.js?v=a2dd2979:3699:24)
+    at invokeGuardedCallback (chunk-QT63QQJV.js?v=a2dd2979:3733:39)
+    at beginWork$1 (chunk-QT63QQJV.js?v=a2dd2979:19765:15)
+    at performUnitOfWork (chunk-QT63QQJV.js?v=a2dd2979:19198:20)Understand this error
+2chunk-QT63QQJV.js?v=a2dd2979:14032 The above error occurred in the <Dashboard> component:
 
-    at RulesPanel (http://localhost:5173/src/components/financial/RulesPanel.tsx:19:3)
-    at div
-    at div
-    at div
-    at FinancialTracker (http://localhost:5173/src/pages/FinancialTracker.tsx:42:37)
-    at div
-    at Finance (http://localhost:5173/src/pages/Finance.tsx:29:37)
+    at Dashboard (http://localhost:5173/src/pages/Dashboard.tsx?t=1778120171313:27:20)
     at div
     at MotionDOMComponent (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=a2dd2979:8733:40)
     at main
     at div
     at div
     at Layout (http://localhost:5173/src/components/Layout.tsx:52:34)
-    at PrivateRoute (http://localhost:5173/src/App.tsx:31:25)
+    at PrivateRoute (http://localhost:5173/src/App.tsx?t=1778120171313:31:25)
     at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:6355:26)
     at Routes (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:7222:3)
     at div
@@ -25,13 +30,16 @@ chunk-QT63QQJV.js?v=a2dd2979:14032 The above error occurred in the <RulesPanel> 
 
 Consider adding an error boundary to your tree to customize error handling behavior.
 Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
-chunk-QT63QQJV.js?v=a2dd2979:19413 Uncaught TypeError: Cannot read properties of undefined (reading 'filter')
-    at RulesPanel (RulesPanel.tsx:23:36)
-
-﻿
-
-Press cmd i to turn on code suggestions. Press cmd x to disable code suggestions.
-cmd
-i
- to turn on code suggestions. Don't show again
-
+logCapturedError @ chunk-QT63QQJV.js?v=a2dd2979:14032Understand this error
+chunk-QT63QQJV.js?v=a2dd2979:19413 Uncaught TypeError: streaks.study is not iterable
+    at Dashboard.tsx:757:77
+    at Dashboard (Dashboard.tsx:775:9)
+    at renderWithHooks (chunk-QT63QQJV.js?v=a2dd2979:11548:26)
+    at mountIndeterminateComponent (chunk-QT63QQJV.js?v=a2dd2979:14926:21)
+    at beginWork (chunk-QT63QQJV.js?v=a2dd2979:15914:22)
+    at beginWork$1 (chunk-QT63QQJV.js?v=a2dd2979:19753:22)
+    at performUnitOfWork (chunk-QT63QQJV.js?v=a2dd2979:19198:20)
+    at workLoopSync (chunk-QT63QQJV.js?v=a2dd2979:19137:13)
+    at renderRootSync (chunk-QT63QQJV.js?v=a2dd2979:19116:15)
+    at recoverFromConcurrentError (chunk-QT63QQJV.js?v=a2dd2979:18736:28)Understand this error
+(index):1 Error while trying to use the following icon from the Manifest: http://localhost:5173/icons/apple-touch-icon.png (Download error or resource isn't a valid image)Understand this warning
