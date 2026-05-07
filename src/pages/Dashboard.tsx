@@ -754,7 +754,7 @@ export default function Dashboard() {
 
         {/* Overall summary bar */}
         {(() => {
-          const allDays = [...streaks.tasks, ...streaks.workout, ...streaks.study, ...streaks.selfcare];
+          const allDays = [...streaks.tasks, ...streaks.workout, ...streaks.goals, ...streaks.finance];
           const total = allDays.length;
           const done = allDays.filter(Boolean).length;
           const pct = Math.round((done / total) * 100);
