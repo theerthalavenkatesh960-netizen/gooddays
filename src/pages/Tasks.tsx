@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, CheckCircle2, RotateCcw, Trash2, Filter, Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Dumbbell } from 'lucide-react';
+import { Plus, CheckCircle2, RotateCcw, Trash2, Filter, Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Dumbbell, Bell } from 'lucide-react';
 import { format, isToday, isPast, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
+import Reminders from './Reminders';
 
 // a richer set of categories with icons for wellness tracking
 const CATEGORY_OPTIONS = [
@@ -25,6 +26,7 @@ const priorities = ['low', 'medium', 'high'];
 
 export default function Tasks() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'tasks' | 'reminders'>('tasks');
   const [tasks, setTasks] = useState<any[]>([]);
   const [newTask, setNewTask] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(CATEGORY_OPTIONS[0].name);
@@ -42,7 +44,7 @@ export default function Tasks() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTask, setEditingTask] = useState<any | null>(null);
-  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledDate, setScheduledDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   // when recurrence toggle flips, initialize default date range
   useEffect(() => {
@@ -57,45 +59,61 @@ export default function Tasks() {
     }
   }, [recurring]);
 
-  // compute last 10 occurrences indicator for recurring tasks based on selected date
+  // Show completion history and missed count without treating future dates as missed.
 const renderOccurrences = (task: any) => {
   if (!task.recurrenceId) return null;
 
-  const baseDate = new Date(selectedDate);
-  baseDate.setHours(0, 0, 0, 0);
+  const selected = new Date(selectedDate);
+  selected.setHours(0, 0, 0, 0);
 
-  const lastTenOccurrences = tasks
-    .filter((t) => {
-      if (t.recurrenceId !== task.recurrenceId) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-      const due = new Date(t.dueDate || t.due_date);
-      due.setHours(0, 0, 0, 0);
-      return due < baseDate; // Up to and including selected date
-    })
+  // For future views, evaluate history only through today.
+  const historyCutoff = selected > today ? today : selected;
+
+  const seriesHistory = tasks.filter((t) => {
+    if (t.recurrenceId !== task.recurrenceId) return false;
+
+    const dueValue = t.dueDate || t.due_date;
+    if (!dueValue) return false;
+
+    const due = new Date(dueValue);
+    due.setHours(0, 0, 0, 0);
+    return due <= historyCutoff;
+  });
+
+  const completedOccurrences = seriesHistory
+    .filter((t) => t.isCompleted || t.status === 'completed')
     .sort((a, b) => {
       const da = new Date(a.dueDate || a.due_date).getTime();
       const db = new Date(b.dueDate || b.due_date).getTime();
-      return da - db; // Latest previous first
+      return db - da;
     })
-    .slice(0, 10); // Last 10 occurrences
+    .slice(0, 10);
 
-  if (lastTenOccurrences.length === 0) return null;
+  const missedCount = seriesHistory.filter((t) => !(t.isCompleted || t.status === 'completed')).length;
+
+  if (completedOccurrences.length === 0 && missedCount === 0) return null;
 
   return (
-    <div className="flex items-center gap-1 mr-2">
-      {lastTenOccurrences.map((t, i) => (
-        <span
-          key={t.id || i}
-          title={new Date(t.dueDate || t.due_date).toLocaleDateString()}
-          className={`inline-flex w-4 h-4 items-center justify-center text-white border ${
-            t.isCompleted
-              ? 'bg-emerald-500 border-emerald-600'
-              : 'bg-red-500 border-red-600'
-          }`}
-        >
-          {t.isCompleted ? '✓' : '✗'}
-        </span>
-      ))}
+    <div className="flex items-center gap-2 mr-2">
+      {completedOccurrences.length > 0 && (
+        <div className="flex items-center gap-1">
+          {completedOccurrences.map((t, i) => (
+            <span
+              key={t.id || i}
+              title={new Date(t.dueDate || t.due_date).toLocaleDateString()}
+              className="inline-flex w-4 h-4 items-center justify-center text-white border bg-emerald-500 border-emerald-600"
+            >
+              ✓
+            </span>
+          ))}
+        </div>
+      )}
+      <span className="text-xs px-2 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">
+        Missed: {missedCount}
+      </span>
     </div>
   );
 };
@@ -110,7 +128,7 @@ const renderOccurrences = (task: any) => {
     if (!user) return;
 
     const data = await api.getTasks(user.id);
-    if (data && data.length > 0) setTasks(data);
+    setTasks(Array.isArray(data) ? data : []);
   };
 
   const addTask = async () => {
@@ -254,10 +272,28 @@ const renderOccurrences = (task: any) => {
 
   return (
     <div>
-      <h1 className="text-4xl font-bold mb-6 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-        Tasks
+      <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+        Tasks & Reminders
       </h1>
 
+      {/* Tab switcher */}
+      <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl w-fit">
+        <button
+          onClick={() => setActiveTab('tasks')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${activeTab === 'tasks' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+        >
+          Tasks
+        </button>
+        <button
+          onClick={() => setActiveTab('reminders')}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${activeTab === 'reminders' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+        >
+          <Bell size={15} /> Reminders
+        </button>
+      </div>
+
+      {activeTab === 'reminders' && <Reminders />}
+      {activeTab === 'tasks' && <div>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -641,6 +677,7 @@ const renderOccurrences = (task: any) => {
           </motion.div>
         </motion.div>
       )}
+    </div>}
     </div>
   );
 }

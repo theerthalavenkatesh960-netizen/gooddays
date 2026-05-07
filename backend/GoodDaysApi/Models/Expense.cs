@@ -14,8 +14,8 @@ public class Expense
     [Column("user_id")]
     public int UserId { get; set; }
 
-    [Column("note")]
-    public string? Note { get; set; }
+    [Column("description")]
+    public string Description { get; set; } = string.Empty;
 
     [Required]
     [Column("amount")]

@@ -37,13 +37,16 @@ public class TasksController : ControllerBase
         // if the client did not supply a RecurrenceId for a recurring task, generate one
         int? recurrenceId = req.Recurring ? req.RecurrenceId : null;
 
+        static DateTime Utc(DateTime dt) => DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+        static DateTime? UtcN(DateTime? dt) => dt.HasValue ? DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc) : null;
+
         // compute default start/end dates
         // if client did not provide recurrence window, default to today through 30 days out
-        var startDate = req.RecurrenceStartDate?.Date ?? DateTime.UtcNow.Date;
-        var endDate = req.RecurrenceEndDate?.Date ?? startDate.AddDays(30);
+        var startDate = req.RecurrenceStartDate.HasValue ? Utc(req.RecurrenceStartDate.Value).Date : DateTime.UtcNow.Date;
+        var endDate = req.RecurrenceEndDate.HasValue ? Utc(req.RecurrenceEndDate.Value).Date : startDate.AddDays(30);
 
         // determine effective due date for a non-recurring task
-        DateTime? effectiveDue = req.DueDate;
+        DateTime? effectiveDue = req.DueDate.HasValue ? UtcN(req.DueDate) : null;
         if (!req.Recurring && !effectiveDue.HasValue)
         {
             effectiveDue = startDate;
@@ -85,10 +88,10 @@ public class TasksController : ControllerBase
                 Title = req.Title,
                 Category = req.Category,
                 Priority = req.Priority,
-                DueDate = effectiveDue,
+                DueDate = effectiveDue.HasValue ? DateTime.SpecifyKind(effectiveDue.Value, DateTimeKind.Utc) : null,
                 Recurring = req.Recurring,
-                RecurrenceStartDate = req.RecurrenceStartDate,
-                RecurrenceEndDate = req.RecurrenceEndDate,
+                RecurrenceStartDate = req.RecurrenceStartDate.HasValue ? DateTime.SpecifyKind(req.RecurrenceStartDate.Value, DateTimeKind.Utc) : null,
+                RecurrenceEndDate = req.RecurrenceEndDate.HasValue ? DateTime.SpecifyKind(req.RecurrenceEndDate.Value, DateTimeKind.Utc) : null,
                 RecurrenceDays = req.RecurrenceDays,
                 RecurrenceId = recurrenceId,
                 RecurrenceInterval = req.RecurrenceInterval,
@@ -125,10 +128,10 @@ public class TasksController : ControllerBase
                 Title = title,
                 Category = category,
                 Priority = priority,
-                DueDate = d,
+                DueDate = DateTime.SpecifyKind(d, DateTimeKind.Utc),
                 Recurring = true,
-                RecurrenceStartDate = startDate,
-                RecurrenceEndDate = endDate,
+                RecurrenceStartDate = DateTime.SpecifyKind(startDate, DateTimeKind.Utc),
+                RecurrenceEndDate = DateTime.SpecifyKind(endDate, DateTimeKind.Utc),
                 RecurrenceId = recurrenceId,
                 RecurrenceInterval = interval,
                 RecurrenceUnit = unit,
@@ -259,8 +262,8 @@ public class TasksController : ControllerBase
             }
 
             // figure out new recurrence properties using request values or existing task values
-            var startDate = req.RecurrenceStartDate?.Date ?? task.RecurrenceStartDate?.Date ?? DateTime.UtcNow.Date;
-            var endDate = req.RecurrenceEndDate?.Date ?? task.RecurrenceEndDate?.Date ?? startDate.AddDays(30);
+            var startDate = DateTime.SpecifyKind(req.RecurrenceStartDate?.Date ?? task.RecurrenceStartDate?.Date ?? DateTime.UtcNow.Date, DateTimeKind.Utc);
+            var endDate = DateTime.SpecifyKind(req.RecurrenceEndDate?.Date ?? task.RecurrenceEndDate?.Date ?? startDate.AddDays(30), DateTimeKind.Utc);
             var interval = req.RecurrenceInterval ?? task.RecurrenceInterval ?? 1;
             var unit = req.RecurrenceUnit ?? task.RecurrenceUnit ?? "days";
             var days = req.RecurrenceDays ?? task.RecurrenceDays;
@@ -304,23 +307,23 @@ public class TasksController : ControllerBase
         task.Title = req.Title ?? task.Title;
         task.Category = req.Category ?? task.Category;
         task.Priority = req.Priority ?? task.Priority;
-        if (req.DueDate.HasValue) task.DueDate = req.DueDate.Value;
+        if (req.DueDate.HasValue) task.DueDate = DateTime.SpecifyKind(req.DueDate.Value, DateTimeKind.Utc);
         if (req.Recurring.HasValue) task.Recurring = req.Recurring.Value;
-        if (req.RecurrenceStartDate.HasValue) task.RecurrenceStartDate = req.RecurrenceStartDate.Value;
-        if (req.RecurrenceEndDate.HasValue) task.RecurrenceEndDate = req.RecurrenceEndDate.Value;
+        if (req.RecurrenceStartDate.HasValue) task.RecurrenceStartDate = DateTime.SpecifyKind(req.RecurrenceStartDate.Value, DateTimeKind.Utc);
+        if (req.RecurrenceEndDate.HasValue) task.RecurrenceEndDate = DateTime.SpecifyKind(req.RecurrenceEndDate.Value, DateTimeKind.Utc);
         if (req.RecurrenceDays != null) task.RecurrenceDays = req.RecurrenceDays;
         if (req.RecurrenceId.HasValue) task.RecurrenceId = req.RecurrenceId;
         if (req.RecurrenceInterval.HasValue) task.RecurrenceInterval = req.RecurrenceInterval.Value;
         if (!string.IsNullOrEmpty(req.RecurrenceUnit)) task.RecurrenceUnit = req.RecurrenceUnit;
         task.Status = req.Status ?? task.Status;
-        if (req.CompletedAt.HasValue) task.CompletedAt = req.CompletedAt;
+        if (req.CompletedAt.HasValue) task.CompletedAt = DateTime.SpecifyKind(req.CompletedAt.Value, DateTimeKind.Utc);
         if (req.IsCompleted.HasValue)
         {
             // toggle status/CompletedAt based on boolean
             if (req.IsCompleted.Value)
             {
                 task.Status = "completed";
-                task.CompletedAt = req.CompletedAt ?? DateTime.UtcNow;
+                task.CompletedAt = req.CompletedAt.HasValue ? DateTime.SpecifyKind(req.CompletedAt.Value, DateTimeKind.Utc) : DateTime.UtcNow;
             }
             else
             {

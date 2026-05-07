@@ -20,7 +20,7 @@ export default function RulesPanel({
     { key: 'lifestyle' as const, label: 'Lifestyle', color: '#26a65b' },
   ];
 
-  const filteredRules = dashboard?.rules.filter(
+  const filteredRules = (dashboard?.rules ?? []).filter(
     (rule) => rule.category.toLowerCase() === activeTab
   );
 

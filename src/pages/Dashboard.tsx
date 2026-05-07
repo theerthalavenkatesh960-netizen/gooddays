@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Circle, StickyNote, Flame, Moon, Dumbbell, Smartphone, Sun, Smile } from 'lucide-react';
-import { format, parseISO, isToday } from 'date-fns';
+import { CheckCircle2, Circle, StickyNote, Flame, Moon, Dumbbell, Smartphone, Sun, Smile, Bell, Zap, Droplets, Target, TrendingUp } from 'lucide-react';
+import { format, parseISO, isToday, subDays } from 'date-fns';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 import GamificationBar from '../components/GamificationBar';
@@ -21,10 +21,15 @@ export default function Dashboard() {
   });
 
   const [dailyNote, setDailyNote] = useState('');
+  const [reminders, setReminders] = useState<any[]>([]);
+  const [goals, setGoals] = useState<any[]>([]);
+  const [workoutStreak, setWorkoutStreak] = useState(0);
+  const [todayWater, setTodayWater] = useState(0);
+  const [waterGoal, setWaterGoal] = useState(8);
   const [streaks, setStreaks] = useState({
     tasks: Array(7).fill(false),
-    study: Array(7).fill(false),
-    selfcare: Array(7).fill(false),
+    goals: Array(7).fill(false),
+    finance: Array(7).fill(false),
     workout: Array(7).fill(false),
   });
 
@@ -46,6 +51,9 @@ export default function Dashboard() {
       loadDailyNote();
       loadStreaks();
       loadTodayTrack();
+      loadReminders();
+      loadGoals();
+      loadWorkoutStreak();
     }
     // load tracking options stored in settings
     const stored = localStorage.getItem('trackingOptions');
@@ -63,18 +71,24 @@ export default function Dashboard() {
     // For now, load with default values; in future could fetch from backend
     // try to load existing record from backend
     if (user) {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const rec: any = await api.getDailyTracking(user.id, today);
-      if (rec) {
-        setTodayTrack({
-          sleep_hours: (rec.sleepHours ?? rec.sleep_hours)?.toString() || '',
-          workout_minutes: (rec.workoutMinutes ?? rec.workout_minutes)?.toString() || '',
-          phone_minutes: (rec.phoneMinutes ?? rec.phone_minutes)?.toString() || '',
-          sunlight: rec.sunlight || false,
-          mood: rec.mood || 3,
-        });
-        setDailyNote(rec.note || '');
-        return;
+      try {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const rec: any = await api.getDailyTracking(user.id, today);
+        if (rec && typeof rec === 'object' && !Array.isArray(rec)) {
+          setTodayTrack({
+            sleep_hours: (rec.sleepHours ?? rec.sleep_hours)?.toString() || '',
+            workout_minutes: (rec.workoutMinutes ?? rec.workout_minutes)?.toString() || '',
+            phone_minutes: (rec.phoneMinutes ?? rec.phone_minutes)?.toString() || '',
+            sunlight: rec.sunlight || false,
+            mood: rec.mood || 3,
+          });
+          setTodayWater((rec.waterCups ?? 0) || 0);
+          setWaterGoal((rec.waterGoalCups ?? 8) || 8);
+          setDailyNote(rec.note || '');
+          return;
+        }
+      } catch (e) {
+        console.error(e);
       }
     }
     setTodayTrack({
@@ -86,13 +100,50 @@ export default function Dashboard() {
     });
   };
 
+  const loadReminders = async () => {
+    try {
+      const data = await api.getReminders();
+      const active = Array.isArray(data) ? data.filter((r: any) => r.isEnabled) : [];
+      setReminders(active);
+    } catch (e) { console.error(e); }
+  };
+
+  const loadGoals = async () => {
+    try {
+      const data = await api.getGoals();
+      setGoals(Array.isArray(data) ? data : []);
+    } catch (e) { console.error(e); }
+  };
+
+  const loadWorkoutStreak = async () => {
+    try {
+      const workoutData = await api.getWorkoutAnalytics();
+      if (workoutData && workoutData.trainedDates) {
+        const dates = workoutData.trainedDates.sort().reverse();
+        let streak = 0;
+        let checkDate = new Date();
+        for (let i = 0; i < 365; i++) {
+          const dateStr = format(checkDate, 'yyyy-MM-dd');
+          if (dates.includes(dateStr)) {
+            streak++;
+            checkDate = subDays(checkDate, 1);
+          } else {
+            break;
+          }
+        }
+        setWorkoutStreak(streak);
+      }
+    } catch (e) { console.error(e); }
+  };
+
   const loadTopThree = async () => {
     if (!user) return;
 
-    const tasks = await api.getTasks(user.id);
-    if (tasks) {
+    try {
+      const tasks = await api.getTasks(user.id);
+      const taskList = Array.isArray(tasks) ? tasks : [];
       // filter to tasks scheduled for today (dueDate or due_date)
-      const todays = (tasks as any[]).filter((t) => {
+      const todays = taskList.filter((t: any) => {
         const due = (t.dueDate ?? t.due_date) as string | undefined;
         if (!due) return false;
         try { return isToday(parseISO(due)); } catch { return false; }
@@ -113,6 +164,19 @@ export default function Dashboard() {
         completed_2: completedVal(t2),
         completed_3: completedVal(t3),
       });
+    } catch (e) {
+      console.error(e);
+      setTopThree({
+        task_1: '',
+        task_2: '',
+        task_3: '',
+        id_1: '',
+        id_2: '',
+        id_3: '',
+        completed_1: false,
+        completed_2: false,
+        completed_3: false,
+      });
     }
   };
 
@@ -131,51 +195,64 @@ export default function Dashboard() {
       return format(d, 'yyyy-MM-dd');
     });
 
-    const [tasksData, studyData, selfcareData] = await Promise.all([
-      api.getTasks(user.id),
-      api.getStudySessions(user.id),
-      api.getSelfCareActivities(user.id),
-    ]);
+    try {
+      const [tasksDataRaw, goalsDataRaw, expensesDataRaw, workoutDataRaw] = await Promise.all([
+        api.getTasks(user.id),
+        api.getGoals(),
+        api.getExpenses(user.id),
+        api.getWorkoutAnalytics(),
+      ]);
+
+      const tasksData = Array.isArray(tasksDataRaw) ? tasksDataRaw : [];
+      const goalsData = Array.isArray(goalsDataRaw) ? goalsDataRaw : [];
+      const expensesData = Array.isArray(expensesDataRaw) ? expensesDataRaw : [];
 
       const taskStreak = last7Days.map(d =>
-        tasksData?.some(t => {
+        tasksData.some((t: any) => {
           if (!t.isCompleted) return false;
           const dt = new Date(t.updatedAt);
           if (isNaN(dt.getTime())) return false;
           return format(dt, 'yyyy-MM-dd') === d;
-        }) || false
-      );
-      const studyStreak = last7Days.map(d =>
-        studyData?.some(s => {
-          const dt = new Date(s.date);
-          if (isNaN(dt.getTime())) return false;
-          return format(dt, 'yyyy-MM-dd') === d;
-        }) || false
-      );
-      const selfcareStreak = last7Days.map(d =>
-        selfcareData?.some(s => {
-          const dt = new Date(s.date);
-          if (isNaN(dt.getTime())) return false;
-          return format(dt, 'yyyy-MM-dd') === d;
-        }) || false
-      );
-      const workoutStreak = last7Days.map(d =>
-        selfcareData?.some(s => {
-          const dt = new Date(s.date);
-          if (isNaN(dt.getTime())) return false;
-          return (
-            format(dt, 'yyyy-MM-dd') === d &&
-            s.activityType?.toLowerCase().includes('workout')
-          );
-        }) || false
+        })
       );
 
-    setStreaks({
-      tasks: taskStreak,
-      study: studyStreak,
-      selfcare: selfcareStreak,
-      workout: workoutStreak,
-    });
+      // Goals: day has a goal with updatedAt on that day (any progress)
+      const goalsStreak = last7Days.map(d =>
+        goalsData.some((g: any) => {
+          const dt = new Date(g.updatedAt ?? g.updated_at ?? g.createdAt ?? g.created_at);
+          if (isNaN(dt.getTime())) return false;
+          return format(dt, 'yyyy-MM-dd') === d;
+        })
+      );
+
+      // Finance: day has at least one expense logged
+      const financeStreak = last7Days.map(d =>
+        expensesData.some((e: any) => {
+          const dt = new Date(e.date ?? e.createdAt ?? e.created_at);
+          if (isNaN(dt.getTime())) return false;
+          return format(dt, 'yyyy-MM-dd') === d;
+        })
+      );
+
+      // Workout: days with a workout log
+      const trainedDates: string[] = workoutDataRaw?.trainedDates ?? [];
+      const workoutStreakArr = last7Days.map(d => trainedDates.includes(d));
+
+      setStreaks({
+        tasks: taskStreak,
+        goals: goalsStreak,
+        finance: financeStreak,
+        workout: workoutStreakArr,
+      });
+    } catch (e) {
+      console.error(e);
+      setStreaks({
+        tasks: Array(7).fill(false),
+        goals: Array(7).fill(false),
+        finance: Array(7).fill(false),
+        workout: Array(7).fill(false),
+      });
+    }
   };
 
   const handleTaskTitleBlur = async (index: number, title: string) => {
@@ -247,7 +324,7 @@ export default function Dashboard() {
     const phone = parseInt(todayTrack.phone_minutes, 10) || 0;
     const sunlight = todayTrack.sunlight;
     const mood = todayTrack.mood;
-    await api.saveDailyTracking(user.id, date, sleep, workout, phone, sunlight, mood, dailyNote);
+    await api.saveDailyTracking(user.id, date, sleep, workout, phone, sunlight, mood, dailyNote, todayWater, waterGoal);
 
     // Award 1 point for completing tracking
     await api.addPoints(user.id, 'daily_tracking_complete', 1);
@@ -255,18 +332,36 @@ export default function Dashboard() {
     setTimeout(() => setTrackCompleted(false), 2000);
   };
 
-  const StreakBar = ({ completed }: { completed: boolean[] }) => (
-    <div className="flex gap-1">
-      {completed.map((done, i) => (
-        <div
-          key={i}
-          className={`flex-1 h-2 rounded-full ${
-            done ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gray-200'
-          }`}
-        />
-      ))}
-    </div>
-  );
+  const StreakBar = ({ completed, color }: { completed: boolean[]; color: string }) => {
+    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const count = completed.filter(Boolean).length;
+    return (
+      <div>
+        <div className="flex gap-2 mb-1.5">
+          {completed.map((done, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+              <div
+                className={`w-full rounded-lg transition-all border ${
+                  done
+                    ? `${color} border-transparent shadow-sm`
+                    : 'bg-white border-gray-300'
+                }`}
+                style={{ height: '32px' }}
+              >
+                {done && (
+                  <div className="flex items-center justify-center h-full">
+                    <span className="text-white text-[10px] font-bold">✓</span>
+                  </div>
+                )}
+              </div>
+              <span className={`text-[10px] font-semibold ${done ? 'text-gray-700' : 'text-gray-400'}`}>{days[i]}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-right font-semibold text-gray-400">{count}/7 days</p>
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -346,7 +441,76 @@ export default function Dashboard() {
         </motion.div>
       </div>
 
-      <motion.div
+      {/* Quick Stats & Widgets */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        {/* Workout Streak */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+          className="bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-4 shadow-sm border border-orange-100">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-gray-600">Workout Streak</p>
+            <Flame size={16} className="text-orange-500" />
+          </div>
+          <p className="text-3xl font-bold text-orange-600">{workoutStreak}</p>
+          <p className="text-xs text-orange-500 mt-1">🔥 days in a row</p>
+        </motion.div>
+
+        {/* Active Reminders */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.17 }}
+          className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl p-4 shadow-sm border border-blue-100">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-gray-600">Active Reminders</p>
+            <Bell size={16} className="text-blue-500" />
+          </div>
+          <p className="text-3xl font-bold text-blue-600">{reminders.length}</p>
+          <p className="text-xs text-blue-500 mt-1">set for today</p>
+        </motion.div>
+
+        {/* Water Progress */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.19 }}
+          className="bg-gradient-to-br from-cyan-50 to-teal-50 rounded-2xl p-4 shadow-sm border border-cyan-100">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-gray-600">Water Intake</p>
+            <Droplets size={16} className="text-cyan-500" />
+          </div>
+          <p className="text-3xl font-bold text-cyan-600">{todayWater}/{waterGoal}</p>
+          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+            <div className="bg-cyan-500 h-1.5 rounded-full" style={{ width: `${Math.min(100, (todayWater / waterGoal) * 100)}%` }} />
+          </div>
+        </motion.div>
+
+        {/* Goals Progress */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.21 }}
+          className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-4 shadow-sm border border-purple-100">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-gray-600">Active Goals</p>
+            <Target size={16} className="text-purple-500" />
+          </div>
+          <p className="text-3xl font-bold text-purple-600">{goals.filter((g: any) => g.status === 'Active' || !g.status).length}</p>
+          <p className="text-xs text-purple-500 mt-1">in progress</p>
+        </motion.div>
+      </div>
+
+      {/* Reminders Widget */}
+      {reminders.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.23 }}
+          className="bg-white rounded-2xl p-5 shadow-lg mb-6 border-l-4 border-blue-500">
+          <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+            <Bell size={20} className="text-blue-500" /> Today's Reminders
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+            {reminders.slice(0, 6).map((reminder: any) => (
+              <div key={reminder.id} className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg">
+                <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                <span className="text-sm font-medium text-gray-700">{reminder.title}</span>
+                <span className="text-xs text-gray-500 ml-auto">{reminder.time}</span>
+              </div>
+            ))}
+          </div>
+          {reminders.length > 6 && <p className="text-xs text-gray-500 mt-2 text-center">+{reminders.length - 6} more</p>}
+        </motion.div>
+      )}
+
+      {false && <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
@@ -458,6 +622,36 @@ export default function Dashboard() {
         </div>
         )}
 
+        {/* Water Tracking */}
+        <div className="bg-white bg-opacity-50 rounded-xl p-4 mb-4">
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+            <Droplets size={18} className="text-cyan-500" />
+            Water Intake: {todayWater}/{waterGoal} cups
+          </label>
+          <div className="flex items-center gap-2">
+            <motion.button whileTap={{ scale: 0.9 }} onClick={() => setTodayWater(Math.max(0, todayWater - 1))}
+              className="px-3 py-2 bg-gray-300 rounded-lg font-bold text-gray-700">
+              −
+            </motion.button>
+            <div className="flex-1 flex gap-1 justify-center">
+              {Array(waterGoal).fill(0).map((_, i) => (
+                <motion.button key={i} whileTap={{ scale: 0.9 }}
+                  onClick={() => setTodayWater(i + 1)}
+                  className={`w-8 h-8 rounded-lg font-bold transition-all ${i < todayWater ? 'bg-cyan-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                  {i + 1 <= todayWater ? '✓' : '○'}
+                </motion.button>
+              ))}
+            </div>
+            <motion.button whileTap={{ scale: 0.9 }} onClick={() => setTodayWater(Math.min(waterGoal + 2, todayWater + 1))}
+              className="px-3 py-2 bg-cyan-500 text-white rounded-lg font-bold">
+              +
+            </motion.button>
+          </div>
+          <div className="w-full bg-gray-300 rounded-full h-2 mt-3">
+            <div className="bg-gradient-to-r from-cyan-400 to-teal-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, (todayWater / waterGoal) * 100)}%` }} />
+          </div>
+        </div>
+
         {/* total time estimate */}
         <div className="text-center text-sm text-gray-600 mb-4">
           {(() => {
@@ -504,37 +698,81 @@ export default function Dashboard() {
             </>
           )}
         </motion.button>
-      </motion.div>
+      </motion.div>}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-white rounded-2xl p-4 shadow-xl"
+        className="bg-white rounded-2xl p-5 shadow-xl"
       >
-        <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-          <Flame className="text-orange-500" size={18} />
-          This Week
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <Flame className="text-orange-500" size={20} />
+            This Week
+          </h2>
+          <span className="text-xs text-gray-400 font-medium">Last 7 days</span>
+        </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-2">
-            <h3 className="text-xs font-semibold text-gray-700 mb-1">Tasks</h3>
-            <StreakBar completed={streaks.tasks} />
+        <div className="grid grid-cols-2 gap-4">
+          {/* Tasks */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">✅</span>
+              <span className="text-sm font-bold text-blue-700">Tasks</span>
+            </div>
+            <StreakBar completed={streaks.tasks} color="bg-blue-500" />
           </div>
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-2">
-            <h3 className="text-xs font-semibold text-gray-700 mb-1">Study</h3>
-            <StreakBar completed={streaks.study} />
+
+          {/* Workout */}
+          <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl p-3 border border-rose-100">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🏋️</span>
+              <span className="text-sm font-bold text-rose-600">Workout</span>
+            </div>
+            <StreakBar completed={streaks.workout} color="bg-rose-500" />
           </div>
-          <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-lg p-2">
-            <h3 className="text-xs font-semibold text-gray-700 mb-1">Self Care</h3>
-            <StreakBar completed={streaks.selfcare} />
+
+          {/* Goals */}
+          <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-3 border border-amber-100">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🎯</span>
+              <span className="text-sm font-bold text-amber-700">Goals</span>
+            </div>
+            <StreakBar completed={streaks.goals} color="bg-amber-500" />
           </div>
-          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-2">
-            <h3 className="text-xs font-semibold text-gray-700 mb-1">Workout</h3>
-            <StreakBar completed={streaks.workout} />
+
+          {/* Finance */}
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-3 border border-emerald-100">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">💰</span>
+              <span className="text-sm font-bold text-emerald-700">Finance</span>
+            </div>
+            <StreakBar completed={streaks.finance} color="bg-emerald-500" />
           </div>
         </div>
+
+        {/* Overall summary bar */}
+        {(() => {
+          const allDays = [...streaks.tasks, ...streaks.workout, ...streaks.goals, ...streaks.finance];
+          const total = allDays.length;
+          const done = allDays.filter(Boolean).length;
+          const pct = Math.round((done / total) * 100);
+          return (
+            <div className="mt-4">
+              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <span className="font-medium">Overall consistency</span>
+                <span className="font-bold text-gray-700">{pct}%</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-blue-500 via-violet-500 to-rose-500 transition-all"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })()}
       </motion.div>
     </div>
   );

@@ -82,8 +82,13 @@ export default function Expenses() {
 
   const loadExpenses = async () => {
     if (!user) return;
-    const data = await api.getExpenses(user.id);
-    setExpenses(data || []);
+    try {
+      const data = await api.getExpenses(user.id);
+      setExpenses(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load expenses:', error);
+      setExpenses([]);
+    }
   };
 
   // ========== MEMOIZED CALCULATIONS ==========

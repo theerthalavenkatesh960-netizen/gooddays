@@ -13,12 +13,6 @@ public class AppDbContext : DbContext
     public DbSet<SelfCareLog> SelfCareLogs { get; set; } = null!;
     public DbSet<SelfCareTemplate> SelfCareTemplates { get; set; } = null!;
     public DbSet<StudySession> StudySessions { get; set; } = null!;
-    public DbSet<ThesisPatient> ThesisPatients { get; set; } = null!;
-    public DbSet<ThesisProtocol> ThesisProtocols { get; set; } = null!;
-    public DbSet<ThesisFollowup> ThesisFollowups { get; set; } = null!;
-    public DbSet<ThesisDocument> ThesisDocuments { get; set; } = null!;
-    public DbSet<ThesisDeadline> ThesisDeadlines { get; set; } = null!;
-    public DbSet<StudyGroup> StudyGroups { get; set; } = null!;
     public DbSet<GamificationEntry> GamificationEntries { get; set; } = null!;
     public DbSet<DailyTracking> DailyTrackings { get; set; } = null!;
     public DbSet<DailyNote> DailyNotes { get; set; } = null!;
@@ -31,23 +25,40 @@ public class AppDbContext : DbContext
     public DbSet<FinancialRule> FinancialRules { get; set; } = null!;
     public DbSet<MonthlySnapshot> MonthlySnapshots { get; set; } = null!;
 
+    // Workout tracker entities
+    public DbSet<Exercise> Exercises { get; set; } = null!;
+    public DbSet<WorkoutSplitPreset> WorkoutSplitPresets { get; set; } = null!;
+    public DbSet<WorkoutDayPlan> WorkoutDayPlans { get; set; } = null!;
+    public DbSet<WorkoutSet> WorkoutSets { get; set; } = null!;
+    public DbSet<WorkoutDayImage> WorkoutDayImages { get; set; } = null!;
+    public DbSet<PersonalRecord> PersonalRecords { get; set; } = null!;
+
+    // Goal tracker entities
+    public DbSet<Goal> Goals { get; set; } = null!;
+    public DbSet<GoalNote> GoalNotes { get; set; } = null!;
+    public DbSet<GoalDailyLog> GoalDailyLogs { get; set; } = null!;
+    public DbSet<Flashcard> Flashcards { get; set; } = null!;
+
+    // Reminder entities
+    public DbSet<Reminder> Reminders { get; set; } = null!;
+    public DbSet<ReminderLog> ReminderLogs { get; set; } = null!;
+
+    // Journal entities
+    public DbSet<JournalEntry> JournalEntries { get; set; } = null!;
+
+    // Weekly Review entities
+    public DbSet<WeeklyReview> WeeklyReviews { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // Existing table mappings
-        modelBuilder.Entity<User>().ToTable("users");
-        modelBuilder.Entity<DailyTask>().ToTable("daily_tasks");
+        modelBuilder.Entity<User>().ToTable("user_profiles");
+        modelBuilder.Entity<DailyTask>().ToTable("tasks");
         modelBuilder.Entity<Expense>().ToTable("expenses");
         modelBuilder.Entity<SelfCareLog>().ToTable("self_care_logs");
         modelBuilder.Entity<SelfCareTemplate>().ToTable("self_care_template");
         modelBuilder.Entity<StudySession>().ToTable("study_sessions");
-        modelBuilder.Entity<ThesisPatient>().ToTable("thesis_patients");
-        modelBuilder.Entity<ThesisProtocol>().ToTable("thesis_protocols");
-        modelBuilder.Entity<ThesisFollowup>().ToTable("thesis_followups");
-        modelBuilder.Entity<ThesisDocument>().ToTable("thesis_documents");
-        modelBuilder.Entity<ThesisDeadline>().ToTable("thesis_deadlines");
-        modelBuilder.Entity<StudyGroup>().ToTable("study_groups");
         modelBuilder.Entity<GamificationEntry>().ToTable("gamification_entries");
         modelBuilder.Entity<DailyTracking>().ToTable("daily_tracking");
         modelBuilder.Entity<DailyNote>().ToTable("daily_notes");
@@ -59,6 +70,28 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<MonthlyTaskCompletion>().ToTable("monthly_task_completions");
         modelBuilder.Entity<FinancialRule>().ToTable("financial_rules");
         modelBuilder.Entity<MonthlySnapshot>().ToTable("monthly_snapshots");
+
+        // Workout tracker table mappings
+        modelBuilder.Entity<Exercise>().ToTable("exercises");
+        modelBuilder.Entity<WorkoutSplitPreset>().ToTable("workout_split_presets");
+        modelBuilder.Entity<WorkoutDayPlan>().ToTable("workout_day_plans");
+        modelBuilder.Entity<WorkoutSet>().ToTable("workout_sets");
+        modelBuilder.Entity<WorkoutDayImage>().ToTable("workout_day_images");
+        modelBuilder.Entity<PersonalRecord>().ToTable("personal_records");
+
+        // Goal tracker table mappings
+        modelBuilder.Entity<Goal>().ToTable("goals");
+        modelBuilder.Entity<GoalNote>().ToTable("goal_notes");
+        modelBuilder.Entity<GoalDailyLog>().ToTable("goal_daily_logs");
+        modelBuilder.Entity<Flashcard>().ToTable("flashcards");
+
+        // Reminder table mappings
+        modelBuilder.Entity<Reminder>().ToTable("reminders");
+        modelBuilder.Entity<ReminderLog>().ToTable("reminder_logs");
+
+        // Journal & Weekly Review table mappings
+        modelBuilder.Entity<JournalEntry>().ToTable("journal_entries");
+        modelBuilder.Entity<WeeklyReview>().ToTable("weekly_reviews");
 
         // Ensure emails are unique for login
         modelBuilder.Entity<User>(entity =>
@@ -91,25 +124,6 @@ public class AppDbContext : DbContext
             .HasOne(e => e.User)
             .WithMany()
             .HasForeignKey(e => e.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<ThesisPatient>()
-            .HasOne(p => p.User)
-            .WithMany()
-            .HasForeignKey(p => p.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        // Configure thesis relationships
-        modelBuilder.Entity<ThesisPatient>()
-            .HasMany(p => p.Followups)
-            .WithOne(f => f.Patient)
-            .HasForeignKey(f => f.PatientId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<ThesisFollowup>()
-            .HasOne(f => f.Patient)
-            .WithMany(p => p.Followups)
-            .HasForeignKey(f => f.PatientId)
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<StudySession>()
@@ -146,5 +160,43 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<MonthlyTaskCompletion>()
             .HasIndex(c => new { c.TaskId, c.Month, c.Year })
             .IsUnique();
+
+        // Workout relationships
+        modelBuilder.Entity<WorkoutDayPlan>()
+            .HasOne(w => w.User).WithMany().HasForeignKey(w => w.UserId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<WorkoutSet>()
+            .HasOne(s => s.WorkoutDayPlan).WithMany(p => p.Sets).HasForeignKey(s => s.WorkoutDayPlanId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<WorkoutDayImage>()
+            .HasOne(i => i.WorkoutDayPlan).WithMany(p => p.Images).HasForeignKey(i => i.WorkoutDayPlanId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<PersonalRecord>()
+            .HasIndex(pr => new { pr.UserId, pr.ExerciseId }).IsUnique();
+
+        // Goal relationships
+        modelBuilder.Entity<Goal>()
+            .HasOne(g => g.User).WithMany().HasForeignKey(g => g.UserId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<GoalNote>()
+            .HasOne(n => n.Goal).WithMany(g => g.Notes).HasForeignKey(n => n.GoalId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<GoalDailyLog>()
+            .HasOne(l => l.Goal).WithMany(g => g.DailyLogs).HasForeignKey(l => l.GoalId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<GoalDailyLog>()
+            .HasIndex(l => new { l.GoalId, l.Date }).IsUnique();
+        modelBuilder.Entity<Flashcard>()
+            .HasOne(f => f.Goal).WithMany(g => g.Flashcards).HasForeignKey(f => f.GoalId).OnDelete(DeleteBehavior.Cascade);
+
+        // Reminder relationships
+        modelBuilder.Entity<Reminder>()
+            .HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ReminderLog>()
+            .HasOne(l => l.Reminder).WithMany(r => r.Logs).HasForeignKey(l => l.ReminderId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ReminderLog>()
+            .HasIndex(l => new { l.ReminderId, l.Date }).IsUnique();
+
+        // Journal & Weekly Review
+        modelBuilder.Entity<JournalEntry>()
+            .HasOne(j => j.User).WithMany().HasForeignKey(j => j.UserId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<WeeklyReview>()
+            .HasOne(w => w.User).WithMany().HasForeignKey(w => w.UserId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<WeeklyReview>()
+            .HasIndex(w => new { w.UserId, w.WeekStartDate }).IsUnique();
     }
 }

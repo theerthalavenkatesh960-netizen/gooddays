@@ -37,7 +37,7 @@ public class ExpensesController : ControllerBase
         var expense = new Expense
         {
             UserId = req.UserId,
-            Note = req.Note,
+            Description = req.Description ?? req.Note ?? string.Empty,
             Amount = req.Amount,
             Category = req.Category,
             Date = req.Date ?? DateTime.UtcNow
@@ -53,7 +53,7 @@ public class ExpensesController : ControllerBase
         var expense = await _db.Expenses.FindAsync(id);
         if (expense == null) return NotFound();
         
-        expense.Note = req.Note ?? expense.Note;
+        expense.Description = req.Description ?? req.Note ?? expense.Description;
         expense.Amount = req.Amount ?? expense.Amount;
         expense.Category = req.Category ?? expense.Category;
         if (req.Date.HasValue) expense.Date = req.Date.Value;
@@ -74,5 +74,5 @@ public class ExpensesController : ControllerBase
     }
 }
 
-public record CreateExpenseRequest(int UserId, string? Note, decimal Amount, string? Category, DateTime? Date);
-public record UpdateExpenseRequest(string? Note, decimal? Amount, string? Category, DateTime? Date);
+public record CreateExpenseRequest(int UserId, string? Description, string? Note, decimal Amount, string? Category, DateTime? Date);
+public record UpdateExpenseRequest(string? Description, string? Note, decimal? Amount, string? Category, DateTime? Date);

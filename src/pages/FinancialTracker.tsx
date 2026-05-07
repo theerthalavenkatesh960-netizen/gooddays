@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings,
@@ -16,13 +16,16 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from 'recharts';
 import * as finApi from '../lib/financialApi';
+import { useTheme } from '../contexts/ThemeContext';
 import CompleteTaskModal from '../components/financial/CompleteTaskModal';
 import ConfigPanel from '../components/financial/ConfigPanel';
 import RulesPanel from '../components/financial/RulesPanel';
 
 export default function FinancialTracker() {
+  const { theme } = useTheme();
   const [dashboard, setDashboard] = useState<finApi.DashboardDto | null>(null);
   const [history, setHistory] = useState<finApi.MonthlyHistoryDto[]>([]);
   const [expandedBucket, setExpandedBucket] = useState<string | null>(null);
@@ -32,6 +35,85 @@ export default function FinancialTracker() {
     'investment' | 'trading' | 'mindset' | 'lifestyle'
   >('investment');
   const [loading, setLoading] = useState(true);
+
+  // Theme-aware color scheme
+  const colors = useMemo(() => {
+    const schemes: Record<string, any> = {
+      light: {
+        bg: 'bg-white',
+        bgAlt: 'bg-gray-50',
+        bgSecondary: 'bg-gray-100',
+        card: 'bg-white',
+        cardBorder: 'border-gray-200',
+        text: 'text-gray-900',
+        subtext: 'text-gray-600',
+        subtitle: 'text-gray-500',
+        chart: { bg: '#ffffff', grid: '#e5e7eb', text: '#6b7280' },
+        tooltip: { bg: '#ffffff', border: '#e5e7eb', text: '#000000' },
+      },
+      dark: {
+        bg: 'bg-slate-900',
+        bgAlt: 'bg-slate-800',
+        bgSecondary: 'bg-slate-700',
+        card: 'bg-slate-800',
+        cardBorder: 'border-slate-700',
+        text: 'text-white',
+        subtext: 'text-gray-400',
+        subtitle: 'text-gray-500',
+        chart: { bg: '#1e293b', grid: '#334155', text: '#94a3b8' },
+        tooltip: { bg: '#1e293b', border: '#334155', text: '#e2e8f0' },
+      },
+      blue: {
+        bg: 'bg-blue-50',
+        bgAlt: 'bg-blue-100',
+        bgSecondary: 'bg-blue-200',
+        card: 'bg-white',
+        cardBorder: 'border-blue-200',
+        text: 'text-blue-900',
+        subtext: 'text-blue-700',
+        subtitle: 'text-blue-600',
+        chart: { bg: '#ffffff', grid: '#bfdbfe', text: '#1e40af' },
+        tooltip: { bg: '#ffffff', border: '#93c5fd', text: '#1e3a8a' },
+      },
+      green: {
+        bg: 'bg-green-50',
+        bgAlt: 'bg-green-100',
+        bgSecondary: 'bg-green-200',
+        card: 'bg-white',
+        cardBorder: 'border-green-200',
+        text: 'text-green-900',
+        subtext: 'text-green-700',
+        subtitle: 'text-green-600',
+        chart: { bg: '#ffffff', grid: '#bbf7d0', text: '#166534' },
+        tooltip: { bg: '#ffffff', border: '#86efac', text: '#15803d' },
+      },
+      ocean: {
+        bg: 'bg-teal-50',
+        bgAlt: 'bg-teal-100',
+        bgSecondary: 'bg-teal-200',
+        card: 'bg-white',
+        cardBorder: 'border-teal-200',
+        text: 'text-teal-900',
+        subtext: 'text-teal-700',
+        subtitle: 'text-teal-600',
+        chart: { bg: '#ffffff', grid: '#99f6e4', text: '#134e4a' },
+        tooltip: { bg: '#ffffff', border: '#5eead4', text: '#0f766e' },
+      },
+      futuristic: {
+        bg: 'bg-[#0a0a0f]',
+        bgAlt: 'bg-[#161921]',
+        bgSecondary: 'bg-[#1e222d]',
+        card: 'bg-[#0f1117]',
+        cardBorder: 'border-[#2a2e39]',
+        text: 'text-[#c8d0e0]',
+        subtext: 'text-[#9ca3af]',
+        subtitle: 'text-[#787b86]',
+        chart: { bg: '#0f1117', grid: '#2a2e39', text: '#787b86' },
+        tooltip: { bg: '#0f1117', border: '#2a2e39', text: '#c8d0e0' },
+      },
+    };
+    return schemes[theme] || schemes.futuristic;
+  }, [theme]);
 
   useEffect(() => {
     loadDashboard();
@@ -52,9 +134,10 @@ export default function FinancialTracker() {
   const loadHistory = async () => {
     try {
       const data = await finApi.getHistory();
-      setHistory(data);
+      setHistory(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to load history:', error);
+      setHistory([]);
     }
   };
 
@@ -94,53 +177,54 @@ export default function FinancialTracker() {
     return '#e05050';
   };
 
-  const randomRule =
-    dashboard?.rules && dashboard.rules.length > 0
-      ? dashboard.rules[Math.floor(Math.random() * dashboard.rules.length)]
-      : null;
+  const randomRule = useMemo(() => {
+    const rules = dashboard?.rules;
+    if (!rules || rules.length === 0) return null;
+    return rules[Math.floor(Math.random() * rules.length)];
+  }, [dashboard?.rules?.length]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#131722]">
-        <div className="text-[#c8d0e0] text-xl">Loading...</div>
+      <div className={`flex items-center justify-center py-20 ${colors.bgSecondary} rounded-xl`}>
+        <div className={`${colors.text} text-xl`}>Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#131722] text-[#c8d0e0] p-6">
+    <div className={`min-h-screen ${colors.bg} ${colors.text} p-6`}>
       <div className="max-w-7xl mx-auto">
         {/* SECTION 7: ALERTS */}
         <AnimatePresence>
           {dashboard && (
             <>
-              {dashboard.missedTasks.length > 0 && (
+              {(dashboard.missedTasks?.length ?? 0) > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="bg-[#e05050] bg-opacity-20 border border-[#e05050] rounded-lg p-4 mb-4 flex items-center gap-3"
+                  className={`${theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-red-900 bg-opacity-20 border-red-600 text-red-400'} border rounded-lg p-4 mb-4 flex items-center gap-3`}
                 >
-                  <AlertCircle className="text-[#e05050]" size={24} />
+                  <AlertCircle className={theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? 'text-red-600' : 'text-red-500'} size={24} />
                   <span>
-                    ⚠️ {dashboard.missedTasks.length} task
-                    {dashboard.missedTasks.length > 1 ? 's' : ''} pending from
+                    ⚠️ {dashboard.missedTasks?.length} task
+                    {(dashboard.missedTasks?.length ?? 0) > 1 ? 's' : ''} pending from
                     last month!
                   </span>
                 </motion.div>
               )}
 
-              {dashboard.upcomingTasks.length > 0 && (
+              {(dashboard.upcomingTasks?.length ?? 0) > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="bg-[#f0c040] bg-opacity-20 border border-[#f0c040] rounded-lg p-4 mb-4 flex items-center gap-3"
+                  className={`${theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-yellow-900 bg-opacity-20 border-yellow-600 text-yellow-400'} border rounded-lg p-4 mb-4 flex items-center gap-3`}
                 >
-                  <Calendar className="text-[#f0c040]" size={24} />
+                  <Calendar className={theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? 'text-yellow-600' : 'text-yellow-500'} size={24} />
                   <span>
-                    📅 {dashboard.upcomingTasks.length} task
-                    {dashboard.upcomingTasks.length > 1 ? 's' : ''} due this
+                    📅 {dashboard.upcomingTasks?.length} task
+                    {(dashboard.upcomingTasks?.length ?? 0) > 1 ? 's' : ''} due this
                     week!
                   </span>
                 </motion.div>
@@ -152,9 +236,9 @@ export default function FinancialTracker() {
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    className="bg-[#26a65b] bg-opacity-20 border border-[#26a65b] rounded-lg p-4 mb-4 flex items-center gap-3"
+                    className={`${theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-green-900 bg-opacity-20 border-green-600 text-green-400'} border rounded-lg p-4 mb-4 flex items-center gap-3`}
                   >
-                    <CheckCircle2 className="text-[#26a65b]" size={24} />
+                    <CheckCircle2 className={theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? 'text-green-600' : 'text-green-500'} size={24} />
                     <span>🎉 You completed 100% last month!</span>
                   </motion.div>
                 )}
@@ -165,15 +249,15 @@ export default function FinancialTracker() {
         {/* SECTION 1: HEADER */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-[#c8d0e0] mb-2">
+            <h1 className={`text-4xl font-bold ${colors.text} mb-2`}>
               Financial Tracker
             </h1>
-            <p className="text-[#787b86]">{dashboard?.currentMonth}</p>
+            <p className={colors.subtitle}>{dashboard?.currentMonth}</p>
           </div>
 
           <button
             onClick={() => setShowConfig(true)}
-            className="p-3 bg-[#1e222d] hover:bg-[#2a2e39] rounded-lg transition-colors"
+            className={`p-3 ${colors.bgSecondary} hover:${colors.bgAlt} rounded-lg transition-colors ${colors.text}`}
           >
             <Settings size={24} />
           </button>
@@ -184,14 +268,14 @@ export default function FinancialTracker() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-[#1e222d] rounded-xl p-6 border border-[#2a2e39]"
+            className={`${colors.card} rounded-xl p-6 border ${colors.cardBorder}`}
           >
             <div className="flex items-center gap-3 mb-2">
-              <TrendingUp className="text-[#f0c040]" size={24} />
-              <h3 className="text-sm text-[#787b86]">Completion</h3>
+              <TrendingUp className="text-amber-500" size={24} />
+              <h3 className={`text-sm ${colors.subtext}`}>Completion</h3>
             </div>
-            <p className="text-5xl font-bold text-[#f0c040]">
-              {dashboard?.overallCompletionPercent.toFixed(0)}%
+            <p className="text-5xl font-bold text-amber-500">
+              {(dashboard?.overallCompletionPercent ?? 0).toFixed(0)}%
             </p>
           </motion.div>
 
@@ -200,10 +284,10 @@ export default function FinancialTracker() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 }}
-            className="bg-[#1e222d] rounded-xl p-6 border border-[#2a2e39]"
+            className={`${colors.card} rounded-xl p-6 border ${colors.cardBorder}`}
           >
-            <h3 className="text-sm text-[#787b86] mb-2">Streak</h3>
-            <p className="text-3xl font-bold text-[#26a65b]">
+            <h3 className={`text-sm ${colors.subtext} mb-2`}>Streak</h3>
+            <p className="text-3xl font-bold text-green-500">
               🔥 {dashboard?.streak || 0} months consistent!
             </p>
           </motion.div>
@@ -213,11 +297,11 @@ export default function FinancialTracker() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="bg-gradient-to-br from-[#f0c040] to-[#e05050] bg-opacity-20 rounded-xl p-6 border border-[#f0c040]"
+            className={`${theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200' : 'bg-gradient-to-br from-amber-900 to-orange-900 bg-opacity-20 border-amber-700'} rounded-xl p-6 border`}
           >
-            <h3 className="text-sm font-bold mb-2">💡 Rule of the Day</h3>
+            <h3 className={`text-sm font-bold mb-2 ${colors.text}`}>💡 Rule of the Day</h3>
             {randomRule && (
-              <p className="text-sm text-[#c8d0e0]">{randomRule.title}</p>
+              <p className={`text-sm ${colors.subtext}`}>{randomRule.title}</p>
             )}
           </motion.div>
         </div>
@@ -226,13 +310,13 @@ export default function FinancialTracker() {
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-4">Investment Buckets</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {dashboard?.buckets.map((bucket, index) => (
+            {(dashboard?.buckets ?? []).map((bucket, index) => (
               <motion.div
                 key={bucket.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="bg-[#1e222d] rounded-xl p-5 border border-[#2a2e39] cursor-pointer hover:border-[#3a3e49] transition-colors"
+                className={`${colors.card} rounded-xl p-5 border ${colors.cardBorder} cursor-pointer hover:${colors.cardBorder} hover:border-opacity-100 transition-colors`}
                 onClick={() =>
                   setExpandedBucket(
                     expandedBucket === bucket.id ? null : bucket.id
@@ -242,8 +326,8 @@ export default function FinancialTracker() {
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-2xl">{bucket.icon}</span>
                   <div className="flex-1">
-                    <h3 className="font-bold text-[#c8d0e0]">{bucket.name}</h3>
-                    <p className="text-sm text-[#787b86]">
+                    <h3 className={`font-bold ${colors.text}`}>{bucket.name}</h3>
+                    <p className={`text-sm ${colors.subtext}`}>
                       ₹{bucket.monthlyTarget.toLocaleString()}
                     </p>
                   </div>
@@ -251,7 +335,7 @@ export default function FinancialTracker() {
 
                 <div className="mb-2">
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="text-[#787b86]">
+                    <span className={colors.subtext}>
                       {bucket.tasksCompleted}/{bucket.tasksTotal} tasks
                     </span>
                     <span
@@ -260,13 +344,13 @@ export default function FinancialTracker() {
                         color: bucket.colorHex || '#26a65b',
                       }}
                     >
-                      {bucket.completionPercent.toFixed(0)}%
+                      {(bucket.completionPercent ?? 0).toFixed(0)}%
                     </span>
                   </div>
-                  <div className="w-full h-2 bg-[#2a2e39] rounded-full overflow-hidden">
+                  <div className={`w-full h-2 ${colors.bgAlt} rounded-full overflow-hidden`}>
                     <motion.div
                       initial={{ width: 0 }}
-                      animate={{ width: `${bucket.completionPercent}%` }}
+                      animate={{ width: `${Math.min(100, bucket.completionPercent ?? 0)}%` }}
                       transition={{ duration: 0.5, delay: index * 0.05 }}
                       className="h-full rounded-full"
                       style={{
@@ -278,17 +362,17 @@ export default function FinancialTracker() {
 
                 {/* SECTION 3: TASK CHECKLIST (Expanded) */}
                 <AnimatePresence>
-                  {expandedBucket === bucket.id && bucket.tasks && (
+                  {expandedBucket === bucket.id && (bucket.tasks ?? []).length > 0 && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       className="mt-4 space-y-2"
                     >
-                      {bucket.tasks.map((task) => (
+                      {(bucket.tasks ?? []).map((task) => (
                         <div
                           key={task.id}
-                          className="flex items-start gap-2 p-2 bg-[#2a2e39] rounded-lg"
+                          className={`flex items-start gap-2 p-2 ${colors.bgSecondary} rounded-lg`}
                           onClick={(e) => {
                             e.stopPropagation();
                             if (task.isCompleted) {
@@ -300,39 +384,39 @@ export default function FinancialTracker() {
                         >
                           {task.isCompleted ? (
                             <CheckCircle2
-                              className="text-[#26a65b] flex-shrink-0 mt-0.5"
+                              className="text-green-500 flex-shrink-0 mt-0.5"
                               size={20}
                             />
                           ) : (
-                            <div className="w-5 h-5 border-2 border-[#787b86] rounded-full flex-shrink-0 mt-0.5" />
+                            <div className={`w-5 h-5 border-2 ${colors.subtext} rounded-full flex-shrink-0 mt-0.5`} />
                           )}
                           <div className="flex-1 min-w-0">
                             <p
                               className={`text-sm ${
                                 task.isCompleted
-                                  ? 'line-through text-[#787b86]'
-                                  : 'text-[#c8d0e0]'
+                                  ? `line-through ${colors.subtext}`
+                                  : colors.text
                               }`}
                             >
                               {task.title}
                             </p>
-                            {task.amount > 0 && (
-                              <p className="text-xs text-[#787b86]">
-                                ₹{task.amount.toLocaleString()}
+                            {(task.amount ?? 0) > 0 && (
+                              <p className={`text-xs ${colors.subtext}`}>
+                                ₹{(task.amount ?? 0).toLocaleString()}
                                 {task.recurrenceDay &&
                                   ` • Day ${task.recurrenceDay}`}
                               </p>
                             )}
                             {task.isCompleted && task.completedAt && (
-                              <p className="text-xs text-[#26a65b]">
+                              <p className="text-xs text-green-500">
                                 ✓ Completed{' '}
                                 {new Date(task.completedAt).toLocaleDateString()}
-                                {task.actualAmount &&
+                                {task.actualAmount != null &&
                                   ` • ₹${task.actualAmount.toLocaleString()}`}
                               </p>
                             )}
                             {task.isCompleted && task.notes && (
-                              <p className="text-xs text-[#787b86] italic mt-1">
+                              <p className={`text-xs ${colors.subtext} italic mt-1`}>
                                 {task.notes}
                               </p>
                             )}
@@ -352,51 +436,43 @@ export default function FinancialTracker() {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="bg-[#1e222d] rounded-xl p-6 border border-[#2a2e39]"
+            className={`${colors.card} rounded-xl p-6 border ${colors.cardBorder}`}
           >
-            <h2 className="text-xl font-bold mb-4">12-Month Progress</h2>
+            <h2 className={`text-xl font-bold mb-4 ${colors.text}`}>12-Month Progress</h2>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={history}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2a2e39" />
-                <XAxis dataKey="month" stroke="#787b86" />
-                <YAxis stroke="#787b86" />
+              <BarChart data={Array.isArray(history) ? history : []}>
+                <CartesianGrid strokeDasharray="3 3" stroke={colors.chart.grid} />
+                <XAxis dataKey="month" stroke={colors.chart.text} />
+                <YAxis stroke={colors.chart.text} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#1e222d',
-                    border: '1px solid #2a2e39',
+                    backgroundColor: colors.tooltip.bg,
+                    border: `1px solid ${colors.tooltip.border}`,
                     borderRadius: '8px',
-                    color: '#c8d0e0',
+                    color: colors.tooltip.text,
                   }}
                   formatter={(value: any, name: string) => {
+                    const num = typeof value === 'number' ? value : parseFloat(value) || 0;
                     if (name === 'completionPercent') {
-                      return [`${value.toFixed(0)}%`, 'Completion'];
+                      return [`${num.toFixed(0)}%`, 'Completion'];
                     }
                     return [
-                      `₹${value.toLocaleString()}`,
+                      `₹${num.toLocaleString()}`,
                       'Total Invested',
                     ];
                   }}
                 />
                 <Bar
                   dataKey="completionPercent"
-                  fill="#26a65b"
                   radius={[8, 8, 0, 0]}
-                  shape={(props: any) => {
-                    const { x, y, width, height, completionPercent } = props;
-                    const fill = getBarColor(completionPercent);
-                    return (
-                      <rect
-                        x={x}
-                        y={y}
-                        width={width}
-                        height={height}
-                        fill={fill}
-                        rx={8}
-                        ry={8}
-                      />
-                    );
-                  }}
-                />
+                >
+                  {(Array.isArray(history) ? history : []).map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={getBarColor(entry.completionPercent ?? 0)}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </motion.div>
@@ -407,6 +483,8 @@ export default function FinancialTracker() {
             activeTab={activeRuleTab}
             setActiveTab={setActiveRuleTab}
             onUpdate={loadDashboard}
+            theme={theme}
+            colors={colors}
           />
         </div>
 
@@ -414,12 +492,14 @@ export default function FinancialTracker() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-[#1e222d] rounded-xl p-6 border border-[#2a2e39]"
+          className={`${colors.card} rounded-xl p-6 border ${colors.cardBorder}`}
         >
-          <h2 className="text-2xl font-bold mb-4">Monthly Snapshot</h2>
+          <h2 className={`text-2xl font-bold mb-4 ${colors.text}`}>Monthly Snapshot</h2>
           <MonthlySnapshotForm
             snapshot={dashboard?.monthlySnapshot}
             onSave={loadDashboard}
+            theme={theme}
+            colors={colors}
           />
         </motion.div>
       </div>
@@ -444,9 +524,13 @@ export default function FinancialTracker() {
 function MonthlySnapshotForm({
   snapshot,
   onSave,
+  theme,
+  colors,
 }: {
   snapshot?: finApi.MonthlySnapshotDto;
   onSave: () => void;
+  theme?: string;
+  colors?: any;
 }) {
   const now = new Date();
   const [formData, setFormData] = useState({
@@ -501,7 +585,7 @@ function MonthlySnapshotForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm text-[#787b86] mb-2">
+          <label className={`block text-sm ${colors?.subtext || 'text-gray-600'} mb-2`}>
             Total Income
           </label>
           <input
@@ -513,13 +597,18 @@ function MonthlySnapshotForm({
                 totalIncome: parseFloat(e.target.value) || 0,
               })
             }
-            className="w-full px-4 py-2 bg-[#2a2e39] border border-[#3a3e49] rounded-lg text-[#c8d0e0] focus:border-[#f0c040] outline-none"
+            style={{
+              backgroundColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#f3f4f6' : colors?.bgAlt,
+              borderColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#e5e7eb' : '#3a3e49',
+              color: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#1f2937' : '#c8d0e0',
+            }}
+            className="w-full px-4 py-2 border rounded-lg outline-none focus:border-amber-500"
             placeholder="₹"
           />
         </div>
 
         <div>
-          <label className="block text-sm text-[#787b86] mb-2">
+          <label style={{ color: colors?.subtext || '#9ca3af' }} className="block text-sm mb-2">
             Total Expenses
           </label>
           <input
@@ -531,13 +620,18 @@ function MonthlySnapshotForm({
                 totalExpenses: parseFloat(e.target.value) || 0,
               })
             }
-            className="w-full px-4 py-2 bg-[#2a2e39] border border-[#3a3e49] rounded-lg text-[#c8d0e0] focus:border-[#e05050] outline-none"
+            style={{
+              backgroundColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#f3f4f6' : colors?.bgAlt,
+              borderColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#e5e7eb' : '#3a3e49',
+              color: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#1f2937' : '#c8d0e0',
+            }}
+            className="w-full px-4 py-2 border rounded-lg outline-none focus:border-red-500"
             placeholder="₹"
           />
         </div>
 
         <div>
-          <label className="block text-sm text-[#787b86] mb-2">
+          <label style={{ color: colors?.subtext || '#9ca3af' }} className="block text-sm mb-2">
             Total Invested
           </label>
           <input
@@ -549,13 +643,18 @@ function MonthlySnapshotForm({
                 totalInvested: parseFloat(e.target.value) || 0,
               })
             }
-            className="w-full px-4 py-2 bg-[#2a2e39] border border-[#3a3e49] rounded-lg text-[#c8d0e0] focus:border-[#26a65b] outline-none"
+            style={{
+              backgroundColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#f3f4f6' : colors?.bgAlt,
+              borderColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#e5e7eb' : '#3a3e49',
+              color: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#1f2937' : '#c8d0e0',
+            }}
+            className="w-full px-4 py-2 border rounded-lg outline-none focus:border-green-500"
             placeholder="₹"
           />
         </div>
 
         <div>
-          <label className="block text-sm text-[#787b86] mb-2">
+          <label style={{ color: colors?.subtext || '#9ca3af' }} className="block text-sm mb-2">
             Emergency Fund
           </label>
           <input
@@ -567,13 +666,18 @@ function MonthlySnapshotForm({
                 emergencyFundBalance: parseFloat(e.target.value) || 0,
               })
             }
-            className="w-full px-4 py-2 bg-[#2a2e39] border border-[#3a3e49] rounded-lg text-[#c8d0e0] focus:border-[#4a7acc] outline-none"
+            style={{
+              backgroundColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#f3f4f6' : colors?.bgAlt,
+              borderColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#e5e7eb' : '#3a3e49',
+              color: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#1f2937' : '#c8d0e0',
+            }}
+            className="w-full px-4 py-2 border rounded-lg outline-none focus:border-blue-500"
             placeholder="₹"
           />
         </div>
 
         <div>
-          <label className="block text-sm text-[#787b86] mb-2">
+          <label style={{ color: colors?.subtext || '#9ca3af' }} className="block text-sm mb-2">
             Travel Fund
           </label>
           <input
@@ -585,13 +689,18 @@ function MonthlySnapshotForm({
                 travelFundBalance: parseFloat(e.target.value) || 0,
               })
             }
-            className="w-full px-4 py-2 bg-[#2a2e39] border border-[#3a3e49] rounded-lg text-[#c8d0e0] focus:border-[#26a65b] outline-none"
+            style={{
+              backgroundColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#f3f4f6' : colors?.bgAlt,
+              borderColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#e5e7eb' : '#3a3e49',
+              color: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#1f2937' : '#c8d0e0',
+            }}
+            className="w-full px-4 py-2 border rounded-lg outline-none focus:border-green-500"
             placeholder="₹"
           />
         </div>
 
         <div>
-          <label className="block text-sm text-[#787b86] mb-2">
+          <label style={{ color: colors?.subtext || '#9ca3af' }} className="block text-sm mb-2">
             Portfolio Value
           </label>
           <input
@@ -603,26 +712,36 @@ function MonthlySnapshotForm({
                 portfolioEstimatedValue: parseFloat(e.target.value) || 0,
               })
             }
-            className="w-full px-4 py-2 bg-[#2a2e39] border border-[#3a3e49] rounded-lg text-[#c8d0e0] focus:border-[#f0c040] outline-none"
+            style={{
+              backgroundColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#f3f4f6' : colors?.bgAlt,
+              borderColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#e5e7eb' : '#3a3e49',
+              color: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#1f2937' : '#c8d0e0',
+            }}
+            className="w-full px-4 py-2 border rounded-lg outline-none focus:border-amber-500"
             placeholder="₹"
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm text-[#787b86] mb-2">Notes</label>
+        <label style={{ color: colors?.subtext || '#9ca3af' }} className="block text-sm mb-2">Notes</label>
         <textarea
           value={formData.notes}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          className="w-full px-4 py-2 bg-[#2a2e39] border border-[#3a3e49] rounded-lg text-[#c8d0e0] focus:border-[#f0c040] outline-none resize-none"
+          style={{
+            backgroundColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#f3f4f6' : colors?.bgAlt,
+            borderColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#e5e7eb' : '#3a3e49',
+            color: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#1f2937' : '#c8d0e0',
+          }}
+          className="w-full px-4 py-2 border rounded-lg outline-none resize-none focus:border-amber-500"
           rows={3}
           placeholder="Any notes for this month..."
         />
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="text-sm text-[#787b86]">
-          <span className="font-bold text-[#26a65b] text-lg">
+        <div style={{ color: colors?.subtext || '#9ca3af' }} className="text-sm">
+          <span className="font-bold text-lg" style={{ color: '#22c55e' }}>
             Savings Rate: {savingsRate.toFixed(1)}%
           </span>
         </div>
@@ -630,7 +749,11 @@ function MonthlySnapshotForm({
         <button
           type="submit"
           disabled={saving}
-          className="px-6 py-2 bg-[#26a65b] hover:bg-[#1f8a4a] text-white rounded-lg font-bold transition-colors disabled:opacity-50"
+          style={{
+            backgroundColor: theme === 'light' || theme === 'blue' || theme === 'green' || theme === 'ocean' ? '#22c55e' : '#26a65b',
+            color: 'white',
+          }}
+          className="px-6 py-2 rounded-lg font-bold transition-colors disabled:opacity-50 hover:opacity-80"
         >
           {saving ? 'Saving...' : 'Save Snapshot'}
         </button>

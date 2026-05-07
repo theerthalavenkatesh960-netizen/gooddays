@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useAuth } from './AuthContextApi';
 
-type Theme = 'light' | 'dark' | 'blue' | 'green' | 'ocean';
+type Theme = 'light' | 'dark' | 'blue' | 'green' | 'ocean' | 'futuristic';
 
 interface ThemeContextType {
   theme: Theme;

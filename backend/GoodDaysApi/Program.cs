@@ -12,14 +12,30 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Enable CORS for the frontend app
+// Enable CORS for local dev origins and optional configured production URL.
+var configuredFrontendUrl = builder.Configuration["Frontend:Url"];
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        policy
+            .WithOrigins(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:3000",
+                "http://127.0.0.1:3000"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+
+        // also allow any other configured production URL
+        if (!string.IsNullOrWhiteSpace(configuredFrontendUrl))
+        {
+            policy.WithOrigins(configuredFrontendUrl)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
     });
 });
 
@@ -30,7 +46,9 @@ if (string.IsNullOrWhiteSpace(connectionString))
         "A PostgreSQL connection string must be provided via 'ConnectionStrings:Default'.");
 }
 
-builder.Services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(connectionString));
+builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseNpgsql(connectionString)
+       .UseSnakeCaseNamingConvention());
 
 // Register Financial Services
 builder.Services.AddScoped<IFinancialService, FinancialService>();
@@ -72,10 +90,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseRouting();
 app.UseCors("FrontendPolicy");
+app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();
 
 app.Run();

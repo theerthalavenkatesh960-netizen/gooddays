@@ -3,40 +3,49 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   CheckSquare,
-  BookOpen,
-  GraduationCap,
-  Activity,
   DollarSign,
-  Heart,
   Calendar,
   Settings,
   LogOut,
   Timer,
-  Play,
-  Pause,
-  Square,
+  Dumbbell,
+  Target,
+  MoreHorizontal,
+  ChevronRight,
+  X as XIcon,
   Menu,
   X
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContextApi';
+import { useTheme } from '../contexts/ThemeContext';
 import FocusTimer from './FocusTimer';
 
-const navItems = [
+const primaryNavItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/tasks', label: 'Tasks', icon: CheckSquare },
-  { path: '/thesis', label: 'Thesis', icon: BookOpen },
-  { path: '/expenses', label: 'Expenses', icon: DollarSign },
-  { path: '/financial-tracker', label: 'FinancialTracker', icon: DollarSign },
-  { path: '/calendar', label: 'Calendar', icon: Calendar },
+  { path: '/tasks', label: 'Tasks & Reminders', icon: CheckSquare },
+  { path: '/workout', label: 'Workout', icon: Dumbbell },
+  { path: '/goals', label: 'Goals', icon: Target },
+  { path: '/finance', label: 'Finance', icon: DollarSign },
+  { path: '/calendar', label: 'Calendar & Review', icon: Calendar },
   { path: '/settings', label: 'Settings', icon: Settings },
+];
+
+// Mobile bottom bar shows only these 5 + a "More" button
+const mobileNavItems = [
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/workout', label: 'Workout', icon: Dumbbell },
+  { path: '/goals', label: 'Goals', icon: Target },
+  { path: '/tasks', label: 'Tasks', icon: CheckSquare },
+  { path: '/calendar', label: 'Calendar', icon: Calendar },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { theme } = useTheme();
+  const [moreOpen, setMoreOpen] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -45,8 +54,18 @@ export default function Layout({ children }: { children: ReactNode }) {
     navigate('/login');
   };
 
+  const pageBg: Record<string, string> = {
+    light:      'bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50',
+    dark:       'bg-slate-900',
+    blue:       'bg-gradient-to-br from-blue-100 via-sky-50 to-cyan-100',
+    green:      'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50',
+    ocean:      'bg-gradient-to-br from-teal-50 via-cyan-50 to-sky-100',
+    futuristic: 'bg-[#0a0a0f]',
+  };
+  const pageBgClass = pageBg[theme] ?? pageBg.light;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
+    <div className={`min-h-screen ${pageBgClass}`}>
       <div className="hidden md:flex h-screen">
         <motion.aside
           initial={{ width: 288 }}
@@ -106,7 +125,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           </AnimatePresence>
 
           <nav className={`flex-1 ${sidebarOpen ? 'p-4' : 'p-2'} space-y-1 overflow-y-auto`}>
-            {navItems.map((item) => {
+            {primaryNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
 
@@ -164,13 +183,13 @@ export default function Layout({ children }: { children: ReactNode }) {
             </h1>
           </div>
 
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          <button onClick={() => setTimerOpen(!timerOpen)}>
+            <Timer size={24} className="text-orange-500" />
           </button>
         </header>
 
         <AnimatePresence>
-          {mobileMenuOpen && (
+          {timerOpen && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
@@ -178,31 +197,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               className="bg-white border-b border-gray-200 overflow-hidden"
             >
               <div className="p-4">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setTimerOpen(!timerOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-semibold shadow-md mb-3"
-                >
-                  <span className="flex items-center gap-2">
-                    <Timer size={18} />
-                    Focus Timer
-                  </span>
-                  <span className="text-xl">{timerOpen ? '−' : '+'}</span>
-                </motion.button>
-
-                <AnimatePresence>
-                  {timerOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <FocusTimer />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <FocusTimer />
               </div>
             </motion.div>
           )}
@@ -217,8 +212,8 @@ export default function Layout({ children }: { children: ReactNode }) {
           </motion.div>
         </main>
 
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 flex gap-1 overflow-x-auto shadow-2xl z-50 scrollbar-hide">
-          {navItems.map((item) => {
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 flex gap-1 shadow-2xl z-50">
+          {mobileNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
 
@@ -228,31 +223,74 @@ export default function Layout({ children }: { children: ReactNode }) {
                 whileTap={{ scale: 0.9 }}
                 onClick={() => {
                   navigate(item.path);
-                  setMobileMenuOpen(false);
+                  setMoreOpen(false);
                 }}
-                className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all flex-shrink-0 ${
+                className={`flex flex-col items-center gap-1 flex-1 py-2 rounded-xl transition-all ${
                   isActive
                     ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
-                title={item.label}
               >
                 <Icon size={20} />
                 <span className="text-xs font-medium">{item.label}</span>
               </motion.button>
             );
           })}
-
           <motion.button
             whileTap={{ scale: 0.9 }}
-            onClick={handleSignOut}
-            className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all text-gray-600 hover:text-red-600 flex-shrink-0"
-            title="Sign Out"
+            onClick={() => setMoreOpen(!moreOpen)}
+            className={`flex flex-col items-center gap-1 flex-1 py-2 rounded-xl transition-all ${
+              moreOpen ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white' : 'text-gray-600'
+            }`}
           >
-            <LogOut size={20} />
-            <span className="text-xs font-medium">Sign Out</span>
+            <MoreHorizontal size={20} />
+            <span className="text-xs font-medium">More</span>
           </motion.button>
         </nav>
+
+        {/* More drawer */}
+        <AnimatePresence>
+          {moreOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              className="fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl z-40 rounded-t-2xl p-4"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-semibold text-gray-700">More</span>
+                <button onClick={() => setMoreOpen(false)}><XIcon size={20} className="text-gray-500" /></button>
+              </div>
+              <div className="grid grid-cols-4 gap-3">
+                {primaryNavItems.filter(i => !mobileNavItems.find(m => m.path === i.path)).map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+                  return (
+                    <motion.button
+                      key={item.path}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => { navigate(item.path); setMoreOpen(false); }}
+                      className={`flex flex-col items-center gap-1 p-3 rounded-xl ${
+                        isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-50 text-gray-600'
+                      }`}
+                    >
+                      <Icon size={22} />
+                      <span className="text-xs font-medium text-center">{item.label}</span>
+                    </motion.button>
+                  );
+                })}
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleSignOut}
+                  className="flex flex-col items-center gap-1 p-3 rounded-xl bg-red-50 text-red-600"
+                >
+                  <LogOut size={22} />
+                  <span className="text-xs font-medium">Sign Out</span>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

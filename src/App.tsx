@@ -1,19 +1,17 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContextApi';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { LoadingProvider } from './contexts/LoadingContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Tasks from './pages/Tasks';
-import Thesis from './pages/Thesis';
-import Study from './pages/Study';
-import Track from './pages/Track';
-import Expenses from './pages/Expenses';
-import SelfCare from './pages/SelfCare';
 import CalendarView from './pages/CalendarView';
 import Settings from './pages/Settings';
-import FinancialTracker from './pages/FinancialTracker';
+import Finance from './pages/Finance';
+import Workout from './pages/Workout';
+import Goals from './pages/Goals';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -39,6 +37,7 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <ThemeProvider>
+          <LoadingProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
@@ -63,61 +62,31 @@ function App() {
               }
             />
             <Route
-              path="/thesis"
+              path="/workout"
               element={
                 <PrivateRoute>
                   <Layout>
-                    <Thesis />
+                    <Workout />
                   </Layout>
                 </PrivateRoute>
               }
             />
             <Route
-              path="/study"
+              path="/goals"
               element={
                 <PrivateRoute>
                   <Layout>
-                    <Study />
+                    <Goals />
                   </Layout>
                 </PrivateRoute>
               }
             />
             <Route
-              path="/track"
+              path="/finance"
               element={
                 <PrivateRoute>
                   <Layout>
-                    <Track />
-                  </Layout>
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/expenses"
-              element={
-                <PrivateRoute>
-                  <Layout>
-                    <Expenses />
-                  </Layout>
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/financial-tracker"
-              element={
-                <PrivateRoute>
-                  <Layout>
-                    <FinancialTracker />
-                  </Layout>
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/selfcare"
-              element={
-                <PrivateRoute>
-                  <Layout>
-                    <SelfCare />
+                    <Finance />
                   </Layout>
                 </PrivateRoute>
               }
@@ -142,17 +111,8 @@ function App() {
                 </PrivateRoute>
               }
             />
-            <Route
-              path="/financial"
-              element={
-                <PrivateRoute>
-                  <Layout>
-                    <FinancialTracker />
-                  </Layout>
-                </PrivateRoute>
-              }
-            />
           </Routes>
+          </LoadingProvider>
         </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>
