@@ -326,16 +326,23 @@ function MiniLoader() {
         }}
       />
       {/* Centered loader card */}
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9998,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 'max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))',
+        }}
+      >
       <motion.div
         initial={{ opacity: 0, scale: 0.85 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.85 }}
         transition={{ duration: 0.25, type: 'spring', stiffness: 300, damping: 22 }}
         style={{
-          position: 'fixed',
-          top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          zIndex: 9998,
           background: p.bg,
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
@@ -348,6 +355,7 @@ function MiniLoader() {
           gap: '12px',
           boxShadow: '0 16px 48px rgba(0,0,0,0.35)',
           minWidth: '160px',
+          maxWidth: 'min(88vw, 320px)',
         }}
       >
         {/* Skill tree SVG */}
@@ -401,6 +409,7 @@ function MiniLoader() {
           </div>
         </div>
       </motion.div>
+      </div>
     </>
   );
 }
