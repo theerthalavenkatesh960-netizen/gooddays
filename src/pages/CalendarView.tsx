@@ -341,7 +341,8 @@ return(
 
 {activeTab === 'weekly-review' && <WeeklyReview />}
 {activeTab === 'journal' && <Journal />}
-{activeTab === 'calendar' && <>
+{activeTab === 'calendar' && (
+<div>
 
 <motion.div
 initial={{opacity:0,y:10}}
@@ -616,8 +617,8 @@ className="flex items-center gap-3 p-3 border rounded-lg border-blue-200 bg-blue
 
 </div>
 
-</>
-}
+</div>
+)}
 
 </div>
 
