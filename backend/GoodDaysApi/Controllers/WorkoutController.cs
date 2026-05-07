@@ -150,6 +150,17 @@ public class WorkoutController : ControllerBase
         return Ok(plan);
     }
 
+    [HttpDelete("plans/{id}")]
+    public async Task<IActionResult> DeletePlan(int id)
+    {
+        var userId = GetUserId();
+        var plan = await _db.WorkoutDayPlans.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+        if (plan is null) return NotFound();
+        _db.WorkoutDayPlans.Remove(plan);
+        await _db.SaveChangesAsync();
+        return Ok();
+    }
+
     // ─── Workout Sets (logging) ──────────────────────────────────────────
 
     [HttpGet("plans/{planId}/sets")]

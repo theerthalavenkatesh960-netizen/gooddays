@@ -15,11 +15,11 @@ type WorkoutPlan = { id?: number; date: string; dayLabel?: string; plannedExerci
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio', 'Full Body'];
 
 const TABS = [
-  { id: 'today', label: "Today's Workout", icon: Dumbbell },
-  { id: 'library', label: 'Exercise Library', icon: BookOpen },
-  { id: 'history', label: 'History', icon: Calendar },
-  { id: 'analytics', label: 'Analytics', icon: BarChart2 },
-  { id: 'prs', label: 'PRs', icon: Trophy },
+  { id: 'today', label: "Today's Workout", shortLabel: 'Today', icon: Dumbbell },
+  { id: 'library', label: 'Exercise Library', shortLabel: 'Library', icon: BookOpen },
+  { id: 'history', label: 'History', shortLabel: 'History', icon: Calendar },
+  { id: 'analytics', label: 'Analytics', shortLabel: 'Stats', icon: BarChart2 },
+  { id: 'prs', label: 'PRs', shortLabel: 'PRs', icon: Trophy },
 ];
 
 export default function Workout() {
@@ -35,7 +35,9 @@ export default function Workout() {
   const [showAddPlan, setShowAddPlan] = useState(false);
   const [filterMuscle, setFilterMuscle] = useState('All');
   const [newExercise, setNewExercise] = useState({ name: '', muscleGroup: 'Chest', description: '', imageUrl: '' });
+  const [editingExerciseId, setEditingExerciseId] = useState<number | null>(null);
   const [planLabel, setPlanLabel] = useState('');
+  const [editingPlanLabel, setEditingPlanLabel] = useState(false);
   const [selectedExercises, setSelectedExercises] = useState<number[]>([]);
   const [expandedExercise, setExpandedExercise] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -134,11 +136,61 @@ export default function Workout() {
     setPrs(Array.isArray(freshPrs) ? freshPrs : []);
   }
 
-  async function addExercise() {
-    const ex = await api.createExercise(newExercise);
-    setExercises(prev => [...prev, ex]);
+  async function saveExercise() {
+    if (!newExercise.name.trim()) return;
+
+    if (editingExerciseId) {
+      const updated = await api.updateExercise(editingExerciseId, newExercise);
+      setExercises(prev => prev.map(ex => ex.id === editingExerciseId ? updated : ex));
+    } else {
+      const ex = await api.createExercise(newExercise);
+      setExercises(prev => [...prev, ex]);
+    }
+
     setNewExercise({ name: '', muscleGroup: 'Chest', description: '', imageUrl: '' });
+    setEditingExerciseId(null);
     setShowAddExercise(false);
+  }
+
+  async function deleteExerciseItem(exerciseId: number) {
+    await api.deleteExercise(exerciseId);
+    setExercises(prev => prev.filter(ex => ex.id !== exerciseId));
+    setSelectedExercises(prev => prev.filter(id => id !== exerciseId));
+  }
+
+  async function deleteTodayPlan() {
+    if (!todayPlan?.id) return;
+    await api.deleteWorkoutPlan(todayPlan.id);
+    setTodayPlan(null);
+    setWorkingSets([]);
+    setExpandedExercise(null);
+  }
+
+  async function savePlanLabel() {
+    if (!todayPlan?.id) return;
+    const updated = await api.updateWorkoutPlan(todayPlan.id, {
+      ...todayPlan,
+      dayLabel: planLabel,
+    });
+    setTodayPlan(updated);
+    setEditingPlanLabel(false);
+  }
+
+  function openAddExercise() {
+    setEditingExerciseId(null);
+    setNewExercise({ name: '', muscleGroup: 'Chest', description: '', imageUrl: '' });
+    setShowAddExercise(true);
+  }
+
+  function openEditExercise(exercise: Exercise) {
+    setEditingExerciseId(exercise.id);
+    setNewExercise({
+      name: exercise.name,
+      muscleGroup: exercise.muscleGroup,
+      description: exercise.description || '',
+      imageUrl: exercise.imageUrl || '',
+    });
+    setShowAddExercise(true);
   }
 
   async function handleImageUpload(planId: number, e: React.ChangeEvent<HTMLInputElement>) {
@@ -153,6 +205,10 @@ export default function Workout() {
     reader.readAsDataURL(file);
   }
 
+  useEffect(() => {
+    setPlanLabel(todayPlan?.dayLabel || '');
+  }, [todayPlan?.dayLabel]);
+
   const plannedExercises = todayPlan ? (() => { try { return JSON.parse(todayPlan.plannedExercises); } catch { return []; } })() : [];
 
   const filteredExercises = filterMuscle === 'All' ? exercises : exercises.filter(e => e.muscleGroup === filterMuscle);
@@ -162,26 +218,34 @@ export default function Workout() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Workout</h1>
           <p className="text-gray-500 mt-0.5">{format(new Date(), 'EEEE, MMM d')}</p>
         </div>
-        {todayPlan && !todayPlan.isCompleted && (
-          <motion.button whileTap={{ scale: 0.95 }} onClick={markDayComplete}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold shadow-md">
-            <Check size={18} /> Mark Complete
-          </motion.button>
-        )}
-        {todayPlan?.isCompleted && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-xl font-semibold">
-            <Flame size={18} /> Done!
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {todayPlan && !todayPlan.isCompleted && (
+            <motion.button whileTap={{ scale: 0.95 }} onClick={markDayComplete}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold shadow-md">
+              <Check size={18} /> Mark Complete
+            </motion.button>
+          )}
+          {todayPlan && (
+            <motion.button whileTap={{ scale: 0.95 }} onClick={deleteTodayPlan}
+              className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl font-semibold border border-red-200">
+              <Trash2 size={16} /> Delete Workout
+            </motion.button>
+          )}
+          {todayPlan?.isCompleted && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-xl font-semibold">
+              <Flame size={18} /> Done!
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-2xl overflow-x-auto">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-6 bg-gray-100 p-2 rounded-2xl">
         {TABS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -192,8 +256,10 @@ export default function Workout() {
                 if (tab.id === 'history') loadHistory();
                 if (tab.id === 'analytics') loadAnalytics();
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition-all ${isActive ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500'}`}>
-              <Icon size={15} /> {tab.label}
+              className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-medium text-sm transition-all ${isActive ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500'}`}>
+              <Icon size={15} />
+              <span className="sm:hidden">{tab.shortLabel}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
             </motion.button>
           );
         })}
@@ -219,8 +285,25 @@ export default function Workout() {
                 <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
                   <Dumbbell size={20} className="text-white" />
                 </div>
-                <div>
-                  <p className="font-bold text-gray-900">{todayPlan.dayLabel || 'Today'}</p>
+                <div className="flex-1">
+                  {editingPlanLabel ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={planLabel}
+                        onChange={e => setPlanLabel(e.target.value)}
+                        placeholder="Workout label"
+                        className="w-full border border-gray-200 rounded-lg px-2 py-1 text-sm"
+                      />
+                      <button onClick={savePlanLabel} className="text-emerald-600"><Save size={16} /></button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-gray-900">{todayPlan.dayLabel || 'Today'}</p>
+                      <button onClick={() => setEditingPlanLabel(true)} className="text-gray-400 hover:text-emerald-600">
+                        <Edit2 size={14} />
+                      </button>
+                    </div>
+                  )}
                   <p className="text-sm text-gray-500">{plannedExercises.length} exercises planned</p>
                 </div>
               </div>
@@ -326,7 +409,7 @@ export default function Workout() {
       {/* LIBRARY TAB */}
       {activeTab === 'library' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex gap-2 overflow-x-auto pb-1">
               {['All', ...MUSCLE_GROUPS].map(mg => (
                 <button key={mg} onClick={() => setFilterMuscle(mg)}
@@ -335,9 +418,9 @@ export default function Workout() {
                 </button>
               ))}
             </div>
-            <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowAddExercise(true)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-sm font-semibold ml-2 flex-shrink-0">
-              <Plus size={16} /> Add
+            <motion.button whileTap={{ scale: 0.95 }} onClick={openAddExercise}
+              className="w-full sm:w-auto flex items-center justify-center gap-1 px-3 py-2 bg-emerald-500 text-white rounded-xl text-sm font-semibold sm:ml-2 flex-shrink-0">
+              <Plus size={16} /> Add Exercise
             </motion.button>
           </div>
 
@@ -361,7 +444,27 @@ export default function Workout() {
                         <Trophy size={12} /> PR: {pr.maxWeightKg}kg × {pr.reps}
                       </div>
                     )}
-                    {ex.isCustom && <span className="text-xs text-indigo-500">Custom</span>}
+                    {ex.isCustom && (
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-xs text-indigo-500">Custom</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openEditExercise(ex)}
+                            className="text-gray-400 hover:text-emerald-600"
+                            title="Edit exercise"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button
+                            onClick={() => deleteExerciseItem(ex.id)}
+                            className="text-gray-400 hover:text-red-500"
+                            title="Delete exercise"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               );
@@ -474,7 +577,7 @@ export default function Workout() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4">
             <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
-              className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+              className="bg-white rounded-2xl w-full max-w-lg max-h-[90dvh] flex flex-col">
               <div className="flex items-center justify-between p-5 border-b border-gray-100">
                 <h2 className="text-xl font-bold text-gray-900">Plan Today's Workout</h2>
                 <button onClick={() => setShowAddPlan(false)}><X size={20} className="text-gray-400" /></button>
@@ -507,7 +610,7 @@ export default function Workout() {
                   })}
                 </div>
               </div>
-              <div className="p-5 border-t border-gray-100">
+              <div className="p-4 sm:p-5 border-t border-gray-100 bg-white" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
                 <motion.button whileTap={{ scale: 0.95 }} onClick={createTodayPlan} disabled={selectedExercises.length === 0}
                   className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold shadow-md disabled:opacity-40">
                   Start Workout ({selectedExercises.length} exercises)
@@ -524,25 +627,29 @@ export default function Workout() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4">
             <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
-              className="bg-white rounded-2xl w-full max-w-md p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Add Custom Exercise</h2>
-                <button onClick={() => setShowAddExercise(false)}><X size={20} className="text-gray-400" /></button>
+              className="bg-white rounded-2xl w-full max-w-md max-h-[90dvh] flex flex-col">
+              <div className="flex items-center justify-between p-5 border-b border-gray-100">
+                <h2 className="text-xl font-bold text-gray-900">{editingExerciseId ? 'Edit Custom Exercise' : 'Add Custom Exercise'}</h2>
+                <button onClick={() => { setShowAddExercise(false); setEditingExerciseId(null); }}><X size={20} className="text-gray-400" /></button>
               </div>
-              <input value={newExercise.name} onChange={e => setNewExercise(p => ({ ...p, name: e.target.value }))} placeholder="Exercise name"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-              <select value={newExercise.muscleGroup} onChange={e => setNewExercise(p => ({ ...p, muscleGroup: e.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400">
-                {MUSCLE_GROUPS.map(mg => <option key={mg} value={mg}>{mg}</option>)}
-              </select>
-              <input value={newExercise.description} onChange={e => setNewExercise(p => ({ ...p, description: e.target.value }))} placeholder="Description (optional)"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-              <input value={newExercise.imageUrl} onChange={e => setNewExercise(p => ({ ...p, imageUrl: e.target.value }))} placeholder="Image URL (optional)"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-              <motion.button whileTap={{ scale: 0.95 }} onClick={addExercise} disabled={!newExercise.name}
-                className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold disabled:opacity-40">
-                Add Exercise
-              </motion.button>
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                <input value={newExercise.name} onChange={e => setNewExercise(p => ({ ...p, name: e.target.value }))} placeholder="Exercise name"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <select value={newExercise.muscleGroup} onChange={e => setNewExercise(p => ({ ...p, muscleGroup: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                  {MUSCLE_GROUPS.map(mg => <option key={mg} value={mg}>{mg}</option>)}
+                </select>
+                <input value={newExercise.description} onChange={e => setNewExercise(p => ({ ...p, description: e.target.value }))} placeholder="Description (optional)"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <input value={newExercise.imageUrl} onChange={e => setNewExercise(p => ({ ...p, imageUrl: e.target.value }))} placeholder="Image URL (optional)"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+              </div>
+              <div className="p-4 sm:p-5 border-t border-gray-100 bg-white" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+                <motion.button whileTap={{ scale: 0.95 }} onClick={saveExercise} disabled={!newExercise.name}
+                  className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold disabled:opacity-40">
+                  {editingExerciseId ? 'Save Exercise' : 'Add Exercise'}
+                </motion.button>
+              </div>
             </motion.div>
           </motion.div>
         )}

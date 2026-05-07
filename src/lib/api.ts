@@ -473,6 +473,7 @@ export async function getWorkoutPlans(from?: string, to?: string) {
 export async function getWorkoutPlanByDate(date: string) { return request(`workout/plans/date/${date}`); }
 export async function createWorkoutPlan(body: any) { return request('workout/plans', { method: 'POST', body: JSON.stringify(body) }); }
 export async function updateWorkoutPlan(id: number, body: any) { return request(`workout/plans/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteWorkoutPlan(id: number) { return request(`workout/plans/${id}`, { method: 'DELETE' }); }
 
 export async function logWorkoutSet(planId: number, body: any) { return request(`workout/plans/${planId}/sets`, { method: 'POST', body: JSON.stringify(body) }); }
 export async function updateWorkoutSet(id: number, body: any) { return request(`workout/sets/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
