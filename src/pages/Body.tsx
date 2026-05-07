@@ -1,34 +1,47 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Dumbbell, Trophy, Star, Plus, ChevronRight, Check,
-  TrendingUp, Target, Zap, MoreHorizontal, FlameKindling
+  Dumbbell, Trophy, Check, Camera, Settings as SettingsIcon,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
 
 type Tab = 'Workout' | 'Diet' | 'Progress';
 
-interface Exercise {
-  id: string;
+type Exercise = {
+  id: number;
   name: string;
   muscleGroup?: string;
-  sets?: WorkoutSet[];
-}
+};
 
-interface WorkoutSet {
+type WorkoutSet = {
   setNumber: number;
   weight: number;
   reps: number;
   isCompleted?: boolean;
-}
+};
 
-interface PR {
-  exerciseName: string;
-  bestWeight: number;
-  bestReps: number;
-  achievedAt?: string;
-}
+type MealIngredient = { id: string; name: string; calories: number };
+type MealTemplate = {
+  id: string;
+  name: string;
+  timing: 'pre-workout' | 'post-workout' | 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  ingredients: MealIngredient[];
+  recipe: string;
+};
+
+type WorkoutLog = {
+  date: string;
+  exercises: Array<{ exerciseId: number; name: string; sets: WorkoutSet[] }>;
+  imageUrls: string[];
+};
+
+const ROUTINE_KEY = 'gd.weeklyWorkoutRoutine';
+const MEALS_KEY = 'gd.mealTemplates';
+const CALORIE_KEY = 'calorieGoal';
+const WORKOUT_LOGS_KEY = 'gd.workoutLogs';
+const DIET_LOGS_KEY = 'gd.dietLogs';
 
 function PillTabs({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
   return (
@@ -46,231 +59,281 @@ function PillTabs({ tabs, active, onChange }: { tabs: string[]; active: string; 
   );
 }
 
-function SetRow({
-  set, onChange, isPR
-}: {
-  set: WorkoutSet;
-  onChange: (s: WorkoutSet) => void;
-  isPR?: boolean;
-}) {
-  const [done, setDone] = useState(set.isCompleted ?? false);
-
-  const toggle = () => {
-    const next = !done;
-    setDone(next);
-    onChange({ ...set, isCompleted: next });
-    if (next && 'vibrate' in navigator) navigator.vibrate(30);
-  };
-
-  return (
-    <div className="flex items-center gap-3 py-2.5 px-3">
-      <button
-        onClick={toggle}
-        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all press"
-        style={{
-          backgroundColor: done ? 'var(--accent)' : 'var(--surface-elevated)',
-          border: done ? 'none' : '1px solid var(--border)',
-        }}
-      >
-        {done && <Check size={14} color="#fff" />}
-      </button>
-      <span className="text-xs font-medium w-12" style={{ color: 'var(--text-muted)' }}>Set {set.setNumber}</span>
-      <input
-        type="number"
-        inputMode="decimal"
-        defaultValue={set.weight || ''}
-        placeholder="--"
-        className="w-16 text-center rounded-lg p-1.5 text-sm font-semibold num outline-none"
-        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-        onBlur={e => onChange({ ...set, weight: parseFloat(e.target.value) || 0 })}
-      />
-      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>kg</span>
-      <input
-        type="number"
-        inputMode="numeric"
-        defaultValue={set.reps || ''}
-        placeholder="--"
-        className="w-14 text-center rounded-lg p-1.5 text-sm font-semibold num outline-none"
-        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-        onBlur={e => onChange({ ...set, reps: parseInt(e.target.value) || 0 })}
-      />
-      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>reps</span>
-      {isPR && (
-        <div className="ml-auto flex items-center gap-1 px-2 py-1 rounded-full" style={{ backgroundColor: 'var(--accent-gold)22' }}>
-          <Star size={11} style={{ color: 'var(--accent-gold)' }} />
-          <span className="text-[10px] font-bold" style={{ color: 'var(--accent-gold)' }}>PR</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ExerciseCard({ exercise }: { exercise: Exercise }) {
-  const [sets, setSets] = useState<WorkoutSet[]>(
-    exercise.sets ?? [{ setNumber: 1, weight: 0, reps: 0 }]
-  );
-  const [expanded, setExpanded] = useState(true);
-
-  const addSet = () => {
-    setSets(prev => [...prev, { setNumber: prev.length + 1, weight: 0, reps: 0 }]);
-  };
-
-  const updateSet = (idx: number, s: WorkoutSet) => {
-    setSets(prev => prev.map((p, i) => i === idx ? s : p));
-  };
-
-  const completedSets = sets.filter(s => s.isCompleted).length;
-  const totalSets = sets.length;
-
-  return (
-    <div className="rounded-2xl overflow-hidden mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <button
-        onClick={() => setExpanded(v => !v)}
-        className="w-full flex items-center gap-3 p-4 press"
-      >
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-          <Dumbbell size={18} style={{ color: 'var(--accent)' }} />
-        </div>
-        <div className="flex-1 text-left">
-          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{exercise.name}</p>
-          {exercise.muscleGroup && (
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{exercise.muscleGroup}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs num" style={{ color: completedSets === totalSets && totalSets > 0 ? 'var(--accent-green)' : 'var(--text-muted)' }}>
-            {completedSets}/{totalSets}
-          </span>
-          <div
-            className="w-8 h-1 rounded-full overflow-hidden"
-            style={{ backgroundColor: 'var(--surface-elevated)' }}
-          >
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${totalSets > 0 ? (completedSets / totalSets) * 100 : 0}%`,
-                backgroundColor: 'var(--accent-green)',
-              }}
-            />
-          </div>
-        </div>
-      </button>
-
-      <AnimatePresence initial={false}>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div style={{ borderTop: '1px solid var(--border)' }}>
-              <div className="flex items-center px-3 py-2">
-                <span className="text-[10px] font-semibold uppercase tracking-wider flex-shrink-0 w-28" style={{ color: 'var(--text-muted)' }}>Set</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider w-20 text-center" style={{ color: 'var(--text-muted)' }}>Weight</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider w-20 text-center" style={{ color: 'var(--text-muted)' }}>Reps</span>
-              </div>
-              {sets.map((s, i) => (
-                <SetRow key={i} set={s} onChange={u => updateSet(i, u)} />
-              ))}
-              <button
-                onClick={addSet}
-                className="w-full py-3 text-xs font-medium press flex items-center justify-center gap-1"
-                style={{ color: 'var(--accent)', borderTop: '1px solid var(--border)' }}
-              >
-                <Plus size={14} />
-                Add Set
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
 function WorkoutTab() {
+  const navigate = useNavigate();
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [workoutDone, setWorkoutDone] = useState(false);
+  const [routine, setRoutine] = useState<Record<string, number[]>>({});
   const [loading, setLoading] = useState(true);
+  const [setsByExercise, setSetsByExercise] = useState<Record<number, WorkoutSet[]>>({});
+  const [images, setImages] = useState<string[]>([]);
+  const [saveMessage, setSaveMessage] = useState('');
+
+  const dayKey = format(new Date(), 'EEEE').toLowerCase();
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
-    api.getWorkoutPlans().then((data: any) => {
-      const list = Array.isArray(data) ? data : [];
-      setExercises(list.slice(0, 6).map((e: any, i: number) => ({
-        id: e.id?.toString() ?? i.toString(),
-        name: e.exerciseName ?? e.name ?? 'Exercise',
-        muscleGroup: e.muscleGroup ?? e.muscle_group,
-        sets: e.sets ?? [{ setNumber: 1, weight: 0, reps: 0 }],
-      })));
-    }).catch(() => {
-      // Demo exercises if API fails
-      setExercises([
-        { id: '1', name: 'Bench Press', muscleGroup: 'Chest', sets: [{ setNumber: 1, weight: 60, reps: 10 }] },
-        { id: '2', name: 'Incline Dumbbell Press', muscleGroup: 'Chest', sets: [{ setNumber: 1, weight: 30, reps: 12 }] },
-        { id: '3', name: 'Tricep Pushdown', muscleGroup: 'Triceps', sets: [{ setNumber: 1, weight: 25, reps: 15 }] },
-      ]);
-    }).finally(() => setLoading(false));
-  }, []);
+    const raw = localStorage.getItem(ROUTINE_KEY);
+    if (raw) {
+      try { setRoutine(JSON.parse(raw)); } catch { setRoutine({}); }
+    }
+
+    api.getExercises()
+      .then((data: any) => setExercises(Array.isArray(data) ? data : []))
+      .catch(() => setExercises([]))
+      .finally(() => setLoading(false));
+
+    const logsRaw = localStorage.getItem(WORKOUT_LOGS_KEY);
+    if (logsRaw) {
+      try {
+        const logs: WorkoutLog[] = JSON.parse(logsRaw);
+        const existing = logs.find(l => l.date === today);
+        if (existing) {
+          const next: Record<number, WorkoutSet[]> = {};
+          existing.exercises.forEach(e => { next[e.exerciseId] = e.sets; });
+          setSetsByExercise(next);
+          setImages(existing.imageUrls || []);
+        }
+      } catch {}
+    }
+  }, [today]);
+
+  const suggestedExercises = useMemo(() => {
+    const ids = routine[dayKey] || [];
+    const mapped = exercises.filter(e => ids.includes(e.id));
+    if (mapped.length > 0) return mapped;
+    return exercises.slice(0, 4);
+  }, [routine, dayKey, exercises]);
+
+  useEffect(() => {
+    if (suggestedExercises.length === 0) return;
+    setSetsByExercise(prev => {
+      const next = { ...prev };
+      for (const ex of suggestedExercises) {
+        if (!next[ex.id] || next[ex.id].length === 0) {
+          next[ex.id] = [
+            { setNumber: 1, weight: 0, reps: 0 },
+            { setNumber: 2, weight: 0, reps: 0 },
+            { setNumber: 3, weight: 0, reps: 0 },
+          ];
+        }
+      }
+      return next;
+    });
+  }, [suggestedExercises]);
+
+  function addSet(exerciseId: number) {
+    setSetsByExercise(prev => {
+      const current = prev[exerciseId] || [];
+      return {
+        ...prev,
+        [exerciseId]: [...current, { setNumber: current.length + 1, weight: 0, reps: 0 }],
+      };
+    });
+  }
+
+  function updateSet(exerciseId: number, index: number, patch: Partial<WorkoutSet>) {
+    setSetsByExercise(prev => {
+      const current = prev[exerciseId] || [];
+      const next = current.map((s, i) => (i === index ? { ...s, ...patch } : s));
+      return { ...prev, [exerciseId]: next };
+    });
+  }
+
+  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setImages(prev => [...prev, dataUrl]);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function saveTodayLog() {
+    const payload: WorkoutLog = {
+      date: today,
+      exercises: suggestedExercises.map(ex => ({
+        exerciseId: ex.id,
+        name: ex.name,
+        sets: setsByExercise[ex.id] || [],
+      })),
+      imageUrls: images,
+    };
+
+    const raw = localStorage.getItem(WORKOUT_LOGS_KEY);
+    let logs: WorkoutLog[] = [];
+    if (raw) {
+      try { logs = JSON.parse(raw); } catch { logs = []; }
+    }
+
+    const exists = logs.findIndex(l => l.date === today);
+    if (exists >= 0) logs[exists] = payload;
+    else logs.unshift(payload);
+
+    localStorage.setItem(WORKOUT_LOGS_KEY, JSON.stringify(logs));
+    setSaveMessage('Workout log saved');
+    setTimeout(() => setSaveMessage(''), 1500);
+  }
 
   return (
     <div className="px-4">
-      {/* Session header */}
       <div className="p-4 rounded-2xl mb-4" style={{ background: 'linear-gradient(135deg, var(--accent)22, var(--surface))', border: '1px solid var(--accent)33' }}>
-        <div className="flex items-center gap-2 mb-1">
-          <FlameKindling size={16} style={{ color: 'var(--accent)' }} />
+        <div className="flex items-center justify-between gap-2 mb-2">
           <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
-            Today's Session
+            Suggested by {dayKey}
           </span>
+          <button onClick={() => navigate('/settings/workout-library')} className="text-xs flex items-center gap-1" style={{ color: 'var(--accent)' }}>
+            <SettingsIcon size={12} /> Configure
+          </button>
         </div>
-        <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Push Day — Chest & Triceps</p>
+        <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
+          {suggestedExercises.length > 0 ? `${suggestedExercises.length} exercises for today` : 'No routine configured'}
+        </p>
         <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{format(new Date(), 'EEEE, d MMM')}</p>
       </div>
 
       {loading ? (
-        [1,2,3].map(i => (
+        [1, 2, 3].map(i => (
           <div key={i} className="rounded-2xl mb-3 p-4" style={{ backgroundColor: 'var(--surface)' }}>
             <div className="skeleton h-4 w-40 rounded mb-2" />
             <div className="skeleton h-3 w-24 rounded" />
           </div>
         ))
-      ) : exercises.length === 0 ? (
-        <div className="py-12 text-center">
+      ) : suggestedExercises.length === 0 ? (
+        <div className="py-10 text-center">
           <Dumbbell size={40} className="mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
-          <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>No workout planned</p>
-          <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Set up your program in settings</p>
+          <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>No workout library configured</p>
+          <button onClick={() => navigate('/settings/workout-library')} className="mt-2 h-10 px-4 rounded-xl text-sm font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>
+            Set Routine
+          </button>
         </div>
       ) : (
-        exercises.map(ex => <ExerciseCard key={ex.id} exercise={ex} />)
+        suggestedExercises.map(ex => {
+          const sets = setsByExercise[ex.id] || [];
+          const completed = sets.filter(s => s.isCompleted).length;
+          return (
+            <div key={ex.id} className="rounded-2xl overflow-hidden mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-3 p-4" style={{ borderBottom: '1px solid var(--border)' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                  <Dumbbell size={16} style={{ color: 'var(--accent)' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{ex.name}</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{ex.muscleGroup || 'General'}</p>
+                </div>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{completed}/{sets.length}</span>
+              </div>
+
+              <div className="px-3 pb-3 pt-2 space-y-2">
+                {sets.map((s, idx) => (
+                  <div key={idx} className="grid grid-cols-4 gap-2 items-center">
+                    <label className="flex items-center gap-1">
+                      <input type="checkbox" checked={!!s.isCompleted} onChange={e => updateSet(ex.id, idx, { isCompleted: e.target.checked })} />
+                      <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>#{s.setNumber}</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={s.weight || ''}
+                      onChange={e => updateSet(ex.id, idx, { weight: Number(e.target.value) || 0 })}
+                      className="px-2 py-1.5 rounded-lg text-xs num"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      placeholder="kg"
+                    />
+                    <input
+                      type="number"
+                      value={s.reps || ''}
+                      onChange={e => updateSet(ex.id, idx, { reps: Number(e.target.value) || 0 })}
+                      className="px-2 py-1.5 rounded-lg text-xs num"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      placeholder="reps"
+                    />
+                    <button onClick={() => addSet(ex.id)} className="h-8 rounded-lg text-[11px] font-semibold" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>
+                      + Set
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })
       )}
 
-      {exercises.length > 0 && (
-        <button
-          onClick={() => { setWorkoutDone(true); if ('vibrate' in navigator) navigator.vibrate([50, 30, 50]); }}
-          className="w-full h-12 rounded-2xl font-semibold text-white press transition-all mb-4 flex items-center justify-center gap-2"
-          style={{ backgroundColor: workoutDone ? 'var(--accent-green)' : 'var(--accent)' }}
-        >
-          {workoutDone ? <><Check size={18} /> Workout Complete!</> : 'Complete Workout'}
-        </button>
-      )}
+      <div className="rounded-2xl p-3 mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Workout Images</p>
+          <label className="text-xs flex items-center gap-1 cursor-pointer" style={{ color: 'var(--accent)' }}>
+            <Camera size={12} /> Add
+            <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+          </label>
+        </div>
+        {images.length > 0 ? (
+          <div className="grid grid-cols-3 gap-2">
+            {images.map((img, i) => (
+              <img key={i} src={img} alt="workout" className="w-full h-20 object-cover rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No images added yet.</p>
+        )}
+      </div>
+
+      <button onClick={saveTodayLog} className="w-full h-11 rounded-2xl text-sm font-semibold text-white flex items-center justify-center gap-2 mb-4" style={{ backgroundColor: 'var(--accent)' }}>
+        <Check size={16} /> Save Today's Workout Log
+      </button>
+      {saveMessage && <p className="text-xs text-center" style={{ color: 'var(--accent-green)' }}>{saveMessage}</p>}
     </div>
   );
 }
 
 function DietTab() {
-  const calsConsumed = 1840;
-  const calsTarget = 2400;
-  const pct = Math.round((calsConsumed / calsTarget) * 100);
+  const [meals, setMeals] = useState<MealTemplate[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [goal, setGoal] = useState(2400);
+  const navigate = useNavigate();
+  const today = format(new Date(), 'yyyy-MM-dd');
 
-  const macros = [
-    { label: 'Protein', value: 142, target: 180, color: 'var(--accent-warm)' },
-    { label: 'Carbs',   value: 198, target: 260, color: 'var(--accent-gold)' },
-    { label: 'Fat',     value: 62,  target: 80,  color: 'var(--accent-green)' },
-  ];
+  useEffect(() => {
+    const rawMeals = localStorage.getItem(MEALS_KEY);
+    if (rawMeals) {
+      try { setMeals(JSON.parse(rawMeals)); } catch { setMeals([]); }
+    }
+    const rawGoal = localStorage.getItem(CALORIE_KEY);
+    if (rawGoal) setGoal(Number(rawGoal) || 2400);
+
+    const rawLogs = localStorage.getItem(DIET_LOGS_KEY);
+    if (rawLogs) {
+      try {
+        const logs = JSON.parse(rawLogs) as Record<string, string[]>;
+        setSelected(logs[today] || []);
+      } catch {
+        setSelected([]);
+      }
+    }
+  }, [today]);
+
+  const consumedCalories = useMemo(() => {
+    return meals
+      .filter(m => selected.includes(m.id))
+      .reduce((sum, meal) => sum + meal.ingredients.reduce((s, i) => s + i.calories, 0), 0);
+  }, [selected, meals]);
+
+  const pct = goal > 0 ? Math.min(100, Math.round((consumedCalories / goal) * 100)) : 0;
+
+  function toggleMeal(id: string) {
+    const next = selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id];
+    setSelected(next);
+    const raw = localStorage.getItem(DIET_LOGS_KEY);
+    let logs: Record<string, string[]> = {};
+    if (raw) {
+      try { logs = JSON.parse(raw); } catch { logs = {}; }
+    }
+    logs[today] = next;
+    localStorage.setItem(DIET_LOGS_KEY, JSON.stringify(logs));
+  }
 
   return (
     <div className="px-4">
-      {/* Calorie ring */}
       <div className="p-5 rounded-2xl mb-4 flex items-center gap-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="relative flex-shrink-0">
           <svg width="88" height="88" className="-rotate-90">
@@ -283,7 +346,6 @@ function DietTab() {
               strokeDasharray={`${2 * Math.PI * 36}`}
               strokeDashoffset={`${2 * Math.PI * 36 * (1 - pct / 100)}`}
               strokeLinecap="round"
-              style={{ transition: 'stroke-dashoffset 0.8s ease' }}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -292,120 +354,111 @@ function DietTab() {
         </div>
         <div>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Consumed</p>
-          <p className="text-2xl font-bold num" style={{ color: 'var(--text-primary)' }}>{calsConsumed}</p>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>of {calsTarget} kcal</p>
+          <p className="text-2xl font-bold num" style={{ color: 'var(--text-primary)' }}>{consumedCalories}</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>of {goal} kcal</p>
         </div>
       </div>
 
-      {/* Macros */}
-      <div className="p-4 rounded-2xl mb-4 space-y-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <span className="section-label">Macros</span>
-        {macros.map(m => (
-          <div key={m.label}>
-            <div className="flex justify-between mb-1">
-              <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{m.label}</span>
-              <span className="text-xs num" style={{ color: 'var(--text-muted)' }}>{m.value}g / {m.target}g</span>
-            </div>
-            <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${Math.min(100, (m.value / m.target) * 100)}%`, backgroundColor: m.color }}
-              />
-            </div>
-          </div>
-        ))}
+      <div className="flex items-center justify-between mb-2">
+        <span className="section-label">Configured Meals</span>
+        <button onClick={() => navigate('/settings/meals')} className="text-xs" style={{ color: 'var(--accent)' }}>Manage</button>
       </div>
 
-      {/* Meals */}
-      <div className="section-header px-0 mb-2">
-        <span className="section-label">Today's Meals</span>
-      </div>
-      {[
-        { label: 'Pre-workout',  items: ['Oats + Banana', 'Whey Protein'], cals: 480 },
-        { label: 'Post-workout', items: ['Chicken Breast', 'Brown Rice', 'Broccoli'], cals: 620 },
-        { label: 'Dinner',       items: ['Greek Yogurt', 'Almonds'], cals: 320 },
-      ].map(meal => (
-        <div key={meal.label} className="flex items-center gap-3 p-3 rounded-xl mb-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <div>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{meal.label}</p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{meal.items.join(' · ')}</p>
-          </div>
-          <span className="ml-auto text-sm font-bold num" style={{ color: 'var(--accent-warm)' }}>{meal.cals}</span>
+      {meals.length === 0 ? (
+        <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-sm" style={{ color: 'var(--text-primary)' }}>No meals configured yet.</p>
+          <button onClick={() => navigate('/settings/meals')} className="mt-2 h-9 px-3 rounded-xl text-sm font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>
+            Configure Meals
+          </button>
         </div>
-      ))}
+      ) : (
+        meals.map(meal => {
+          const total = meal.ingredients.reduce((s, i) => s + i.calories, 0);
+          const on = selected.includes(meal.id);
+          return (
+            <button
+              key={meal.id}
+              onClick={() => toggleMeal(meal.id)}
+              className="w-full text-left flex items-center gap-3 p-3 rounded-xl mb-2"
+              style={{
+                backgroundColor: on ? 'var(--accent)11' : 'var(--surface)',
+                border: `1px solid ${on ? 'var(--accent)55' : 'var(--border)'}`,
+              }}
+            >
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: on ? 'var(--accent)' : 'var(--surface-elevated)' }}>
+                {on && <Check size={12} color="#fff" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
+                <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{meal.timing} - {meal.ingredients.map(i => i.name).join(' - ')}</p>
+                {meal.recipe && <p className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{meal.recipe}</p>}
+              </div>
+              <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{total}</span>
+            </button>
+          );
+        })
+      )}
     </div>
   );
 }
 
 function ProgressTab() {
-  const prs: PR[] = [
-    { exerciseName: 'Bench Press',    bestWeight: 100, bestReps: 5, achievedAt: '2026-04-28' },
-    { exerciseName: 'Squat',          bestWeight: 120, bestReps: 3, achievedAt: '2026-04-22' },
-    { exerciseName: 'Deadlift',       bestWeight: 140, bestReps: 1, achievedAt: '2026-05-01' },
-    { exerciseName: 'OHP',            bestWeight: 70,  bestReps: 5, achievedAt: '2026-04-18' },
-  ];
+  const [logs, setLogs] = useState<WorkoutLog[]>([]);
 
-  const weightData = [72.5, 72.1, 71.8, 71.6, 71.4, 71.9, 71.2];
-  const minW = Math.min(...weightData) - 0.5;
-  const maxW = Math.max(...weightData) + 0.5;
+  useEffect(() => {
+    const raw = localStorage.getItem(WORKOUT_LOGS_KEY);
+    if (raw) {
+      try { setLogs(JSON.parse(raw)); } catch { setLogs([]); }
+    }
+  }, []);
+
+  const prs = useMemo(() => {
+    const map = new Map<string, { exerciseName: string; bestWeight: number; bestReps: number; achievedAt: string }>();
+    for (const log of logs) {
+      for (const ex of log.exercises) {
+        for (const set of ex.sets) {
+          const existing = map.get(ex.name);
+          if (!existing || (set.weight > existing.bestWeight || (set.weight === existing.bestWeight && set.reps > existing.bestReps))) {
+            map.set(ex.name, {
+              exerciseName: ex.name,
+              bestWeight: set.weight || 0,
+              bestReps: set.reps || 0,
+              achievedAt: log.date,
+            });
+          }
+        }
+      }
+    }
+    return Array.from(map.values()).slice(0, 8);
+  }, [logs]);
 
   return (
     <div className="px-4">
-      {/* Weight chart */}
-      <div className="p-4 rounded-2xl mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center justify-between mb-3">
-          <span className="section-label">Body Weight</span>
-          <span className="text-sm font-bold num" style={{ color: 'var(--accent-green)' }}>-1.3 kg</span>
-        </div>
-        <div className="flex items-end gap-1 h-20">
-          {weightData.map((w, i) => {
-            const h = ((w - minW) / (maxW - minW)) * 100;
-            return (
-              <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1">
-                <div
-                  className="w-full rounded-t-sm transition-all"
-                  style={{
-                    height: `${40 + h * 0.6}%`,
-                    backgroundColor: i === weightData.length - 1 ? 'var(--accent)' : 'var(--surface-elevated)',
-                  }}
-                />
-                <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>
-                  {['M','T','W','T','F','S','S'][i]}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex justify-between mt-2">
-          <span className="text-xs num" style={{ color: 'var(--text-muted)' }}>Current: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{weightData[weightData.length-1]} kg</span></span>
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Goal: 70 kg</span>
-        </div>
-      </div>
-
-      {/* PRs */}
       <div className="section-header px-0 mb-2">
         <span className="section-label">Personal Records</span>
       </div>
-      <div className="space-y-2">
-        {prs.map(pr => (
-          <div key={pr.exerciseName} className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--accent-gold)22' }}>
-              <Trophy size={16} style={{ color: 'var(--accent-gold)' }} />
+      {prs.length === 0 ? (
+        <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-sm" style={{ color: 'var(--text-primary)' }}>No workout logs yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {prs.map(pr => (
+            <div key={pr.exerciseName} className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--accent-gold)22' }}>
+                <Trophy size={16} style={{ color: 'var(--accent-gold)' }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{pr.exerciseName}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  {pr.bestWeight} kg x {pr.bestReps} reps
+                </p>
+              </div>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{format(new Date(pr.achievedAt), 'd MMM')}</span>
             </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{pr.exerciseName}</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                {pr.bestWeight} kg × {pr.bestReps} reps
-              </p>
-            </div>
-            {pr.achievedAt && (
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {format(new Date(pr.achievedAt), 'd MMM')}
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -415,16 +468,11 @@ export default function Body() {
 
   return (
     <div className="pt-4 pb-nav" style={{ backgroundColor: 'var(--bg)' }}>
-      {/* Header */}
       <div className="px-4 mb-2">
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Body</h1>
       </div>
 
-      <PillTabs
-        tabs={['Workout', 'Diet', 'Progress']}
-        active={tab}
-        onChange={t => setTab(t as Tab)}
-      />
+      <PillTabs tabs={['Workout', 'Diet', 'Progress']} active={tab} onChange={t => setTab(t as Tab)} />
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -435,8 +483,8 @@ export default function Body() {
           transition={{ duration: 0.15 }}
           className="mt-2"
         >
-          {tab === 'Workout'  && <WorkoutTab />}
-          {tab === 'Diet'     && <DietTab />}
+          {tab === 'Workout' && <WorkoutTab />}
+          {tab === 'Diet' && <DietTab />}
           {tab === 'Progress' && <ProgressTab />}
         </motion.div>
       </AnimatePresence>

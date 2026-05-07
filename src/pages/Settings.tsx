@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, User, Moon, Palette, Download,
-  Upload, LogOut, Bell, Shield, Target, Dumbbell, Wallet,
-  Check, Sun, Droplets
+  Upload, LogOut, Bell, Shield, Target, Dumbbell,
+  Check, Sun, Droplets, BookOpen
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContextApi';
@@ -197,6 +197,12 @@ export default function Settings() {
           />
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>kcal</span>
         </div>
+        <SettingRow icon={BookOpen} label="Meals, Ingredients & Recipes" onPress={() => navigate('/settings/meals')} color="var(--accent-warm)" />
+      </SectionCard>
+
+      {/* Workout */}
+      <SectionCard title="Workout">
+        <SettingRow icon={Dumbbell} label="Workout Library & Weekly Routine" onPress={() => navigate('/settings/workout-library')} color="var(--accent)" />
       </SectionCard>
 
       {/* Data */}

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContextApi';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -12,8 +13,10 @@ import Life from './pages/Life';
 import Settings from './pages/Settings';
 import JournalEditor from './pages/JournalEditor';
 import Vehicles from './pages/Vehicles';
+import WorkoutLibrarySettings from './pages/WorkoutLibrarySettings';
+import MealPlannerSettings from './pages/MealPlannerSettings';
 
-function PrivateRoute({ children }: { children: React.ReactNode }) {
+function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -54,6 +57,8 @@ function App() {
               <Route path="/finance/vehicles" element={<PrivateRoute><Layout><Vehicles /></Layout></PrivateRoute>} />
               <Route path="/life"     element={<PrivateRoute><Layout><Life /></Layout></PrivateRoute>} />
               <Route path="/settings" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
+              <Route path="/settings/workout-library" element={<PrivateRoute><Layout><WorkoutLibrarySettings /></Layout></PrivateRoute>} />
+              <Route path="/settings/meals" element={<PrivateRoute><Layout><MealPlannerSettings /></Layout></PrivateRoute>} />
 
               {/* Journal editor — full screen, no nav */}
               <Route path="/journal/new"      element={<PrivateRoute><JournalEditor /></PrivateRoute>} />
