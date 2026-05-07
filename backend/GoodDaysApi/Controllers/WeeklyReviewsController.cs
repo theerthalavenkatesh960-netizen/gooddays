@@ -167,12 +167,10 @@ Data:
 - Total spend: ₹{totalSpend}
 - Journal entries: {journalEntries.Count} ({string.Join(", ", journalEntries.Take(3))})
 
-Reply in this exact JSON format (no markdown):
-{{
-  "summary": "2-3 sentence warm summary of the week",
-  "patternNoticed": "1 insightful pattern you spotted in the data",
-  "nextFocus": "1 specific, actionable focus for next week"
-}}
+Reply with strict JSON only (no markdown). Use exactly these keys:
+- summary: 2-3 sentence warm summary of the week
+- patternNoticed: 1 insightful pattern spotted in the data
+- nextFocus: 1 specific actionable focus for next week
 """;
 
         var apiKey = _config["Anthropic:ApiKey"] ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
