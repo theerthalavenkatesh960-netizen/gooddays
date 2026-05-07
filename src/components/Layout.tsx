@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContextApi';
+import { useTheme } from '../contexts/ThemeContext';
 import FocusTimer from './FocusTimer';
 
 const primaryNavItems = [
@@ -43,6 +44,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut } = useAuth();
+  const { theme } = useTheme();
   const [moreOpen, setMoreOpen] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -52,8 +54,18 @@ export default function Layout({ children }: { children: ReactNode }) {
     navigate('/login');
   };
 
+  const pageBg: Record<string, string> = {
+    light:      'bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50',
+    dark:       'bg-slate-900',
+    blue:       'bg-gradient-to-br from-blue-100 via-sky-50 to-cyan-100',
+    green:      'bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50',
+    ocean:      'bg-gradient-to-br from-teal-50 via-cyan-50 to-sky-100',
+    futuristic: 'bg-[#0a0a0f]',
+  };
+  const pageBgClass = pageBg[theme] ?? pageBg.light;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
+    <div className={`min-h-screen ${pageBgClass}`}>
       <div className="hidden md:flex h-screen">
         <motion.aside
           initial={{ width: 288 }}
