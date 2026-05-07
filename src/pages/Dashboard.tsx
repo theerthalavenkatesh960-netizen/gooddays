@@ -333,18 +333,26 @@ export default function Dashboard() {
     setTimeout(() => setTrackCompleted(false), 2000);
   };
 
-  const StreakBar = ({ completed }: { completed: boolean[] }) => (
-    <div className="flex gap-1">
-      {completed.map((done, i) => (
-        <div
-          key={i}
-          className={`flex-1 h-2 rounded-full ${
-            done ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gray-200'
-          }`}
-        />
-      ))}
-    </div>
-  );
+  const StreakBar = ({ completed, color }: { completed: boolean[]; color: string }) => {
+    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    const count = completed.filter(Boolean).length;
+    return (
+      <div>
+        <div className="flex gap-1.5 mb-1">
+          {completed.map((done, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              <div
+                className={`w-full rounded-md transition-all ${done ? color : 'bg-gray-100'}`}
+                style={{ height: '28px' }}
+              />
+              <span className="text-[9px] text-gray-400 font-medium">{days[i]}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-right font-semibold text-gray-500">{count}/7 days</p>
+      </div>
+    );
+  };
 
   return (
     <div>
@@ -493,7 +501,7 @@ export default function Dashboard() {
         </motion.div>
       )}
 
-      <motion.div
+      {false && <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
@@ -681,37 +689,81 @@ export default function Dashboard() {
             </>
           )}
         </motion.button>
-      </motion.div>
+      </motion.div>}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-white rounded-2xl p-4 shadow-xl"
+        className="bg-white rounded-2xl p-5 shadow-xl"
       >
-        <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-          <Flame className="text-orange-500" size={18} />
-          This Week
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <Flame className="text-orange-500" size={20} />
+            This Week
+          </h2>
+          <span className="text-xs text-gray-400 font-medium">Last 7 days</span>
+        </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-2">
-            <h3 className="text-xs font-semibold text-gray-700 mb-1">Tasks</h3>
-            <StreakBar completed={streaks.tasks} />
+        <div className="grid grid-cols-2 gap-4">
+          {/* Tasks */}
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">✅</span>
+              <span className="text-sm font-bold text-blue-700">Tasks</span>
+            </div>
+            <StreakBar completed={streaks.tasks} color="bg-blue-500" />
           </div>
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-2">
-            <h3 className="text-xs font-semibold text-gray-700 mb-1">Study</h3>
-            <StreakBar completed={streaks.study} />
+
+          {/* Workout */}
+          <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl p-3 border border-rose-100">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🏋️</span>
+              <span className="text-sm font-bold text-rose-600">Workout</span>
+            </div>
+            <StreakBar completed={streaks.workout} color="bg-rose-500" />
           </div>
-          <div className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-lg p-2">
-            <h3 className="text-xs font-semibold text-gray-700 mb-1">Self Care</h3>
-            <StreakBar completed={streaks.selfcare} />
+
+          {/* Study */}
+          <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-3 border border-violet-100">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">📚</span>
+              <span className="text-sm font-bold text-violet-700">Study</span>
+            </div>
+            <StreakBar completed={streaks.study} color="bg-violet-500" />
           </div>
-          <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-2">
-            <h3 className="text-xs font-semibold text-gray-700 mb-1">Workout</h3>
-            <StreakBar completed={streaks.workout} />
+
+          {/* Self Care */}
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-3 border border-emerald-100">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🌿</span>
+              <span className="text-sm font-bold text-emerald-700">Self Care</span>
+            </div>
+            <StreakBar completed={streaks.selfcare} color="bg-emerald-500" />
           </div>
         </div>
+
+        {/* Overall summary bar */}
+        {(() => {
+          const allDays = [...streaks.tasks, ...streaks.workout, ...streaks.study, ...streaks.selfcare];
+          const total = allDays.length;
+          const done = allDays.filter(Boolean).length;
+          const pct = Math.round((done / total) * 100);
+          return (
+            <div className="mt-4">
+              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <span className="font-medium">Overall consistency</span>
+                <span className="font-bold text-gray-700">{pct}%</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-2">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-blue-500 via-violet-500 to-rose-500 transition-all"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })()}
       </motion.div>
     </div>
   );
