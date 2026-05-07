@@ -28,8 +28,8 @@ export default function Dashboard() {
   const [waterGoal, setWaterGoal] = useState(8);
   const [streaks, setStreaks] = useState({
     tasks: Array(7).fill(false),
-    study: Array(7).fill(false),
-    selfcare: Array(7).fill(false),
+    goals: Array(7).fill(false),
+    finance: Array(7).fill(false),
     workout: Array(7).fill(false),
   });
 
@@ -196,15 +196,16 @@ export default function Dashboard() {
     });
 
     try {
-      const [tasksDataRaw, studyDataRaw, selfcareDataRaw] = await Promise.all([
+      const [tasksDataRaw, goalsDataRaw, expensesDataRaw, workoutDataRaw] = await Promise.all([
         api.getTasks(user.id),
-        api.getStudySessions(user.id),
-        api.getSelfCareActivities(user.id),
+        api.getGoals(),
+        api.getExpenses(user.id),
+        api.getWorkoutAnalytics(),
       ]);
 
       const tasksData = Array.isArray(tasksDataRaw) ? tasksDataRaw : [];
-      const studyData = Array.isArray(studyDataRaw) ? studyDataRaw : [];
-      const selfcareData = Array.isArray(selfcareDataRaw) ? selfcareDataRaw : [];
+      const goalsData = Array.isArray(goalsDataRaw) ? goalsDataRaw : [];
+      const expensesData = Array.isArray(expensesDataRaw) ? expensesDataRaw : [];
 
       const taskStreak = last7Days.map(d =>
         tasksData.some((t: any) => {
@@ -214,43 +215,41 @@ export default function Dashboard() {
           return format(dt, 'yyyy-MM-dd') === d;
         })
       );
-      const studyStreak = last7Days.map(d =>
-        studyData.some((s: any) => {
-          const dt = new Date(s.date);
+
+      // Goals: day has a goal with updatedAt on that day (any progress)
+      const goalsStreak = last7Days.map(d =>
+        goalsData.some((g: any) => {
+          const dt = new Date(g.updatedAt ?? g.updated_at ?? g.createdAt ?? g.created_at);
           if (isNaN(dt.getTime())) return false;
           return format(dt, 'yyyy-MM-dd') === d;
-        })
-      );
-      const selfcareStreak = last7Days.map(d =>
-        selfcareData.some((s: any) => {
-          const dt = new Date(s.date);
-          if (isNaN(dt.getTime())) return false;
-          return format(dt, 'yyyy-MM-dd') === d;
-        })
-      );
-      const workoutStreak = last7Days.map(d =>
-        selfcareData.some((s: any) => {
-          const dt = new Date(s.date);
-          if (isNaN(dt.getTime())) return false;
-          return (
-            format(dt, 'yyyy-MM-dd') === d &&
-            s.activityType?.toLowerCase().includes('workout')
-          );
         })
       );
 
+      // Finance: day has at least one expense logged
+      const financeStreak = last7Days.map(d =>
+        expensesData.some((e: any) => {
+          const dt = new Date(e.date ?? e.createdAt ?? e.created_at);
+          if (isNaN(dt.getTime())) return false;
+          return format(dt, 'yyyy-MM-dd') === d;
+        })
+      );
+
+      // Workout: days with a workout log
+      const trainedDates: string[] = workoutDataRaw?.trainedDates ?? [];
+      const workoutStreakArr = last7Days.map(d => trainedDates.includes(d));
+
       setStreaks({
         tasks: taskStreak,
-        study: studyStreak,
-        selfcare: selfcareStreak,
-        workout: workoutStreak,
+        goals: goalsStreak,
+        finance: financeStreak,
+        workout: workoutStreakArr,
       });
     } catch (e) {
       console.error(e);
       setStreaks({
         tasks: Array(7).fill(false),
-        study: Array(7).fill(false),
-        selfcare: Array(7).fill(false),
+        goals: Array(7).fill(false),
+        finance: Array(7).fill(false),
         workout: Array(7).fill(false),
       });
     }
@@ -338,18 +337,28 @@ export default function Dashboard() {
     const count = completed.filter(Boolean).length;
     return (
       <div>
-        <div className="flex gap-1.5 mb-1">
+        <div className="flex gap-2 mb-1.5">
           {completed.map((done, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+            <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
               <div
-                className={`w-full rounded-md transition-all ${done ? color : 'bg-gray-100'}`}
-                style={{ height: '28px' }}
-              />
-              <span className="text-[9px] text-gray-400 font-medium">{days[i]}</span>
+                className={`w-full rounded-lg transition-all border ${
+                  done
+                    ? `${color} border-transparent shadow-sm`
+                    : 'bg-white border-gray-300'
+                }`}
+                style={{ height: '32px' }}
+              >
+                {done && (
+                  <div className="flex items-center justify-center h-full">
+                    <span className="text-white text-[10px] font-bold">✓</span>
+                  </div>
+                )}
+              </div>
+              <span className={`text-[10px] font-semibold ${done ? 'text-gray-700' : 'text-gray-400'}`}>{days[i]}</span>
             </div>
           ))}
         </div>
-        <p className="text-xs text-right font-semibold text-gray-500">{count}/7 days</p>
+        <p className="text-xs text-right font-semibold text-gray-400">{count}/7 days</p>
       </div>
     );
   };
@@ -724,22 +733,22 @@ export default function Dashboard() {
             <StreakBar completed={streaks.workout} color="bg-rose-500" />
           </div>
 
-          {/* Study */}
-          <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-3 border border-violet-100">
+          {/* Goals */}
+          <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-3 border border-amber-100">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">📚</span>
-              <span className="text-sm font-bold text-violet-700">Study</span>
+              <span className="text-lg">🎯</span>
+              <span className="text-sm font-bold text-amber-700">Goals</span>
             </div>
-            <StreakBar completed={streaks.study} color="bg-violet-500" />
+            <StreakBar completed={streaks.goals} color="bg-amber-500" />
           </div>
 
-          {/* Self Care */}
+          {/* Finance */}
           <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-3 border border-emerald-100">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">🌿</span>
-              <span className="text-sm font-bold text-emerald-700">Self Care</span>
+              <span className="text-lg">💰</span>
+              <span className="text-sm font-bold text-emerald-700">Finance</span>
             </div>
-            <StreakBar completed={streaks.selfcare} color="bg-emerald-500" />
+            <StreakBar completed={streaks.finance} color="bg-emerald-500" />
           </div>
         </div>
 
