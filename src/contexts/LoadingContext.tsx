@@ -159,7 +159,7 @@ function SkillTreeLoader() {
                   stroke={active ? NODES[a].color : p.emptyEdge}
                   strokeWidth={active ? 0.6 : 0.4}
                   strokeLinecap="round"
-                  initial={{ opacity: 0.2 }}
+                  initial={{ opacity: 0.2, strokeWidth: active ? 0.6 : 0.4 }}
                   animate={{
                     opacity: active ? [0.5, 1, 0.5] : 0.25,
                     strokeWidth: active ? [0.5, 0.8, 0.5] : 0.4,
@@ -182,6 +182,7 @@ function SkillTreeLoader() {
                       stroke={node.color}
                       strokeWidth={0.4}
                       opacity={0.4}
+                      initial={{ r: 5, opacity: 0.4 }}
                       animate={{ r: [5, 7, 5], opacity: [0.4, 0.1, 0.4] }}
                       transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
                     />
@@ -200,7 +201,7 @@ function SkillTreeLoader() {
                       opacity: [0.9, 1, 0.9],
                     } : { scale: 1, opacity: 0.3 }}
                     transition={active ? { duration: 2, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.5 }}
-                    style={{ transformOrigin: `${node.x}px ${node.y}px`, transformBox: 'fill-box' }}
+                    style={{ transformOrigin: `${node.x}px ${node.y}px`, transformBox: 'fill-box', overflow: 'visible' }}
                   />
 
                   {/* Icon dot */}
