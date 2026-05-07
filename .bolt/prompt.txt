@@ -1,498 +1,475 @@
-Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Reminders.tsx:35 Error: System.InvalidOperationException: The LINQ expression 'DbSet<ReminderLog>()
-    .Where(r => __reminderIds_0
-        .Contains(r.ReminderId) && r.Date >= __since_1 && r.MarkedDone)
-    .GroupBy(r => r.Date.ToString("yyyy-MM-dd"))' could not be translated. Additional information: Translation of method 'System.DateTime.ToString' failed. If this method can be mapped to your custom function, see https://go.microsoft.com/fwlink/?linkid=2132413 for more information. Either rewrite the query in a form that can be translated, or switch to client evaluation explicitly by inserting a call to 'AsEnumerable', 'AsAsyncEnumerable', 'ToList', or 'ToListAsync'. See https://go.microsoft.com/fwlink/?linkid=2101038 for more information.
-   at Microsoft.EntityFrameworkCore.Query.QueryableMethodTranslatingExpressionVisitor.Translate(Expression expression)
-   at Microsoft.EntityFrameworkCore.Query.RelationalQueryableMethodTranslatingExpressionVisitor.Translate(Expression expression)
-   at Microsoft.EntityFrameworkCore.Query.QueryCompilationContext.CreateQueryExecutor[TResult](Expression query)
-   at Microsoft.EntityFrameworkCore.Storage.Database.CompileQuery[TResult](Expression query, Boolean async)
-   at Microsoft.EntityFrameworkCore.Query.Internal.QueryCompiler.CompileQueryCore[TResult](IDatabase database, Expression query, IModel model, Boolean async)
-   at Microsoft.EntityFrameworkCore.Query.Internal.QueryCompiler.<>c__DisplayClass12_0`1.<ExecuteAsync>b__0()
-   at Microsoft.EntityFrameworkCore.Query.Internal.CompiledQueryCache.GetOrAddQuery[TResult](Object cacheKey, Func`1 compiler)
-   at Microsoft.EntityFrameworkCore.Query.Internal.QueryCompiler.ExecuteAsync[TResult](Expression query, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryable`1.GetAsyncEnumerator(CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.ConfiguredCancelableAsyncEnumerable`1.GetAsyncEnumerator()
-   at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
-   at GoodDaysApi.Controllers.RemindersController.GetHistory(Int32 days) in /Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/Controllers/RemindersController.cs:line 109
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
-   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
-   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
-   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
-   at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
-
-HEADERS
-=======
-Accept: */*
-Connection: keep-alive
-Host: localhost:5000
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
-Accept-Encoding: gzip, deflate, br, zstd
-Accept-Language: en-US,en;q=0.9
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZWlkIjoiMSIsInVzZXJJZCI6IjEiLCJuYmYiOjE3NzgxMTUwMjYsImV4cCI6MTc3ODcxOTgyNiwiaWF0IjoxNzc4MTE1MDI2fQ.ZS-z1TwsP7fpucZVwcY1rjRFNUfj8DyMGqyshvdnG5w
-Content-Type: application/json
-Origin: http://localhost:5173
-Referer: http://localhost:5173/
-sec-ch-ua-platform: "macOS"
-sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
-sec-ch-ua-mobile: ?0
-Sec-Fetch-Site: same-site
-Sec-Fetch-Mode: cors
-Sec-Fetch-Dest: empty
-
-    at request (http://localhost:5173/src/lib/api.ts:16:11)
-    at async Promise.all (index 1)
-    at async loadReminders (http://localhost:5173/src/pages/Reminders.tsx:44:41)
-(anonymous) @ Reminders.tsx:35Understand this error
-:5000/api/reminders/history:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Reminders.tsx:35 Error: System.InvalidOperationException: The LINQ expression 'DbSet<ReminderLog>()
-    .Where(r => __reminderIds_0
-        .Contains(r.ReminderId) && r.Date >= __since_1 && r.MarkedDone)
-    .GroupBy(r => r.Date.ToString("yyyy-MM-dd"))' could not be translated. Additional information: Translation of method 'System.DateTime.ToString' failed. If this method can be mapped to your custom function, see https://go.microsoft.com/fwlink/?linkid=2132413 for more information. Either rewrite the query in a form that can be translated, or switch to client evaluation explicitly by inserting a call to 'AsEnumerable', 'AsAsyncEnumerable', 'ToList', or 'ToListAsync'. See https://go.microsoft.com/fwlink/?linkid=2101038 for more information.
-   at Microsoft.EntityFrameworkCore.Query.QueryableMethodTranslatingExpressionVisitor.Translate(Expression expression)
-   at Microsoft.EntityFrameworkCore.Query.RelationalQueryableMethodTranslatingExpressionVisitor.Translate(Expression expression)
-   at Microsoft.EntityFrameworkCore.Query.QueryCompilationContext.CreateQueryExecutor[TResult](Expression query)
-   at Microsoft.EntityFrameworkCore.Storage.Database.CompileQuery[TResult](Expression query, Boolean async)
-   at Microsoft.EntityFrameworkCore.Query.Internal.QueryCompiler.CompileQueryCore[TResult](IDatabase database, Expression query, IModel model, Boolean async)
-   at Microsoft.EntityFrameworkCore.Query.Internal.QueryCompiler.<>c__DisplayClass12_0`1.<ExecuteAsync>b__0()
-   at Microsoft.EntityFrameworkCore.Query.Internal.CompiledQueryCache.GetOrAddQuery[TResult](Object cacheKey, Func`1 compiler)
-   at Microsoft.EntityFrameworkCore.Query.Internal.QueryCompiler.ExecuteAsync[TResult](Expression query, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryable`1.GetAsyncEnumerator(CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.ConfiguredCancelableAsyncEnumerable`1.GetAsyncEnumerator()
-   at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
-   at GoodDaysApi.Controllers.RemindersController.GetHistory(Int32 days) in /Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/Controllers/RemindersController.cs:line 109
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
-   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
-   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
-   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
-   at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
-
-HEADERS
-=======
-Accept: */*
-Connection: keep-alive
-Host: localhost:5000
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
-Accept-Encoding: gzip, deflate, br, zstd
-Accept-Language: en-US,en;q=0.9
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZWlkIjoiMSIsInVzZXJJZCI6IjEiLCJuYmYiOjE3NzgxMTUwMjYsImV4cCI6MTc3ODcxOTgyNiwiaWF0IjoxNzc4MTE1MDI2fQ.ZS-z1TwsP7fpucZVwcY1rjRFNUfj8DyMGqyshvdnG5w
-Content-Type: application/json
-Origin: http://localhost:5173
-Referer: http://localhost:5173/
-sec-ch-ua-platform: "macOS"
-sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
-sec-ch-ua-mobile: ?0
-Sec-Fetch-Site: same-site
-Sec-Fetch-Mode: cors
-Sec-Fetch-Dest: empty
-
-    at request (http://localhost:5173/src/lib/api.ts:16:11)
-    at async Promise.all (index 1)
-    at async loadReminders (http://localhost:5173/src/pages/Reminders.tsx:44:41)
-(anonymous) @ Reminders.tsx:35Understand this error
-:5000/api/reminders/history:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Reminders.tsx:35 Error: System.InvalidOperationException: The LINQ expression 'DbSet<ReminderLog>()
-    .Where(r => __reminderIds_0
-        .Contains(r.ReminderId) && r.Date >= __since_1 && r.MarkedDone)
-    .GroupBy(r => r.Date.ToString("yyyy-MM-dd"))' could not be translated. Additional information: Translation of method 'System.DateTime.ToString' failed. If this method can be mapped to your custom function, see https://go.microsoft.com/fwlink/?linkid=2132413 for more information. Either rewrite the query in a form that can be translated, or switch to client evaluation explicitly by inserting a call to 'AsEnumerable', 'AsAsyncEnumerable', 'ToList', or 'ToListAsync'. See https://go.microsoft.com/fwlink/?linkid=2101038 for more information.
-   at Microsoft.EntityFrameworkCore.Query.QueryableMethodTranslatingExpressionVisitor.Translate(Expression expression)
-   at Microsoft.EntityFrameworkCore.Query.RelationalQueryableMethodTranslatingExpressionVisitor.Translate(Expression expression)
-   at Microsoft.EntityFrameworkCore.Query.QueryCompilationContext.CreateQueryExecutor[TResult](Expression query)
-   at Microsoft.EntityFrameworkCore.Storage.Database.CompileQuery[TResult](Expression query, Boolean async)
-   at Microsoft.EntityFrameworkCore.Query.Internal.QueryCompiler.CompileQueryCore[TResult](IDatabase database, Expression query, IModel model, Boolean async)
-   at Microsoft.EntityFrameworkCore.Query.Internal.QueryCompiler.<>c__DisplayClass12_0`1.<ExecuteAsync>b__0()
-   at Microsoft.EntityFrameworkCore.Query.Internal.CompiledQueryCache.GetOrAddQuery[TResult](Object cacheKey, Func`1 compiler)
-   at Microsoft.EntityFrameworkCore.Query.Internal.QueryCompiler.ExecuteAsync[TResult](Expression query, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryable`1.GetAsyncEnumerator(CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.ConfiguredCancelableAsyncEnumerable`1.GetAsyncEnumerator()
-   at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
-   at GoodDaysApi.Controllers.RemindersController.GetHistory(Int32 days) in /Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/Controllers/RemindersController.cs:line 109
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
-   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
-   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
-   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
-   at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
-
-HEADERS
-=======
-Accept: */*
-Connection: keep-alive
-Host: localhost:5000
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
-Accept-Encoding: gzip, deflate, br, zstd
-Accept-Language: en-US,en;q=0.9
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZWlkIjoiMSIsInVzZXJJZCI6IjEiLCJuYmYiOjE3NzgxMTUwMjYsImV4cCI6MTc3ODcxOTgyNiwiaWF0IjoxNzc4MTE1MDI2fQ.ZS-z1TwsP7fpucZVwcY1rjRFNUfj8DyMGqyshvdnG5w
-Content-Type: application/json
-Origin: http://localhost:5173
-Referer: http://localhost:5173/
-sec-ch-ua-platform: "macOS"
-sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
-sec-ch-ua-mobile: ?0
-Sec-Fetch-Site: same-site
-Sec-Fetch-Mode: cors
-Sec-Fetch-Dest: empty
-
-    at request (http://localhost:5173/src/lib/api.ts:16:11)
-    at async Promise.all (index 1)
-    at async loadReminders (http://localhost:5173/src/pages/Reminders.tsx:44:41)
-(anonymous) @ Reminders.tsx:35Understand this error
-:5000/api/reminders/history:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Reminders.tsx:35 Error: System.InvalidOperationException: The LINQ expression 'DbSet<ReminderLog>()
-    .Where(r => __reminderIds_0
-        .Contains(r.ReminderId) && r.Date >= __since_1 && r.MarkedDone)
-    .GroupBy(r => r.Date.ToString("yyyy-MM-dd"))' could not be translated. Additional information: Translation of method 'System.DateTime.ToString' failed. If this method can be mapped to your custom function, see https://go.microsoft.com/fwlink/?linkid=2132413 for more information. Either rewrite the query in a form that can be translated, or switch to client evaluation explicitly by inserting a call to 'AsEnumerable', 'AsAsyncEnumerable', 'ToList', or 'ToListAsync'. See https://go.microsoft.com/fwlink/?linkid=2101038 for more information.
-   at Microsoft.EntityFrameworkCore.Query.QueryableMethodTranslatingExpressionVisitor.Translate(Expression expression)
-   at Microsoft.EntityFrameworkCore.Query.RelationalQueryableMethodTranslatingExpressionVisitor.Translate(Expression expression)
-   at Microsoft.EntityFrameworkCore.Query.QueryCompilationContext.CreateQueryExecutor[TResult](Expression query)
-   at Microsoft.EntityFrameworkCore.Storage.Database.CompileQuery[TResult](Expression query, Boolean async)
-   at Microsoft.EntityFrameworkCore.Query.Internal.QueryCompiler.CompileQueryCore[TResult](IDatabase database, Expression query, IModel model, Boolean async)
-   at Microsoft.EntityFrameworkCore.Query.Internal.QueryCompiler.<>c__DisplayClass12_0`1.<ExecuteAsync>b__0()
-   at Microsoft.EntityFrameworkCore.Query.Internal.CompiledQueryCache.GetOrAddQuery[TResult](Object cacheKey, Func`1 compiler)
-   at Microsoft.EntityFrameworkCore.Query.Internal.QueryCompiler.ExecuteAsync[TResult](Expression query, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.EntityQueryable`1.GetAsyncEnumerator(CancellationToken cancellationToken)
-   at System.Runtime.CompilerServices.ConfiguredCancelableAsyncEnumerable`1.GetAsyncEnumerator()
-   at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
-   at GoodDaysApi.Controllers.RemindersController.GetHistory(Int32 days) in /Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/Controllers/RemindersController.cs:line 109
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
-   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
-   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
-   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
-   at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
-
-HEADERS
-=======
-Accept: */*
-Connection: keep-alive
-Host: localhost:5000
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
-Accept-Encoding: gzip, deflate, br, zstd
-Accept-Language: en-US,en;q=0.9
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZWlkIjoiMSIsInVzZXJJZCI6IjEiLCJuYmYiOjE3NzgxMTUwMjYsImV4cCI6MTc3ODcxOTgyNiwiaWF0IjoxNzc4MTE1MDI2fQ.ZS-z1TwsP7fpucZVwcY1rjRFNUfj8DyMGqyshvdnG5w
-Content-Type: application/json
-Origin: http://localhost:5173
-Referer: http://localhost:5173/
-sec-ch-ua-platform: "macOS"
-sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
-sec-ch-ua-mobile: ?0
-Sec-Fetch-Site: same-site
-Sec-Fetch-Mode: cors
-Sec-Fetch-Dest: empty
-
-    at request (http://localhost:5173/src/lib/api.ts:16:11)
-    at async Promise.all (index 1)
-    at async loadReminders (http://localhost:5173/src/pages/Reminders.tsx:44:41)
-(anonymous) @ Reminders.tsx:35Understand this error
-:5000/api/workout/plans/date/2026-05-07:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Workout.tsx:64 Error: System.ArgumentException: Cannot write DateTime with Kind=Unspecified to PostgreSQL type 'timestamp with time zone', only UTC is supported. Note that it's not possible to mix DateTimes with different Kinds in an array, range, or multirange. (Parameter 'value')
-   at Npgsql.Internal.Converters.DateTimeConverterResolver`1.Get(DateTime value, Nullable`1 expectedPgTypeId, Boolean validateOnly)
-   at Npgsql.Internal.PgConverterResolver`1.GetAsObjectInternal(PgTypeInfo typeInfo, Object value, Nullable`1 expectedPgTypeId)
-   at Npgsql.NpgsqlParameterCollection.ProcessParameters(PgSerializerOptions options, Boolean validateValues, CommandType commandType)
-   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
-   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
-   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
-   at GoodDaysApi.Controllers.WorkoutController.GetPlanByDate(String date) in /Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/Controllers/WorkoutController.cs:line 106
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
---- End of stack trace from previous location ---
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
-   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
-   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
-   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
-   at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
-
-HEADERS
-=======
-Accept: */*
-Connection: keep-alive
-Host: localhost:5000
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
-Accept-Encoding: gzip, deflate, br, zstd
-Accept-Language: en-US,en;q=0.9
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZWlkIjoiMSIsInVzZXJJZCI6IjEiLCJuYmYiOjE3NzgxMTUwMjYsImV4cCI6MTc3ODcxOTgyNiwiaWF0IjoxNzc4MTE1MDI2fQ.ZS-z1TwsP7fpucZVwcY1rjRFNUfj8DyMGqyshvdnG5w
-Content-Type: application/json
-Origin: http://localhost:5173
-Referer: http://localhost:5173/
-sec-ch-ua-platform: "macOS"
-sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
-sec-ch-ua-mobile: ?0
-Sec-Fetch-Site: same-site
-Sec-Fetch-Mode: cors
-Sec-Fetch-Dest: empty
-
-    at request (http://localhost:5173/src/lib/api.ts:16:11)
-    at async Promise.all (index 1)
-    at async loadData (http://localhost:5173/src/pages/Workout.tsx:71:35)
-(anonymous) @ Workout.tsx:64Understand this error
-:5000/api/workout/plans/date/2026-05-07:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Workout.tsx:64 Error: System.ArgumentException: Cannot write DateTime with Kind=Unspecified to PostgreSQL type 'timestamp with time zone', only UTC is supported. Note that it's not possible to mix DateTimes with different Kinds in an array, range, or multirange. (Parameter 'value')
-   at Npgsql.Internal.Converters.DateTimeConverterResolver`1.Get(DateTime value, Nullable`1 expectedPgTypeId, Boolean validateOnly)
-   at Npgsql.Internal.PgConverterResolver`1.GetAsObjectInternal(PgTypeInfo typeInfo, Object value, Nullable`1 expectedPgTypeId)
-   at Npgsql.NpgsqlParameterCollection.ProcessParameters(PgSerializerOptions options, Boolean validateValues, CommandType commandType)
-   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
-   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
-   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
-   at GoodDaysApi.Controllers.WorkoutController.GetPlanByDate(String date) in /Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/Controllers/WorkoutController.cs:line 106
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
---- End of stack trace from previous location ---
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
-   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
-   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
-   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
-   at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
-
-HEADERS
-=======
-Accept: */*
-Connection: keep-alive
-Host: localhost:5000
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
-Accept-Encoding: gzip, deflate, br, zstd
-Accept-Language: en-US,en;q=0.9
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZWlkIjoiMSIsInVzZXJJZCI6IjEiLCJuYmYiOjE3NzgxMTUwMjYsImV4cCI6MTc3ODcxOTgyNiwiaWF0IjoxNzc4MTE1MDI2fQ.ZS-z1TwsP7fpucZVwcY1rjRFNUfj8DyMGqyshvdnG5w
-Content-Type: application/json
-Origin: http://localhost:5173
-Referer: http://localhost:5173/
-sec-ch-ua-platform: "macOS"
-sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
-sec-ch-ua-mobile: ?0
-Sec-Fetch-Site: same-site
-Sec-Fetch-Mode: cors
-Sec-Fetch-Dest: empty
-
-    at request (http://localhost:5173/src/lib/api.ts:16:11)
-    at async Promise.all (index 1)
-    at async loadData (http://localhost:5173/src/pages/Workout.tsx:71:35)
-(anonymous) @ Workout.tsx:64Understand this error
-:5000/api/workout/plans/date/2026-05-07:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Workout.tsx:64 Error: System.ArgumentException: Cannot write DateTime with Kind=Unspecified to PostgreSQL type 'timestamp with time zone', only UTC is supported. Note that it's not possible to mix DateTimes with different Kinds in an array, range, or multirange. (Parameter 'value')
-   at Npgsql.Internal.Converters.DateTimeConverterResolver`1.Get(DateTime value, Nullable`1 expectedPgTypeId, Boolean validateOnly)
-   at Npgsql.Internal.PgConverterResolver`1.GetAsObjectInternal(PgTypeInfo typeInfo, Object value, Nullable`1 expectedPgTypeId)
-   at Npgsql.NpgsqlParameterCollection.ProcessParameters(PgSerializerOptions options, Boolean validateValues, CommandType commandType)
-   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
-   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
-   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
-   at GoodDaysApi.Controllers.WorkoutController.GetPlanByDate(String date) in /Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/Controllers/WorkoutController.cs:line 106
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
---- End of stack trace from previous location ---
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
-   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
-   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
-   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
-   at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
-
-HEADERS
-=======
-Accept: */*
-Connection: keep-alive
-Host: localhost:5000
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
-Accept-Encoding: gzip, deflate, br, zstd
-Accept-Language: en-US,en;q=0.9
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZWlkIjoiMSIsInVzZXJJZCI6IjEiLCJuYmYiOjE3NzgxMTUwMjYsImV4cCI6MTc3ODcxOTgyNiwiaWF0IjoxNzc4MTE1MDI2fQ.ZS-z1TwsP7fpucZVwcY1rjRFNUfj8DyMGqyshvdnG5w
-Content-Type: application/json
-Origin: http://localhost:5173
-Referer: http://localhost:5173/
-sec-ch-ua-platform: "macOS"
-sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
-sec-ch-ua-mobile: ?0
-Sec-Fetch-Site: same-site
-Sec-Fetch-Mode: cors
-Sec-Fetch-Dest: empty
-
-    at request (http://localhost:5173/src/lib/api.ts:16:11)
-    at async Promise.all (index 1)
-    at async loadData (http://localhost:5173/src/pages/Workout.tsx:71:35)
-(anonymous) @ Workout.tsx:64Understand this error
-:5000/api/workout/plans/date/2026-05-07:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-Workout.tsx:64 Error: System.ArgumentException: Cannot write DateTime with Kind=Unspecified to PostgreSQL type 'timestamp with time zone', only UTC is supported. Note that it's not possible to mix DateTimes with different Kinds in an array, range, or multirange. (Parameter 'value')
-   at Npgsql.Internal.Converters.DateTimeConverterResolver`1.Get(DateTime value, Nullable`1 expectedPgTypeId, Boolean validateOnly)
-   at Npgsql.Internal.PgConverterResolver`1.GetAsObjectInternal(PgTypeInfo typeInfo, Object value, Nullable`1 expectedPgTypeId)
-   at Npgsql.NpgsqlParameterCollection.ProcessParameters(PgSerializerOptions options, Boolean validateValues, CommandType commandType)
-   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
-   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
-   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.ShapedQueryCompilingExpressionVisitor.SingleOrDefaultAsync[TSource](IAsyncEnumerable`1 asyncEnumerable, CancellationToken cancellationToken)
-   at GoodDaysApi.Controllers.WorkoutController.GetPlanByDate(String date) in /Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/Controllers/WorkoutController.cs:line 106
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
---- End of stack trace from previous location ---
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
-   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
-   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
-   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
-   at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
-
-HEADERS
-=======
-Accept: */*
-Connection: keep-alive
-Host: localhost:5000
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
-Accept-Encoding: gzip, deflate, br, zstd
-Accept-Language: en-US,en;q=0.9
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZWlkIjoiMSIsInVzZXJJZCI6IjEiLCJuYmYiOjE3NzgxMTUwMjYsImV4cCI6MTc3ODcxOTgyNiwiaWF0IjoxNzc4MTE1MDI2fQ.ZS-z1TwsP7fpucZVwcY1rjRFNUfj8DyMGqyshvdnG5w
-Content-Type: application/json
-Origin: http://localhost:5173
-Referer: http://localhost:5173/
-sec-ch-ua-platform: "macOS"
-sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
-sec-ch-ua-mobile: ?0
-Sec-Fetch-Site: same-site
-Sec-Fetch-Mode: cors
-Sec-Fetch-Dest: empty
-
-    at request (http://localhost:5173/src/lib/api.ts:16:11)
-    at async Promise.all (index 1)
-    at async loadData (http://localhost:5173/src/pages/Workout.tsx:71:35)
-(anonymous) @ Workout.tsx:64Understand this error
-:5000/api/workout/plans?from=2026-02-06:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)Understand this error
-api.ts:42 Uncaught (in promise) Error: System.ArgumentException: Cannot write DateTime with Kind=Unspecified to PostgreSQL type 'timestamp with time zone', only UTC is supported. Note that it's not possible to mix DateTimes with different Kinds in an array, range, or multirange. (Parameter 'value')
-   at Npgsql.Internal.Converters.DateTimeConverterResolver`1.Get(DateTime value, Nullable`1 expectedPgTypeId, Boolean validateOnly)
-   at Npgsql.Internal.PgConverterResolver`1.GetAsObjectInternal(PgTypeInfo typeInfo, Object value, Nullable`1 expectedPgTypeId)
-   at Npgsql.NpgsqlParameterCollection.ProcessParameters(PgSerializerOptions options, Boolean validateValues, CommandType commandType)
-   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
-   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
-   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.Query.Internal.SingleQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
-   at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
-   at Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync[TSource](IQueryable`1 source, CancellationToken cancellationToken)
-   at GoodDaysApi.Controllers.WorkoutController.GetPlans(String from, String to) in /Users/coolinghippopotamous/Projects/gooddays/backend/GoodDaysApi/Controllers/WorkoutController.cs:line 87
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.TaskOfIActionResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
---- End of stack trace from previous location ---
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
-   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
-   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
-   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
-   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
-   at Microsoft.AspNetCore.Diagnostics.DeveloperExceptionPageMiddlewareImpl.Invoke(HttpContext context)
-
-HEADERS
-=======
-Accept: */*
-Connection: keep-alive
-Host: localhost:5000
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36
-Accept-Encoding: gzip, deflate, br, zstd
-Accept-Language: en-US,en;q=0.9
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwibmFtZWlkIjoiMSIsInVzZXJJZCI6IjEiLCJuYmYiOjE3NzgxMTUwMjYsImV4cCI6MTc3ODcxOTgyNiwiaWF0IjoxNzc4MTE1MDI2fQ.ZS-z1TwsP7fpucZVwcY1rjRFNUfj8DyMGqyshvdnG5w
-Content-Type: application/json
-Origin: http://localhost:5173
-Referer: http://localhost:5173/
-sec-ch-ua-platform: "macOS"
-sec-ch-ua: "Google Chrome";v="147", "Not.A/Brand";v="8", "Chromium";v="147"
-sec-ch-ua-mobile: ?0
-Sec-Fetch-Site: same-site
-Sec-Fetch-Mode: cors
-Sec-Fetch-Dest: empty
-
-    at request (http://localhost:5173/src/lib/api.ts:16:11)
-    at async loadHistory (http://localhost:5173/src/pages/Workout.tsx:91:19)Understand this error
-2FinancialTracker.tsx:194 Uncaught TypeError: Cannot read properties of undefined (reading 'toFixed')
-    at FinancialTracker (FinancialTracker.tsx:194:27)
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+finance:1 Access to fetch at 'http://localhost:5000/api/expenses/user/1' from origin 'http://localhost:5173' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.Understand this error
+api.ts:36  GET http://localhost:5000/api/expenses/user/1 net::ERR_FAILED
+request @ api.ts:36
+(anonymous) @ api.ts:155
+(anonymous) @ Expenses.tsx:86
+(anonymous) @ Expenses.tsx:80
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+dispatchSetState @ chunk-QT63QQJV.js?v=a2dd2979:12403
+(anonymous) @ AuthContextApi.tsx:40
+await in (anonymous)
+(anonymous) @ AuthContextApi.tsx:33
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+updateContainer @ chunk-QT63QQJV.js?v=a2dd2979:20776
+ReactDOMHydrationRoot.render.ReactDOMRoot.render @ chunk-QT63QQJV.js?v=a2dd2979:21116
+(anonymous) @ main.tsx:6Understand this error
+Expenses.tsx:89 Failed to load expenses: TypeError: Failed to fetch
+    at request (api.ts:36:21)
+    at Module.getExpenses (api.ts:155:10)
+    at loadExpenses (Expenses.tsx:86:30)
+    at Expenses.tsx:80:15
+    at commitHookEffectListMount (chunk-QT63QQJV.js?v=a2dd2979:16915:34)
+    at commitPassiveMountOnFiber (chunk-QT63QQJV.js?v=a2dd2979:18156:19)
+    at commitPassiveMountEffects_complete (chunk-QT63QQJV.js?v=a2dd2979:18129:17)
+    at commitPassiveMountEffects_begin (chunk-QT63QQJV.js?v=a2dd2979:18119:15)
+    at commitPassiveMountEffects (chunk-QT63QQJV.js?v=a2dd2979:18109:11)
+    at flushPassiveEffectsImpl (chunk-QT63QQJV.js?v=a2dd2979:19490:11)
+(anonymous) @ Expenses.tsx:89
+await in (anonymous)
+(anonymous) @ Expenses.tsx:80
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+dispatchSetState @ chunk-QT63QQJV.js?v=a2dd2979:12403
+(anonymous) @ AuthContextApi.tsx:40
+await in (anonymous)
+(anonymous) @ AuthContextApi.tsx:33
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+updateContainer @ chunk-QT63QQJV.js?v=a2dd2979:20776
+ReactDOMHydrationRoot.render.ReactDOMRoot.render @ chunk-QT63QQJV.js?v=a2dd2979:21116
+(anonymous) @ main.tsx:6Understand this error
+finance:1 Access to fetch at 'http://localhost:5000/api/expenses/user/1' from origin 'http://localhost:5173' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.Understand this error
+api.ts:36  GET http://localhost:5000/api/expenses/user/1 net::ERR_FAILED
+request @ api.ts:36
+(anonymous) @ api.ts:155
+(anonymous) @ Expenses.tsx:86
+(anonymous) @ Expenses.tsx:80
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+dispatchSetState @ chunk-QT63QQJV.js?v=a2dd2979:12403
+(anonymous) @ AuthContextApi.tsx:40
+await in (anonymous)
+(anonymous) @ AuthContextApi.tsx:33
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+updateContainer @ chunk-QT63QQJV.js?v=a2dd2979:20776
+ReactDOMHydrationRoot.render.ReactDOMRoot.render @ chunk-QT63QQJV.js?v=a2dd2979:21116
+(anonymous) @ main.tsx:6Understand this error
+Expenses.tsx:89 Failed to load expenses: TypeError: Failed to fetch
+    at request (api.ts:36:21)
+    at Module.getExpenses (api.ts:155:10)
+    at loadExpenses (Expenses.tsx:86:30)
+    at Expenses.tsx:80:15
+    at commitHookEffectListMount (chunk-QT63QQJV.js?v=a2dd2979:16915:34)
+    at commitPassiveMountOnFiber (chunk-QT63QQJV.js?v=a2dd2979:18156:19)
+    at commitPassiveMountEffects_complete (chunk-QT63QQJV.js?v=a2dd2979:18129:17)
+    at commitPassiveMountEffects_begin (chunk-QT63QQJV.js?v=a2dd2979:18119:15)
+    at commitPassiveMountEffects (chunk-QT63QQJV.js?v=a2dd2979:18109:11)
+    at flushPassiveEffectsImpl (chunk-QT63QQJV.js?v=a2dd2979:19490:11)
+(anonymous) @ Expenses.tsx:89
+await in (anonymous)
+(anonymous) @ Expenses.tsx:80
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+dispatchSetState @ chunk-QT63QQJV.js?v=a2dd2979:12403
+(anonymous) @ AuthContextApi.tsx:40
+await in (anonymous)
+(anonymous) @ AuthContextApi.tsx:33
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+updateContainer @ chunk-QT63QQJV.js?v=a2dd2979:20776
+ReactDOMHydrationRoot.render.ReactDOMRoot.render @ chunk-QT63QQJV.js?v=a2dd2979:21116
+(anonymous) @ main.tsx:6Understand this error
+finance:1 Access to fetch at 'http://localhost:5000/api/expenses/user/1' from origin 'http://localhost:5173' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.Understand this error
+api.ts:36  GET http://localhost:5000/api/expenses/user/1 net::ERR_FAILED
+request @ api.ts:36
+(anonymous) @ api.ts:155
+(anonymous) @ Expenses.tsx:86
+(anonymous) @ Expenses.tsx:80
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+invokePassiveEffectMountInDEV @ chunk-QT63QQJV.js?v=a2dd2979:18324
+invokeEffectsInDev @ chunk-QT63QQJV.js?v=a2dd2979:19701
+commitDoubleInvokeEffectsInDEV @ chunk-QT63QQJV.js?v=a2dd2979:19686
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19503
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+dispatchSetState @ chunk-QT63QQJV.js?v=a2dd2979:12403
+(anonymous) @ AuthContextApi.tsx:40
+await in (anonymous)
+(anonymous) @ AuthContextApi.tsx:33
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+updateContainer @ chunk-QT63QQJV.js?v=a2dd2979:20776
+ReactDOMHydrationRoot.render.ReactDOMRoot.render @ chunk-QT63QQJV.js?v=a2dd2979:21116
+(anonymous) @ main.tsx:6Understand this error
+Expenses.tsx:89 Failed to load expenses: TypeError: Failed to fetch
+    at request (api.ts:36:21)
+    at Module.getExpenses (api.ts:155:10)
+    at loadExpenses (Expenses.tsx:86:30)
+    at Expenses.tsx:80:15
+    at commitHookEffectListMount (chunk-QT63QQJV.js?v=a2dd2979:16915:34)
+    at invokePassiveEffectMountInDEV (chunk-QT63QQJV.js?v=a2dd2979:18324:19)
+    at invokeEffectsInDev (chunk-QT63QQJV.js?v=a2dd2979:19701:19)
+    at commitDoubleInvokeEffectsInDEV (chunk-QT63QQJV.js?v=a2dd2979:19686:15)
+    at flushPassiveEffectsImpl (chunk-QT63QQJV.js?v=a2dd2979:19503:13)
+    at flushPassiveEffects (chunk-QT63QQJV.js?v=a2dd2979:19447:22)
+(anonymous) @ Expenses.tsx:89
+await in (anonymous)
+(anonymous) @ Expenses.tsx:80
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+invokePassiveEffectMountInDEV @ chunk-QT63QQJV.js?v=a2dd2979:18324
+invokeEffectsInDev @ chunk-QT63QQJV.js?v=a2dd2979:19701
+commitDoubleInvokeEffectsInDEV @ chunk-QT63QQJV.js?v=a2dd2979:19686
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19503
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+dispatchSetState @ chunk-QT63QQJV.js?v=a2dd2979:12403
+(anonymous) @ AuthContextApi.tsx:40
+await in (anonymous)
+(anonymous) @ AuthContextApi.tsx:33
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+updateContainer @ chunk-QT63QQJV.js?v=a2dd2979:20776
+ReactDOMHydrationRoot.render.ReactDOMRoot.render @ chunk-QT63QQJV.js?v=a2dd2979:21116
+(anonymous) @ main.tsx:6Understand this error
+finance:1 Access to fetch at 'http://localhost:5000/api/expenses/user/1' from origin 'http://localhost:5173' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.Understand this error
+api.ts:36  GET http://localhost:5000/api/expenses/user/1 net::ERR_FAILED
+request @ api.ts:36
+(anonymous) @ api.ts:155
+(anonymous) @ Expenses.tsx:86
+(anonymous) @ Expenses.tsx:80
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+invokePassiveEffectMountInDEV @ chunk-QT63QQJV.js?v=a2dd2979:18324
+invokeEffectsInDev @ chunk-QT63QQJV.js?v=a2dd2979:19701
+commitDoubleInvokeEffectsInDEV @ chunk-QT63QQJV.js?v=a2dd2979:19686
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19503
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+dispatchSetState @ chunk-QT63QQJV.js?v=a2dd2979:12403
+(anonymous) @ AuthContextApi.tsx:40
+await in (anonymous)
+(anonymous) @ AuthContextApi.tsx:33
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+updateContainer @ chunk-QT63QQJV.js?v=a2dd2979:20776
+ReactDOMHydrationRoot.render.ReactDOMRoot.render @ chunk-QT63QQJV.js?v=a2dd2979:21116
+(anonymous) @ main.tsx:6Understand this error
+Expenses.tsx:89 Failed to load expenses: TypeError: Failed to fetch
+    at request (api.ts:36:21)
+    at Module.getExpenses (api.ts:155:10)
+    at loadExpenses (Expenses.tsx:86:30)
+    at Expenses.tsx:80:15
+    at commitHookEffectListMount (chunk-QT63QQJV.js?v=a2dd2979:16915:34)
+    at invokePassiveEffectMountInDEV (chunk-QT63QQJV.js?v=a2dd2979:18324:19)
+    at invokeEffectsInDev (chunk-QT63QQJV.js?v=a2dd2979:19701:19)
+    at commitDoubleInvokeEffectsInDEV (chunk-QT63QQJV.js?v=a2dd2979:19686:15)
+    at flushPassiveEffectsImpl (chunk-QT63QQJV.js?v=a2dd2979:19503:13)
+    at flushPassiveEffects (chunk-QT63QQJV.js?v=a2dd2979:19447:22)
+(anonymous) @ Expenses.tsx:89
+await in (anonymous)
+(anonymous) @ Expenses.tsx:80
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+invokePassiveEffectMountInDEV @ chunk-QT63QQJV.js?v=a2dd2979:18324
+invokeEffectsInDev @ chunk-QT63QQJV.js?v=a2dd2979:19701
+commitDoubleInvokeEffectsInDEV @ chunk-QT63QQJV.js?v=a2dd2979:19686
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19503
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+dispatchSetState @ chunk-QT63QQJV.js?v=a2dd2979:12403
+(anonymous) @ AuthContextApi.tsx:40
+await in (anonymous)
+(anonymous) @ AuthContextApi.tsx:33
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:19328
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:387
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+updateContainer @ chunk-QT63QQJV.js?v=a2dd2979:20776
+ReactDOMHydrationRoot.render.ReactDOMRoot.render @ chunk-QT63QQJV.js?v=a2dd2979:21116
+(anonymous) @ main.tsx:6Understand this error
+finance:1 Error while trying to use the following icon from the Manifest: http://localhost:5173/icons/apple-touch-icon.png (Download error or resource isn't a valid image)Understand this warning
+FinancialTracker.tsx:229 Uncaught TypeError: Cannot read properties of undefined (reading 'map')
+    at FinancialTracker (FinancialTracker.tsx:229:25)
     at renderWithHooks (chunk-QT63QQJV.js?v=a2dd2979:11548:26)
     at updateFunctionComponent (chunk-QT63QQJV.js?v=a2dd2979:14582:28)
     at beginWork (chunk-QT63QQJV.js?v=a2dd2979:15924:22)
@@ -501,7 +478,95 @@ Sec-Fetch-Dest: empty
     at invokeGuardedCallback (chunk-QT63QQJV.js?v=a2dd2979:3733:39)
     at beginWork$1 (chunk-QT63QQJV.js?v=a2dd2979:19765:15)
     at performUnitOfWork (chunk-QT63QQJV.js?v=a2dd2979:19198:20)
-    at workLoopSync (chunk-QT63QQJV.js?v=a2dd2979:19137:13)Understand this error
+    at workLoopSync (chunk-QT63QQJV.js?v=a2dd2979:19137:13)
+(anonymous) @ FinancialTracker.tsx:229
+renderWithHooks @ chunk-QT63QQJV.js?v=a2dd2979:11548
+updateFunctionComponent @ chunk-QT63QQJV.js?v=a2dd2979:14582
+beginWork @ chunk-QT63QQJV.js?v=a2dd2979:15924
+callCallback2 @ chunk-QT63QQJV.js?v=a2dd2979:3674
+invokeGuardedCallbackDev @ chunk-QT63QQJV.js?v=a2dd2979:3699
+invokeGuardedCallback @ chunk-QT63QQJV.js?v=a2dd2979:3733
+beginWork$1 @ chunk-QT63QQJV.js?v=a2dd2979:19765
+performUnitOfWork @ chunk-QT63QQJV.js?v=a2dd2979:19198
+workLoopSync @ chunk-QT63QQJV.js?v=a2dd2979:19137
+renderRootSync @ chunk-QT63QQJV.js?v=a2dd2979:19116
+performConcurrentWorkOnRoot @ chunk-QT63QQJV.js?v=a2dd2979:18678
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+dispatchSetState @ chunk-QT63QQJV.js?v=a2dd2979:12403
+(anonymous) @ FinancialTracker.tsx:44
+await in (anonymous)
+(anonymous) @ FinancialTracker.tsx:37
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+commitRootImpl @ chunk-QT63QQJV.js?v=a2dd2979:19416
+commitRoot @ chunk-QT63QQJV.js?v=a2dd2979:19277
+performSyncWorkOnRoot @ chunk-QT63QQJV.js?v=a2dd2979:18895
+flushSyncCallbacks @ chunk-QT63QQJV.js?v=a2dd2979:9119
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:18627Understand this error
+FinancialTracker.tsx:229 Uncaught TypeError: Cannot read properties of undefined (reading 'map')
+    at FinancialTracker (FinancialTracker.tsx:229:25)
+    at renderWithHooks (chunk-QT63QQJV.js?v=a2dd2979:11548:26)
+    at updateFunctionComponent (chunk-QT63QQJV.js?v=a2dd2979:14582:28)
+    at beginWork (chunk-QT63QQJV.js?v=a2dd2979:15924:22)
+    at HTMLUnknownElement.callCallback2 (chunk-QT63QQJV.js?v=a2dd2979:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-QT63QQJV.js?v=a2dd2979:3699:24)
+    at invokeGuardedCallback (chunk-QT63QQJV.js?v=a2dd2979:3733:39)
+    at beginWork$1 (chunk-QT63QQJV.js?v=a2dd2979:19765:15)
+    at performUnitOfWork (chunk-QT63QQJV.js?v=a2dd2979:19198:20)
+    at workLoopSync (chunk-QT63QQJV.js?v=a2dd2979:19137:13)
+(anonymous) @ FinancialTracker.tsx:229
+renderWithHooks @ chunk-QT63QQJV.js?v=a2dd2979:11548
+updateFunctionComponent @ chunk-QT63QQJV.js?v=a2dd2979:14582
+beginWork @ chunk-QT63QQJV.js?v=a2dd2979:15924
+callCallback2 @ chunk-QT63QQJV.js?v=a2dd2979:3674
+invokeGuardedCallbackDev @ chunk-QT63QQJV.js?v=a2dd2979:3699
+invokeGuardedCallback @ chunk-QT63QQJV.js?v=a2dd2979:3733
+beginWork$1 @ chunk-QT63QQJV.js?v=a2dd2979:19765
+performUnitOfWork @ chunk-QT63QQJV.js?v=a2dd2979:19198
+workLoopSync @ chunk-QT63QQJV.js?v=a2dd2979:19137
+renderRootSync @ chunk-QT63QQJV.js?v=a2dd2979:19116
+recoverFromConcurrentError @ chunk-QT63QQJV.js?v=a2dd2979:18736
+performConcurrentWorkOnRoot @ chunk-QT63QQJV.js?v=a2dd2979:18684
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+dispatchSetState @ chunk-QT63QQJV.js?v=a2dd2979:12403
+(anonymous) @ FinancialTracker.tsx:44
+await in (anonymous)
+(anonymous) @ FinancialTracker.tsx:37
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+commitRootImpl @ chunk-QT63QQJV.js?v=a2dd2979:19416
+commitRoot @ chunk-QT63QQJV.js?v=a2dd2979:19277
+performSyncWorkOnRoot @ chunk-QT63QQJV.js?v=a2dd2979:18895
+flushSyncCallbacks @ chunk-QT63QQJV.js?v=a2dd2979:9119
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:18627Understand this error
 chunk-QT63QQJV.js?v=a2dd2979:14032 The above error occurred in the <FinancialTracker> component:
 
     at FinancialTracker (http://localhost:5173/src/pages/FinancialTracker.tsx:42:37)
@@ -525,9 +590,46 @@ chunk-QT63QQJV.js?v=a2dd2979:14032 The above error occurred in the <FinancialTra
 
 Consider adding an error boundary to your tree to customize error handling behavior.
 Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
-logCapturedError @ chunk-QT63QQJV.js?v=a2dd2979:14032Understand this error
-chunk-QT63QQJV.js?v=a2dd2979:19413 Uncaught TypeError: Cannot read properties of undefined (reading 'toFixed')
-    at FinancialTracker (FinancialTracker.tsx:194:27)
+logCapturedError @ chunk-QT63QQJV.js?v=a2dd2979:14032
+update.callback @ chunk-QT63QQJV.js?v=a2dd2979:14052
+callCallback @ chunk-QT63QQJV.js?v=a2dd2979:11248
+commitUpdateQueue @ chunk-QT63QQJV.js?v=a2dd2979:11265
+commitLayoutEffectOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:17093
+commitLayoutMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:17980
+commitLayoutEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:17969
+commitLayoutEffects @ chunk-QT63QQJV.js?v=a2dd2979:17920
+commitRootImpl @ chunk-QT63QQJV.js?v=a2dd2979:19353
+commitRoot @ chunk-QT63QQJV.js?v=a2dd2979:19277
+finishConcurrentRender @ chunk-QT63QQJV.js?v=a2dd2979:18760
+performConcurrentWorkOnRoot @ chunk-QT63QQJV.js?v=a2dd2979:18718
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+dispatchSetState @ chunk-QT63QQJV.js?v=a2dd2979:12403
+(anonymous) @ FinancialTracker.tsx:44
+await in (anonymous)
+(anonymous) @ FinancialTracker.tsx:37
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+commitRootImpl @ chunk-QT63QQJV.js?v=a2dd2979:19416
+commitRoot @ chunk-QT63QQJV.js?v=a2dd2979:19277
+performSyncWorkOnRoot @ chunk-QT63QQJV.js?v=a2dd2979:18895
+flushSyncCallbacks @ chunk-QT63QQJV.js?v=a2dd2979:9119
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:18627Understand this error
+chunk-QT63QQJV.js?v=a2dd2979:19413 Uncaught TypeError: Cannot read properties of undefined (reading 'map')
+    at FinancialTracker (FinancialTracker.tsx:229:25)
     at renderWithHooks (chunk-QT63QQJV.js?v=a2dd2979:11548:26)
     at updateFunctionComponent (chunk-QT63QQJV.js?v=a2dd2979:14582:28)
     at beginWork (chunk-QT63QQJV.js?v=a2dd2979:15924:22)
@@ -536,4 +638,40 @@ chunk-QT63QQJV.js?v=a2dd2979:19413 Uncaught TypeError: Cannot read properties of
     at workLoopSync (chunk-QT63QQJV.js?v=a2dd2979:19137:13)
     at renderRootSync (chunk-QT63QQJV.js?v=a2dd2979:19116:15)
     at recoverFromConcurrentError (chunk-QT63QQJV.js?v=a2dd2979:18736:28)
-    at performConcurrentWorkOnRoot (chunk-QT63QQJV.js?v=a2dd2979:18684:30)Understand this error
+    at performConcurrentWorkOnRoot (chunk-QT63QQJV.js?v=a2dd2979:18684:30)
+(anonymous) @ FinancialTracker.tsx:229
+renderWithHooks @ chunk-QT63QQJV.js?v=a2dd2979:11548
+updateFunctionComponent @ chunk-QT63QQJV.js?v=a2dd2979:14582
+beginWork @ chunk-QT63QQJV.js?v=a2dd2979:15924
+beginWork$1 @ chunk-QT63QQJV.js?v=a2dd2979:19753
+performUnitOfWork @ chunk-QT63QQJV.js?v=a2dd2979:19198
+workLoopSync @ chunk-QT63QQJV.js?v=a2dd2979:19137
+renderRootSync @ chunk-QT63QQJV.js?v=a2dd2979:19116
+recoverFromConcurrentError @ chunk-QT63QQJV.js?v=a2dd2979:18736
+performConcurrentWorkOnRoot @ chunk-QT63QQJV.js?v=a2dd2979:18684
+workLoop @ chunk-QT63QQJV.js?v=a2dd2979:197
+flushWork @ chunk-QT63QQJV.js?v=a2dd2979:176
+performWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:384
+postMessage
+schedulePerformWorkUntilDeadline @ chunk-QT63QQJV.js?v=a2dd2979:407
+requestHostCallback @ chunk-QT63QQJV.js?v=a2dd2979:418
+unstable_scheduleCallback @ chunk-QT63QQJV.js?v=a2dd2979:330
+scheduleCallback$1 @ chunk-QT63QQJV.js?v=a2dd2979:19826
+ensureRootIsScheduled @ chunk-QT63QQJV.js?v=a2dd2979:18652
+scheduleUpdateOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18562
+dispatchSetState @ chunk-QT63QQJV.js?v=a2dd2979:12403
+(anonymous) @ FinancialTracker.tsx:44
+await in (anonymous)
+(anonymous) @ FinancialTracker.tsx:37
+commitHookEffectListMount @ chunk-QT63QQJV.js?v=a2dd2979:16915
+commitPassiveMountOnFiber @ chunk-QT63QQJV.js?v=a2dd2979:18156
+commitPassiveMountEffects_complete @ chunk-QT63QQJV.js?v=a2dd2979:18129
+commitPassiveMountEffects_begin @ chunk-QT63QQJV.js?v=a2dd2979:18119
+commitPassiveMountEffects @ chunk-QT63QQJV.js?v=a2dd2979:18109
+flushPassiveEffectsImpl @ chunk-QT63QQJV.js?v=a2dd2979:19490
+flushPassiveEffects @ chunk-QT63QQJV.js?v=a2dd2979:19447
+commitRootImpl @ chunk-QT63QQJV.js?v=a2dd2979:19416
+commitRoot @ chunk-QT63QQJV.js?v=a2dd2979:19277
+performSyncWorkOnRoot @ chunk-QT63QQJV.js?v=a2dd2979:18895
+flushSyncCallbacks @ chunk-QT63QQJV.js?v=a2dd2979:9119
+(anonymous) @ chunk-QT63QQJV.js?v=a2dd2979:18627Understand this error
