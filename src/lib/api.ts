@@ -32,17 +32,25 @@ function getAuthHeader(): Record<string, string> {
   return session ? { 'Authorization': `Bearer ${session.access_token}` } : {};
 }
 
+// Loading bridge — components subscribe via setLoadingHandler
+let _loadingCount = 0;
+let _onLoadingChange: ((active: boolean) => void) | null = null;
+export function setLoadingHandler(fn: (active: boolean) => void) { _onLoadingChange = fn; }
+function pushLoad() { _loadingCount++; if (_loadingCount === 1) _onLoadingChange?.(true); }
+function popLoad() { _loadingCount = Math.max(0, _loadingCount - 1); if (_loadingCount === 0) _onLoadingChange?.(false); }
+
 async function request(path: string, opts: RequestInit = {}) {
-  const res = await fetch(`${API_BASE}/api/${path}`, { ...opts, headers: { 'Content-Type': 'application/json', ...getAuthHeader(), ...(opts.headers || {}) } });
-  const text = await res.text();
-  let payload: any = text;
-  try { payload = text ? JSON.parse(text) : null; } catch { payload = text; }
-
-  if (!res.ok) {
-    throw new Error(resolveErrorMessage(payload, `Request failed (${res.status})`));
+  pushLoad();
+  try {
+    const res = await fetch(`${API_BASE}/api/${path}`, { ...opts, headers: { 'Content-Type': 'application/json', ...getAuthHeader(), ...(opts.headers || {}) } });
+    const text = await res.text();
+    let payload: any = text;
+    try { payload = text ? JSON.parse(text) : null; } catch { payload = text; }
+    if (!res.ok) throw new Error(resolveErrorMessage(payload, `Request failed (${res.status})`));
+    return payload;
+  } finally {
+    popLoad();
   }
-
-  return payload;
 }
 
 function resolveErrorMessage(payload: any, fallback: string): string {
