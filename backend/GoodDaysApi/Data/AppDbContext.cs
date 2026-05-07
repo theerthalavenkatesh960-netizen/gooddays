@@ -54,7 +54,7 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<User>().ToTable("user_profiles");
-        modelBuilder.Entity<DailyTask>().ToTable("daily_tasks");
+        modelBuilder.Entity<DailyTask>().ToTable("tasks");
         modelBuilder.Entity<Expense>().ToTable("expenses");
         modelBuilder.Entity<SelfCareLog>().ToTable("self_care_logs");
         modelBuilder.Entity<SelfCareTemplate>().ToTable("self_care_template");

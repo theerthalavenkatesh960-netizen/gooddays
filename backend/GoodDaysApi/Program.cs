@@ -30,7 +30,9 @@ if (string.IsNullOrWhiteSpace(connectionString))
         "A PostgreSQL connection string must be provided via 'ConnectionStrings:Default'.");
 }
 
-builder.Services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(connectionString));
+builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseNpgsql(connectionString)
+       .UseSnakeCaseNamingConvention());
 
 // Register Financial Services
 builder.Services.AddScoped<IFinancialService, FinancialService>();

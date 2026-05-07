@@ -14,7 +14,7 @@ public class StudySession
     [Column("user_id")]
     public int UserId { get; set; }
 
-    [Column("minutes")]
+    [Column("durationminutes")]
     public int DurationMinutes { get; set; }
     [Column("notes")]
     public string? Notes { get; set; }

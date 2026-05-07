@@ -14,7 +14,11 @@ public class JournalController : ControllerBase
     private readonly AppDbContext _db;
     public JournalController(AppDbContext db) => _db = db;
 
-    private int GetUserId() => int.Parse(User.FindFirst("userId")!.Value);
+    private int GetUserId() => int.Parse(
+        User.FindFirst("userId")?.Value
+        ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+        ?? User.FindFirst("sub")?.Value
+        ?? throw new UnauthorizedAccessException("User id claim missing"));
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20)

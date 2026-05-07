@@ -71,20 +71,24 @@ export default function Dashboard() {
     // For now, load with default values; in future could fetch from backend
     // try to load existing record from backend
     if (user) {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const rec: any = await api.getDailyTracking(user.id, today);
-      if (rec) {
-        setTodayTrack({
-          sleep_hours: (rec.sleepHours ?? rec.sleep_hours)?.toString() || '',
-          workout_minutes: (rec.workoutMinutes ?? rec.workout_minutes)?.toString() || '',
-          phone_minutes: (rec.phoneMinutes ?? rec.phone_minutes)?.toString() || '',
-          sunlight: rec.sunlight || false,
-          mood: rec.mood || 3,
-        });
-        setTodayWater((rec.waterCups ?? 0) || 0);
-        setWaterGoal((rec.waterGoalCups ?? 8) || 8);
-        setDailyNote(rec.note || '');
-        return;
+      try {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const rec: any = await api.getDailyTracking(user.id, today);
+        if (rec && typeof rec === 'object' && !Array.isArray(rec)) {
+          setTodayTrack({
+            sleep_hours: (rec.sleepHours ?? rec.sleep_hours)?.toString() || '',
+            workout_minutes: (rec.workoutMinutes ?? rec.workout_minutes)?.toString() || '',
+            phone_minutes: (rec.phoneMinutes ?? rec.phone_minutes)?.toString() || '',
+            sunlight: rec.sunlight || false,
+            mood: rec.mood || 3,
+          });
+          setTodayWater((rec.waterCups ?? 0) || 0);
+          setWaterGoal((rec.waterGoalCups ?? 8) || 8);
+          setDailyNote(rec.note || '');
+          return;
+        }
+      } catch (e) {
+        console.error(e);
       }
     }
     setTodayTrack({
@@ -135,10 +139,11 @@ export default function Dashboard() {
   const loadTopThree = async () => {
     if (!user) return;
 
-    const tasks = await api.getTasks(user.id);
-    if (tasks) {
+    try {
+      const tasks = await api.getTasks(user.id);
+      const taskList = Array.isArray(tasks) ? tasks : [];
       // filter to tasks scheduled for today (dueDate or due_date)
-      const todays = (tasks as any[]).filter((t) => {
+      const todays = taskList.filter((t: any) => {
         const due = (t.dueDate ?? t.due_date) as string | undefined;
         if (!due) return false;
         try { return isToday(parseISO(due)); } catch { return false; }
@@ -159,6 +164,19 @@ export default function Dashboard() {
         completed_2: completedVal(t2),
         completed_3: completedVal(t3),
       });
+    } catch (e) {
+      console.error(e);
+      setTopThree({
+        task_1: '',
+        task_2: '',
+        task_3: '',
+        id_1: '',
+        id_2: '',
+        id_3: '',
+        completed_1: false,
+        completed_2: false,
+        completed_3: false,
+      });
     }
   };
 
@@ -177,51 +195,65 @@ export default function Dashboard() {
       return format(d, 'yyyy-MM-dd');
     });
 
-    const [tasksData, studyData, selfcareData] = await Promise.all([
-      api.getTasks(user.id),
-      api.getStudySessions(user.id),
-      api.getSelfCareActivities(user.id),
-    ]);
+    try {
+      const [tasksDataRaw, studyDataRaw, selfcareDataRaw] = await Promise.all([
+        api.getTasks(user.id),
+        api.getStudySessions(user.id),
+        api.getSelfCareActivities(user.id),
+      ]);
+
+      const tasksData = Array.isArray(tasksDataRaw) ? tasksDataRaw : [];
+      const studyData = Array.isArray(studyDataRaw) ? studyDataRaw : [];
+      const selfcareData = Array.isArray(selfcareDataRaw) ? selfcareDataRaw : [];
 
       const taskStreak = last7Days.map(d =>
-        tasksData?.some(t => {
+        tasksData.some((t: any) => {
           if (!t.isCompleted) return false;
           const dt = new Date(t.updatedAt);
           if (isNaN(dt.getTime())) return false;
           return format(dt, 'yyyy-MM-dd') === d;
-        }) || false
+        })
       );
       const studyStreak = last7Days.map(d =>
-        studyData?.some(s => {
+        studyData.some((s: any) => {
           const dt = new Date(s.date);
           if (isNaN(dt.getTime())) return false;
           return format(dt, 'yyyy-MM-dd') === d;
-        }) || false
+        })
       );
       const selfcareStreak = last7Days.map(d =>
-        selfcareData?.some(s => {
+        selfcareData.some((s: any) => {
           const dt = new Date(s.date);
           if (isNaN(dt.getTime())) return false;
           return format(dt, 'yyyy-MM-dd') === d;
-        }) || false
+        })
       );
       const workoutStreak = last7Days.map(d =>
-        selfcareData?.some(s => {
+        selfcareData.some((s: any) => {
           const dt = new Date(s.date);
           if (isNaN(dt.getTime())) return false;
           return (
             format(dt, 'yyyy-MM-dd') === d &&
             s.activityType?.toLowerCase().includes('workout')
           );
-        }) || false
+        })
       );
 
-    setStreaks({
-      tasks: taskStreak,
-      study: studyStreak,
-      selfcare: selfcareStreak,
-      workout: workoutStreak,
-    });
+      setStreaks({
+        tasks: taskStreak,
+        study: studyStreak,
+        selfcare: selfcareStreak,
+        workout: workoutStreak,
+      });
+    } catch (e) {
+      console.error(e);
+      setStreaks({
+        tasks: Array(7).fill(false),
+        study: Array(7).fill(false),
+        selfcare: Array(7).fill(false),
+        workout: Array(7).fill(false),
+      });
+    }
   };
 
   const handleTaskTitleBlur = async (index: number, title: string) => {

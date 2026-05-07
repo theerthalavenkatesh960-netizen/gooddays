@@ -35,7 +35,14 @@ function getAuthHeader(): Record<string, string> {
 async function request(path: string, opts: RequestInit = {}) {
   const res = await fetch(`${API_BASE}/api/${path}`, { ...opts, headers: { 'Content-Type': 'application/json', ...getAuthHeader(), ...(opts.headers || {}) } });
   const text = await res.text();
-  try { return JSON.parse(text); } catch { return text; }
+  let payload: any = text;
+  try { payload = text ? JSON.parse(text) : null; } catch { payload = text; }
+
+  if (!res.ok) {
+    throw new Error(resolveErrorMessage(payload, `Request failed (${res.status})`));
+  }
+
+  return payload;
 }
 
 function resolveErrorMessage(payload: any, fallback: string): string {
@@ -436,8 +443,6 @@ export const api = {
   addPoints,
 };
 export type { User, Session, Task, Expense, SelfCareActivity, StudySession };
-export type { DailyTracking };
-export type { SelfCareTemplate };
 
 // ─── Workout API ──────────────────────────────────────────────────────────────
 

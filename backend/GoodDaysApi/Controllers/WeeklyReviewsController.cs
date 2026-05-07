@@ -14,7 +14,11 @@ public class WeeklyReviewsController : ControllerBase
     private readonly AppDbContext _db;
     public WeeklyReviewsController(AppDbContext db) => _db = db;
 
-    private int GetUserId() => int.Parse(User.FindFirst("userId")!.Value);
+    private int GetUserId() => int.Parse(
+        User.FindFirst("userId")?.Value
+        ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+        ?? User.FindFirst("sub")?.Value
+        ?? throw new UnauthorizedAccessException("User id claim missing"));
 
     [HttpGet]
     public async Task<IActionResult> GetAll()

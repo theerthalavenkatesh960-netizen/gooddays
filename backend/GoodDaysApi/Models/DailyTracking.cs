@@ -19,13 +19,13 @@ public class DailyTracking
     [Column("date")]
     public DateTime Date { get; set; }
 
-    [Column("sleep_hours")]
+    [Column("sleephours")]
     public decimal SleepHours { get; set; } = 0;
 
-    [Column("workout_minutes")]
+    [Column("workoutminutes")]
     public int WorkoutMinutes { get; set; } = 0;
 
-    [Column("phone_minutes")]
+    [Column("phoneminutes")]
     public int PhoneMinutes { get; set; } = 0;
 
     [Column("sunlight")]
@@ -34,10 +34,10 @@ public class DailyTracking
     [Column("mood")]
     public int Mood { get; set; } = 3;
 
-    [Column("water_cups")]
+    [Column("watercups")]
     public int WaterCups { get; set; } = 0;
 
-    [Column("water_goal_cups")]
+    [Column("watergoalcups")]
     public int WaterGoalCups { get; set; } = 8;
 
     [Column("calories")]
