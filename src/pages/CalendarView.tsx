@@ -320,17 +320,17 @@ const days=getDaysInMonth();
 
 return(
 
-<div className="p-6">
+<div className="p-3 sm:p-6">
 
-<h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Calendar & Review</h1>
+<h1 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Calendar & Review</h1>
 
 {/* Tab switcher */}
-<div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl w-fit">
+<div className="flex gap-1.5 mb-4 sm:mb-6 bg-gray-100 p-1 rounded-2xl w-fit overflow-x-auto hide-scrollbar">
   {(['calendar', 'weekly-review', 'journal'] as const).map((tab) => (
     <button
       key={tab}
       onClick={() => setActiveTab(tab)}
-      className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all capitalize ${
+      className={`px-3 sm:px-5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all capitalize whitespace-nowrap ${
         activeTab === tab ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'
       }`}
     >
@@ -347,18 +347,18 @@ return(
 <motion.div
 initial={{opacity:0,y:10}}
 animate={{opacity:1,y:0}}
-className="bg-white rounded-2xl shadow-lg p-6"
+className="bg-white rounded-2xl shadow-lg p-3 sm:p-6"
 >
 
 
-<div className="flex items-center justify-between mb-6">
+<div className="flex items-center justify-between mb-4 sm:mb-6">
 
 
 <div className="flex items-center gap-2">
 
-<CalendarIcon size={24}/>
+<CalendarIcon size={20}/>
 
-<h2 className="text-xl font-semibold">
+<h2 className="text-lg sm:text-xl font-semibold">
 
 {format(currentDate,"MMMM yyyy")}
 
@@ -373,7 +373,7 @@ className="bg-white rounded-2xl shadow-lg p-6"
 onClick={()=>setCurrentDate(subMonths(currentDate,1))}
 className="p-2 rounded-lg hover:bg-gray-100"
 >
-<ChevronLeft/>
+<ChevronLeft size={18}/>
 </button>
 
 
@@ -381,7 +381,7 @@ className="p-2 rounded-lg hover:bg-gray-100"
 onClick={()=>setCurrentDate(addMonths(currentDate,1))}
 className="p-2 rounded-lg hover:bg-gray-100"
 >
-<ChevronRight/>
+<ChevronRight size={18}/>
 </button>
 
 </div>
@@ -390,11 +390,11 @@ className="p-2 rounded-lg hover:bg-gray-100"
 
 
 
-<div className="grid grid-cols-7 gap-2 mb-4">
+<div className="grid grid-cols-7 gap-1 sm:gap-2 mb-3 sm:mb-4">
 
 {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=>(
 
-<div key={d} className="text-center text-sm text-gray-500">
+<div key={d} className="text-center text-[10px] sm:text-sm text-gray-500">
 
 {d}
 
@@ -406,7 +406,7 @@ className="p-2 rounded-lg hover:bg-gray-100"
 
 
 
-<div className="grid grid-cols-7 gap-2">
+<div className="grid grid-cols-7 gap-1 sm:gap-2">
 
 {days.map(day=>{
 
@@ -424,28 +424,28 @@ return(
 key={key}
 onClick={()=>handleDayClick(day)}
 className={`
-p-2 rounded-lg cursor-pointer border
+p-1.5 sm:p-2 rounded-lg cursor-pointer border
 ${!isSameMonth(day,currentDate)&&"opacity-40"}
 ${isToday(day)&&"border-blue-500"}
 ${selected&&"bg-blue-50"}
 `}
 >
 
-<div className="text-sm">
+<div className="text-xs sm:text-sm">
 
 {format(day,"d")}
 
 </div>
 
 
-<div className="flex items-center gap-1 mt-1 justify-center">
+<div className="flex items-center gap-0.5 sm:gap-1 mt-1 justify-center">
 
 
 {Array(data.completed||0)
 .fill(0)
 .slice(0,5)
 .map((_,i)=>(
-<span key={i} className="inline-flex w-3 h-3 items-center justify-center text-white text-xs bg-emerald-500 border border-emerald-600">✓</span>
+<span key={i} className="inline-flex w-2.5 h-2.5 sm:w-3 sm:h-3 items-center justify-center text-white text-[8px] sm:text-xs bg-emerald-500 border border-emerald-600">✓</span>
 ))}
 
 
@@ -453,14 +453,14 @@ ${selected&&"bg-blue-50"}
 .fill(0)
 .slice(0,5)
 .map((_,i)=>(
-<span key={i} className="inline-flex w-3 h-3 items-center justify-center text-white text-xs bg-red-500 border border-red-600">✗</span>
+<span key={i} className="inline-flex w-2.5 h-2.5 sm:w-3 sm:h-3 items-center justify-center text-white text-[8px] sm:text-xs bg-red-500 border border-red-600">✗</span>
 ))}
 
 </div>
 
 
 {data.expenses &&
-<div className="text-xs text-center mt-1">
+<div className="text-[10px] sm:text-xs text-center mt-0.5 sm:mt-1">
 
 ₹{data.expenses}
 
@@ -468,9 +468,9 @@ ${selected&&"bg-blue-50"}
 }
 
 {data.reminders>0 &&
-<div className="text-xs text-center mt-1 flex items-center justify-center gap-1">
+<div className="text-[10px] sm:text-xs text-center mt-0.5 sm:mt-1 flex items-center justify-center gap-0.5 sm:gap-1">
 
-<Bell size={12} className="text-blue-500"/>
+<Bell size={10} className="text-blue-500"/>
 
 <span className="text-blue-500 font-medium">{data.reminders}</span>
 
@@ -496,10 +496,10 @@ ${selected&&"bg-blue-50"}
 <motion.div
 initial={{opacity:0,y:10}}
 animate={{opacity:1,y:0}}
-className="mt-6 bg-white rounded-2xl p-4 shadow-lg"
+className="mt-4 sm:mt-6 bg-white rounded-2xl p-3 sm:p-4 shadow-lg"
 >
 
-<h3 className="text-lg font-bold mb-3">
+<h3 className="text-base sm:text-lg font-bold mb-3">
 
 Tasks on {format(selectedDate!,"PPP")}
 
@@ -512,20 +512,20 @@ Tasks on {format(selectedDate!,"PPP")}
 
 <div
 key={t.id}
-className="flex items-center gap-3 p-3 border rounded-lg"
+className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 border rounded-lg"
 >
 
 {getCategoryIcon(t.category)}
 
 <div className="flex-1">
 
-<div className="font-semibold">
+<div className="font-semibold text-sm sm:text-base">
 
 {t.title}
 
 </div>
 
-<div className="text-xs text-gray-500">
+<div className="text-[11px] sm:text-xs text-gray-500">
 
 {t.category} • {t.priority}
 
@@ -538,11 +538,11 @@ className="flex items-center gap-3 p-3 border rounded-lg"
 
 {t.isCompleted?
 
-<CheckCircle className="text-green-500" size={18}/>
+<CheckCircle className="text-green-500" size={16}/>
 
 :
 
-<Circle className="text-red-500" size={18}/>
+<Circle className="text-red-500" size={16}/>
 
 }
 
@@ -565,12 +565,12 @@ className="flex items-center gap-3 p-3 border rounded-lg"
 <motion.div
 initial={{opacity:0,y:10}}
 animate={{opacity:1,y:0}}
-className="mt-6 bg-white rounded-2xl p-4 shadow-lg"
+className="mt-4 sm:mt-6 bg-white rounded-2xl p-3 sm:p-4 shadow-lg"
 >
 
-<h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+<h3 className="text-base sm:text-lg font-bold mb-3 flex items-center gap-2">
 
-<Bell size={18} className="text-blue-500"/>
+<Bell size={16} className="text-blue-500"/>
 
 Reminders on {format(selectedDate!,"PPP")}
 
@@ -583,20 +583,20 @@ Reminders on {format(selectedDate!,"PPP")}
 
 <div
 key={r.id}
-className="flex items-center gap-3 p-3 border rounded-lg border-blue-200 bg-blue-50"
+className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 border rounded-lg border-blue-200 bg-blue-50"
 >
 
-<Bell size={16} className="text-blue-500"/>
+<Bell size={14} className="text-blue-500"/>
 
 <div className="flex-1">
 
-<div className="font-semibold text-gray-900">
+<div className="font-semibold text-sm sm:text-base text-gray-900">
 
 {remindersData.find((rem:any)=>rem.id === r.reminderId)?.title || 'Reminder'}
 
 </div>
 
-<div className="text-xs text-gray-500">
+<div className="text-[11px] sm:text-xs text-gray-500">
 
 {remindersData.find((rem:any)=>rem.id === r.reminderId)?.time || 'Time not set'} • {r.markedDone?'✓ Completed':'Pending'}
 

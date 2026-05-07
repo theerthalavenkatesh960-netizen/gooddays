@@ -272,23 +272,23 @@ const renderOccurrences = (task: any) => {
 
   return (
     <div>
-      <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+      <h1 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
         Tasks & Reminders
       </h1>
 
       {/* Tab switcher */}
-      <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-2xl w-fit">
+      <div className="flex gap-1.5 mb-4 sm:mb-6 bg-gray-100 p-1 rounded-2xl w-fit">
         <button
           onClick={() => setActiveTab('tasks')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${activeTab === 'tasks' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+          className={`flex items-center gap-2 px-3 sm:px-5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all ${activeTab === 'tasks' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
         >
           Tasks
         </button>
         <button
           onClick={() => setActiveTab('reminders')}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all ${activeTab === 'reminders' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all ${activeTab === 'reminders' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
         >
-          <Bell size={15} /> Reminders
+          <Bell size={14} /> Reminders
         </button>
       </div>
 
@@ -297,24 +297,24 @@ const renderOccurrences = (task: any) => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-6 shadow-xl mb-6"
+        className="bg-white rounded-2xl p-4 sm:p-6 shadow-xl mb-4 sm:mb-6"
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setEditingTask(null); setShowAddModal(true); }}
-              className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold flex items-center gap-2"
+              className="px-3 sm:px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold text-sm flex items-center gap-1.5 sm:gap-2"
             >
-              <Plus size={18} /> New Task
+              <Plus size={16} /> New Task
             </button>
-            <div className="text-sm text-gray-500">Click to open task dialog</div>
+            <div className="text-xs sm:text-sm text-gray-500">Click to open task dialog</div>
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setFilterView('all')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
               filterView === 'all'
                 ? 'bg-emerald-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -324,7 +324,7 @@ const renderOccurrences = (task: any) => {
           </button>
           <button
             onClick={() => setFilterView('today')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
               filterView === 'today'
                 ? 'bg-emerald-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -334,7 +334,7 @@ const renderOccurrences = (task: any) => {
           </button>
           <button
             onClick={() => setFilterView('overdue')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
               filterView === 'overdue'
                 ? 'bg-red-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -344,11 +344,11 @@ const renderOccurrences = (task: any) => {
           </button>
 
           <div className="ml-auto flex items-center gap-2">
-            <Filter size={18} className="text-gray-500" />
+            <Filter size={16} className="text-gray-500" />
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-200 outline-none"
+              className="px-2.5 py-1.5 rounded-lg text-sm border border-gray-200 outline-none"
             >
               <option value="all">All Categories</option>
               {CATEGORY_OPTIONS.map((cat) => (
@@ -519,26 +519,26 @@ const renderOccurrences = (task: any) => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ delay: index * 0.05 }}
-              className={`bg-white rounded-xl p-4 shadow-lg hover:shadow-xl transition-all ${
+              className={`bg-white rounded-xl p-3 sm:p-4 shadow-lg hover:shadow-xl transition-all ${
                 task.isCompleted ? 'opacity-60' : ''
               }`}
             >
-              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 sm:gap-4">
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={() => toggleTask(task)}
                 >
                   {task.isCompleted ? (
-                    <CheckCircle2 className="text-emerald-500" size={24} />
+                      <CheckCircle2 className="text-emerald-500" size={20} />
                   ) : (
-                    <div className="w-6 h-6 rounded-full border-2 border-gray-300" />
+                      <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
                   )}
                 </motion.button>
 
                 <div className="flex-1">
                   <h3
-                    className={`font-semibold ${
+                      className={`font-semibold text-sm sm:text-base ${
                       task.isCompleted ? 'line-through text-gray-400' : 'text-gray-800'
                     }`}
                   >
@@ -565,7 +565,7 @@ const renderOccurrences = (task: any) => {
                       {task.priority}
                     </span>
                     {((task.dueDate ?? task.due_date)) && (
-                      <span className="text-sm bg-blue-50 text-blue-700 px-3 py-1 rounded-full font-medium">
+                      <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">
                         {format(parseISO((task.dueDate ?? task.due_date)), 'EEE, MMM d')}
                       </span>
                     )}
@@ -585,9 +585,9 @@ const renderOccurrences = (task: any) => {
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => toggleTask(task)}
-                      className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg"
+                      className="p-1.5 sm:p-2 text-blue-500 hover:bg-blue-50 rounded-lg"
                     >
-                      <RotateCcw size={18} />
+                      <RotateCcw size={16} />
                     </motion.button>
                   )}
                   {/* edit button */}
@@ -596,18 +596,18 @@ const renderOccurrences = (task: any) => {
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => openEditModal(task)}
-                      className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
+                      className="p-1.5 sm:p-2 text-gray-500 hover:bg-gray-100 rounded-lg"
                     >
-                      <Edit size={18} />
+                      <Edit size={16} />
                     </motion.button>
                   )}
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setDeleteConfirm({ taskId: task.id, isRecurring: task.recurring })}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                    className="p-1.5 sm:p-2 text-red-500 hover:bg-red-50 rounded-lg"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </motion.button>
                 </div>
               </div>

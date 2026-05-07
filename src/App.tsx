@@ -12,6 +12,7 @@ import Settings from './pages/Settings';
 import Finance from './pages/Finance';
 import Workout from './pages/Workout';
 import Goals from './pages/Goals';
+import JournalEditor from './pages/JournalEditor';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -108,6 +109,22 @@ function App() {
                   <Layout>
                     <Settings />
                   </Layout>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/journal/new"
+              element={
+                <PrivateRoute>
+                  <JournalEditor />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/journal/:id/edit"
+              element={
+                <PrivateRoute>
+                  <JournalEditor />
                 </PrivateRoute>
               }
             />

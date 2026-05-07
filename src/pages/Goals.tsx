@@ -153,19 +153,19 @@ export default function Goals() {
         <button onClick={() => setActiveGoal(null)} className="mb-4 flex items-center gap-2 text-indigo-600 font-semibold">
           ← Back
         </button>
-        <div className="flex items-center gap-4 mb-6 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <span className="text-4xl">{activeGoal.icon || '🎯'}</span>
+        <div className="flex items-center gap-3 mb-4 sm:mb-6 bg-white rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100">
+          <span className="text-3xl sm:text-4xl">{activeGoal.icon || '🎯'}</span>
           <div className="flex-1">
-            <h2 className="text-2xl font-bold text-gray-900">{activeGoal.title}</h2>
-            <p className="text-sm text-gray-500">{activeGoal.category || 'General'} • {activeGoal.status || 'Active'}</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{activeGoal.title}</h2>
+            <p className="text-xs sm:text-sm text-gray-500">{activeGoal.category || 'General'} • {activeGoal.status || 'Active'}</p>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-2xl overflow-x-auto">
+        <div className="flex gap-1 mb-4 sm:mb-6 bg-gray-100 p-1 rounded-2xl overflow-x-auto hide-scrollbar">
           {['logs', 'notes', 'cards'].map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-xl font-medium text-sm whitespace-nowrap transition-all ${activeTab === tab ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500'}`}>
+              className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all ${activeTab === tab ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500'}`}>
               {tab === 'notes' ? '📝 Notes' : tab === 'logs' ? '📊 Activity' : '🎴 Study'}
             </button>
           ))}
@@ -174,15 +174,15 @@ export default function Goals() {
         {/* Activity/Logs Tab */}
         {activeTab === 'logs' && (
           <div className="space-y-4">
-            <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-white rounded-2xl p-5 border border-gray-100 space-y-3">
+            <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-white rounded-2xl p-3 sm:p-5 border border-gray-100 space-y-3">
               <h3 className="font-bold text-gray-900">Log Activity</h3>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
                 <input type="date" value={logDate} onChange={e => setLogDate(e.target.value)}
                   className="flex-1 border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 <input type="number" min="0" value={newLogMinutes} onChange={e => setNewLogMinutes(parseInt(e.target.value) || 0)} placeholder="Minutes"
-                  className="w-28 border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                  className="w-full sm:w-28 border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 <motion.button whileTap={{ scale: 0.95 }} onClick={addLog} disabled={newLogMinutes <= 0}
-                  className="px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold disabled:opacity-40">
+                  className="w-full sm:w-auto px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold disabled:opacity-40">
                   Log
                 </motion.button>
               </div>
@@ -196,7 +196,7 @@ export default function Goals() {
             ) : (
               <div className="space-y-2">
                 {logs.map(log => (
-                  <motion.div key={log.id} whileHover={{ x: 4 }} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center justify-between">
+                  <motion.div key={log.id} whileHover={{ x: 4 }} className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-100 flex items-center justify-between">
                     <div className="flex-1">
                       <p className="font-semibold text-gray-900">{log.minutesSpent} minutes</p>
                       <p className="text-xs text-gray-500">{format(new Date(log.date), 'MMM d, yyyy')}</p>
@@ -215,8 +215,8 @@ export default function Goals() {
         {activeTab === 'notes' && (
           <div className="space-y-4">
             <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowAddNote(true)}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-white border-2 border-dashed border-gray-200 rounded-2xl text-gray-500 hover:border-emerald-400 hover:text-emerald-600 transition-all font-semibold">
-              <Plus size={18} /> Add Note
+              className="w-full flex items-center justify-center gap-2 py-2.5 sm:py-3 bg-white border-2 border-dashed border-gray-200 rounded-2xl text-gray-500 hover:border-emerald-400 hover:text-emerald-600 transition-all font-semibold text-sm">
+              <Plus size={16} /> Add Note
             </motion.button>
 
             {notes.length === 0 ? (
@@ -227,7 +227,7 @@ export default function Goals() {
             ) : (
               <div className="space-y-3">
                 {notes.map(note => (
-                  <motion.div key={note.id} whileHover={{ y: -2 }} className="bg-white rounded-2xl p-4 border border-gray-100">
+                  <motion.div key={note.id} whileHover={{ y: -2 }} className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-100">
                     {editingNoteId === note.id ? (
                       <div className="space-y-2">
                         <textarea value={editingNoteId === note.id ? newNoteText : note.content}
@@ -267,19 +267,23 @@ export default function Goals() {
             <AnimatePresence>
               {showAddNote && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4">
-                  <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
-                    className="bg-white rounded-2xl w-full max-w-lg p-5 space-y-4">
-                    <div className="flex items-center justify-between">
+                  className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                  <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
+                    className="bg-white rounded-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: 'min(90dvh, calc(100vh - 32px))' }}>
+                    <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100">
                       <h2 className="text-xl font-bold text-gray-900">Add Note</h2>
                       <button onClick={() => setShowAddNote(false)}><X size={20} className="text-gray-400" /></button>
                     </div>
-                    <textarea value={newNoteText} onChange={e => setNewNoteText(e.target.value)} placeholder="Write your note..."
-                      className="w-full h-32 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
-                    <motion.button whileTap={{ scale: 0.95 }} onClick={addNote} disabled={!newNoteText}
-                      className="w-full py-3 bg-emerald-500 text-white rounded-xl font-semibold disabled:opacity-40">
-                      Save Note
-                    </motion.button>
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+                      <textarea value={newNoteText} onChange={e => setNewNoteText(e.target.value)} placeholder="Write your note..."
+                        className="w-full h-40 sm:h-48 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
+                    </div>
+                    <div className="p-4 sm:p-5 border-t border-gray-100 bg-white" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={addNote} disabled={!newNoteText}
+                        className="w-full py-3 bg-emerald-500 text-white rounded-xl font-semibold disabled:opacity-40">
+                        Save Note
+                      </motion.button>
+                    </div>
                   </motion.div>
                 </motion.div>
               )}
@@ -291,8 +295,8 @@ export default function Goals() {
         {activeTab === 'cards' && (
           <div className="space-y-4">
             <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowCardForm(true)}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-white border-2 border-dashed border-gray-200 rounded-2xl text-gray-500 hover:border-emerald-400 hover:text-emerald-600 transition-all font-semibold">
-              <Plus size={18} /> New Card
+              className="w-full flex items-center justify-center gap-2 py-2.5 sm:py-3 bg-white border-2 border-dashed border-gray-200 rounded-2xl text-gray-500 hover:border-emerald-400 hover:text-emerald-600 transition-all font-semibold text-sm">
+              <Plus size={16} /> New Card
             </motion.button>
 
             {reviewQueue.length > 0 ? (
@@ -356,7 +360,7 @@ export default function Goals() {
                 ) : (
                   <div className="space-y-2">
                     {flashcards.map(card => (
-                      <motion.div key={card.id} whileHover={{ y: -2 }} className="bg-white rounded-2xl p-4 border border-gray-100">
+                      <motion.div key={card.id} whileHover={{ y: -2 }} className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-100">
                         <div className="space-y-2">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -389,14 +393,14 @@ export default function Goals() {
             <AnimatePresence>
               {showCardForm && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4">
-                  <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
-                    className="bg-white rounded-2xl w-full max-w-lg p-5 space-y-4">
-                    <div className="flex items-center justify-between">
+                  className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                  <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
+                    className="bg-white rounded-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: 'min(90dvh, calc(100vh - 32px))' }}>
+                    <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100">
                       <h2 className="text-xl font-bold text-gray-900">New Flashcard</h2>
                       <button onClick={() => setShowCardForm(false)}><X size={20} className="text-gray-400" /></button>
                     </div>
-                    <div className="space-y-3">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
                       <div>
                         <label className="text-sm font-medium text-gray-600 block mb-1">Question</label>
                         <input value={newCard.front} onChange={e => setNewCard(p => ({ ...p, front: e.target.value }))} placeholder="What is...?"
@@ -408,10 +412,12 @@ export default function Goals() {
                           className="w-full h-20 border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
                       </div>
                     </div>
-                    <motion.button whileTap={{ scale: 0.95 }} onClick={addFlashcard} disabled={!newCard.front || !newCard.back}
-                      className="w-full py-3 bg-emerald-500 text-white rounded-xl font-semibold disabled:opacity-40">
-                      Create Card
-                    </motion.button>
+                    <div className="p-4 sm:p-5 border-t border-gray-100 bg-white" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={addFlashcard} disabled={!newCard.front || !newCard.back}
+                        className="w-full py-3 bg-emerald-500 text-white rounded-xl font-semibold disabled:opacity-40">
+                        Create Card
+                      </motion.button>
+                    </div>
                   </motion.div>
                 </motion.div>
               )}
@@ -424,14 +430,14 @@ export default function Goals() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Goals</h1>
-          <p className="text-gray-500 mt-0.5">Track learning & progress with notes, logs, and flashcards</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Goals</h1>
+          <p className="text-sm sm:text-base text-gray-500 mt-0.5">Track learning & progress with notes, logs, and flashcards</p>
         </div>
         <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold shadow-md">
-          <Plus size={18} /> New Goal
+          className="flex items-center gap-1.5 px-3 py-2 sm:px-4 bg-emerald-500 text-white rounded-xl font-semibold text-sm sm:text-base shadow-md whitespace-nowrap">
+          <Plus size={16} /> New Goal
         </motion.button>
       </div>
 
@@ -449,11 +455,11 @@ export default function Goals() {
         <div className="grid gap-3">
           {goals.map(goal => (
             <motion.button key={goal.id} whileHover={{ y: -2 }} onClick={() => { setActiveGoal(goal); loadGoalDetails(goal.id); }}
-              className="text-left flex items-center gap-4 p-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all">
-              <span className="text-3xl">{goal.icon || '🎯'}</span>
+              className="text-left flex items-center gap-3 p-3 sm:p-4 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all">
+              <span className="text-2xl sm:text-3xl">{goal.icon || '🎯'}</span>
               <div className="flex-1">
-                <p className="font-bold text-gray-900">{goal.title}</p>
-                <p className="text-sm text-gray-500">{goal.category || 'General'} • {goal.status || 'Active'}</p>
+                <p className="font-bold text-sm sm:text-base text-gray-900">{goal.title}</p>
+                <p className="text-xs sm:text-sm text-gray-500">{goal.category || 'General'} • {goal.status || 'Active'}</p>
               </div>
               <motion.button whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); deleteGoal(goal.id); }}
                 className="text-gray-300 hover:text-red-400">
@@ -467,25 +473,29 @@ export default function Goals() {
       <AnimatePresence>
         {showCreate && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4">
-            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
-              className="bg-white rounded-2xl w-full max-w-md p-5 space-y-4">
-              <div className="flex items-center justify-between">
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-md flex flex-col" style={{ maxHeight: 'min(90dvh, calc(100vh - 32px))' }}>
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100">
                 <h2 className="text-xl font-bold text-gray-900">New Goal</h2>
                 <button onClick={() => setShowCreate(false)}><X size={20} className="text-gray-400" /></button>
               </div>
-              <input value={newGoal.title} onChange={e => setNewGoal(p => ({ ...p, title: e.target.value }))} placeholder="Goal title (e.g. DSA Mastery)"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-              <input value={newGoal.category} onChange={e => setNewGoal(p => ({ ...p, category: e.target.value }))} placeholder="Category (DSA, Fitness, etc.)"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-              <input value={newGoal.icon} onChange={e => setNewGoal(p => ({ ...p, icon: e.target.value }))} placeholder="Icon emoji"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-              <input type="color" value={newGoal.color} onChange={e => setNewGoal(p => ({ ...p, color: e.target.value }))}
-                className="w-full h-10 rounded-xl cursor-pointer" />
-              <motion.button whileTap={{ scale: 0.95 }} onClick={createGoal} disabled={!newGoal.title}
-                className="w-full py-3 bg-emerald-500 text-white rounded-xl font-semibold disabled:opacity-40">
-                Create Goal
-              </motion.button>
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+                <input value={newGoal.title} onChange={e => setNewGoal(p => ({ ...p, title: e.target.value }))} placeholder="Goal title (e.g. DSA Mastery)"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <input value={newGoal.category} onChange={e => setNewGoal(p => ({ ...p, category: e.target.value }))} placeholder="Category (DSA, Fitness, etc.)"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <input value={newGoal.icon} onChange={e => setNewGoal(p => ({ ...p, icon: e.target.value }))} placeholder="Icon emoji"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                <input type="color" value={newGoal.color} onChange={e => setNewGoal(p => ({ ...p, color: e.target.value }))}
+                  className="w-full h-10 rounded-xl cursor-pointer" />
+              </div>
+              <div className="p-4 sm:p-5 border-t border-gray-100 bg-white" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+                <motion.button whileTap={{ scale: 0.95 }} onClick={createGoal} disabled={!newGoal.title}
+                  className="w-full py-3 bg-emerald-500 text-white rounded-xl font-semibold disabled:opacity-40">
+                  Create Goal
+                </motion.button>
+              </div>
             </motion.div>
           </motion.div>
         )}

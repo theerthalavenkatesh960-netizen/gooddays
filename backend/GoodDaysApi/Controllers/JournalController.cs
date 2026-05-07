@@ -44,6 +44,16 @@ public class JournalController : ControllerBase
         return Ok(entries);
     }
 
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var userId = GetUserId();
+        var entry = await _db.JournalEntries
+            .FirstOrDefaultAsync(j => j.Id == id && j.UserId == userId);
+        if (entry is null) return NotFound();
+        return Ok(entry);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] JournalEntry body)
     {

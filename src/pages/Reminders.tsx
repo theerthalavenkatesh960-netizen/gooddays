@@ -124,14 +124,14 @@ export default function Reminders() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Reminders</h1>
-          <p className="text-gray-500 mt-0.5">Set flexible reminders to build daily habits</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Reminders</h1>
+          <p className="text-sm sm:text-base text-gray-500 mt-0.5">Set flexible reminders to build daily habits</p>
         </div>
         <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold shadow-md">
-          <Plus size={18} /> Add Reminder
+          className="flex items-center gap-1.5 px-3 py-2 sm:px-4 bg-emerald-500 text-white rounded-xl font-semibold text-sm sm:text-base shadow-md whitespace-nowrap">
+          <Plus size={16} /> Add Reminder
         </motion.button>
       </div>
 
@@ -154,12 +154,12 @@ export default function Reminders() {
             return (
               <motion.div key={reminder.id} whileHover={{ y: -2 }}
                 onClick={() => setSelectedReminder(selectedReminder?.id === reminder.id ? null : reminder)}
-                className={`p-4 rounded-2xl shadow-sm border cursor-pointer transition-all ${reminder.isEnabled ? 'bg-white border-gray-100 hover:shadow-md' : 'bg-gray-50 border-gray-200'}`}>
+                className={`p-3 sm:p-4 rounded-2xl shadow-sm border cursor-pointer transition-all ${reminder.isEnabled ? 'bg-white border-gray-100 hover:shadow-md' : 'bg-gray-50 border-gray-200'}`}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex-1">
-                    <p className={`font-bold ${reminder.isEnabled ? 'text-gray-900' : 'text-gray-400'}`}>{reminder.title}</p>
-                    <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
-                      <Clock size={14} /> {reminder.time} • {formatReminderFrequency(reminder)}
+                    <p className={`font-semibold text-sm sm:text-base ${reminder.isEnabled ? 'text-gray-900' : 'text-gray-400'}`}>{reminder.title}</p>
+                    <p className="text-xs sm:text-sm text-gray-500 mt-1 flex items-center gap-1.5">
+                      <Clock size={13} /> {reminder.time} • {formatReminderFrequency(reminder)}
                       {reminder.frequency === 'weekly' && reminder.activeDays && (
                         <span className="text-xs">{reminder.activeDays}</span>
                       )}
@@ -168,11 +168,11 @@ export default function Reminders() {
                   <div className="flex items-center gap-2">
                     <motion.button whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); toggleReminder(reminder.id, reminder.isEnabled); }}
                       className="text-gray-400 hover:text-emerald-600">
-                      {reminder.isEnabled ? <ToggleRight size={20} className="text-emerald-600" /> : <ToggleLeft size={20} />}
+                      {reminder.isEnabled ? <ToggleRight size={18} className="text-emerald-600" /> : <ToggleLeft size={18} />}
                     </motion.button>
                     <motion.button whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); deleteReminder(reminder.id); }}
                       className="text-gray-300 hover:text-red-400">
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </motion.button>
                   </div>
                 </div>
@@ -190,7 +190,7 @@ export default function Reminders() {
                           const d = new Date(date);
                           return (
                             <motion.div key={idx} title={format(d, 'MMM d')}
-                              className={`h-6 rounded-sm transition-all ${complete ? 'bg-emerald-500' : 'bg-gray-200'} hover:ring-2 hover:ring-emerald-400 cursor-default`} />
+                              className={`h-5 sm:h-6 rounded-sm transition-all ${complete ? 'bg-emerald-500' : 'bg-gray-200'} hover:ring-2 hover:ring-emerald-400 cursor-default`} />
                           );
                         })}
                       </div>
@@ -209,26 +209,26 @@ export default function Reminders() {
       <AnimatePresence>
         {showCreate && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4">
-            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
-              className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">New Reminder</h2>
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-md flex flex-col" style={{ maxHeight: 'min(90dvh, calc(100vh - 32px))' }}>
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">New Reminder</h2>
                 <button onClick={() => setShowCreate(false)}><X size={20} className="text-gray-400" /></button>
               </div>
 
-              <div className="space-y-3">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
                 <div>
                   <label className="text-sm font-medium text-gray-600 block mb-1">Reminder Title</label>
                   <input value={newReminder.title} onChange={e => setNewReminder(p => ({ ...p, title: e.target.value }))} 
                     placeholder="e.g. Drink water, Meditation" 
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 sm:px-4 sm:py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
 
                 <div>
                   <label className="text-sm font-medium text-gray-600 block mb-1">Time</label>
                   <input type="time" value={newReminder.time} onChange={e => setNewReminder(p => ({ ...p, time: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 sm:px-4 sm:py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 </div>
 
                 <div>
@@ -246,7 +246,7 @@ export default function Reminders() {
                           : p.activeDays
                     }));
                   }}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 sm:px-4 sm:py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400">
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly on specific days</option>
                     <option value="custom">Custom</option>
@@ -286,12 +286,12 @@ export default function Reminders() {
                         min={1}
                         value={newReminder.customInterval}
                         onChange={e => setNewReminder(p => ({ ...p, customInterval: Math.max(1, Number(e.target.value) || 1) }))}
-                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 sm:px-4 sm:py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                       />
                       <select
                         value={newReminder.customUnit}
                         onChange={e => setNewReminder(p => ({ ...p, customUnit: e.target.value }))}
-                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 sm:px-4 sm:py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"
                       >
                         <option value="days">Days</option>
                         <option value="weeks">Weeks</option>
@@ -309,10 +309,12 @@ export default function Reminders() {
                 </label>
               </div>
 
-              <motion.button whileTap={{ scale: 0.95 }} onClick={createReminder} disabled={!newReminder.title || !newReminder.time}
-                className="w-full py-3 bg-emerald-500 text-white rounded-xl font-semibold disabled:opacity-40">
-                Create Reminder
-              </motion.button>
+              <div className="p-4 sm:p-5 border-t border-gray-100 bg-white" style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+                <motion.button whileTap={{ scale: 0.95 }} onClick={createReminder} disabled={!newReminder.title || !newReminder.time}
+                  className="w-full py-2.5 sm:py-3 bg-emerald-500 text-white rounded-xl font-semibold text-sm sm:text-base disabled:opacity-40">
+                  Create Reminder
+                </motion.button>
+              </div>
             </motion.div>
           </motion.div>
         )}

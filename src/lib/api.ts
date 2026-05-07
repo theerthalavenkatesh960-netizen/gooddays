@@ -521,6 +521,7 @@ export async function getReminderHistory(days?: number) { return request(`remind
 
 export async function getJournalEntries(page?: number) { return request(`journal${page ? `?page=${page}` : ''}`); }
 export async function getMemoryWall() { return request('journal/memory-wall'); }
+export async function getJournalEntry(id: number) { return request(`journal/${id}`); }
 export async function createJournalEntry(body: any) { return request('journal', { method: 'POST', body: JSON.stringify(body) }); }
 export async function updateJournalEntry(id: number, body: any) { return request(`journal/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
 export async function deleteJournalEntry(id: number) { return request(`journal/${id}`, { method: 'DELETE' }); }
