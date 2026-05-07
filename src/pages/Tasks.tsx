@@ -277,16 +277,16 @@ const renderOccurrences = (task: any) => {
       </h1>
 
       {/* Tab switcher */}
-      <div className="flex gap-1.5 mb-4 sm:mb-6 bg-gray-100 p-1 rounded-2xl w-fit">
+      <div className="flex gap-1 mb-3 sm:mb-5 bg-gray-100 p-1 rounded-xl w-fit">
         <button
           onClick={() => setActiveTab('tasks')}
-          className={`flex items-center gap-2 px-3 sm:px-5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all ${activeTab === 'tasks' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+          className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${activeTab === 'tasks' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
         >
           Tasks
         </button>
         <button
           onClick={() => setActiveTab('reminders')}
-          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all ${activeTab === 'reminders' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
+          className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${activeTab === 'reminders' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}
         >
           <Bell size={14} /> Reminders
         </button>
@@ -297,13 +297,13 @@ const renderOccurrences = (task: any) => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-4 sm:p-6 shadow-xl mb-4 sm:mb-6"
+        className="bg-white rounded-2xl p-3 sm:p-5 shadow-xl mb-3 sm:mb-5"
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <button
               onClick={() => { setEditingTask(null); setShowAddModal(true); }}
-              className="px-3 sm:px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold text-sm flex items-center gap-1.5 sm:gap-2"
+              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-500 text-white rounded-lg font-semibold text-xs sm:text-sm flex items-center gap-1.5"
             >
               <Plus size={16} /> New Task
             </button>
@@ -311,10 +311,10 @@ const renderOccurrences = (task: any) => {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar whitespace-nowrap pb-1">
           <button
             onClick={() => setFilterView('all')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
               filterView === 'all'
                 ? 'bg-emerald-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -324,7 +324,7 @@ const renderOccurrences = (task: any) => {
           </button>
           <button
             onClick={() => setFilterView('today')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
               filterView === 'today'
                 ? 'bg-emerald-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -334,7 +334,7 @@ const renderOccurrences = (task: any) => {
           </button>
           <button
             onClick={() => setFilterView('overdue')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
               filterView === 'overdue'
                 ? 'bg-red-500 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -343,7 +343,7 @@ const renderOccurrences = (task: any) => {
             Overdue
           </button>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Filter size={16} className="text-gray-500" />
             <select
               value={filterCategory}
@@ -364,23 +364,23 @@ const renderOccurrences = (task: any) => {
       {/* Date selector & selected date header */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">{format(selectedDate, 'EEEE, MMM d')}</h2>
+          <h2 className="text-base sm:text-lg font-semibold">{format(selectedDate, 'EEEE, MMM d')}</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSelectedDate(addDays(selectedDate, -7))}
-              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200"
+              className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200"
             >
               ◀ Week
             </button>
             <button
               onClick={() => setSelectedDate(new Date())}
-              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200"
+              className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200"
             >
               Today
             </button>
             <button
               onClick={() => setSelectedDate(addDays(selectedDate, 7))}
-              className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200"
+              className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200"
             >
               Week ▶
             </button>
@@ -388,7 +388,7 @@ const renderOccurrences = (task: any) => {
         </div>
 
         <div className="overflow-x-auto">
-          <div className="flex gap-2 pb-2">
+          <div className="flex gap-1.5 pb-1.5">
             {Array.from({ length: 7 }).map((_, i) => {
               const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
               const d = addDays(weekStart, i);
@@ -397,10 +397,10 @@ const renderOccurrences = (task: any) => {
                 <button
                   key={d.toISOString()}
                   onClick={() => setSelectedDate(d)}
-                  className={`flex-1 min-w-0 px-3 py-3 rounded-lg text-center border ${isSelected ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                  className={`flex-1 min-w-0 px-2 py-2 rounded-lg text-center border ${isSelected ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
                 >
-                  <div className="text-xs">{format(d, 'EEE')}</div>
-                  <div className="font-semibold">{format(d, 'd')}</div>
+                  <div className="text-[11px] sm:text-xs">{format(d, 'EEE')}</div>
+                  <div className="font-semibold text-sm sm:text-base">{format(d, 'd')}</div>
                 </button>
               );
             })}
@@ -408,7 +408,7 @@ const renderOccurrences = (task: any) => {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {/* Add Task Modal */}
         {showAddModal && (
           <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -519,7 +519,7 @@ const renderOccurrences = (task: any) => {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               transition={{ delay: index * 0.05 }}
-              className={`bg-white rounded-xl p-3 sm:p-4 shadow-lg hover:shadow-xl transition-all ${
+              className={`bg-white rounded-xl p-2.5 sm:p-3 shadow-lg hover:shadow-xl transition-all ${
                 task.isCompleted ? 'opacity-60' : ''
               }`}
             >
