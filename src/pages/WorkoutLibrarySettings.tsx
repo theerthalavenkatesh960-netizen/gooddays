@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Dumbbell, Plus, Trash2, Save } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Plus, Trash2, Save, Search } from 'lucide-react';
 import * as api from '../lib/api';
+import MuscleVisualization from '../components/MuscleVisualization';
 
 type Exercise = {
   id: number;
@@ -24,11 +25,22 @@ const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio', 'Full Body'];
 const ROUTINE_KEY = 'gd.weeklyWorkoutRoutine';
 
+const MUSCLE_MAP: Record<string, string> = {
+  'Chest': 'chest',
+  'Back': 'lats',
+  'Shoulders': 'shoulders',
+  'Arms': 'biceps',
+  'Legs': 'quads',
+  'Core': 'abs',
+};
+
 export default function WorkoutLibrarySettings() {
   const navigate = useNavigate();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [routine, setRoutine] = useState<RoutineMap>({});
   const [saving, setSaving] = useState('');
+  const [search, setSearch] = useState('');
+  const [filterMuscle, setFilterMuscle] = useState<string | null>(null);
   const [newExercise, setNewExercise] = useState<NewExercise>({
     name: '',
     muscleGroup: 'Chest',
@@ -104,7 +116,15 @@ export default function WorkoutLibrarySettings() {
     setTimeout(() => setSaving(''), 1500);
   }
 
-  const customExercises = useMemo(() => exercises.filter((e: Exercise) => e.isCustom), [exercises]);
+  const filteredExercises = useMemo(() => {
+    let result = exercises;
+    if (filterMuscle) result = result.filter(e => e.muscleGroup === filterMuscle);
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter(e => e.name.toLowerCase().includes(q) || e.muscleGroup.toLowerCase().includes(q));
+    }
+    return result;
+  }, [exercises, filterMuscle, search]);
 
   function onNameChange(e: ChangeEvent<HTMLInputElement>) {
     setNewExercise((p: NewExercise) => ({ ...p, name: e.target.value }));
@@ -132,14 +152,15 @@ export default function WorkoutLibrarySettings() {
       </div>
 
       {saving && (
-        <div className="mb-4 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-          {saving}
+        <div className="mb-4 px-3 py-2 rounded-xl text-xs font-semibold" style={{ backgroundColor: 'rgba(78, 205, 196, 0.1)', color: 'var(--accent-green)' }}>
+          ✓ {saving}
         </div>
       )}
 
+      {/* Add Exercise Section */}
       <div className="rounded-2xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <p className="section-label mb-3">Add Exercise</p>
-        <div className="space-y-2">
+        <p className="section-label mb-3">Add Exercise to Library</p>
+        <div className="space-y-3">
           <input
             value={newExercise.name}
             onChange={onNameChange}
@@ -147,25 +168,27 @@ export default function WorkoutLibrarySettings() {
             className="w-full px-3 py-2 text-sm rounded-xl outline-none"
             style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
           />
-          <select
-            value={newExercise.muscleGroup}
-            onChange={onMuscleGroupChange}
-            className="w-full px-3 py-2 text-sm rounded-xl outline-none"
-            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-          >
-            {MUSCLE_GROUPS.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={newExercise.muscleGroup}
+              onChange={onMuscleGroupChange}
+              className="px-3 py-2 text-sm rounded-xl outline-none"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+            >
+              {MUSCLE_GROUPS.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <input
+              value={newExercise.imageUrl}
+              onChange={onImageUrlChange}
+              placeholder="Image URL"
+              className="px-3 py-2 text-sm rounded-xl outline-none"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+            />
+          </div>
           <input
             value={newExercise.description}
             onChange={onDescriptionChange}
-            placeholder="Description"
-            className="w-full px-3 py-2 text-sm rounded-xl outline-none"
-            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-          />
-          <input
-            value={newExercise.imageUrl}
-            onChange={onImageUrlChange}
-            placeholder="Image URL (optional)"
+            placeholder="Description / instructions"
             className="w-full px-3 py-2 text-sm rounded-xl outline-none"
             style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
           />
@@ -175,34 +198,106 @@ export default function WorkoutLibrarySettings() {
         </div>
       </div>
 
+      {/* Exercise Library with Search & Filter */}
       <div className="rounded-2xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="flex items-center justify-between mb-3">
-          <p className="section-label">Custom Exercises</p>
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{customExercises.length}</span>
+          <p className="section-label">Exercise Library</p>
+          <span className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
+            {filteredExercises.length} / {exercises.length}
+          </span>
         </div>
-        <div className="space-y-2">
-          {customExercises.length === 0 && (
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No custom exercises yet.</p>
-          )}
-          {customExercises.map(ex => (
-            <div key={ex.id} className="flex items-center gap-3 p-2.5 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--accent)22' }}>
-                <Dumbbell size={14} style={{ color: 'var(--accent)' }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{ex.name}</p>
-                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{ex.muscleGroup}</p>
-              </div>
-              <button onClick={() => deleteExercise(ex)} className="p-2 rounded-lg press" style={{ color: 'var(--accent-warm)' }}>
-                <Trash2 size={14} />
+
+        {/* Search & Filter Row */}
+        <div className="mb-4 space-y-2">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+            <Search size={16} style={{ color: 'var(--text-muted)' }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search exercises..."
+              className="flex-1 bg-transparent text-sm outline-none"
+              style={{ color: 'var(--text-primary)' }}
+            />
+          </div>
+
+          {/* Muscle Group Filter Chips */}
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setFilterMuscle(null)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium press transition-all"
+              style={{
+                backgroundColor: !filterMuscle ? 'var(--accent)' : 'var(--surface-elevated)',
+                color: !filterMuscle ? '#fff' : 'var(--text-muted)',
+              }}
+            >
+              All
+            </button>
+            {MUSCLE_GROUPS.map(mg => (
+              <button
+                key={mg}
+                onClick={() => setFilterMuscle(filterMuscle === mg ? null : mg)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium press transition-all"
+                style={{
+                  backgroundColor: filterMuscle === mg ? 'var(--accent)' : 'var(--surface-elevated)',
+                  color: filterMuscle === mg ? '#fff' : 'var(--text-muted)',
+                }}
+              >
+                {mg}
               </button>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
+
+        {filteredExercises.length === 0 ? (
+          <div className="py-6 text-center">
+            <Dumbbell size={32} className="mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No exercises found</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredExercises.map(ex => (
+              <div
+                key={ex.id}
+                className="p-3 rounded-xl flex items-start gap-3"
+                style={{
+                  backgroundColor: 'var(--surface-elevated)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <div className="flex-shrink-0 w-14 h-14 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(108, 99, 255, 0.1)' }}>
+                  {ex.imageUrl ? (
+                    <img src={ex.imageUrl} alt={ex.name} className="w-full h-full object-cover rounded-lg" />
+                  ) : (
+                    <Dumbbell size={18} style={{ color: 'var(--accent)' }} />
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                    {ex.name}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    {ex.muscleGroup}
+                  </p>
+                  {ex.description && (
+                    <p className="text-[11px] mt-1 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
+                      {ex.description}
+                    </p>
+                  )}
+                </div>
+
+                <button onClick={() => deleteExercise(ex)} className="p-2 rounded-lg press flex-shrink-0" style={{ color: ex.isCustom ? 'var(--accent-warm)' : 'var(--text-muted)' }}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* Weekly Routine Planner */}
       <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-4">
           <p className="section-label">Weekly Routine Preset</p>
           <button onClick={saveRoutine} className="h-8 px-3 rounded-lg text-xs font-semibold text-white flex items-center gap-1" style={{ backgroundColor: 'var(--accent-green)' }}>
             <Save size={12} /> Save
@@ -210,30 +305,56 @@ export default function WorkoutLibrarySettings() {
         </div>
 
         <div className="space-y-3">
-          {DAYS.map(day => (
-            <div key={day} className="p-2.5 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-              <p className="text-xs font-semibold uppercase mb-2" style={{ color: 'var(--text-secondary)' }}>{day}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {exercises.map(ex => {
-                  const selected = (routine[day] || []).includes(ex.id);
-                  return (
-                    <button
-                      key={ex.id}
-                      onClick={() => toggleDayExercise(day, ex.id)}
-                      className="px-2 py-1 rounded-full text-[11px]"
-                      style={{
-                        backgroundColor: selected ? 'var(--accent)22' : 'var(--surface)',
-                        color: selected ? 'var(--accent)' : 'var(--text-muted)',
-                        border: `1px solid ${selected ? 'var(--accent)66' : 'var(--border)'}`,
-                      }}
-                    >
-                      {ex.name}
-                    </button>
-                  );
-                })}
+          {DAYS.map(day => {
+            const selectedIds = routine[day] || [];
+            const dayExercises = exercises.filter(e => selectedIds.includes(e.id));
+            const intensity: Record<string, number> = {};
+            dayExercises.forEach(ex => {
+              const map = MUSCLE_MAP[ex.muscleGroup];
+              if (map) intensity[map] = Math.min(1, (intensity[map] || 0) + 0.4);
+            });
+
+            return (
+              <div key={day} className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>
+                    {day}
+                  </p>
+                  <span className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-muted)' }}>
+                    {selectedIds.length} exercise{selectedIds.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                {/* Mini Body Visualization */}
+                {dayExercises.length > 0 && (
+                  <div className="mb-2 rounded-lg p-2" style={{ backgroundColor: 'rgba(108, 99, 255, 0.05)' }}>
+                    <MuscleVisualization intensity={intensity} side="front" height={80} />
+                  </div>
+                )}
+
+                {/* Exercise Chips */}
+                <div className="flex flex-wrap gap-1.5">
+                  {exercises.map(ex => {
+                    const selected = selectedIds.includes(ex.id);
+                    return (
+                      <button
+                        key={ex.id}
+                        onClick={() => toggleDayExercise(day, ex.id)}
+                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-medium press transition-all"
+                        style={{
+                          backgroundColor: selected ? 'rgba(108, 99, 255, 0.2)' : 'var(--surface)',
+                          color: selected ? 'var(--accent)' : 'var(--text-muted)',
+                          border: `1px solid ${selected ? 'var(--accent)' : 'var(--border)'}`,
+                        }}
+                      >
+                        {ex.name}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
