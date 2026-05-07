@@ -96,3 +96,26 @@ Signup
 File: Signup.tsx
 Tabs: none
 Sections: signup form, oauth option, auth navigation link
+
+
+
+###########################################
+in workout , there is no workout library and no place to set the workout routine like each day what all need to do from the workout library and when logging the workout it should suggest based on the day and the config and also i should be able to add images for workout and also while logging i should be able to add the image,  in settings , i should be able to add workouts in the library ( seperate page ) and also add pre defined meals and able to configure the meal and it's ingredients and each ingredient should be available to be added and recipes should also be there in the best way and these workouts from library and meals can be selected while logging, and make this process very advanced and also i should be able to preset my workouts through out the week and based on that it should show
+
+
+
+
+#################################################
+my basic idea is that to log everything i do , i am planning to improve it significantly , in workouts i don't plan it daily but ,if i set the configuration current weight, target weight, like pull/push or 1 muscle a day like this and what i should do each day , then i will be logging each day of it like what will i do each and how much weight for each exercise and also the diet being followed like each day what i had for pre workout and post workout and count calories and all , like a full pledged thing.
+
+finance page is very bad as of now , i want to have like i should be able to log every transaction and also i should be able to upload the statement and then it should get the details from it and i should be able to update those transactions as well and all analytics should be shown.
+
+and also i want to create buckets for each purpose like car service takes (13000) so each month i will put some amount to that bucket , so that i won't need to worry about it , like this and need financial goals and target and my investments.
+
+i badly need to track my car things , like petrol consumption and each refill (amount ,kms given and based on that mileage and all should be calculated) and each service also should be tracked and when ever i remember an issue i will note it there so that while getting serviced i can just check this and tell all the issues . ( i don't know where to put this but i need this badly ) , not thinking this as a new tab.
+
+and in tasks and reminders i guess i only need 1 with the best like task and reminder are basically same if i put a reminder for a task ( need all advanced features for it ) , i need a daily routine setup like wakeup: 430, 430-530 study dsa , 530-630 - gym, like this and based on the tasks done this daily routine also should be updated whether each thing is done or not , i need this in a best possible way ,
+
+in instagram, i might see a list of things and i want to add all those things as a goal and within goal this list should be added and each of it can be striked off once done. so need this feature.
+
+i will journal as well make it even advanced and better,  weekly review should be generated using ai or something based on all the things logged in the app, may be ai
