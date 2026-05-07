@@ -6,17 +6,11 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Tasks from './pages/Tasks';
-import Study from './pages/Study';
-import Track from './pages/Track';
-import SelfCare from './pages/SelfCare';
 import CalendarView from './pages/CalendarView';
 import Settings from './pages/Settings';
 import Finance from './pages/Finance';
 import Workout from './pages/Workout';
 import Goals from './pages/Goals';
-import Reminders from './pages/Reminders';
-import Journal from './pages/Journal';
-import WeeklyReview from './pages/WeeklyReview';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -86,71 +80,11 @@ function App() {
               }
             />
             <Route
-              path="/reminders"
-              element={
-                <PrivateRoute>
-                  <Layout>
-                    <Reminders />
-                  </Layout>
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/journal"
-              element={
-                <PrivateRoute>
-                  <Layout>
-                    <Journal />
-                  </Layout>
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/weekly-review"
-              element={
-                <PrivateRoute>
-                  <Layout>
-                    <WeeklyReview />
-                  </Layout>
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/study"
-              element={
-                <PrivateRoute>
-                  <Layout>
-                    <Study />
-                  </Layout>
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/track"
-              element={
-                <PrivateRoute>
-                  <Layout>
-                    <Track />
-                  </Layout>
-                </PrivateRoute>
-              }
-            />
-            <Route
               path="/finance"
               element={
                 <PrivateRoute>
                   <Layout>
                     <Finance />
-                  </Layout>
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/selfcare"
-              element={
-                <PrivateRoute>
-                  <Layout>
-                    <SelfCare />
                   </Layout>
                 </PrivateRoute>
               }
