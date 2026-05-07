@@ -2,10 +2,14 @@
   "name": "GoodDays",
   "short_name": "GoodDays",
   "description": "Your personal operating system for growth",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "display": "standalone",
   "background_color": "#f0fdf4",
   "theme_color": "#10b981",
+  "prefer_related_applications": false,
   "orientation": "portrait",
   "icons": [
     {
