@@ -18,7 +18,7 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 COPY --from=build /app/publish .
 
-# Port can be overridden by Render's service configuration
-ENV ASPNETCORE_URLS=http://+:5000
-EXPOSE 5000
-ENTRYPOINT ["dotnet", "GoodDaysApi.dll"]
+# Render injects $PORT at runtime; default to 10000 which Render also uses.
+ENV ASPNETCORE_URLS=http://+:10000
+EXPOSE 10000
+CMD ASPNETCORE_URLS=http://+:${PORT:-10000} dotnet GoodDaysApi.dll

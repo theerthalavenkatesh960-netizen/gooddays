@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: gooddays-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__Default
+        sync: false
+      - key: Jwt__Key
+        sync: false

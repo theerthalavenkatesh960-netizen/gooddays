@@ -12,30 +12,15 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Enable CORS for local dev origins and optional configured production URL.
-var configuredFrontendUrl = builder.Configuration["Frontend:Url"];
-
+// Enable CORS — allow all origins so the Netlify-hosted SPA can reach this API.
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
     {
         policy
-            .WithOrigins(
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:3000",
-                "http://127.0.0.1:3000"
-            )
+            .AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod();
-
-        // also allow any other configured production URL
-        if (!string.IsNullOrWhiteSpace(configuredFrontendUrl))
-        {
-            policy.WithOrigins(configuredFrontendUrl)
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        }
     });
 });
 
