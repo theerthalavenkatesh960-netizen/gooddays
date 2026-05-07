@@ -1,41 +1,98 @@
-Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
-(index):1 Error while trying to use the following icon from the Manifest: http://localhost:5173/icons/apple-touch-icon.png (Download error or resource isn't a valid image)Understand this warning
-5Error: <circle> attribute r: Expected length, "undefined".Understand this error
-2ThemeContext.tsx:60 Uncaught Error: useTheme must be used within a ThemeProvider
-    at useTheme (ThemeContext.tsx:60:11)
-    at MiniLoader (LoadingContext.tsx:279:21)
-    at renderWithHooks (chunk-QT63QQJV.js?v=a2dd2979:11548:26)
-    at mountIndeterminateComponent (chunk-QT63QQJV.js?v=a2dd2979:14926:21)
-    at beginWork (chunk-QT63QQJV.js?v=a2dd2979:15914:22)
-    at HTMLUnknownElement.callCallback2 (chunk-QT63QQJV.js?v=a2dd2979:3674:22)
-    at Object.invokeGuardedCallbackDev (chunk-QT63QQJV.js?v=a2dd2979:3699:24)
-    at invokeGuardedCallback (chunk-QT63QQJV.js?v=a2dd2979:3733:39)
-    at beginWork$1 (chunk-QT63QQJV.js?v=a2dd2979:19765:15)
-    at performUnitOfWork (chunk-QT63QQJV.js?v=a2dd2979:19198:20)Understand this error
-chunk-QT63QQJV.js?v=a2dd2979:14032 The above error occurred in the <MiniLoader> component:
+Perfect. Here is the full app structure in the format you asked.
 
-    at MiniLoader (http://localhost:5173/src/contexts/LoadingContext.tsx?t=1778123034797:407:21)
-    at PopChildMeasure (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=a2dd2979:7879:23)
-    at PopChild (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=a2dd2979:7905:21)
-    at PresenceChild (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=a2dd2979:7953:24)
-    at AnimatePresence (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=a2dd2979:8030:26)
-    at LoadingProvider (http://localhost:5173/src/contexts/LoadingContext.tsx?t=1778123034797:43:35)
-    at AuthProvider (http://localhost:5173/src/contexts/AuthContextApi.tsx:21:32)
-    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:7152:13)
-    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=a2dd2979:10363:3)
-    at App
-
-Consider adding an error boundary to your tree to customize error handling behavior.
-Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
-logCapturedError @ chunk-QT63QQJV.js?v=a2dd2979:14032Understand this error
-chunk-QT63QQJV.js?v=a2dd2979:19413 Uncaught Error: useTheme must be used within a ThemeProvider
-    at useTheme (ThemeContext.tsx:60:11)
-    at MiniLoader (LoadingContext.tsx:279:21)
-    at renderWithHooks (chunk-QT63QQJV.js?v=a2dd2979:11548:26)
-    at mountIndeterminateComponent (chunk-QT63QQJV.js?v=a2dd2979:14926:21)
-    at beginWork (chunk-QT63QQJV.js?v=a2dd2979:15914:22)
-    at beginWork$1 (chunk-QT63QQJV.js?v=a2dd2979:19753:22)
-    at performUnitOfWork (chunk-QT63QQJV.js?v=a2dd2979:19198:20)
-    at workLoopSync (chunk-QT63QQJV.js?v=a2dd2979:19137:13)
-    at renderRootSync (chunk-QT63QQJV.js?v=a2dd2979:19116:15)
-    at recoverFromConcurrentError (chunk-QT63QQJV.js?v=a2dd2979:18736:28)Understand this error
+App shell and routes
+Route map is in App.tsx
+Protected pages: Dashboard, Tasks, Workout, Goals, Finance, Calendar, Settings
+Standalone protected editor routes: Journal new/edit
+Public pages: Login, Signup
+Shared navigation/layout is in Layout.tsx
+Dashboard
+File: Dashboard.tsx
+Tabs: none
+Sections: gamification bar, top tasks preview, daily tracking card, daily note, water tracker, reminders preview, goals preview, streak summary
+Tasks
+File: Tasks.tsx
+Tabs: Tasks, Reminders
+Sections (Tasks tab): top control card, new task action, filter row (All/Today/Overdue + category), week/date navigator, 7-day strip, task list cards, empty state
+Modals: create/edit task modal, delete confirm modal
+Note: Reminders tab mounts the Reminders page component
+Reminders
+File: Reminders.tsx
+Tabs: none
+Sections: reminders header/actions, reminders list cards, expandable 30-day heatmap per reminder, frequency details
+Modal: add/create reminder modal
+Workout
+File: Workout.tsx
+Tabs: Today, Library, History, Analytics, PRs
+Sections (Today): workout label, planned exercises, set logging rows, progress/completion, workout photos
+Sections (Library): muscle-group filter pills, exercise cards, add/edit/delete custom exercises
+Sections (History): past plans list
+Sections (Analytics): volume and trend cards/charts
+Sections (PRs): personal record list
+Modals: plan workout modal, add/edit exercise modal
+Goals
+File: Goals.tsx
+Tabs (inside selected goal): Logs, Notes, Cards
+Sections (goals list view): header/actions, goal cards
+Sections (Logs tab): date + minutes logging, logs list
+Sections (Notes tab): add note action, notes list/edit
+Sections (Cards tab): flashcard review session, confidence rating, card list
+Modals: create goal, add note, add flashcard
+Finance wrapper
+File: Finance.tsx
+Tabs: Expenses, Tracker
+Sections: tab switcher container, embeds Expenses page and FinancialTracker page
+Expenses
+File: Expenses.tsx
+Tabs: none
+Sections: header/actions, month selector, show-all toggle, filters/search, KPI cards, category summary, daily grouped expense list
+Actions: add expense, delete expense, export CSV
+Financial Tracker
+File: FinancialTracker.tsx
+Tabs: rule tab set inside panel (investment, trading, mindset, lifestyle)
+Sections: alerts area, header/config action, completion/streak/rule cards, bucket cards, expandable task checklist per bucket, monthly history chart
+Modals/Panels: complete task modal, config panel, rules panel
+Calendar View
+File: CalendarView.tsx
+Tabs: Calendar, Weekly Review, Journal
+Sections (Calendar tab): month nav, 7-column calendar grid, selected-day details (tasks + reminders + other daily data)
+Note: Weekly Review and Journal tabs render their full page components
+Weekly Review
+File: WeeklyReview.tsx
+Tabs: none
+Sections: weekly metric cards, reflection/wins/improvement/focus text areas, save action
+Journal
+File: Journal.tsx
+Tabs: Entries, Memory Wall
+Sections (Entries): write action, search, entry cards list (title/body/date/mood/image), delete action
+Sections (Memory Wall): image grid from entries
+Behavior: create/edit opens new tab editor route
+Journal Editor
+File: JournalEditor.tsx
+Routes: /journal/new and /journal/:id/edit
+Tabs: none
+Sections: back action, title input, large body editor, mood selector, image upload/preview, save/update action
+Track
+File: Track.tsx
+Tabs: none
+Sections: weekly averages cards, today metrics form (sleep/workout/phone/sunlight/mood controls)
+Study
+File: Study.tsx
+Tabs: none
+Sections: weekly minutes and streak cards, today study form (minutes + notes), save action
+Self Care
+File: SelfCare.tsx
+Tabs: none
+Sections: completion and streak summary cards, add-item form, grouped routines by category (AM/PM/Hair), per-item complete toggle, per-item streak, delete action
+Settings
+File: Settings.tsx
+Tabs: none
+Sections: theme selector grid, daily tracking field picker, data management (export/import), status message banner
+Login
+File: Login.tsx
+Tabs: none
+Sections: login form, oauth option, auth navigation link
+Signup
+File: Signup.tsx
+Tabs: none
+Sections: signup form, oauth option, auth navigation link
