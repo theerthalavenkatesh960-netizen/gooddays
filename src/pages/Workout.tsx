@@ -220,7 +220,7 @@ export default function Workout() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Workout</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Workout</h1>
           <p className="text-gray-500 mt-0.5">{format(new Date(), 'EEEE, MMM d')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -245,7 +245,7 @@ export default function Workout() {
       </div>
 
       {/* Tabs */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-6 bg-gray-100 p-2 rounded-2xl">
+      <div className="flex overflow-x-auto gap-1 mb-6 bg-gray-100 p-1.5 rounded-2xl hide-scrollbar">
         {TABS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -256,10 +256,9 @@ export default function Workout() {
                 if (tab.id === 'history') loadHistory();
                 if (tab.id === 'analytics') loadAnalytics();
               }}
-              className={`flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-medium text-sm transition-all ${isActive ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500'}`}>
-              <Icon size={15} />
-              <span className="sm:hidden">{tab.shortLabel}</span>
-              <span className="hidden sm:inline">{tab.label}</span>
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl font-medium text-sm transition-all flex-shrink-0 ${isActive ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500'}`}>
+              <Icon size={14} />
+              <span>{tab.shortLabel}</span>
             </motion.button>
           );
         })}
@@ -575,9 +574,9 @@ export default function Workout() {
       <AnimatePresence>
         {showAddPlan && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4">
-            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
-              className="bg-white rounded-2xl w-full max-w-lg max-h-[90dvh] flex flex-col">
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: 'min(90dvh, calc(100vh - 32px))' }}>
               <div className="flex items-center justify-between p-5 border-b border-gray-100">
                 <h2 className="text-xl font-bold text-gray-900">Plan Today's Workout</h2>
                 <button onClick={() => setShowAddPlan(false)}><X size={20} className="text-gray-400" /></button>
@@ -625,9 +624,9 @@ export default function Workout() {
       <AnimatePresence>
         {showAddExercise && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4">
-            <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
-              className="bg-white rounded-2xl w-full max-w-md max-h-[90dvh] flex flex-col">
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-md flex flex-col" style={{ maxHeight: 'min(90dvh, calc(100vh - 32px))' }}>
               <div className="flex items-center justify-between p-5 border-b border-gray-100">
                 <h2 className="text-xl font-bold text-gray-900">{editingExerciseId ? 'Edit Custom Exercise' : 'Add Custom Exercise'}</h2>
                 <button onClick={() => { setShowAddExercise(false); setEditingExerciseId(null); }}><X size={20} className="text-gray-400" /></button>
