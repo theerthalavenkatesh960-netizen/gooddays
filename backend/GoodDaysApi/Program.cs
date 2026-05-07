@@ -76,8 +76,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("FrontendPolicy");
 app.UseRouting();
+app.UseCors("FrontendPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
