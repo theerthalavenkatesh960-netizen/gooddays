@@ -429,6 +429,16 @@ function DietTab() {
     }
   }
 
+  async function removeWater(ml: number = 250) {
+    const next = Math.max(0, waterMl - ml);
+    setWaterMl(next);
+    try {
+      await (api as any).incrementWaterIntake(today, -ml);
+    } catch {
+      // Optimistic update
+    }
+  }
+
   const consumedCalories = useMemo(() => {
     return plannedMeals
       .filter(m => selected.includes(m.id))
@@ -503,14 +513,28 @@ function DietTab() {
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-4 gap-2">
-          {[{ label: '💧', ml: 100 }, { label: '🥛 250', ml: 250 }, { label: '🍶 500', ml: 500 }, { label: '🫙 1L', ml: 1000 }].map(p => (
-            <button key={p.ml} onClick={() => addWater(p.ml)}
-              className="py-2 rounded-xl text-xs font-bold transition-all"
-              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>
-              {p.label}
-            </button>
-          ))}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Add</p>
+          <div className="grid grid-cols-4 gap-2">
+            {[{ label: '💧 100', ml: 100 }, { label: '🥛 250', ml: 250 }, { label: '🍶 500', ml: 500 }, { label: '🫙 1L', ml: 1000 }].map(p => (
+              <button key={p.ml} onClick={() => addWater(p.ml)}
+                className="py-2 rounded-xl text-xs font-bold transition-all"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Remove</p>
+          <div className="grid grid-cols-4 gap-2">
+            {[{ label: '−100', ml: 100 }, { label: '−250', ml: 250 }, { label: '−500', ml: 500 }, { label: '−1L', ml: 1000 }].map(p => (
+              <button key={p.ml} onClick={() => removeWater(p.ml)}
+                disabled={waterMl === 0}
+                className="py-2 rounded-xl text-xs font-bold transition-all"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: '#f87171', opacity: waterMl === 0 ? 0.4 : 1 }}>
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
