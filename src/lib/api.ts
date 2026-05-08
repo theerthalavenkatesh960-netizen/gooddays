@@ -1208,13 +1208,126 @@ export async function deleteFlashcard(id: number) {
   return request(`goals/flashcards/${id}`, { method: 'DELETE' });
 }
 
+// ─── Finance: Budget Setup API ────────────────────────────────────────────────
+
+type FinanceFixedExpense = {
+  id: string;
+  name: string;
+  amount: number;
+};
+
+type FinanceBudgetProfile = {
+  id: string;
+  monthlyIncome: number;
+  fixedExpenses: FinanceFixedExpense[];
+};
+
+let DUMMY_FINANCE_BUDGET: FinanceBudgetProfile = {
+  id: 'budget-1',
+  monthlyIncome: 85000,
+  fixedExpenses: [
+    { id: 'fx-1', name: 'Rent', amount: 18000 },
+    { id: 'fx-2', name: 'Car EMI', amount: 9000 },
+    { id: 'fx-3', name: 'Education EMI', amount: 7000 },
+  ],
+};
+
+export async function getFinanceBudgetProfile() {
+  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_FINANCE_BUDGET);
+  return request('financialbudget');
+}
+
+export async function updateFinanceMonthlyIncome(monthlyIncome: number) {
+  if (USE_DUMMY_DATA) {
+    DUMMY_FINANCE_BUDGET = { ...DUMMY_FINANCE_BUDGET, monthlyIncome };
+    return Promise.resolve(DUMMY_FINANCE_BUDGET);
+  }
+  return request('financialbudget', { method: 'PUT', body: JSON.stringify({ monthlyIncome }) });
+}
+
+export async function addFinanceFixedExpense(name: string, amount: number) {
+  if (USE_DUMMY_DATA) {
+    const entry = { id: `fx-${Date.now()}`, name, amount };
+    DUMMY_FINANCE_BUDGET = {
+      ...DUMMY_FINANCE_BUDGET,
+      fixedExpenses: [...DUMMY_FINANCE_BUDGET.fixedExpenses, entry],
+    };
+    return Promise.resolve(DUMMY_FINANCE_BUDGET);
+  }
+  return request('financialbudget/fixed-expenses', {
+    method: 'POST',
+    body: JSON.stringify({ name, amount }),
+  });
+}
+
+export async function deleteFinanceFixedExpense(id: string) {
+  if (USE_DUMMY_DATA) {
+    DUMMY_FINANCE_BUDGET = {
+      ...DUMMY_FINANCE_BUDGET,
+      fixedExpenses: DUMMY_FINANCE_BUDGET.fixedExpenses.filter(f => f.id !== id),
+    };
+    return Promise.resolve(DUMMY_FINANCE_BUDGET);
+  }
+  return request(`financialbudget/fixed-expenses/${id}`, { method: 'DELETE' });
+}
+
 // ─── Finance: Buckets API ──────────────────────────────────────────────────────
 
-let DUMMY_BUCKETS = [
-  { id: 1, name: 'Emergency Fund', icon: '🛡️', target: 200000, current: 148000, color: '#4ECDC4', monthlyTarget: 10000 },
-  { id: 2, name: 'Vacation — Goa', icon: '🏖️', target: 50000, current: 22500, color: '#FFD93D', monthlyTarget: 5000 },
-  { id: 3, name: 'New Phone', icon: '📱', target: 80000, current: 40000, color: '#6C63FF', monthlyTarget: 8000 },
-  { id: 4, name: 'Car Service', icon: '🔧', target: 15000, current: 9200, color: '#FF6B6B', monthlyTarget: 3000 },
+export interface BucketContribution {
+  id: number;
+  date: string;
+  amount: number;
+  note?: string;
+}
+
+export interface Bucket {
+  id: number;
+  name: string;
+  icon: string;
+  target: number;
+  current: number;
+  color: string;
+  frequency: 'monthly' | 'weekly' | 'quarterly';
+  periodMonths: number;
+  investedIn: string;
+  contributions: BucketContribution[];
+}
+
+let DUMMY_BUCKETS: Bucket[] = [
+  {
+    id: 1, name: 'Emergency Fund', icon: '🛡️', target: 200000, current: 148000, color: '#4ECDC4',
+    frequency: 'monthly', periodMonths: 20, investedIn: 'Liquid Fund - HDFC',
+    contributions: [
+      { id: 1, date: '2026-03-01', amount: 10000, note: 'March SIP' },
+      { id: 2, date: '2026-04-01', amount: 8000, note: 'April - partial' },
+      { id: 3, date: '2026-05-01', amount: 10000, note: 'May SIP' },
+    ],
+  },
+  {
+    id: 2, name: 'Vacation — Goa', icon: '🏖️', target: 50000, current: 22500, color: '#FFD93D',
+    frequency: 'monthly', periodMonths: 10, investedIn: 'Savings Account',
+    contributions: [
+      { id: 4, date: '2026-03-15', amount: 5000, note: '' },
+      { id: 5, date: '2026-04-15', amount: 5000, note: '' },
+    ],
+  },
+  {
+    id: 3, name: 'New Phone', icon: '📱', target: 80000, current: 40000, color: '#6C63FF',
+    frequency: 'monthly', periodMonths: 10, investedIn: 'Nifty BeES ETF',
+    contributions: [
+      { id: 6, date: '2026-02-01', amount: 8000, note: '' },
+      { id: 7, date: '2026-03-01', amount: 7000, note: 'Less this month' },
+      { id: 8, date: '2026-04-01', amount: 8000, note: '' },
+    ],
+  },
+  {
+    id: 4, name: 'Car Service', icon: '🔧', target: 15000, current: 9200, color: '#FF6B6B',
+    frequency: 'monthly', periodMonths: 5, investedIn: 'Savings Account',
+    contributions: [
+      { id: 9, date: '2026-03-01', amount: 3000, note: '' },
+      { id: 10, date: '2026-04-01', amount: 3000, note: '' },
+    ],
+  },
 ];
 
 export async function getBuckets() {
@@ -1222,9 +1335,14 @@ export async function getBuckets() {
   return request('financialbuckets');
 }
 
+export async function getBucketById(id: number) {
+  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_BUCKETS.find(b => b.id === id) ?? null);
+  return request(`financialbuckets/${id}`);
+}
+
 export async function createBucket(body: any) {
   if (USE_DUMMY_DATA) {
-    const b = { id: Math.max(...DUMMY_BUCKETS.map(b => b.id), 0) + 1, ...body };
+    const b: Bucket = { id: Math.max(...DUMMY_BUCKETS.map(b => b.id), 0) + 1, contributions: [], ...body };
     DUMMY_BUCKETS.push(b);
     return Promise.resolve(b);
   }
@@ -1250,12 +1368,32 @@ export async function deleteBucket(id: number) {
 }
 
 export async function addToBucket(id: number, amount: number) {
+  return addContribution(id, amount);
+}
+
+export async function addContribution(bucketId: number, amount: number, note?: string) {
   if (USE_DUMMY_DATA) {
-    const b = DUMMY_BUCKETS.find(b => b.id === id);
-    if (b) b.current = Math.min(b.target, b.current + amount);
-    return Promise.resolve(b);
+    const b = DUMMY_BUCKETS.find(b => b.id === bucketId);
+    if (!b) return null;
+    const allIds = DUMMY_BUCKETS.flatMap(bk => bk.contributions.map(c => c.id));
+    const newId = allIds.length ? Math.max(...allIds) + 1 : 1;
+    const contrib: BucketContribution = { id: newId, date: new Date().toISOString().split('T')[0], amount, note: note || '' };
+    b.contributions.push(contrib);
+    b.current = b.contributions.reduce((s, c) => s + c.amount, 0);
+    return Promise.resolve({ bucket: b, contribution: contrib });
   }
-  return request(`financialbuckets/${id}/deposit`, { method: 'POST', body: JSON.stringify({ amount }) });
+  return request(`financialbuckets/${bucketId}/contributions`, { method: 'POST', body: JSON.stringify({ amount, note }) });
+}
+
+export async function deleteContribution(bucketId: number, contributionId: number) {
+  if (USE_DUMMY_DATA) {
+    const b = DUMMY_BUCKETS.find(b => b.id === bucketId);
+    if (!b) return null;
+    b.contributions = b.contributions.filter(c => c.id !== contributionId);
+    b.current = b.contributions.reduce((s, c) => s + c.amount, 0);
+    return Promise.resolve({ bucket: b });
+  }
+  return request(`financialbuckets/${bucketId}/contributions/${contributionId}`, { method: 'DELETE' });
 }
 
 export async function withdrawFromBucket(id: number, amount: number) {

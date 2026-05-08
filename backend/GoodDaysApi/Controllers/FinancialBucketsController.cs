@@ -52,4 +52,20 @@ public class FinancialBucketsController : ControllerBase
         if (!result) return NotFound();
         return NoContent();
     }
+
+    [HttpPost("{id}/contributions")]
+    public async Task<IActionResult> AddContribution(Guid id, [FromBody] CreateBucketContributionRequest request)
+    {
+        var bucket = await _financialService.AddBucketContributionAsync(id, request);
+        if (bucket == null) return NotFound();
+        return Ok(bucket);
+    }
+
+    [HttpDelete("{id}/contributions/{contributionId}")]
+    public async Task<IActionResult> DeleteContribution(Guid id, Guid contributionId)
+    {
+        var bucket = await _financialService.DeleteBucketContributionAsync(id, contributionId);
+        if (bucket == null) return NotFound();
+        return Ok(bucket);
+    }
 }

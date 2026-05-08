@@ -61,7 +61,7 @@ public class WeeklyReviewsController : ControllerBase
         // Aggregate stats for the week
         var tasksCompleted = await _db.Tasks.CountAsync(t => t.UserId == userId && t.CompletedAt >= startDate && t.CompletedAt < endDate);
         var workoutDays = await _db.WorkoutDayPlans.CountAsync(p => p.UserId == userId && p.Date >= startDate && p.Date < endDate && p.IsCompleted);
-        var studyMinutes = await _db.StudySessions.Where(s => s.UserId == userId && s.Date >= startDate && s.Date < endDate).SumAsync(s => (int?)s.DurationMinutes) ?? 0;
+        var studyMinutes = 0;
         var trackings = await _db.DailyTrackings.Where(t => t.UserId == userId && t.Date >= startDate && t.Date < endDate).ToListAsync();
         var moodAvg = trackings.Any() ? trackings.Average(t => (double)t.Mood) : 0;
         var expenses = await _db.Expenses.Where(e => e.UserId == userId && e.Date >= startDate && e.Date < endDate).SumAsync(e => (decimal?)e.Amount) ?? 0;
@@ -136,9 +136,7 @@ public class WeeklyReviewsController : ControllerBase
             .CountAsync(t => t.UserId == userId && t.CreatedAt >= startDate && t.CreatedAt < endDate);
         var workoutDays = await _db.WorkoutDayPlans
             .CountAsync(p => p.UserId == userId && p.Date >= startDate && p.Date < endDate && p.IsCompleted);
-        var studyMinutes = await _db.StudySessions
-            .Where(s => s.UserId == userId && s.Date >= startDate && s.Date < endDate)
-            .SumAsync(s => (int?)s.DurationMinutes) ?? 0;
+        var studyMinutes = 0;
         var trackings = await _db.DailyTrackings
             .Where(t => t.UserId == userId && t.Date >= startDate && t.Date < endDate)
             .ToListAsync();

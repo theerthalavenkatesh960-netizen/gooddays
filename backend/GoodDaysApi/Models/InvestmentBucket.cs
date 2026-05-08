@@ -25,6 +25,23 @@ public class InvestmentBucket
     [Column("monthly_target")]
     public decimal MonthlyTarget { get; set; }
 
+    [Column("target_amount")]
+    public decimal TargetAmount { get; set; }
+
+    [Column("current_amount")]
+    public decimal CurrentAmount { get; set; }
+
+    [Column("frequency")]
+    [MaxLength(20)]
+    public string Frequency { get; set; } = "monthly";
+
+    [Column("period_months")]
+    public int PeriodMonths { get; set; }
+
+    [Column("invested_in")]
+    [MaxLength(200)]
+    public string? InvestedIn { get; set; }
+
     [Column("color_hex")]
     [MaxLength(7)]
     public string? ColorHex { get; set; }
@@ -43,4 +60,5 @@ public class InvestmentBucket
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<MonthlyTask> Tasks { get; set; } = new List<MonthlyTask>();
+    public ICollection<BucketContribution> Contributions { get; set; } = new List<BucketContribution>();
 }

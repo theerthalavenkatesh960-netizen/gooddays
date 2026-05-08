@@ -17,6 +17,9 @@ public class AppDbContext : DbContext
     // Financial Life Tracker entities
     public DbSet<FinancialGoal> FinancialGoals { get; set; } = null!;
     public DbSet<InvestmentBucket> InvestmentBuckets { get; set; } = null!;
+    public DbSet<BucketContribution> BucketContributions { get; set; } = null!;
+    public DbSet<FinanceBudgetProfile> FinanceBudgetProfiles { get; set; } = null!;
+    public DbSet<FinanceFixedExpense> FinanceFixedExpenses { get; set; } = null!;
     public DbSet<MonthlyTask> MonthlyTasks { get; set; } = null!;
     public DbSet<MonthlyTaskCompletion> MonthlyTaskCompletions { get; set; } = null!;
     public DbSet<FinancialRule> FinancialRules { get; set; } = null!;
@@ -80,6 +83,9 @@ public class AppDbContext : DbContext
         // Financial Life Tracker table mappings
         modelBuilder.Entity<FinancialGoal>().ToTable("financial_goals");
         modelBuilder.Entity<InvestmentBucket>().ToTable("investment_buckets");
+        modelBuilder.Entity<BucketContribution>().ToTable("bucket_contributions");
+        modelBuilder.Entity<FinanceBudgetProfile>().ToTable("finance_budget_profiles");
+        modelBuilder.Entity<FinanceFixedExpense>().ToTable("finance_fixed_expenses");
         modelBuilder.Entity<MonthlyTask>().ToTable("monthly_tasks");
         modelBuilder.Entity<MonthlyTaskCompletion>().ToTable("monthly_task_completions");
         modelBuilder.Entity<FinancialRule>().ToTable("financial_rules");
@@ -185,6 +191,24 @@ public class AppDbContext : DbContext
             .WithMany(b => b.Tasks)
             .HasForeignKey(t => t.BucketId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BucketContribution>()
+            .HasOne(c => c.Bucket)
+            .WithMany(b => b.Contributions)
+            .HasForeignKey(c => c.BucketId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<BucketContribution>()
+            .HasIndex(c => new { c.BucketId, c.ContributionDate });
+
+        modelBuilder.Entity<FinanceFixedExpense>()
+            .HasOne(e => e.Profile)
+            .WithMany(p => p.FixedExpenses)
+            .HasForeignKey(e => e.ProfileId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<FinanceFixedExpense>()
+            .HasIndex(e => new { e.ProfileId, e.SortOrder });
 
         modelBuilder.Entity<MonthlyTaskCompletion>()
             .HasOne(c => c.Task)

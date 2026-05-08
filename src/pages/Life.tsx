@@ -55,7 +55,7 @@ function GoalsTab() {
     <div className="px-4">
       <div className="section-header px-0 mb-3">
         <span className="section-label">Active Goals</span>
-        <button onClick={() => navigate('/goals')} className="press" style={{ color: 'var(--accent)' }}><Plus size={18} /></button>
+        <button onClick={() => navigate('/goals/new')} className="press" style={{ color: 'var(--accent)' }}><Plus size={18} /></button>
       </div>
 
       {loading ? (

@@ -107,10 +107,24 @@ CREATE TABLE IF NOT EXISTS investment_buckets (
     'EMERGENCY_FUND', 'HEALTH', 'TRAVEL', 'MISCELLANEOUS', 'WEALTH', 'TRADING'
   )),
   monthly_target DECIMAL(10,2) DEFAULT 0,
+  target_amount DECIMAL(12,2) DEFAULT 0,
+  current_amount DECIMAL(12,2) DEFAULT 0,
+  frequency VARCHAR(20) NOT NULL DEFAULT 'monthly' CHECK (frequency IN ('monthly', 'weekly', 'quarterly')),
+  period_months INT DEFAULT 0,
+  invested_in VARCHAR(200),
   color_hex VARCHAR(7),
   icon VARCHAR(50),
   is_active BOOLEAN DEFAULT TRUE,
   sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS bucket_contributions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  bucket_id UUID NOT NULL REFERENCES investment_buckets(id) ON DELETE CASCADE,
+  amount DECIMAL(12,2) NOT NULL,
+  note VARCHAR(500),
+  contribution_date TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -167,6 +181,22 @@ CREATE TABLE IF NOT EXISTS monthly_snapshots (
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   CONSTRAINT unique_month_year UNIQUE (month, year)
+);
+
+CREATE TABLE IF NOT EXISTS finance_budget_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  monthly_income DECIMAL(12,2) DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS finance_fixed_expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id UUID NOT NULL REFERENCES finance_budget_profiles(id) ON DELETE CASCADE,
+  name VARCHAR(120) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  sort_order INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS exercises (
@@ -334,6 +364,7 @@ CREATE INDEX IF NOT EXISTS idx_monthly_tasks_completions_task_id ON monthly_task
 CREATE INDEX IF NOT EXISTS idx_monthly_tasks_completions_month_year ON monthly_task_completions(month, year);
 CREATE INDEX IF NOT EXISTS idx_financial_rules_category ON financial_rules(category);
 CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_year_month ON monthly_snapshots(year DESC, month DESC);
+CREATE INDEX IF NOT EXISTS idx_finance_fixed_expenses_profile_sort ON finance_fixed_expenses(profile_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_exercises_user_id ON exercises(user_id);
 CREATE INDEX IF NOT EXISTS idx_workout_split_presets_user_id ON workout_split_presets(user_id);
 CREATE INDEX IF NOT EXISTS idx_workout_day_plans_user_date ON workout_day_plans(user_id, date);

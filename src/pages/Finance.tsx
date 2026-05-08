@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  DollarSign, TrendingUp, TrendingDown, ChevronRight, ChevronLeft,
-  ChevronDown, Plus, Wallet, Target, BarChart3, Car, PiggyBank,
-  ArrowUpRight, ArrowDownRight, Check, Trash2
+  DollarSign, TrendingUp, ChevronRight, ChevronLeft,
+  ChevronDown, Plus, Wallet, BarChart3, Car,
+  ArrowUpRight, ArrowDownRight, Trash2
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContextApi';
 
 type Tab = 'Transactions' | 'Buckets' | 'Investments' | 'Analytics';
 
-const FINANCE_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+const FINANCE_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Transactions', label: 'Transactions', icon: DollarSign },
   { id: 'Buckets', label: 'Buckets', icon: Wallet },
   { id: 'Investments', label: 'Investments', icon: TrendingUp },
@@ -43,12 +43,39 @@ function TransactionsTab() {
   const [month, setMonth] = useState(new Date());
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showBudgetSetup, setShowBudgetSetup] = useState(true);
+  const [savingIncome, setSavingIncome] = useState(false);
+  const [income, setIncome] = useState(85000);
+  const [fixedExpenses, setFixedExpenses] = useState<Array<{ id: string; name: string; amount: number }>>([]);
+  const [newFixedName, setNewFixedName] = useState('');
+  const [newFixedAmount, setNewFixedAmount] = useState('');
+
+  const applyBudgetProfile = (profile: any) => {
+    if (!profile) return;
+    setIncome(Number(profile.monthlyIncome || 0));
+    setFixedExpenses(
+      Array.isArray(profile.fixedExpenses)
+        ? profile.fixedExpenses.map((f: any) => ({ id: String(f.id), name: String(f.name), amount: Number(f.amount || 0) }))
+        : []
+    );
+  };
 
   useEffect(() => {
-    if (!user) return;
-    api.getExpenses(user.id).then((data: any) => {
-      setExpenses(Array.isArray(data) ? data : []);
-    }).catch(() => setExpenses([])).finally(() => setLoading(false));
+    let isMounted = true;
+    setLoading(true);
+    Promise.all([
+      user ? api.getExpenses(user.id).catch(() => []) : Promise.resolve([]),
+      (api as any).getFinanceBudgetProfile().catch(() => null),
+    ]).then(([expenseData, budget]) => {
+      if (!isMounted) return;
+      setExpenses(Array.isArray(expenseData) ? expenseData : []);
+      applyBudgetProfile(budget);
+    }).finally(() => {
+      if (isMounted) setLoading(false);
+    });
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   const monthExpenses = expenses.filter(e => {
@@ -56,9 +83,35 @@ function TransactionsTab() {
     return d >= startOfMonth(month) && d <= endOfMonth(month);
   });
 
-  const totalExpense = monthExpenses.reduce((s, e) => s + (e.amount ?? 0), 0);
-  const totalIncome = 85000;
+  const variableExpense = monthExpenses.reduce((s, e) => s + (e.amount ?? 0), 0);
+  const fixedExpense = fixedExpenses.reduce((s, f) => s + (f.amount ?? 0), 0);
+  const totalExpense = variableExpense + fixedExpense;
+  const totalIncome = income;
   const net = totalIncome - totalExpense;
+
+  const addFixedExpense = async () => {
+    const amount = Number(newFixedAmount);
+    if (!newFixedName.trim() || !amount || amount <= 0) return;
+    const budget = await (api as any).addFinanceFixedExpense(newFixedName.trim(), amount);
+    applyBudgetProfile(budget);
+    setNewFixedName('');
+    setNewFixedAmount('');
+  };
+
+  const deleteFixedExpense = async (id: string) => {
+    const budget = await (api as any).deleteFinanceFixedExpense(id);
+    applyBudgetProfile(budget);
+  };
+
+  const saveIncome = async () => {
+    setSavingIncome(true);
+    try {
+      const budget = await (api as any).updateFinanceMonthlyIncome(income);
+      applyBudgetProfile(budget);
+    } finally {
+      setSavingIncome(false);
+    }
+  };
 
   // Group by date
   const grouped: Record<string, any[]> = {};
@@ -90,15 +143,115 @@ function TransactionsTab() {
         </button>
       </div>
 
+      {/* Monthly budget setup */}
+      <div className="rounded-2xl mb-4 overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <button
+          onClick={() => setShowBudgetSetup(v => !v)}
+          className="w-full p-3.5 flex items-center justify-between press"
+        >
+          <div className="text-left">
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Monthly Budget Setup</p>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Set income + recurring fixed expenses (rent, EMI, etc.)</p>
+          </div>
+          <ChevronDown
+            size={16}
+            style={{ color: 'var(--text-muted)', transform: showBudgetSetup ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}
+          />
+        </button>
+
+        <AnimatePresence initial={false}>
+          {showBudgetSetup && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="px-3.5 pb-3.5 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
+                <div className="pt-3">
+                  <label className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>Monthly Income</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <div className="flex items-center gap-2 h-10 px-3 rounded-xl flex-1" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                      <span className="num" style={{ color: 'var(--text-muted)' }}>₹</span>
+                      <input
+                        type="number"
+                        value={income}
+                        onChange={e => setIncome(Math.max(0, Number(e.target.value || 0)))}
+                        className="w-full bg-transparent outline-none text-sm num"
+                        style={{ color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <button
+                      onClick={saveIncome}
+                      disabled={savingIncome}
+                      className="h-10 px-3 rounded-xl text-xs font-semibold text-white press"
+                      style={{ backgroundColor: 'var(--accent)', opacity: savingIncome ? 0.6 : 1 }}
+                    >
+                      {savingIncome ? 'Saving' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Fixed Monthly Expenses</p>
+                  <div className="space-y-2">
+                    {fixedExpenses.map(f => (
+                      <div key={f.id} className="flex items-center gap-2 p-2.5 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{f.name}</p>
+                        </div>
+                        <p className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>₹{f.amount.toLocaleString()}</p>
+                        <button onClick={() => deleteFixedExpense(f.id)} className="w-7 h-7 rounded-lg flex items-center justify-center press" style={{ color: '#ef4444' }}>
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-12 gap-2">
+                  <input
+                    value={newFixedName}
+                    onChange={e => setNewFixedName(e.target.value)}
+                    placeholder="e.g. Home EMI"
+                    className="col-span-7 h-9 px-3 rounded-xl outline-none text-xs"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                  />
+                  <input
+                    type="number"
+                    value={newFixedAmount}
+                    onChange={e => setNewFixedAmount(e.target.value)}
+                    placeholder="₹"
+                    className="col-span-3 h-9 px-3 rounded-xl outline-none text-xs num"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                  />
+                  <button
+                    onClick={addFixedExpense}
+                    className="col-span-2 h-9 rounded-xl text-xs font-semibold text-white press"
+                    style={{ backgroundColor: 'var(--accent)' }}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
       {/* KPI chips */}
-      <div className="grid grid-cols-3 gap-2 mb-5">
+      <div className="grid grid-cols-2 gap-2 mb-5">
         <div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Income</p>
           <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-green)' }}>₹{(totalIncome/1000).toFixed(0)}k</p>
         </div>
         <div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Expenses</p>
-          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>₹{(totalExpense/1000).toFixed(1)}k</p>
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Variable</p>
+          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>₹{(variableExpense/1000).toFixed(1)}k</p>
+        </div>
+        <div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Fixed</p>
+          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>₹{(fixedExpense/1000).toFixed(1)}k</p>
         </div>
         <div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Net</p>
@@ -163,44 +316,28 @@ function TransactionsTab() {
 
 function BucketsTab() {
   const [buckets, setBuckets] = useState<any[]>([]);
-  const [selected, setSelected] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [amountInput, setAmountInput] = useState('');
   const [showAdd, setShowAdd] = useState(false);
-  const [newBucket, setNewBucket] = useState({ name: '', icon: '🪣', target: '', color: '#4ECDC4', monthlyTarget: '' });
+  const [newBucket, setNewBucket] = useState({ name: '', icon: '🪣', target: '', color: '#4ECDC4', frequency: 'monthly', periodMonths: '', investedIn: '' });
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.getBuckets().then((data: any) => setBuckets(Array.isArray(data) ? data : [])).finally(() => setLoading(false));
   }, []);
 
   async function handleAdd() {
-    if (!newBucket.name.trim() || !newBucket.target) return;
-    const created = await api.createBucket({ ...newBucket, target: Number(newBucket.target), current: 0, monthlyTarget: Number(newBucket.monthlyTarget || 0) });
+    if (!newBucket.name.trim() || !newBucket.target || !newBucket.periodMonths) return;
+    const target = Number(newBucket.target);
+    const periodMonths = Number(newBucket.periodMonths);
+    const created = await api.createBucket({
+      name: newBucket.name, icon: newBucket.icon, color: newBucket.color,
+      target, current: 0,
+      frequency: newBucket.frequency, periodMonths,
+      investedIn: newBucket.investedIn,
+    });
     setBuckets(p => [...p, created]);
-    setNewBucket({ name: '', icon: '🪣', target: '', color: '#4ECDC4', monthlyTarget: '' });
+    setNewBucket({ name: '', icon: '🪣', target: '', color: '#4ECDC4', frequency: 'monthly', periodMonths: '', investedIn: '' });
     setShowAdd(false);
-  }
-
-  async function handleDeposit(id: number) {
-    const amt = Number(amountInput);
-    if (!amt || amt <= 0) return;
-    const updated = await api.addToBucket(id, amt);
-    setBuckets(p => p.map(b => b.id === id ? updated : b));
-    setAmountInput('');
-  }
-
-  async function handleWithdraw(id: number) {
-    const amt = Number(amountInput);
-    if (!amt || amt <= 0) return;
-    const updated = await api.withdrawFromBucket(id, amt);
-    setBuckets(p => p.map(b => b.id === id ? updated : b));
-    setAmountInput('');
-  }
-
-  async function handleDelete(id: number) {
-    await api.deleteBucket(id);
-    setBuckets(p => p.filter(b => b.id !== id));
-    setSelected(null);
   }
 
   if (loading) return <div className="px-4 py-8 flex justify-center"><div className="w-6 h-6 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent)' }} /></div>;
@@ -210,15 +347,16 @@ function BucketsTab() {
       <div className="space-y-3">
         {buckets.map(b => {
           const pct = b.target > 0 ? Math.min(100, Math.round((b.current / b.target) * 100)) : 0;
-          const isOpen = selected === b.id;
+          const sipAmount = b.periodMonths > 0 ? Math.ceil(b.target / b.periodMonths) : 0;
           return (
             <div key={b.id} className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <button onClick={() => setSelected(isOpen ? null : b.id)} className="w-full flex items-center gap-3 p-4 press">
+              <button onClick={() => navigate(`/finance/bucket/${b.id}`)} className="w-full flex items-center gap-3 p-4 press">
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ backgroundColor: b.color + '22' }}>
                   {b.icon}
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{b.name}</p>
+                  {b.investedIn && <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{b.investedIn}</p>}
                   <div className="flex items-center gap-2 mt-1.5">
                     <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                       <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: b.color }} />
@@ -228,35 +366,10 @@ function BucketsTab() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>₹{(b.current/1000).toFixed(0)}k</p>
-                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>of ₹{(b.target/1000).toFixed(0)}k</p>
+                  <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>of ₹{(b.target/1000).toFixed(0)}k</p>
+                  {sipAmount > 0 && <p className="text-[10px] num mt-0.5" style={{ color: b.color }}>₹{sipAmount >= 1000 ? `${(sipAmount/1000).toFixed(0)}k` : sipAmount}/{b.frequency?.[0] ?? 'm'}</p>}
                 </div>
               </button>
-              <AnimatePresence initial={false}>
-                {isOpen && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <div className="px-4 pb-4 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
-                      <div className="grid grid-cols-2 gap-2 pt-3">
-                        <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Monthly Target</p>
-                          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>₹{(b.monthlyTarget || 0).toLocaleString()}</p>
-                        </div>
-                        <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Remaining</p>
-                          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>₹{(b.target - b.current).toLocaleString()}</p>
-                        </div>
-                      </div>
-                      <input type="number" value={amountInput} onChange={e => setAmountInput(e.target.value)} placeholder="Amount ₹" className="w-full h-9 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
-                      <div className="flex gap-2">
-                        <button onClick={() => handleDeposit(b.id)} className="flex-1 h-9 rounded-xl text-xs font-medium press" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Add</button>
-                        <button onClick={() => handleWithdraw(b.id)} className="flex-1 h-9 rounded-xl text-xs font-medium press" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>Withdraw</button>
-                        <button onClick={() => handleDelete(b.id)} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
           );
         })}
@@ -264,11 +377,29 @@ function BucketsTab() {
         {showAdd && (
           <div className="p-4 rounded-2xl space-y-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>New Bucket</p>
-            <input value={newBucket.name} onChange={e => setNewBucket(p => ({ ...p, name: e.target.value }))} placeholder="Bucket name" className="w-full h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
-            <div className="grid grid-cols-2 gap-2">
-              <input type="number" value={newBucket.target} onChange={e => setNewBucket(p => ({ ...p, target: e.target.value }))} placeholder="Target ₹" className="h-10 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
-              <input type="number" value={newBucket.monthlyTarget} onChange={e => setNewBucket(p => ({ ...p, monthlyTarget: e.target.value }))} placeholder="Monthly ₹" className="h-10 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            <div className="flex gap-2">
+              <input value={newBucket.icon} onChange={e => setNewBucket(p => ({ ...p, icon: e.target.value }))} className="w-14 h-10 rounded-xl outline-none text-center text-xl" style={{ backgroundColor: 'var(--surface-elevated)' }} />
+              <input value={newBucket.name} onChange={e => setNewBucket(p => ({ ...p, name: e.target.value }))} placeholder="Bucket name" className="flex-1 h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} autoFocus />
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input type="number" value={newBucket.target} onChange={e => setNewBucket(p => ({ ...p, target: e.target.value }))} placeholder="Goal ₹" className="h-10 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+              <input type="number" value={newBucket.periodMonths} onChange={e => setNewBucket(p => ({ ...p, periodMonths: e.target.value }))} placeholder="Period (months)" className="h-10 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            </div>
+            {newBucket.target && newBucket.periodMonths && (
+              <div className="p-2.5 rounded-xl text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>
+                📌 SIP: ₹{Math.ceil(Number(newBucket.target) / Number(newBucket.periodMonths)).toLocaleString()} / month
+              </div>
+            )}
+            <div className="flex gap-2">
+              {['monthly', 'weekly', 'quarterly'].map(f => (
+                <button key={f} onClick={() => setNewBucket(p => ({ ...p, frequency: f }))}
+                  className="flex-1 h-8 rounded-xl text-xs font-medium capitalize press"
+                  style={{ backgroundColor: newBucket.frequency === f ? 'var(--accent)' : 'var(--surface-elevated)', color: newBucket.frequency === f ? '#fff' : 'var(--text-secondary)' }}>
+                  {f}
+                </button>
+              ))}
+            </div>
+            <input value={newBucket.investedIn} onChange={e => setNewBucket(p => ({ ...p, investedIn: e.target.value }))} placeholder="Where invested / stored (e.g. Nifty BeES, HDFC Savings)" className="w-full h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
             <div className="flex gap-2">
               <button onClick={() => setShowAdd(false)} className="flex-1 h-9 rounded-xl text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Cancel</button>
               <button onClick={handleAdd} className="flex-1 h-9 rounded-xl text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>Create</button>
