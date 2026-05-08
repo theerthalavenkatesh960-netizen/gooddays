@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Settings, CheckCircle2, Moon, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Clock, ChevronDown, GripVertical } from 'lucide-react';
+import { Bell, Settings, CheckCircle2, Moon, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Clock, ChevronDown, GripVertical, LayoutDashboard, CheckSquare, Repeat } from 'lucide-react';
 import { format, isToday, parseISO, subDays, addDays, startOfWeek, isSameDay, isPast } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
@@ -1037,10 +1037,10 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
 
-  const TABS: { id: TabId; label: string }[] = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'tasks', label: 'Tasks' },
-    { id: 'routine', label: 'Daily Routine' },
+  const TABS: { id: TabId; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+    { id: 'routine', label: 'Daily Routine', icon: Repeat },
   ];
 
   return (
@@ -1065,18 +1065,18 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Pill tabs */}
-      <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-3 mb-1">
-        {TABS.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className="flex-shrink-0 px-4 py-2 rounded-full text-xs font-semibold press transition-all"
-            style={{
-              backgroundColor: activeTab === tab.id ? 'var(--accent)' : 'var(--surface)',
-              color: activeTab === tab.id ? '#fff' : 'var(--text-secondary)',
-            }}>
-            {tab.label}
-          </button>
-        ))}
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 p-1 rounded-2xl" style={{ backgroundColor: 'var(--surface)' }}>
+        {TABS.map(tab => {
+          const Icon = tab.icon;
+          return (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all press"
+              style={{ backgroundColor: activeTab === tab.id ? 'var(--accent)' : 'transparent', color: activeTab === tab.id ? '#fff' : 'var(--text-muted)' }}>
+              <Icon size={14} />{tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab content */}

@@ -134,7 +134,7 @@ export default function MealCreateTemplatePage() {
   return (
     <div className="pt-4 pb-nav px-4" style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--surface)' }}>
+        <button onClick={() => navigate('/settings/meals', { state: { tab: 'library' } })} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--surface)' }}>
           <ArrowLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Create Meal Template</h1>

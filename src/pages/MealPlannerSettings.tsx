@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Calendar, BookOpen, X, UtensilsCrossed, Loader2, Filter, Search } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft, Plus, Trash2, Calendar, BookOpen, X, UtensilsCrossed, Loader2, Filter, Search, Layers, ChefHat } from 'lucide-react';
 import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
 import * as api from '../lib/api';
 import MacroVisualization from '../components/MacroVisualization';
@@ -63,7 +63,8 @@ function toDayKey(date: Date) {
 
 export default function MealPlannerSettings() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'weekly' | 'library'>('weekly');
+  const location = useLocation();
+  const [tab, setTab] = useState<'weekly' | 'library'>((location.state as any)?.tab ?? 'weekly');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [meals, setMeals] = useState<MealTemplate[]>([]);
   const [mealPlan, setMealPlan] = useState<MealPlanMap>({});
@@ -285,14 +286,16 @@ export default function MealPlannerSettings() {
 
       {tab === 'library' && (
         <>
-          <div className="grid grid-cols-1 gap-2 mb-4">
-            <button onClick={() => navigate('/settings/meals/ingredients')} className="w-full h-11 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
-              style={{ backgroundColor: 'var(--accent)' }}>
-              <Plus size={14} /> Open Ingredient Library Page
+          <div className="flex gap-2 mb-4">
+            <button onClick={() => navigate('/settings/meals/ingredients')}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all press"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)', border: '1px solid var(--border)' }}>
+              <Layers size={13} /> Ingredient Library
             </button>
-            <button onClick={() => navigate('/settings/meals/new-template')} className="w-full h-11 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
-              style={{ backgroundColor: 'var(--accent-green)' }}>
-              <Plus size={14} /> Open Create Meal Template Page
+            <button onClick={() => navigate('/settings/meals/new-template')}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all press"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent-green)', border: '1px solid var(--border)' }}>
+              <ChefHat size={13} /> Create Template
             </button>
           </div>
 

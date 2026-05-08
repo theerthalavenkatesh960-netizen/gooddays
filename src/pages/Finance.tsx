@@ -12,18 +12,26 @@ import { useAuth } from '../contexts/AuthContextApi';
 
 type Tab = 'Transactions' | 'Buckets' | 'Investments' | 'Analytics';
 
-function PillTabs({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
+const FINANCE_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+  { id: 'Transactions', label: 'Transactions', icon: DollarSign },
+  { id: 'Buckets', label: 'Buckets', icon: Wallet },
+  { id: 'Investments', label: 'Investments', icon: TrendingUp },
+  { id: 'Analytics', label: 'Analytics', icon: BarChart3 },
+];
+
+function PillTabs({ active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
   return (
-    <div className="h-scroll px-4 py-3 gap-2">
-      {tabs.map(t => (
-        <button
-          key={t}
-          onClick={() => onChange(t)}
-          className={`pill-tab ${active === t ? 'pill-tab-active' : 'pill-tab-inactive'}`}
-        >
-          {t}
-        </button>
-      ))}
+    <div className="flex gap-1 mx-4 mb-2 p-1 rounded-2xl overflow-x-auto hide-scrollbar" style={{ backgroundColor: 'var(--surface)' }}>
+      {FINANCE_TABS.map(t => {
+        const Icon = t.icon;
+        return (
+          <button key={t.id} onClick={() => onChange(t.id)}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all press whitespace-nowrap"
+            style={{ backgroundColor: active === t.id ? 'var(--accent)' : 'transparent', color: active === t.id ? '#fff' : 'var(--text-muted)' }}>
+            <Icon size={14} />{t.label}
+          </button>
+        );
+      })}
     </div>
   );
 }

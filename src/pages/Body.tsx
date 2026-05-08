@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Dumbbell, Trophy, Check, Camera, Settings as SettingsIcon,
+  Dumbbell, Trophy, Check, Camera, Settings as SettingsIcon, Leaf, TrendingUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -43,18 +43,25 @@ const CALORIE_KEY = 'calorieGoal';
 const WORKOUT_LOGS_KEY = 'gd.workoutLogs';
 const DIET_LOGS_KEY = 'gd.dietLogs';
 
-function PillTabs({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
+const BODY_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+  { id: 'Workout', label: 'Workout', icon: Dumbbell },
+  { id: 'Diet', label: 'Diet', icon: Leaf },
+  { id: 'Progress', label: 'Progress', icon: TrendingUp },
+];
+
+function PillTabs({ active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
   return (
-    <div className="h-scroll px-4 py-3 gap-2">
-      {tabs.map(t => (
-        <button
-          key={t}
-          onClick={() => onChange(t)}
-          className={`pill-tab ${active === t ? 'pill-tab-active' : 'pill-tab-inactive'}`}
-        >
-          {t}
-        </button>
-      ))}
+    <div className="flex gap-1 mx-4 mb-2 p-1 rounded-2xl" style={{ backgroundColor: 'var(--surface)' }}>
+      {BODY_TABS.map(t => {
+        const Icon = t.icon;
+        return (
+          <button key={t.id} onClick={() => onChange(t.id)}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all press"
+            style={{ backgroundColor: active === t.id ? 'var(--accent)' : 'transparent', color: active === t.id ? '#fff' : 'var(--text-muted)' }}>
+            <Icon size={14} />{t.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
