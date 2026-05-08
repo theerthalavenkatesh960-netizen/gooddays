@@ -36,6 +36,12 @@ public class User
     [Column("theme")]
     public string Theme { get; set; } = "light";
 
+    [Column("calorie_goal")]
+    public int CalorieGoal { get; set; } = 2400;
+
+    [Column("tracking_options_json")]
+    public string TrackingOptionsJson { get; set; } = "[\"sleep_hours\",\"workout_minutes\",\"phone_minutes\"]";
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

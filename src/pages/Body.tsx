@@ -70,9 +70,6 @@ type WorkoutPlan = {
   sets?: WorkoutSet[];
 };
 
-const CALORIE_KEY = 'calorieGoal';
-const WORKOUT_LOGS_KEY = 'gd.workoutLogs';
-
 const BODY_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Workout', label: 'Workout', icon: Dumbbell },
   { id: 'Diet', label: 'Diet', icon: Leaf },
@@ -373,11 +370,12 @@ function DietTab() {
     async function load() {
       setLoading(true);
       try {
-        const [templates, weeklyPlan, todayLog, waterLog] = await Promise.all([
+        const [templates, weeklyPlan, todayLog, waterLog, settings] = await Promise.all([
           api.getMealTemplates(),
           api.getWeeklyMealPlan() as Promise<WeeklyMealPlan>,
           (api as any).getDailyMealLog(today) as Promise<DailyMealLog | null>,
           (api as any).getDailyWaterLog(today),
+          api.getUserSettings(),
         ]);
 
         const list = Array.isArray(templates) ? templates : [];
@@ -400,13 +398,13 @@ function DietTab() {
           setWaterMl(waterLog.mlConsumed || 0);
           setWaterGoalMl(waterLog.goalMl || 2000);
         }
+        if (Number.isFinite(settings?.calorieGoal)) {
+          setGoal(Number(settings.calorieGoal));
+        }
       } finally {
         setLoading(false);
       }
     }
-
-    const rawGoal = localStorage.getItem(CALORIE_KEY);
-    if (rawGoal) setGoal(Number(rawGoal) || 2400);
 
     load();
   }, [today, todayKey]);

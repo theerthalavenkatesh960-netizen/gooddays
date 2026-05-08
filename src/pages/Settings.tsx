@@ -8,6 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContextApi';
 import { useTheme } from '../contexts/ThemeContext';
+import * as api from '../lib/api';
 
 type Theme = 'light' | 'dark' | 'blue' | 'green' | 'ocean' | 'futuristic';
 
@@ -62,18 +63,39 @@ export default function Settings() {
   const [trackingOptions, setTrackingOptions] = useState<string[]>(['sleep_hours','workout_minutes','phone_minutes']);
 
   useEffect(() => {
-    const stored = localStorage.getItem('trackingOptions');
-    if (stored) { try { setTrackingOptions(JSON.parse(stored)); } catch {} }
-    const cg = localStorage.getItem('calorieGoal');
-    if (cg) setCalorieGoal(cg);
+    async function loadSettings() {
+      try {
+        const settings = await api.getUserSettings();
+        if (settings?.trackingOptions) setTrackingOptions(settings.trackingOptions);
+        if (Number.isFinite(settings?.calorieGoal)) setCalorieGoal(String(settings.calorieGoal));
+      } catch {
+        // Keep existing defaults when API settings are unavailable.
+      }
+    }
+    loadSettings();
   }, []);
 
-  const toggleTrackOpt = (opt: string) => {
+  const toggleTrackOpt = async (opt: string) => {
     const next = trackingOptions.includes(opt)
       ? trackingOptions.filter(o => o !== opt)
       : [...trackingOptions, opt];
     setTrackingOptions(next);
-    localStorage.setItem('trackingOptions', JSON.stringify(next));
+    try {
+      await api.updateUserSettings({ trackingOptions: next });
+    } catch {
+      // Keep optimistic UI; next settings refresh will reconcile state.
+    }
+  };
+
+  const persistCalorieGoal = async () => {
+    const parsed = Number(calorieGoal || 2400);
+    if (!Number.isFinite(parsed)) return;
+    try {
+      const updated = await api.updateUserSettings({ calorieGoal: parsed });
+      setCalorieGoal(String(updated.calorieGoal));
+    } catch {
+      // Keep UI value; next settings refresh will reconcile state.
+    }
   };
 
   const handleSignOut = async () => {
@@ -191,7 +213,8 @@ export default function Settings() {
             type="number"
             inputMode="numeric"
             value={calorieGoal}
-            onChange={e => { setCalorieGoal(e.target.value); localStorage.setItem('calorieGoal', e.target.value); }}
+            onChange={e => setCalorieGoal(e.target.value)}
+            onBlur={persistCalorieGoal}
             className="w-20 text-right text-sm font-bold num outline-none bg-transparent"
             style={{ color: 'var(--text-primary)' }}
           />

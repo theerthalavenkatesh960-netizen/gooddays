@@ -24,6 +24,11 @@ type Expense = { id: number; userId: number; description: string; amount: number
 // stored as logs referencing a template
 type SelfCareActivity = { id: number; userId: number; date: string; templateId: number; completed: boolean; createdAt: string };
 type StudySession = { id: number; userId: number; durationMinutes: number; notes?: string; date: string; createdAt: string };
+export type UserSettings = {
+  theme: 'light' | 'dark' | 'blue' | 'green' | 'ocean' | 'futuristic';
+  calorieGoal: number;
+  trackingOptions: string[];
+};
 
 const API_BASE = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
@@ -99,6 +104,29 @@ export function getSession(): Session {
 
 export async function getProfile(id: number) {
   return request(`userprofiles/${id}`);
+}
+
+let DUMMY_USER_SETTINGS: UserSettings = {
+  theme: 'light',
+  calorieGoal: 2400,
+  trackingOptions: ['sleep_hours', 'workout_minutes', 'phone_minutes'],
+};
+
+export async function getUserSettings(): Promise<UserSettings> {
+  if (USE_DUMMY_DATA) return Promise.resolve({ ...DUMMY_USER_SETTINGS, trackingOptions: [...DUMMY_USER_SETTINGS.trackingOptions] });
+  return request('userprofiles/me/settings');
+}
+
+export async function updateUserSettings(patch: Partial<UserSettings>): Promise<UserSettings> {
+  if (USE_DUMMY_DATA) {
+    DUMMY_USER_SETTINGS = {
+      ...DUMMY_USER_SETTINGS,
+      ...patch,
+      trackingOptions: patch.trackingOptions ? [...patch.trackingOptions] : DUMMY_USER_SETTINGS.trackingOptions,
+    };
+    return Promise.resolve({ ...DUMMY_USER_SETTINGS, trackingOptions: [...DUMMY_USER_SETTINGS.trackingOptions] });
+  }
+  return request('userprofiles/me/settings', { method: 'PUT', body: JSON.stringify(patch) });
 }
 
 // Tasks
