@@ -53,6 +53,7 @@ public class AppDbContext : DbContext
     public DbSet<MealIngredient> MealIngredients { get; set; } = null!;
     public DbSet<MealTemplate> MealTemplates { get; set; } = null!;
     public DbSet<WeeklyMealPlan> WeeklyMealPlans { get; set; } = null!;
+    public DbSet<DailyMealLog> DailyMealLogs { get; set; } = null!;
 
     // Water tracking entities
     public DbSet<DailyWaterLog> DailyWaterLogs { get; set; } = null!;
@@ -115,6 +116,9 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<MealIngredient>().ToTable("meal_ingredients");
         modelBuilder.Entity<MealTemplate>().ToTable("meal_templates");
         modelBuilder.Entity<WeeklyMealPlan>().ToTable("weekly_meal_plans");
+        modelBuilder.Entity<DailyMealLog>().ToTable("daily_meal_logs");
+        modelBuilder.Entity<DailyMealLog>()
+            .HasIndex(m => new { m.UserId, m.Date }).IsUnique();
 
         // Water tracking table mappings
         modelBuilder.Entity<DailyWaterLog>().ToTable("daily_water_logs");

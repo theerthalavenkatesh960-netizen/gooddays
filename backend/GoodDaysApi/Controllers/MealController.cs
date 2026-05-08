@@ -106,5 +106,79 @@ public class MealController : ControllerBase
         return Ok(plan);
     }
 
+    // ─── Daily Meal Logs ────────────────────────────────────────────────
+
+    [HttpGet("logs/{date}")]
+    public async Task<IActionResult> GetDailyLog(string date)
+    {
+        if (!DateOnly.TryParse(date, out var parsedDate))
+            return BadRequest("Invalid date format. Use yyyy-MM-dd");
+
+        var userId = GetUserId();
+        var log = await _db.DailyMealLogs.FirstOrDefaultAsync(l => l.UserId == userId && l.Date == parsedDate);
+        if (log is null)
+        {
+            return Ok(new
+            {
+                date = parsedDate.ToString("yyyy-MM-dd"),
+                mealIds = Array.Empty<int>()
+            });
+        }
+
+        int[] ids;
+        try
+        {
+            ids = System.Text.Json.JsonSerializer.Deserialize<int[]>(log.MealIdsJson) ?? Array.Empty<int>();
+        }
+        catch
+        {
+            ids = Array.Empty<int>();
+        }
+
+        return Ok(new
+        {
+            date = log.Date.ToString("yyyy-MM-dd"),
+            mealIds = ids
+        });
+    }
+
+    [HttpPut("logs")]
+    public async Task<IActionResult> UpsertDailyLog([FromBody] UpsertDailyLogRequest body)
+    {
+        if (!DateOnly.TryParse(body.Date, out var parsedDate))
+            return BadRequest("Invalid date format. Use yyyy-MM-dd");
+
+        var userId = GetUserId();
+        var existing = await _db.DailyMealLogs.FirstOrDefaultAsync(l => l.UserId == userId && l.Date == parsedDate);
+        var normalizedIds = (body.MealIds ?? new List<int>()).Distinct().ToArray();
+        var json = System.Text.Json.JsonSerializer.Serialize(normalizedIds);
+
+        if (existing is null)
+        {
+            existing = new DailyMealLog
+            {
+                UserId = userId,
+                Date = parsedDate,
+                MealIdsJson = json,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _db.DailyMealLogs.Add(existing);
+        }
+        else
+        {
+            existing.MealIdsJson = json;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            date = parsedDate.ToString("yyyy-MM-dd"),
+            mealIds = normalizedIds
+        });
+    }
+
     public record UpsertPlanRequest(string PlanJson);
+    public record UpsertDailyLogRequest(string Date, List<int> MealIds);
 }
