@@ -38,10 +38,31 @@ export type UserSettings = {
 
 const API_BASE = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
-// ─── Dummy Data Flag (Toggle between dummy and real API) ────────────────────
-export const USE_DUMMY_DATA = true; // Set to false to use real API endpoints
-// Daily routine can be toggled independently from global API dummy mode.
-export const USE_DUMMY_DAILY_ROUTINE_DATA = true;
+// ─── Dummy Data Configuration ───────────────────────────────────────────────
+// Per-feature flags. Set to false to use live API for that page/domain.
+function envBool(name: string, fallback: boolean): boolean {
+  const raw = (import.meta as any).env?.[name];
+  if (raw === undefined || raw === null || raw === '') return fallback;
+  const value = String(raw).trim().toLowerCase();
+  return value === '1' || value === 'true' || value === 'yes' || value === 'on';
+}
+
+export const DUMMY_FLAGS = {
+  settings: envBool('VITE_USE_DUMMY_SETTINGS', true),
+  workout: envBool('VITE_USE_DUMMY_WORKOUT', true),
+  dailyRoutine: envBool('VITE_USE_DUMMY_DAILY_ROUTINE', true),
+  goals: envBool('VITE_USE_DUMMY_GOALS', true),
+  finance: envBool('VITE_USE_DUMMY_FINANCE', true),
+  vehicles: envBool('VITE_USE_DUMMY_VEHICLES', true),
+  meals: envBool('VITE_USE_DUMMY_MEALS', true),
+  water: envBool('VITE_USE_DUMMY_WATER', true),
+  bodyMetrics: envBool('VITE_USE_DUMMY_BODY_METRICS', true),
+  quickLog: envBool('VITE_USE_DUMMY_QUICK_LOG', true),
+};
+
+// Legacy compatibility exports
+export const USE_DUMMY_DATA = DUMMY_FLAGS.settings;
+export const USE_DUMMY_DAILY_ROUTINE_DATA = DUMMY_FLAGS.dailyRoutine;
 // ───────────────────────────────────────────────────────────────────────────
 
 function getAuthHeader(): Record<string, string> {
@@ -121,7 +142,7 @@ let DUMMY_USER_SETTINGS: UserSettings = {
 };
 
 export async function getUserSettings(): Promise<UserSettings> {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.settings) {
     return Promise.resolve({
       ...DUMMY_USER_SETTINGS,
       trackingOptions: [...DUMMY_USER_SETTINGS.trackingOptions],
@@ -132,7 +153,7 @@ export async function getUserSettings(): Promise<UserSettings> {
 }
 
 export async function updateUserSettings(patch: Partial<UserSettings>): Promise<UserSettings> {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.settings) {
     DUMMY_USER_SETTINGS = {
       ...DUMMY_USER_SETTINGS,
       ...patch,
@@ -422,12 +443,12 @@ export type { User, Session, Task, Expense };
 // ─── Workout API ──────────────────────────────────────────────────────────────
 
 export async function getExercises() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_EXERCISES);
+  if (DUMMY_FLAGS.workout) return Promise.resolve(DUMMY_EXERCISES);
   return request('exercises');
 }
 
 export async function createExercise(body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const newExercise = { id: Math.max(...DUMMY_EXERCISES.map(e => e.id), 0) + 1, ...body };
     DUMMY_EXERCISES.push(newExercise);
     return Promise.resolve(newExercise);
@@ -436,7 +457,7 @@ export async function createExercise(body: any) {
 }
 
 export async function updateExercise(id: number, body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const ex = DUMMY_EXERCISES.find(e => e.id === id);
     if (ex) Object.assign(ex, body);
     return Promise.resolve(ex);
@@ -445,7 +466,7 @@ export async function updateExercise(id: number, body: any) {
 }
 
 export async function deleteExercise(id: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const idx = DUMMY_EXERCISES.findIndex(e => e.id === id);
     if (idx >= 0) DUMMY_EXERCISES.splice(idx, 1);
     return Promise.resolve({ success: true });
@@ -454,24 +475,24 @@ export async function deleteExercise(id: number) {
 }
 
 export async function getSplits() {
-  if (USE_DUMMY_DATA) return Promise.resolve([DUMMY_SPLIT]);
+  if (DUMMY_FLAGS.workout) return Promise.resolve([DUMMY_SPLIT]);
   return request('workout/splits');
 }
 
 export async function getActiveSplit() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_SPLIT);
+  if (DUMMY_FLAGS.workout) return Promise.resolve(DUMMY_SPLIT);
   return request('workout/splits/active');
 }
 
 export async function createSplit(body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     return Promise.resolve({ ...DUMMY_SPLIT, ...body });
   }
   return request('workout/splits', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function updateSplit(id: number, body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     Object.assign(DUMMY_SPLIT, body);
     return Promise.resolve(DUMMY_SPLIT);
   }
@@ -479,7 +500,7 @@ export async function updateSplit(id: number, body: any) {
 }
 
 export async function deleteSplit(id: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     return Promise.resolve({ success: true });
   }
   return request(`workout/splits/${id}`, { method: 'DELETE' });
@@ -537,7 +558,7 @@ function findWorkoutPlanById(id: number) {
 }
 
 export async function getWorkoutPlans(from?: string, to?: string) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const store = getDummyWorkoutStore();
     const list = Object.values(store.plansByDate)
       .filter((p: any) => {
@@ -556,7 +577,7 @@ export async function getWorkoutPlans(from?: string, to?: string) {
 }
 
 export async function getWorkoutPlanByDate(date: string) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const store = getDummyWorkoutStore();
     const found = store.plansByDate[asDateKey(date)] || null;
     return Promise.resolve(cloneAny(found));
@@ -565,7 +586,7 @@ export async function getWorkoutPlanByDate(date: string) {
 }
 
 export async function createWorkoutPlan(body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const store = getDummyWorkoutStore();
     const dateKey = asDateKey(body.date);
     const plan = {
@@ -584,7 +605,7 @@ export async function createWorkoutPlan(body: any) {
 }
 
 export async function updateWorkoutPlan(id: number, body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const store = getDummyWorkoutStore();
     const current = findWorkoutPlanById(id);
     if (!current) return Promise.resolve({ id, ...body });
@@ -596,7 +617,7 @@ export async function updateWorkoutPlan(id: number, body: any) {
 }
 
 export async function deleteWorkoutPlan(id: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const store = getDummyWorkoutStore();
     Object.keys(store.plansByDate).forEach(k => {
       if (store.plansByDate[k]?.id === id) delete store.plansByDate[k];
@@ -607,7 +628,7 @@ export async function deleteWorkoutPlan(id: number) {
 }
 
 export async function logWorkoutSet(planId: number, body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const store = getDummyWorkoutStore();
     const plan = findWorkoutPlanById(planId);
     if (!plan) return Promise.reject(new Error('Workout plan not found'));
@@ -620,7 +641,7 @@ export async function logWorkoutSet(planId: number, body: any) {
 }
 
 export async function updateWorkoutSet(id: number, body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const store = getDummyWorkoutStore();
     for (const key of Object.keys(store.plansByDate)) {
       const plan = store.plansByDate[key];
@@ -636,7 +657,7 @@ export async function updateWorkoutSet(id: number, body: any) {
 }
 
 export async function deleteWorkoutSet(id: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const store = getDummyWorkoutStore();
     for (const key of Object.keys(store.plansByDate)) {
       const plan = store.plansByDate[key];
@@ -648,7 +669,7 @@ export async function deleteWorkoutSet(id: number) {
 }
 
 export async function getPersonalRecords() {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const store = getDummyWorkoutStore();
     const byExercise = new Map<number, any>();
     Object.values(store.plansByDate).forEach((plan: any) => {
@@ -666,7 +687,7 @@ export async function getPersonalRecords() {
 }
 
 export async function getWorkoutAnalytics(weeks?: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.workout) {
     const store = getDummyWorkoutStore();
     const plans = Object.values(store.plansByDate);
     const sets = plans.flatMap((p: any) => p.sets || []);
@@ -681,12 +702,12 @@ export async function getWorkoutAnalytics(weeks?: number) {
 }
 
 export async function addWorkoutImage(planId: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id: 1, ...body });
+  if (DUMMY_FLAGS.workout) return Promise.resolve({ id: 1, ...body });
   return request(`workout/plans/${planId}/images`, { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function deleteWorkoutImage(id: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ success: true });
+  if (DUMMY_FLAGS.workout) return Promise.resolve({ success: true });
   return request(`workout/images/${id}`, { method: 'DELETE' });
 }
 
@@ -711,7 +732,7 @@ type DummyRoutine = {
   blocks: DummyRoutineBlock[];
 };
 
-const DAILY_ROUTINE_MOCK_ENABLED = USE_DUMMY_DAILY_ROUTINE_DATA || USE_DUMMY_DATA;
+const DAILY_ROUTINE_MOCK_ENABLED = DUMMY_FLAGS.dailyRoutine;
 
 const _dummyDailyRoutineStore: {
   nextRoutineId: number;
@@ -1047,12 +1068,12 @@ let DUMMY_CHECKLIST_ITEMS: Record<number, any[]> = {
 };
 
 export async function getGoals() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_GOALS);
+  if (DUMMY_FLAGS.goals) return Promise.resolve(DUMMY_GOALS);
   return request('goals');
 }
 
 export async function createGoal(body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.goals) {
     const newGoal = {
       id: Math.max(...DUMMY_GOALS.map(g => g.id), 0) + 1,
       ...body,
@@ -1070,7 +1091,7 @@ export async function createGoal(body: any) {
 }
 
 export async function updateGoal(id: number, body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.goals) {
     const goal = DUMMY_GOALS.find(g => g.id === id);
     if (goal) Object.assign(goal, body);
     return Promise.resolve(goal);
@@ -1079,7 +1100,7 @@ export async function updateGoal(id: number, body: any) {
 }
 
 export async function deleteGoal(id: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.goals) {
     const idx = DUMMY_GOALS.findIndex(g => g.id === id);
     if (idx >= 0) DUMMY_GOALS.splice(idx, 1);
     delete DUMMY_CHECKLIST_ITEMS[id];
@@ -1089,12 +1110,12 @@ export async function deleteGoal(id: number) {
 }
 
 export async function getGoalChecklistItems(goalId: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_CHECKLIST_ITEMS[goalId] || []);
+  if (DUMMY_FLAGS.goals) return Promise.resolve(DUMMY_CHECKLIST_ITEMS[goalId] || []);
   return request(`goals/${goalId}/checklist-items`);
 }
 
 export async function createGoalChecklistItem(goalId: number, body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.goals) {
     if (!DUMMY_CHECKLIST_ITEMS[goalId]) DUMMY_CHECKLIST_ITEMS[goalId] = [];
     const items = DUMMY_CHECKLIST_ITEMS[goalId];
     const newItem = {
@@ -1116,14 +1137,13 @@ export async function createGoalChecklistItem(goalId: number, body: any) {
 }
 
 export async function updateGoalChecklistItem(id: number, body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.goals) {
     for (const items of Object.values(DUMMY_CHECKLIST_ITEMS)) {
       const item = items.find(i => i.id === id);
       if (item) {
         Object.assign(item, body);
         const goal = DUMMY_GOALS.find(g => g.id === item.goalId);
         if (goal && body.isCompleted !== undefined) {
-          const wasCompleted = item.isCompleted;
           const change = body.isCompleted ? 1 : -1;
           goal.checklistCompleted = Math.max(0, (goal.checklistCompleted || 0) + change);
           goal.progressPercent = goal.checklistTotal ? Math.round((goal.checklistCompleted) * 100 / goal.checklistTotal) : 0;
@@ -1137,7 +1157,7 @@ export async function updateGoalChecklistItem(id: number, body: any) {
 }
 
 export async function deleteGoalChecklistItem(id: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.goals) {
     for (const items of Object.values(DUMMY_CHECKLIST_ITEMS)) {
       const idx = items.findIndex(i => i.id === id);
       if (idx >= 0) {
@@ -1158,7 +1178,7 @@ export async function deleteGoalChecklistItem(id: number) {
 }
 
 export async function updateGoalProgress(goalId: number, body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.goals) {
     const goal = DUMMY_GOALS.find(g => g.id === goalId);
     if (goal && body.valueDelta) {
       goal.currentValue = (goal.currentValue || 0) + body.valueDelta;
@@ -1171,62 +1191,62 @@ export async function updateGoalProgress(goalId: number, body: any) {
 }
 
 export async function getGoalNotes(goalId: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve([]);
+  if (DUMMY_FLAGS.goals) return Promise.resolve([]);
   return request(`goals/${goalId}/notes`);
 }
 
 export async function createGoalNote(goalId: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id: 1, goalId, ...body });
+  if (DUMMY_FLAGS.goals) return Promise.resolve({ id: 1, goalId, ...body });
   return request(`goals/${goalId}/notes`, { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function updateGoalNote(id: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id, ...body });
+  if (DUMMY_FLAGS.goals) return Promise.resolve({ id, ...body });
   return request(`goals/notes/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export async function deleteGoalNote(id: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ success: true });
+  if (DUMMY_FLAGS.goals) return Promise.resolve({ success: true });
   return request(`goals/notes/${id}`, { method: 'DELETE' });
 }
 
 export async function getGoalLogs(goalId: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve([]);
+  if (DUMMY_FLAGS.goals) return Promise.resolve([]);
   return request(`goals/${goalId}/logs`);
 }
 
 export async function addGoalLog(goalId: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id: 1, goalId, ...body });
+  if (DUMMY_FLAGS.goals) return Promise.resolve({ id: 1, goalId, ...body });
   return request(`goals/${goalId}/logs`, { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function updateGoalLog(id: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id, ...body });
+  if (DUMMY_FLAGS.goals) return Promise.resolve({ id, ...body });
   return request(`goals/logs/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export async function getFlashcards(goalId: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve([]);
+  if (DUMMY_FLAGS.goals) return Promise.resolve([]);
   return request(`goals/${goalId}/flashcards`);
 }
 
 export async function getFlashcardReviewQueue(goalId: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve([]);
+  if (DUMMY_FLAGS.goals) return Promise.resolve([]);
   return request(`goals/${goalId}/flashcards/review`);
 }
 
 export async function createFlashcard(goalId: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id: 1, goalId, ...body });
+  if (DUMMY_FLAGS.goals) return Promise.resolve({ id: 1, goalId, ...body });
   return request(`goals/${goalId}/flashcards`, { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function updateFlashcard(id: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id, ...body });
+  if (DUMMY_FLAGS.goals) return Promise.resolve({ id, ...body });
   return request(`goals/flashcards/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export async function deleteFlashcard(id: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ success: true });
+  if (DUMMY_FLAGS.goals) return Promise.resolve({ success: true });
   return request(`goals/flashcards/${id}`, { method: 'DELETE' });
 }
 
@@ -1312,7 +1332,7 @@ function withBudgetOverrides(profile: FinanceBudgetProfile, month?: number, year
 }
 
 export async function getFinanceBudgetProfile(month?: number, year?: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
+  if (DUMMY_FLAGS.finance) return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
 
   const params = new URLSearchParams();
   if (typeof month === 'number' && typeof year === 'number') {
@@ -1324,7 +1344,7 @@ export async function getFinanceBudgetProfile(month?: number, year?: number) {
 }
 
 export async function updateFinanceMonthlyIncome(monthlyIncome: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     DUMMY_FINANCE_BUDGET = { ...DUMMY_FINANCE_BUDGET, monthlyIncome };
     return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET));
   }
@@ -1332,7 +1352,7 @@ export async function updateFinanceMonthlyIncome(monthlyIncome: number) {
 }
 
 export async function addFinanceFixedExpense(name: string, amount: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     const entry = { id: `fx-${Date.now()}`, name, amount };
     DUMMY_FINANCE_BUDGET = {
       ...DUMMY_FINANCE_BUDGET,
@@ -1347,7 +1367,7 @@ export async function addFinanceFixedExpense(name: string, amount: number) {
 }
 
 export async function deleteFinanceFixedExpense(id: string) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     DUMMY_FINANCE_BUDGET = {
       ...DUMMY_FINANCE_BUDGET,
       fixedExpenses: DUMMY_FINANCE_BUDGET.fixedExpenses.filter(f => f.id !== id),
@@ -1359,7 +1379,7 @@ export async function deleteFinanceFixedExpense(id: string) {
 }
 
 export async function upsertFinanceMonthlyIncomeOverride(month: number, year: number, amount: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     const existing = DUMMY_MONTHLY_INCOME_OVERRIDES.find((x) => x.month === month && x.year === year);
     if (existing) {
       existing.amount = amount;
@@ -1375,7 +1395,7 @@ export async function upsertFinanceMonthlyIncomeOverride(month: number, year: nu
 }
 
 export async function deleteFinanceMonthlyIncomeOverride(month: number, year: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     DUMMY_MONTHLY_INCOME_OVERRIDES = DUMMY_MONTHLY_INCOME_OVERRIDES.filter((x) => !(x.month === month && x.year === year));
     return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
   }
@@ -1385,7 +1405,7 @@ export async function deleteFinanceMonthlyIncomeOverride(month: number, year: nu
 }
 
 export async function upsertFinanceFixedExpenseOverride(fixedExpenseId: string, month: number, year: number, amount: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     const existing = DUMMY_FIXED_EXPENSE_OVERRIDES.find(
       (x) => x.fixedExpenseId === fixedExpenseId && x.month === month && x.year === year
     );
@@ -1403,7 +1423,7 @@ export async function upsertFinanceFixedExpenseOverride(fixedExpenseId: string, 
 }
 
 export async function deleteFinanceFixedExpenseOverride(fixedExpenseId: string, month: number, year: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     DUMMY_FIXED_EXPENSE_OVERRIDES = DUMMY_FIXED_EXPENSE_OVERRIDES.filter(
       (x) => !(x.fixedExpenseId === fixedExpenseId && x.month === month && x.year === year)
     );
@@ -1474,17 +1494,17 @@ let DUMMY_BUCKETS: Bucket[] = [
 ];
 
 export async function getBuckets() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_BUCKETS);
+  if (DUMMY_FLAGS.finance) return Promise.resolve(DUMMY_BUCKETS);
   return request('financialbuckets');
 }
 
 export async function getBucketById(id: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_BUCKETS.find(b => b.id === id) ?? null);
+  if (DUMMY_FLAGS.finance) return Promise.resolve(DUMMY_BUCKETS.find(b => b.id === id) ?? null);
   return request(`financialbuckets/${id}`);
 }
 
 export async function createBucket(body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     const b: Bucket = { id: Math.max(...DUMMY_BUCKETS.map(b => b.id), 0) + 1, contributions: [], ...body };
     DUMMY_BUCKETS.push(b);
     return Promise.resolve(b);
@@ -1493,7 +1513,7 @@ export async function createBucket(body: any) {
 }
 
 export async function updateBucket(id: number, body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     const b = DUMMY_BUCKETS.find(b => b.id === id);
     if (b) Object.assign(b, body);
     return Promise.resolve(b);
@@ -1502,7 +1522,7 @@ export async function updateBucket(id: number, body: any) {
 }
 
 export async function deleteBucket(id: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     const idx = DUMMY_BUCKETS.findIndex(b => b.id === id);
     if (idx >= 0) DUMMY_BUCKETS.splice(idx, 1);
     return Promise.resolve({ success: true });
@@ -1515,7 +1535,7 @@ export async function addToBucket(id: number, amount: number) {
 }
 
 export async function addContribution(bucketId: number, amount: number, note?: string) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     const b = DUMMY_BUCKETS.find(b => b.id === bucketId);
     if (!b) return null;
     const allIds = DUMMY_BUCKETS.flatMap(bk => bk.contributions.map(c => c.id));
@@ -1529,7 +1549,7 @@ export async function addContribution(bucketId: number, amount: number, note?: s
 }
 
 export async function deleteContribution(bucketId: number, contributionId: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     const b = DUMMY_BUCKETS.find(b => b.id === bucketId);
     if (!b) return null;
     b.contributions = b.contributions.filter(c => c.id !== contributionId);
@@ -1540,7 +1560,7 @@ export async function deleteContribution(bucketId: number, contributionId: numbe
 }
 
 export async function withdrawFromBucket(id: number, amount: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     const b = DUMMY_BUCKETS.find(b => b.id === id);
     if (b) b.current = Math.max(0, b.current - amount);
     return Promise.resolve(b);
@@ -1558,12 +1578,12 @@ let DUMMY_INVESTMENTS = [
 ];
 
 export async function getInvestments() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_INVESTMENTS);
+  if (DUMMY_FLAGS.finance) return Promise.resolve(DUMMY_INVESTMENTS);
   return request('investments');
 }
 
 export async function createInvestment(body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     const inv = { id: Math.max(...DUMMY_INVESTMENTS.map(i => i.id), 0) + 1, change: 0, ...body };
     DUMMY_INVESTMENTS.push(inv);
     return Promise.resolve(inv);
@@ -1572,7 +1592,7 @@ export async function createInvestment(body: any) {
 }
 
 export async function updateInvestment(id: number, body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     const inv = DUMMY_INVESTMENTS.find(i => i.id === id);
     if (inv) {
       Object.assign(inv, body);
@@ -1585,7 +1605,7 @@ export async function updateInvestment(id: number, body: any) {
 }
 
 export async function deleteInvestment(id: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.finance) {
     const idx = DUMMY_INVESTMENTS.findIndex(i => i.id === id);
     if (idx >= 0) DUMMY_INVESTMENTS.splice(idx, 1);
     return Promise.resolve({ success: true });
@@ -1625,12 +1645,12 @@ let DUMMY_VEHICLES: Vehicle[] = [
 function findVehicle(id: number) { return DUMMY_VEHICLES.find(v => v.id === id); }
 
 export async function getVehicles() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_VEHICLES);
+  if (DUMMY_FLAGS.vehicles) return Promise.resolve(DUMMY_VEHICLES);
   return request('vehicles');
 }
 
 export async function createVehicle(body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.vehicles) {
     const v: Vehicle = { id: Math.max(...DUMMY_VEHICLES.map(v => v.id), 0) + 1, refills: [], services: [], issues: [], ...body };
     DUMMY_VEHICLES.push(v);
     return Promise.resolve(v);
@@ -1639,7 +1659,7 @@ export async function createVehicle(body: any) {
 }
 
 export async function updateVehicle(id: number, body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.vehicles) {
     const v = findVehicle(id);
     if (v) Object.assign(v, body);
     return Promise.resolve(v);
@@ -1648,7 +1668,7 @@ export async function updateVehicle(id: number, body: any) {
 }
 
 export async function deleteVehicle(id: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.vehicles) {
     DUMMY_VEHICLES = DUMMY_VEHICLES.filter(v => v.id !== id);
     return Promise.resolve({ success: true });
   }
@@ -1656,7 +1676,7 @@ export async function deleteVehicle(id: number) {
 }
 
 export async function addRefill(vehicleId: number, body: Omit<Refill, 'id'>) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.vehicles) {
     const v = findVehicle(vehicleId);
     if (!v) throw new Error('Vehicle not found');
     const prev = v.refills[0];
@@ -1670,7 +1690,7 @@ export async function addRefill(vehicleId: number, body: Omit<Refill, 'id'>) {
 }
 
 export async function updateRefill(vehicleId: number, refillId: number, body: Partial<Refill>) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.vehicles) {
     const v = findVehicle(vehicleId);
     const r = v?.refills.find(r => r.id === refillId);
     if (r) Object.assign(r, body);
@@ -1680,7 +1700,7 @@ export async function updateRefill(vehicleId: number, refillId: number, body: Pa
 }
 
 export async function deleteRefill(vehicleId: number, refillId: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.vehicles) {
     const v = findVehicle(vehicleId);
     if (v) v.refills = v.refills.filter(r => r.id !== refillId);
     return Promise.resolve({ success: true });
@@ -1689,7 +1709,7 @@ export async function deleteRefill(vehicleId: number, refillId: number) {
 }
 
 export async function addService(vehicleId: number, body: Omit<ServiceLog, 'id'>) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.vehicles) {
     const v = findVehicle(vehicleId);
     if (!v) throw new Error('Vehicle not found');
     const s: ServiceLog = { id: Math.max(...v.services.map(s => s.id), 0) + 1, ...body };
@@ -1700,7 +1720,7 @@ export async function addService(vehicleId: number, body: Omit<ServiceLog, 'id'>
 }
 
 export async function updateService(vehicleId: number, serviceId: number, body: Partial<ServiceLog>) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.vehicles) {
     const v = findVehicle(vehicleId);
     const s = v?.services.find(s => s.id === serviceId);
     if (s) Object.assign(s, body);
@@ -1710,7 +1730,7 @@ export async function updateService(vehicleId: number, serviceId: number, body: 
 }
 
 export async function deleteService(vehicleId: number, serviceId: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.vehicles) {
     const v = findVehicle(vehicleId);
     if (v) v.services = v.services.filter(s => s.id !== serviceId);
     return Promise.resolve({ success: true });
@@ -1719,7 +1739,7 @@ export async function deleteService(vehicleId: number, serviceId: number) {
 }
 
 export async function addIssue(vehicleId: number, body: Omit<IssueLog, 'id'>) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.vehicles) {
     const v = findVehicle(vehicleId);
     if (!v) throw new Error('Vehicle not found');
     const issue: IssueLog = { id: Math.max(...v.issues.map(i => i.id), 0) + 1, ...body };
@@ -1730,7 +1750,7 @@ export async function addIssue(vehicleId: number, body: Omit<IssueLog, 'id'>) {
 }
 
 export async function resolveIssue(vehicleId: number, issueId: number, resolved: boolean) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.vehicles) {
     const v = findVehicle(vehicleId);
     const issue = v?.issues.find(i => i.id === issueId);
     if (issue) issue.resolved = resolved;
@@ -1740,7 +1760,7 @@ export async function resolveIssue(vehicleId: number, issueId: number, resolved:
 }
 
 export async function deleteIssue(vehicleId: number, issueId: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.vehicles) {
     const v = findVehicle(vehicleId);
     if (v) v.issues = v.issues.filter(i => i.id !== issueId);
     return Promise.resolve({ success: true });
@@ -1879,12 +1899,12 @@ const DUMMY_WEEKLY_MEAL_PLAN = {
 // ─── Meal Planner API ─────────────────────────────────────────────────────────
 
 export async function getMealIngredients() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_MEAL_INGREDIENTS);
+  if (DUMMY_FLAGS.meals) return Promise.resolve(DUMMY_MEAL_INGREDIENTS);
   return request('meal/ingredients');
 }
 
 export async function createMealIngredient(body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.meals) {
     const newIngredient = { id: Math.max(...DUMMY_MEAL_INGREDIENTS.map(i => i.id), 0) + 1, ...body, createdAt: new Date().toISOString() };
     DUMMY_MEAL_INGREDIENTS.push(newIngredient);
     return Promise.resolve(newIngredient);
@@ -1893,7 +1913,7 @@ export async function createMealIngredient(body: any) {
 }
 
 export async function deleteMealIngredient(id: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.meals) {
     const idx = DUMMY_MEAL_INGREDIENTS.findIndex(i => i.id === id);
     if (idx >= 0) DUMMY_MEAL_INGREDIENTS.splice(idx, 1);
     return Promise.resolve({ success: true });
@@ -1902,12 +1922,12 @@ export async function deleteMealIngredient(id: number) {
 }
 
 export async function getMealTemplates() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_MEAL_TEMPLATES);
+  if (DUMMY_FLAGS.meals) return Promise.resolve(DUMMY_MEAL_TEMPLATES);
   return request('meal/templates');
 }
 
 export async function createMealTemplate(body: any) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.meals) {
     const newTemplate = { id: Math.max(...DUMMY_MEAL_TEMPLATES.map(m => m.id), 0) + 1, ...body, createdAt: new Date().toISOString() };
     DUMMY_MEAL_TEMPLATES.push(newTemplate);
     return Promise.resolve(newTemplate);
@@ -1916,7 +1936,7 @@ export async function createMealTemplate(body: any) {
 }
 
 export async function deleteMealTemplate(id: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.meals) {
     const idx = DUMMY_MEAL_TEMPLATES.findIndex(m => m.id === id);
     if (idx >= 0) DUMMY_MEAL_TEMPLATES.splice(idx, 1);
     return Promise.resolve({ success: true });
@@ -1925,12 +1945,12 @@ export async function deleteMealTemplate(id: number) {
 }
 
 export async function getWeeklyMealPlan() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_WEEKLY_MEAL_PLAN);
+  if (DUMMY_FLAGS.meals) return Promise.resolve(DUMMY_WEEKLY_MEAL_PLAN);
   return request('meal/plan');
 }
 
 export async function upsertWeeklyMealPlan(planJson: string) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.meals) {
     DUMMY_WEEKLY_MEAL_PLAN.planJson = planJson;
     return Promise.resolve(DUMMY_WEEKLY_MEAL_PLAN);
   }
@@ -1940,14 +1960,14 @@ export async function upsertWeeklyMealPlan(planJson: string) {
 const DUMMY_DAILY_MEAL_LOGS: Record<string, number[]> = {};
 
 export async function getDailyMealLog(date: string) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.meals) {
     return Promise.resolve({ date, mealIds: [...(DUMMY_DAILY_MEAL_LOGS[date] || [])] });
   }
   return request(`meal/logs/${date}`);
 }
 
 export async function upsertDailyMealLog(date: string, mealIds: number[]) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.meals) {
     DUMMY_DAILY_MEAL_LOGS[date] = [...mealIds];
     return Promise.resolve({ date, mealIds: [...mealIds] });
   }
@@ -1967,7 +1987,7 @@ const DUMMY_DAILY_WATER_LOGS: Record<string, DailyWaterLog> = {};
 
 export async function getDailyWaterLog(date: string) {
   const key = asDateKey(date);
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.water) {
     const log = DUMMY_DAILY_WATER_LOGS[key];
     return Promise.resolve(log || { date: key, mlConsumed: 0, goalMl: 2000, unit: 'ml' as const });
   }
@@ -1976,7 +1996,7 @@ export async function getDailyWaterLog(date: string) {
 
 export async function logWaterIntake(date: string, ml: number, goalMl: number = 2000) {
   const key = asDateKey(date);
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.water) {
     DUMMY_DAILY_WATER_LOGS[key] = { date: key, mlConsumed: Math.max(0, ml), goalMl, unit: 'ml' as const };
     return Promise.resolve(DUMMY_DAILY_WATER_LOGS[key]);
   }
@@ -1985,7 +2005,7 @@ export async function logWaterIntake(date: string, ml: number, goalMl: number = 
 
 export async function incrementWaterIntake(date: string, incrementMl: number = 250) {
   const key = asDateKey(date);
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.water) {
     const current = DUMMY_DAILY_WATER_LOGS[key] || { date: key, mlConsumed: 0, goalMl: 2000, unit: 'ml' as const };
     const next = { ...current, mlConsumed: Math.max(0, current.mlConsumed + incrementMl) };
     DUMMY_DAILY_WATER_LOGS[key] = next;
@@ -2028,12 +2048,12 @@ function getDummyWeightLogs() {
 let _dummyBodyProfile: BodyMetricsProfile = { heightCm: 175, targetWeightKg: 74.0 };
 
 export async function getBodyMetricsProfile(): Promise<BodyMetricsProfile> {
-  if (USE_DUMMY_DATA) return Promise.resolve({ ..._dummyBodyProfile });
+  if (DUMMY_FLAGS.bodyMetrics) return Promise.resolve({ ..._dummyBodyProfile });
   return request('bodymetrics/profile');
 }
 
 export async function updateBodyMetricsProfile(data: Partial<BodyMetricsProfile>): Promise<BodyMetricsProfile> {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.bodyMetrics) {
     _dummyBodyProfile = { ..._dummyBodyProfile, ...data };
     return Promise.resolve({ ..._dummyBodyProfile });
   }
@@ -2041,7 +2061,7 @@ export async function updateBodyMetricsProfile(data: Partial<BodyMetricsProfile>
 }
 
 export async function getBodyWeightLogs(from?: string, to?: string): Promise<BodyWeightLog[]> {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.bodyMetrics) {
     const logs = getDummyWeightLogs();
     return Promise.resolve(
       Object.values(logs)
@@ -2057,7 +2077,7 @@ export async function getBodyWeightLogs(from?: string, to?: string): Promise<Bod
 
 export async function logBodyWeight(weightKg: number, date?: string, note?: string): Promise<BodyWeightLog> {
   const key = date ? asDateKey(date) : asDateKey(new Date().toISOString());
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.bodyMetrics) {
     const logs = getDummyWeightLogs();
     logs[key] = { date: key, weightKg, note };
     return Promise.resolve(logs[key]);
@@ -2070,7 +2090,7 @@ export async function logBodyWeight(weightKg: number, date?: string, note?: stri
 
 export async function deleteBodyWeightLog(date: string): Promise<void> {
   const key = asDateKey(date);
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.bodyMetrics) {
     const logs = getDummyWeightLogs();
     delete logs[key];
     return Promise.resolve();
@@ -2091,7 +2111,7 @@ export type QuickLogEntry = {
 const DUMMY_QUICK_LOG_ENTRIES: QuickLogEntry[] = [];
 
 export async function logQuickEntry(type: 'workout' | 'meal' | 'expense' | 'water' | 'task', payload: Record<string, any>, date?: string) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.quickLog) {
     const entry: QuickLogEntry = {
       id: DUMMY_QUICK_LOG_ENTRIES.length + 1,
       date: asDateKey(date),
@@ -2104,7 +2124,6 @@ export async function logQuickEntry(type: 'workout' | 'meal' | 'expense' | 'wate
     // Also update the appropriate domain store based on type
     if (type === 'workout' && payload.exerciseId) {
       // Create/update workout set in dummy store
-      const store = getDummyWorkoutStore();
       const plan = findWorkoutPlanById(payload.planId) || await createWorkoutPlan({ date: entry.date, dayLabel: 'quick-log' });
       if (plan) {
         await logWorkoutSet(plan.id, {
@@ -2136,7 +2155,7 @@ export async function logQuickEntry(type: 'workout' | 'meal' | 'expense' | 'wate
 export async function getQuickLogHistory(from: string, to: string, type?: 'workout' | 'meal' | 'expense' | 'water' | 'task') {
   const fromKey = asDateKey(from);
   const toKey = asDateKey(to);
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.quickLog) {
     let filtered = DUMMY_QUICK_LOG_ENTRIES.filter(e => e.date >= fromKey && e.date <= toKey);
     if (type) filtered = filtered.filter(e => e.type === type);
     return Promise.resolve(cloneAny(filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())));
@@ -2149,7 +2168,7 @@ export async function getQuickLogHistory(from: string, to: string, type?: 'worko
 }
 
 export async function deleteQuickLogEntry(id: number) {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.quickLog) {
     const idx = DUMMY_QUICK_LOG_ENTRIES.findIndex(e => e.id === id);
     if (idx >= 0) DUMMY_QUICK_LOG_ENTRIES.splice(idx, 1);
     return Promise.resolve({ success: true });
@@ -2158,7 +2177,7 @@ export async function deleteQuickLogEntry(id: number) {
 }
 
 export async function getTodayQuickLogs() {
-  if (USE_DUMMY_DATA) {
+  if (DUMMY_FLAGS.quickLog) {
     const today = asDateKey();
     return Promise.resolve(cloneAny(DUMMY_QUICK_LOG_ENTRIES.filter(e => e.date === today)));
   }
