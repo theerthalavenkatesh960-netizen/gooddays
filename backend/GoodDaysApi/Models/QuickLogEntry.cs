@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace GoodDaysApi.Models;
@@ -22,7 +24,8 @@ public class QuickLogEntry
     /// - water: { ml }
     /// - task: { title, category?, priority?, description? }
     /// </summary>
-    public string PayloadJson { get; set; } = "{}";
+    [Column("payload_json", TypeName = "jsonb")]
+    public JsonDocument PayloadJson { get; set; } = JsonDocument.Parse("{}");
     
     [JsonIgnore]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

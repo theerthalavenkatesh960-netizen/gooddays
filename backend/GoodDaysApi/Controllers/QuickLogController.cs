@@ -47,7 +47,7 @@ public class QuickLogController : ControllerBase
             UserId = userId,
             Date = date,
             Type = body.Type,
-            PayloadJson = JsonSerializer.Serialize(body.Payload),
+            PayloadJson = JsonSerializer.SerializeToDocument(body.Payload),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -96,7 +96,7 @@ public class QuickLogController : ControllerBase
             id = e.Id,
             date = e.Date.ToString("yyyy-MM-dd"),
             type = e.Type,
-            payload = JsonSerializer.Deserialize<object>(e.PayloadJson),
+            payload = e.PayloadJson.RootElement.Clone(),
             createdAt = e.CreatedAt.ToIso8601String()
         }));
     }
@@ -119,7 +119,7 @@ public class QuickLogController : ControllerBase
             id = e.Id,
             date = e.Date.ToString("yyyy-MM-dd"),
             type = e.Type,
-            payload = JsonSerializer.Deserialize<object>(e.PayloadJson),
+            payload = e.PayloadJson.RootElement.Clone(),
             createdAt = e.CreatedAt.ToIso8601String()
         }));
     }

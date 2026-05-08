@@ -3,6 +3,7 @@ using GoodDaysApi.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace GoodDaysApi.Controllers;
 
@@ -128,7 +129,7 @@ public class MealController : ControllerBase
         int[] ids;
         try
         {
-            ids = System.Text.Json.JsonSerializer.Deserialize<int[]>(log.MealIdsJson) ?? Array.Empty<int>();
+            ids = log.MealIdsJson.RootElement.Deserialize<int[]>() ?? Array.Empty<int>();
         }
         catch
         {
@@ -151,7 +152,7 @@ public class MealController : ControllerBase
         var userId = GetUserId();
         var existing = await _db.DailyMealLogs.FirstOrDefaultAsync(l => l.UserId == userId && l.Date == parsedDate);
         var normalizedIds = (body.MealIds ?? new List<int>()).Distinct().ToArray();
-        var json = System.Text.Json.JsonSerializer.Serialize(normalizedIds);
+        var json = System.Text.Json.JsonSerializer.SerializeToDocument(normalizedIds);
 
         if (existing is null)
         {

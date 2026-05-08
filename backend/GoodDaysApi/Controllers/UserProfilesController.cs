@@ -71,7 +71,7 @@ public class UserProfilesController : ControllerBase
         DashboardWeightsDto dashboardWeights;
         try
         {
-            trackingOptions = JsonSerializer.Deserialize<string[]>(user.TrackingOptionsJson) ?? Array.Empty<string>();
+            trackingOptions = user.TrackingOptionsJson.RootElement.Deserialize<string[]>() ?? Array.Empty<string>();
         }
         catch
         {
@@ -118,7 +118,7 @@ public class UserProfilesController : ControllerBase
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
-            user.TrackingOptionsJson = JsonSerializer.Serialize(normalized);
+            user.TrackingOptionsJson = JsonSerializer.SerializeToDocument(normalized);
         }
 
         if (!string.IsNullOrWhiteSpace(req.DashboardPreset))
@@ -134,7 +134,7 @@ public class UserProfilesController : ControllerBase
         if (req.DashboardWeights is not null)
         {
             var normalizedWeights = NormalizeDashboardWeights(req.DashboardWeights);
-            user.DashboardWeightsJson = JsonSerializer.Serialize(normalizedWeights);
+            user.DashboardWeightsJson = JsonSerializer.SerializeToDocument(normalizedWeights);
             if (string.IsNullOrWhiteSpace(req.DashboardPreset))
             {
                 user.DashboardPreset = "custom";
@@ -148,7 +148,7 @@ public class UserProfilesController : ControllerBase
         DashboardWeightsDto dashboardWeights;
         try
         {
-            trackingOptions = JsonSerializer.Deserialize<string[]>(user.TrackingOptionsJson) ?? Array.Empty<string>();
+            trackingOptions = user.TrackingOptionsJson.RootElement.Deserialize<string[]>() ?? Array.Empty<string>();
         }
         catch
         {
@@ -167,11 +167,12 @@ public class UserProfilesController : ControllerBase
         });
     }
 
-    private static DashboardWeightsDto ParseDashboardWeights(string? json)
+    private static DashboardWeightsDto ParseDashboardWeights(JsonDocument? json)
     {
         try
         {
-            var parsed = JsonSerializer.Deserialize<DashboardWeightsDto>(json ?? string.Empty);
+            if (json is null) return GetDefaultDashboardWeights();
+            var parsed = json.RootElement.Deserialize<DashboardWeightsDto>();
             if (parsed is null) return GetDefaultDashboardWeights();
             return NormalizeDashboardWeights(parsed);
         }
