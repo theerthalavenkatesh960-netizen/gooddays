@@ -30,4 +30,5 @@ public class FinanceFixedExpense
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public FinanceBudgetProfile? Profile { get; set; }
+    public ICollection<MonthlyFixedExpenseOverride> MonthlyOverrides { get; set; } = new List<MonthlyFixedExpenseOverride>();
 }

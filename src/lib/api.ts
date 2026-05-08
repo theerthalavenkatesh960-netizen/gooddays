@@ -1214,11 +1214,20 @@ type FinanceFixedExpense = {
   id: string;
   name: string;
   amount: number;
+  defaultAmount?: number;
+  effectiveAmount?: number;
+  isOverridden?: boolean;
+  overrideAmount?: number | null;
 };
 
-type FinanceBudgetProfile = {
+export type FinanceBudgetProfile = {
   id: string;
   monthlyIncome: number;
+  month?: number;
+  year?: number;
+  effectiveMonthlyIncome?: number;
+  isMonthlyIncomeOverridden?: boolean;
+  monthlyIncomeOverrideAmount?: number | null;
   fixedExpenses: FinanceFixedExpense[];
 };
 
@@ -1232,15 +1241,70 @@ let DUMMY_FINANCE_BUDGET: FinanceBudgetProfile = {
   ],
 };
 
-export async function getFinanceBudgetProfile() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_FINANCE_BUDGET);
-  return request('financialbudget');
+let DUMMY_MONTHLY_INCOME_OVERRIDES: Array<{ month: number; year: number; amount: number }> = [];
+let DUMMY_FIXED_EXPENSE_OVERRIDES: Array<{ fixedExpenseId: string; month: number; year: number; amount: number }> = [];
+
+function withBudgetOverrides(profile: FinanceBudgetProfile, month?: number, year?: number): FinanceBudgetProfile {
+  if (!month || !year) {
+    return {
+      ...profile,
+      month,
+      year,
+      effectiveMonthlyIncome: profile.monthlyIncome,
+      isMonthlyIncomeOverridden: false,
+      monthlyIncomeOverrideAmount: null,
+      fixedExpenses: profile.fixedExpenses.map((expense) => ({
+        ...expense,
+        amount: expense.amount,
+        defaultAmount: expense.amount,
+        effectiveAmount: expense.amount,
+        isOverridden: false,
+        overrideAmount: null,
+      })),
+    };
+  }
+
+  const incomeOverride = DUMMY_MONTHLY_INCOME_OVERRIDES.find((x) => x.month === month && x.year === year);
+  return {
+    ...profile,
+    month,
+    year,
+    effectiveMonthlyIncome: incomeOverride?.amount ?? profile.monthlyIncome,
+    isMonthlyIncomeOverridden: Boolean(incomeOverride),
+    monthlyIncomeOverrideAmount: incomeOverride?.amount ?? null,
+    fixedExpenses: profile.fixedExpenses.map((expense) => {
+      const fxOverride = DUMMY_FIXED_EXPENSE_OVERRIDES.find(
+        (x) => x.fixedExpenseId === expense.id && x.month === month && x.year === year
+      );
+      const effectiveAmount = fxOverride?.amount ?? expense.amount;
+      return {
+        ...expense,
+        amount: effectiveAmount,
+        defaultAmount: expense.amount,
+        effectiveAmount,
+        isOverridden: Boolean(fxOverride),
+        overrideAmount: fxOverride?.amount ?? null,
+      };
+    }),
+  };
+}
+
+export async function getFinanceBudgetProfile(month?: number, year?: number) {
+  if (USE_DUMMY_DATA) return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
+
+  const params = new URLSearchParams();
+  if (typeof month === 'number' && typeof year === 'number') {
+    params.set('month', String(month));
+    params.set('year', String(year));
+  }
+  const query = params.toString();
+  return request(`financialbudget${query ? `?${query}` : ''}`);
 }
 
 export async function updateFinanceMonthlyIncome(monthlyIncome: number) {
   if (USE_DUMMY_DATA) {
     DUMMY_FINANCE_BUDGET = { ...DUMMY_FINANCE_BUDGET, monthlyIncome };
-    return Promise.resolve(DUMMY_FINANCE_BUDGET);
+    return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET));
   }
   return request('financialbudget', { method: 'PUT', body: JSON.stringify({ monthlyIncome }) });
 }
@@ -1252,7 +1316,7 @@ export async function addFinanceFixedExpense(name: string, amount: number) {
       ...DUMMY_FINANCE_BUDGET,
       fixedExpenses: [...DUMMY_FINANCE_BUDGET.fixedExpenses, entry],
     };
-    return Promise.resolve(DUMMY_FINANCE_BUDGET);
+    return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET));
   }
   return request('financialbudget/fixed-expenses', {
     method: 'POST',
@@ -1266,9 +1330,66 @@ export async function deleteFinanceFixedExpense(id: string) {
       ...DUMMY_FINANCE_BUDGET,
       fixedExpenses: DUMMY_FINANCE_BUDGET.fixedExpenses.filter(f => f.id !== id),
     };
-    return Promise.resolve(DUMMY_FINANCE_BUDGET);
+    DUMMY_FIXED_EXPENSE_OVERRIDES = DUMMY_FIXED_EXPENSE_OVERRIDES.filter((x) => x.fixedExpenseId !== id);
+    return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET));
   }
   return request(`financialbudget/fixed-expenses/${id}`, { method: 'DELETE' });
+}
+
+export async function upsertFinanceMonthlyIncomeOverride(month: number, year: number, amount: number) {
+  if (USE_DUMMY_DATA) {
+    const existing = DUMMY_MONTHLY_INCOME_OVERRIDES.find((x) => x.month === month && x.year === year);
+    if (existing) {
+      existing.amount = amount;
+    } else {
+      DUMMY_MONTHLY_INCOME_OVERRIDES.push({ month, year, amount });
+    }
+    return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
+  }
+  return request('financialbudget/monthly-income-override', {
+    method: 'PUT',
+    body: JSON.stringify({ month, year, amount }),
+  });
+}
+
+export async function deleteFinanceMonthlyIncomeOverride(month: number, year: number) {
+  if (USE_DUMMY_DATA) {
+    DUMMY_MONTHLY_INCOME_OVERRIDES = DUMMY_MONTHLY_INCOME_OVERRIDES.filter((x) => !(x.month === month && x.year === year));
+    return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
+  }
+  return request(`financialbudget/monthly-income-override?month=${month}&year=${year}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function upsertFinanceFixedExpenseOverride(fixedExpenseId: string, month: number, year: number, amount: number) {
+  if (USE_DUMMY_DATA) {
+    const existing = DUMMY_FIXED_EXPENSE_OVERRIDES.find(
+      (x) => x.fixedExpenseId === fixedExpenseId && x.month === month && x.year === year
+    );
+    if (existing) {
+      existing.amount = amount;
+    } else {
+      DUMMY_FIXED_EXPENSE_OVERRIDES.push({ fixedExpenseId, month, year, amount });
+    }
+    return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
+  }
+  return request(`financialbudget/fixed-expenses/${fixedExpenseId}/override`, {
+    method: 'PUT',
+    body: JSON.stringify({ month, year, amount }),
+  });
+}
+
+export async function deleteFinanceFixedExpenseOverride(fixedExpenseId: string, month: number, year: number) {
+  if (USE_DUMMY_DATA) {
+    DUMMY_FIXED_EXPENSE_OVERRIDES = DUMMY_FIXED_EXPENSE_OVERRIDES.filter(
+      (x) => !(x.fixedExpenseId === fixedExpenseId && x.month === month && x.year === year)
+    );
+    return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
+  }
+  return request(`financialbudget/fixed-expenses/${fixedExpenseId}/override?month=${month}&year=${year}`, {
+    method: 'DELETE',
+  });
 }
 
 // ─── Finance: Buckets API ──────────────────────────────────────────────────────

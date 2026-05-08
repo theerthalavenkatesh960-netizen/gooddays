@@ -20,6 +20,8 @@ public class AppDbContext : DbContext
     public DbSet<BucketContribution> BucketContributions { get; set; } = null!;
     public DbSet<FinanceBudgetProfile> FinanceBudgetProfiles { get; set; } = null!;
     public DbSet<FinanceFixedExpense> FinanceFixedExpenses { get; set; } = null!;
+    public DbSet<MonthlyIncomeOverride> MonthlyIncomeOverrides { get; set; } = null!;
+    public DbSet<MonthlyFixedExpenseOverride> MonthlyFixedExpenseOverrides { get; set; } = null!;
     public DbSet<MonthlyTask> MonthlyTasks { get; set; } = null!;
     public DbSet<MonthlyTaskCompletion> MonthlyTaskCompletions { get; set; } = null!;
     public DbSet<FinancialRule> FinancialRules { get; set; } = null!;
@@ -86,6 +88,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<BucketContribution>().ToTable("bucket_contributions");
         modelBuilder.Entity<FinanceBudgetProfile>().ToTable("finance_budget_profiles");
         modelBuilder.Entity<FinanceFixedExpense>().ToTable("finance_fixed_expenses");
+        modelBuilder.Entity<MonthlyIncomeOverride>().ToTable("finance_monthly_income_overrides");
+        modelBuilder.Entity<MonthlyFixedExpenseOverride>().ToTable("finance_fixed_expense_overrides");
         modelBuilder.Entity<MonthlyTask>().ToTable("monthly_tasks");
         modelBuilder.Entity<MonthlyTaskCompletion>().ToTable("monthly_task_completions");
         modelBuilder.Entity<FinancialRule>().ToTable("financial_rules");
@@ -209,6 +213,26 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<FinanceFixedExpense>()
             .HasIndex(e => new { e.ProfileId, e.SortOrder });
+
+        modelBuilder.Entity<MonthlyIncomeOverride>()
+            .HasOne(o => o.Profile)
+            .WithMany(p => p.MonthlyIncomeOverrides)
+            .HasForeignKey(o => o.ProfileId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<MonthlyIncomeOverride>()
+            .HasIndex(o => new { o.ProfileId, o.Month, o.Year })
+            .IsUnique();
+
+        modelBuilder.Entity<MonthlyFixedExpenseOverride>()
+            .HasOne(o => o.FixedExpense)
+            .WithMany(e => e.MonthlyOverrides)
+            .HasForeignKey(o => o.FixedExpenseId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<MonthlyFixedExpenseOverride>()
+            .HasIndex(o => new { o.FixedExpenseId, o.Month, o.Year })
+            .IsUnique();
 
         modelBuilder.Entity<MonthlyTaskCompletion>()
             .HasOne(c => c.Task)

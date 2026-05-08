@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DollarSign, TrendingUp, ChevronRight, ChevronLeft,
-  ChevronDown, Plus, Wallet, BarChart3, Car,
+  Plus, Wallet, BarChart3, Car, Settings2,
   ArrowUpRight, ArrowDownRight, Trash2
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
@@ -16,9 +16,10 @@ const FINANCE_TABS: { id: string; label: string; icon: React.ComponentType<{ siz
   { id: 'Transactions', label: 'Transactions', icon: DollarSign },
   { id: 'Buckets', label: 'Buckets', icon: Wallet },
   { id: 'Investments', label: 'Investments', icon: TrendingUp },
+  { id: 'Analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
-function PillTabs({ active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
+function PillTabs({ active, onChange }: { active: string; onChange: (t: string) => void }) {
   return (
     <div className="flex gap-1 mx-4 mb-2 p-1 rounded-2xl" style={{ backgroundColor: 'var(--surface)' }}>
       {FINANCE_TABS.map(t => {
@@ -40,43 +41,29 @@ function PillTabs({ active, onChange }: { tabs: string[]; active: string; onChan
 // ──────────────────────────────────────────────────
 function TransactionsTab() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [month, setMonth] = useState(new Date());
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showBudgetSetup, setShowBudgetSetup] = useState(true);
-  const [savingIncome, setSavingIncome] = useState(false);
-  const [income, setIncome] = useState(85000);
-  const [fixedExpenses, setFixedExpenses] = useState<Array<{ id: string; name: string; amount: number }>>([]);
-  const [newFixedName, setNewFixedName] = useState('');
-  const [newFixedAmount, setNewFixedAmount] = useState('');
-
-  const applyBudgetProfile = (profile: any) => {
-    if (!profile) return;
-    setIncome(Number(profile.monthlyIncome || 0));
-    setFixedExpenses(
-      Array.isArray(profile.fixedExpenses)
-        ? profile.fixedExpenses.map((f: any) => ({ id: String(f.id), name: String(f.name), amount: Number(f.amount || 0) }))
-        : []
-    );
-  };
+  const [budgetProfile, setBudgetProfile] = useState<any>(null);
 
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
     Promise.all([
       user ? api.getExpenses(user.id).catch(() => []) : Promise.resolve([]),
-      (api as any).getFinanceBudgetProfile().catch(() => null),
+      (api as any).getFinanceBudgetProfile(month.getMonth() + 1, month.getFullYear()).catch(() => null),
     ]).then(([expenseData, budget]) => {
       if (!isMounted) return;
       setExpenses(Array.isArray(expenseData) ? expenseData : []);
-      applyBudgetProfile(budget);
+      setBudgetProfile(budget);
     }).finally(() => {
       if (isMounted) setLoading(false);
     });
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user, month]);
 
   const monthExpenses = expenses.filter(e => {
     const d = new Date(e.date ?? e.createdAt ?? e.created_at);
@@ -84,34 +71,10 @@ function TransactionsTab() {
   });
 
   const variableExpense = monthExpenses.reduce((s, e) => s + (e.amount ?? 0), 0);
-  const fixedExpense = fixedExpenses.reduce((s, f) => s + (f.amount ?? 0), 0);
+  const fixedExpense = (budgetProfile?.fixedExpenses ?? []).reduce((s: number, f: any) => s + (f.effectiveAmount ?? f.amount ?? 0), 0);
   const totalExpense = variableExpense + fixedExpense;
-  const totalIncome = income;
+  const totalIncome = Number(budgetProfile?.effectiveMonthlyIncome ?? budgetProfile?.monthlyIncome ?? 0);
   const net = totalIncome - totalExpense;
-
-  const addFixedExpense = async () => {
-    const amount = Number(newFixedAmount);
-    if (!newFixedName.trim() || !amount || amount <= 0) return;
-    const budget = await (api as any).addFinanceFixedExpense(newFixedName.trim(), amount);
-    applyBudgetProfile(budget);
-    setNewFixedName('');
-    setNewFixedAmount('');
-  };
-
-  const deleteFixedExpense = async (id: string) => {
-    const budget = await (api as any).deleteFinanceFixedExpense(id);
-    applyBudgetProfile(budget);
-  };
-
-  const saveIncome = async () => {
-    setSavingIncome(true);
-    try {
-      const budget = await (api as any).updateFinanceMonthlyIncome(income);
-      applyBudgetProfile(budget);
-    } finally {
-      setSavingIncome(false);
-    }
-  };
 
   // Group by date
   const grouped: Record<string, any[]> = {};
@@ -143,100 +106,22 @@ function TransactionsTab() {
         </button>
       </div>
 
-      {/* Monthly budget setup */}
-      <div className="rounded-2xl mb-4 overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <button
-          onClick={() => setShowBudgetSetup(v => !v)}
-          className="w-full p-3.5 flex items-center justify-between press"
-        >
-          <div className="text-left">
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Monthly Budget Setup</p>
-            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Set income + recurring fixed expenses (rent, EMI, etc.)</p>
+      <div className="rounded-2xl mb-4 p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Budget source</p>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {budgetProfile?.isMonthlyIncomeOverridden ? 'Using monthly override' : 'Using default setup'}
+            </p>
           </div>
-          <ChevronDown
-            size={16}
-            style={{ color: 'var(--text-muted)', transform: showBudgetSetup ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}
-          />
-        </button>
-
-        <AnimatePresence initial={false}>
-          {showBudgetSetup && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div className="px-3.5 pb-3.5 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
-                <div className="pt-3">
-                  <label className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>Monthly Income</label>
-                  <div className="mt-1 flex items-center gap-2">
-                    <div className="flex items-center gap-2 h-10 px-3 rounded-xl flex-1" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                      <span className="num" style={{ color: 'var(--text-muted)' }}>₹</span>
-                      <input
-                        type="number"
-                        value={income}
-                        onChange={e => setIncome(Math.max(0, Number(e.target.value || 0)))}
-                        className="w-full bg-transparent outline-none text-sm num"
-                        style={{ color: 'var(--text-primary)' }}
-                      />
-                    </div>
-                    <button
-                      onClick={saveIncome}
-                      disabled={savingIncome}
-                      className="h-10 px-3 rounded-xl text-xs font-semibold text-white press"
-                      style={{ backgroundColor: 'var(--accent)', opacity: savingIncome ? 0.6 : 1 }}
-                    >
-                      {savingIncome ? 'Saving' : 'Save'}
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Fixed Monthly Expenses</p>
-                  <div className="space-y-2">
-                    {fixedExpenses.map(f => (
-                      <div key={f.id} className="flex items-center gap-2 p-2.5 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{f.name}</p>
-                        </div>
-                        <p className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>₹{f.amount.toLocaleString()}</p>
-                        <button onClick={() => deleteFixedExpense(f.id)} className="w-7 h-7 rounded-lg flex items-center justify-center press" style={{ color: '#ef4444' }}>
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-12 gap-2">
-                  <input
-                    value={newFixedName}
-                    onChange={e => setNewFixedName(e.target.value)}
-                    placeholder="e.g. Home EMI"
-                    className="col-span-7 h-9 px-3 rounded-xl outline-none text-xs"
-                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-                  />
-                  <input
-                    type="number"
-                    value={newFixedAmount}
-                    onChange={e => setNewFixedAmount(e.target.value)}
-                    placeholder="₹"
-                    className="col-span-3 h-9 px-3 rounded-xl outline-none text-xs num"
-                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-                  />
-                  <button
-                    onClick={addFixedExpense}
-                    className="col-span-2 h-9 rounded-xl text-xs font-semibold text-white press"
-                    style={{ backgroundColor: 'var(--accent)' }}
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          <button
+            onClick={() => navigate('/finance/settings')}
+            className="h-9 px-3 rounded-xl text-xs font-semibold text-white press"
+            style={{ backgroundColor: 'var(--accent)' }}
+          >
+            Edit budget
+          </button>
+        </div>
       </div>
 
       {/* KPI chips */}
@@ -603,15 +488,15 @@ export default function Finance() {
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Finance</h1>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setTab('Analytics')}
+            onClick={() => navigate('/finance/settings')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
             style={{
-              backgroundColor: tab === 'Analytics' ? 'var(--accent)' : 'var(--surface)',
+              backgroundColor: 'var(--surface)',
               border: '1px solid var(--border)'
             }}
           >
-            <BarChart3 size={14} style={{ color: tab === 'Analytics' ? '#fff' : 'var(--text-secondary)' }} />
-            <span className="text-xs font-medium" style={{ color: tab === 'Analytics' ? '#fff' : 'var(--text-secondary)' }}>Analytics</span>
+            <Settings2 size={14} style={{ color: 'var(--text-secondary)' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Settings</span>
           </button>
           <button
             onClick={() => navigate('/finance/vehicles')}
@@ -625,7 +510,6 @@ export default function Finance() {
       </div>
 
       <PillTabs
-        tabs={['Transactions', 'Buckets', 'Investments']}
         active={tab}
         onChange={t => setTab(t as Tab)}
       />

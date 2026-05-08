@@ -1,19 +1,28 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace GoodDaysApi.Models;
 
-[Table("finance_budget_profiles")]
-public class FinanceBudgetProfile
+[Table("finance_monthly_income_overrides")]
+public class MonthlyIncomeOverride
 {
     [Key]
     [Column("id")]
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    [Column("monthly_income")]
-    public decimal MonthlyIncome { get; set; }
+    [Required]
+    [Column("profile_id")]
+    public Guid ProfileId { get; set; }
+
+    [Column("month")]
+    public int Month { get; set; }
+
+    [Column("year")]
+    public int Year { get; set; }
+
+    [Column("amount")]
+    public decimal Amount { get; set; }
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -21,6 +30,5 @@ public class FinanceBudgetProfile
     [Column("updated_at")]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    public ICollection<FinanceFixedExpense> FixedExpenses { get; set; } = new List<FinanceFixedExpense>();
-    public ICollection<MonthlyIncomeOverride> MonthlyIncomeOverrides { get; set; } = new List<MonthlyIncomeOverride>();
+    public FinanceBudgetProfile? Profile { get; set; }
 }

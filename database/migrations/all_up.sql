@@ -199,6 +199,28 @@ CREATE TABLE IF NOT EXISTS finance_fixed_expenses (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS finance_monthly_income_overrides (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id UUID NOT NULL REFERENCES finance_budget_profiles(id) ON DELETE CASCADE,
+  month INT NOT NULL CHECK (month BETWEEN 1 AND 12),
+  year INT NOT NULL CHECK (year >= 2000),
+  amount DECIMAL(12,2) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT unique_profile_month_year_income_override UNIQUE (profile_id, month, year)
+);
+
+CREATE TABLE IF NOT EXISTS finance_fixed_expense_overrides (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  fixed_expense_id UUID NOT NULL REFERENCES finance_fixed_expenses(id) ON DELETE CASCADE,
+  month INT NOT NULL CHECK (month BETWEEN 1 AND 12),
+  year INT NOT NULL CHECK (year >= 2000),
+  amount DECIMAL(12,2) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT unique_fixed_expense_month_year_override UNIQUE (fixed_expense_id, month, year)
+);
+
 CREATE TABLE IF NOT EXISTS exercises (
   id SERIAL PRIMARY KEY,
   name text NOT NULL,
@@ -358,6 +380,8 @@ CREATE INDEX IF NOT EXISTS idx_daily_tracking_user_date ON daily_tracking(user_i
 CREATE INDEX IF NOT EXISTS idx_daily_notes_user_date ON daily_notes(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id);
 CREATE INDEX IF NOT EXISTS idx_gamification_entries_user_id ON gamification_entries(user_id);
+CREATE INDEX IF NOT EXISTS idx_monthly_income_overrides_profile_period ON finance_monthly_income_overrides(profile_id, month, year);
+CREATE INDEX IF NOT EXISTS idx_fixed_expense_overrides_expense_period ON finance_fixed_expense_overrides(fixed_expense_id, month, year);
 CREATE INDEX IF NOT EXISTS idx_investment_buckets_is_active ON investment_buckets(is_active);
 CREATE INDEX IF NOT EXISTS idx_monthly_tasks_bucket_id ON monthly_tasks(bucket_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_tasks_completions_task_id ON monthly_task_completions(task_id);

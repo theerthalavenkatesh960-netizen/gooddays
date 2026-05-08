@@ -110,6 +110,8 @@ DROP TABLE IF EXISTS workout_day_plans CASCADE;
 DROP TABLE IF EXISTS workout_split_presets CASCADE;
 DROP TABLE IF EXISTS exercises CASCADE;
 DROP TABLE IF EXISTS monthly_snapshots CASCADE;
+DROP TABLE IF EXISTS finance_fixed_expense_overrides CASCADE;
+DROP TABLE IF EXISTS finance_monthly_income_overrides CASCADE;
 DROP TABLE IF EXISTS finance_fixed_expenses CASCADE;
 DROP TABLE IF EXISTS finance_budget_profiles CASCADE;
 DROP TABLE IF EXISTS financial_rules CASCADE;
