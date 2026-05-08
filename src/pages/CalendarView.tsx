@@ -325,13 +325,14 @@ return(
 <h1 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Calendar & Review</h1>
 
 {/* Tab switcher */}
-<div className="flex gap-1 mb-4 sm:mb-6 p-1 rounded-2xl overflow-x-auto hide-scrollbar" style={{ backgroundColor: 'var(--surface)' }}>
+<div className="flex gap-1.5 mb-4 sm:mb-6 bg-gray-100 p-1 rounded-2xl w-fit overflow-x-auto hide-scrollbar">
   {(['calendar', 'weekly-review', 'journal'] as const).map((tab) => (
     <button
       key={tab}
       onClick={() => setActiveTab(tab)}
-      className="px-3 sm:px-5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all capitalize whitespace-nowrap"
-      style={{ backgroundColor: activeTab === tab ? 'var(--accent)' : 'transparent', color: activeTab === tab ? '#fff' : 'var(--text-muted)' }}
+      className={`px-3 sm:px-5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all capitalize whitespace-nowrap ${
+        activeTab === tab ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'
+      }`}
     >
       {tab === 'weekly-review' ? 'Weekly Review' : tab.charAt(0).toUpperCase() + tab.slice(1)}
     </button>

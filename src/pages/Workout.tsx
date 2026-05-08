@@ -3,10 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dumbbell, Plus, ChevronRight, ChevronDown, Check, Trash2,
   BarChart2, BookOpen, Camera, Trophy, Calendar, X, Edit2, Save,
-  Flame, TrendingUp
+  Flame, TrendingUp, Image as ImageIcon
 } from 'lucide-react';
 import { format, subDays } from 'date-fns';
-import { useLocation, useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
 
 type Exercise = { id: number; name: string; muscleGroup: string; description?: string; imageUrl?: string; isCustom?: boolean };
@@ -24,8 +23,6 @@ const TABS = [
 ];
 
 export default function Workout() {
-  const location = useLocation();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('today');
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [todayPlan, setTodayPlan] = useState<WorkoutPlan | null>(null);
@@ -33,6 +30,7 @@ export default function Workout() {
   const [prs, setPrs] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [history, setHistory] = useState<WorkoutPlan[]>([]);
+  const [isLogging, setIsLogging] = useState(false);
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [showAddPlan, setShowAddPlan] = useState(false);
   const [filterMuscle, setFilterMuscle] = useState('All');
@@ -45,26 +43,10 @@ export default function Workout() {
   const [loading, setLoading] = useState(true);
 
   const today = format(new Date(), 'yyyy-MM-dd');
-  const search = new URLSearchParams(location.search);
-  const deepLinkTab = search.get('tab');
-  const deepLinkExerciseId = Number(search.get('exerciseId') || '0');
-  const returnPath = search.get('return');
 
   useEffect(() => {
     loadData();
   }, []);
-
-  useEffect(() => {
-    if (deepLinkTab && TABS.some(t => t.id === deepLinkTab)) {
-      setActiveTab(deepLinkTab);
-    }
-  }, [deepLinkTab]);
-
-  useEffect(() => {
-    if (!deepLinkExerciseId) return;
-    if (activeTab !== 'today') return;
-    setExpandedExercise(deepLinkExerciseId);
-  }, [deepLinkExerciseId, activeTab, todayPlan?.id]);
 
   async function loadData() {
     setLoading(true);
@@ -242,12 +224,6 @@ export default function Workout() {
           <p className="text-gray-500 mt-0.5">{format(new Date(), 'EEEE, MMM d')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {returnPath && (
-            <motion.button whileTap={{ scale: 0.95 }} onClick={() => navigate(returnPath)}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-xl font-semibold border border-gray-200">
-              Back to Body
-            </motion.button>
-          )}
           {todayPlan && !todayPlan.isCompleted && (
             <motion.button whileTap={{ scale: 0.95 }} onClick={markDayComplete}
               className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold shadow-md">
@@ -269,7 +245,7 @@ export default function Workout() {
       </div>
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto gap-1 mb-6 p-1 rounded-2xl hide-scrollbar" style={{ backgroundColor: 'var(--surface)' }}>
+      <div className="flex overflow-x-auto gap-1 mb-6 bg-gray-100 p-1.5 rounded-2xl hide-scrollbar">
         {TABS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -280,8 +256,7 @@ export default function Workout() {
                 if (tab.id === 'history') loadHistory();
                 if (tab.id === 'analytics') loadAnalytics();
               }}
-              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl font-medium text-sm transition-all flex-shrink-0"
-              style={{ backgroundColor: isActive ? 'var(--accent)' : 'transparent', color: isActive ? '#fff' : 'var(--text-muted)' }}>
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl font-medium text-sm transition-all flex-shrink-0 ${isActive ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500'}`}>
               <Icon size={14} />
               <span>{tab.shortLabel}</span>
             </motion.button>

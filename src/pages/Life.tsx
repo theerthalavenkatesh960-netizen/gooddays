@@ -10,27 +10,16 @@ import { useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 
-type LifeTab = 'Goals' | 'Journal' | 'Review';
+type LifeTab = 'Goals' | 'Journal' | 'Review' | 'Tasks';
 
-const LIFE_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
-  { id: 'Goals', label: 'Goals', icon: Target },
-  { id: 'Journal', label: 'Journal', icon: BookOpen },
-  { id: 'Review', label: 'Review', icon: BarChart2 },
-];
-
-function PillTabs({ active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
+function PillTabs({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
   return (
-    <div className="flex gap-1 mx-4 mb-2 p-1 rounded-2xl overflow-x-auto hide-scrollbar" style={{ backgroundColor: 'var(--surface)' }}>
-      {LIFE_TABS.map(t => {
-        const Icon = t.icon;
-        return (
-          <button key={t.id} onClick={() => onChange(t.id)}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all press whitespace-nowrap"
-            style={{ backgroundColor: active === t.id ? 'var(--accent)' : 'transparent', color: active === t.id ? '#fff' : 'var(--text-muted)' }}>
-            <Icon size={14} />{t.label}
-          </button>
-        );
-      })}
+    <div className="h-scroll px-4 py-3 gap-2">
+      {tabs.map(t => (
+        <button key={t} onClick={() => onChange(t)} className={`pill-tab ${active === t ? 'pill-tab-active' : 'pill-tab-inactive'}`}>
+          {t}
+        </button>
+      ))}
     </div>
   );
 }
@@ -476,7 +465,7 @@ export default function Life() {
       </div>
 
       <PillTabs
-        tabs={['Goals', 'Journal', 'Review']}
+        tabs={['Goals', 'Journal', 'Review', 'Tasks']}
         active={tab}
         onChange={t => setTab(t as LifeTab)}
       />
@@ -493,6 +482,7 @@ export default function Life() {
           {tab === 'Goals'   && <GoalsTab />}
           {tab === 'Journal' && <JournalTab />}
           {tab === 'Review'  && <ReviewTab />}
+          {tab === 'Tasks'   && <TasksTab />}
         </motion.div>
       </AnimatePresence>
     </div>

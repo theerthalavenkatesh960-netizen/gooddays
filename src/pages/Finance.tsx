@@ -12,25 +12,18 @@ import { useAuth } from '../contexts/AuthContextApi';
 
 type Tab = 'Transactions' | 'Buckets' | 'Investments' | 'Analytics';
 
-const FINANCE_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
-  { id: 'Transactions', label: 'Transactions', icon: DollarSign },
-  { id: 'Buckets', label: 'Buckets', icon: Wallet },
-  { id: 'Investments', label: 'Investments', icon: TrendingUp },
-];
-
-function PillTabs({ active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
+function PillTabs({ tabs, active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
   return (
-    <div className="flex gap-1 mx-4 mb-2 p-1 rounded-2xl" style={{ backgroundColor: 'var(--surface)' }}>
-      {FINANCE_TABS.map(t => {
-        const Icon = t.icon;
-        return (
-          <button key={t.id} onClick={() => onChange(t.id)}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all press whitespace-nowrap"
-            style={{ backgroundColor: active === t.id ? 'var(--accent)' : 'transparent', color: active === t.id ? '#fff' : 'var(--text-muted)' }}>
-            <Icon size={14} />{t.label}
-          </button>
-        );
-      })}
+    <div className="h-scroll px-4 py-3 gap-2">
+      {tabs.map(t => (
+        <button
+          key={t}
+          onClick={() => onChange(t)}
+          className={`pill-tab ${active === t ? 'pill-tab-active' : 'pill-tab-inactive'}`}
+        >
+          {t}
+        </button>
+      ))}
     </div>
   );
 }
@@ -389,31 +382,18 @@ export default function Finance() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 mb-2">
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Finance</h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setTab('Analytics')}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
-            style={{
-              backgroundColor: tab === 'Analytics' ? 'var(--accent)' : 'var(--surface)',
-              border: '1px solid var(--border)'
-            }}
-          >
-            <BarChart3 size={14} style={{ color: tab === 'Analytics' ? '#fff' : 'var(--text-secondary)' }} />
-            <span className="text-xs font-medium" style={{ color: tab === 'Analytics' ? '#fff' : 'var(--text-secondary)' }}>Analytics</span>
-          </button>
-          <button
-            onClick={() => navigate('/finance/vehicles')}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
-            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
-          >
-            <Car size={14} style={{ color: 'var(--text-secondary)' }} />
-            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Vehicles</span>
-          </button>
-        </div>
+        <button
+          onClick={() => navigate('/finance/vehicles')}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
+          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+        >
+          <Car size={14} style={{ color: 'var(--text-secondary)' }} />
+          <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Vehicles</span>
+        </button>
       </div>
 
       <PillTabs
-        tabs={['Transactions', 'Buckets', 'Investments']}
+        tabs={['Transactions', 'Buckets', 'Investments', 'Analytics']}
         active={tab}
         onChange={t => setTab(t as Tab)}
       />

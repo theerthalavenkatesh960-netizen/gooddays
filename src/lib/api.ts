@@ -27,10 +27,6 @@ type StudySession = { id: number; userId: number; durationMinutes: number; notes
 
 const API_BASE = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
-// ─── Dummy Data Flag (Toggle between dummy and real API) ────────────────────
-export const USE_DUMMY_DATA = true; // Set to false to use real API endpoints
-// ───────────────────────────────────────────────────────────────────────────
-
 function getAuthHeader(): Record<string, string> {
   const session = getSession();
   return session ? { 'Authorization': `Bearer ${session.access_token}` } : {};
@@ -458,127 +454,36 @@ export type { User, Session, Task, Expense, SelfCareActivity, StudySession };
 
 // ─── Workout API ──────────────────────────────────────────────────────────────
 
-export async function getExercises() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_EXERCISES);
-  return request('exercises');
-}
+export async function getExercises() { return request('exercises'); }
+export async function createExercise(body: any) { return request('exercises', { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateExercise(id: number, body: any) { return request(`exercises/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteExercise(id: number) { return request(`exercises/${id}`, { method: 'DELETE' }); }
 
-export async function createExercise(body: any) {
-  if (USE_DUMMY_DATA) {
-    const newExercise = { id: Math.max(...DUMMY_EXERCISES.map(e => e.id), 0) + 1, ...body };
-    DUMMY_EXERCISES.push(newExercise);
-    return Promise.resolve(newExercise);
-  }
-  return request('exercises', { method: 'POST', body: JSON.stringify(body) });
-}
-
-export async function updateExercise(id: number, body: any) {
-  if (USE_DUMMY_DATA) {
-    const ex = DUMMY_EXERCISES.find(e => e.id === id);
-    if (ex) Object.assign(ex, body);
-    return Promise.resolve(ex);
-  }
-  return request(`exercises/${id}`, { method: 'PUT', body: JSON.stringify(body) });
-}
-
-export async function deleteExercise(id: number) {
-  if (USE_DUMMY_DATA) {
-    const idx = DUMMY_EXERCISES.findIndex(e => e.id === id);
-    if (idx >= 0) DUMMY_EXERCISES.splice(idx, 1);
-    return Promise.resolve({ success: true });
-  }
-  return request(`exercises/${id}`, { method: 'DELETE' });
-}
-
-export async function getSplits() {
-  if (USE_DUMMY_DATA) return Promise.resolve([DUMMY_SPLIT]);
-  return request('workout/splits');
-}
-
-export async function createSplit(body: any) {
-  if (USE_DUMMY_DATA) {
-    return Promise.resolve({ ...DUMMY_SPLIT, ...body });
-  }
-  return request('workout/splits', { method: 'POST', body: JSON.stringify(body) });
-}
-
-export async function updateSplit(id: number, body: any) {
-  if (USE_DUMMY_DATA) {
-    Object.assign(DUMMY_SPLIT, body);
-    return Promise.resolve(DUMMY_SPLIT);
-  }
-  return request(`workout/splits/${id}`, { method: 'PUT', body: JSON.stringify(body) });
-}
-
-export async function deleteSplit(id: number) {
-  if (USE_DUMMY_DATA) {
-    return Promise.resolve({ success: true });
-  }
-  return request(`workout/splits/${id}`, { method: 'DELETE' });
-}
+export async function getSplits() { return request('workout/splits'); }
+export async function createSplit(body: any) { return request('workout/splits', { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateSplit(id: number, body: any) { return request(`workout/splits/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteSplit(id: number) { return request(`workout/splits/${id}`, { method: 'DELETE' }); }
 
 export async function getWorkoutPlans(from?: string, to?: string) {
-  if (USE_DUMMY_DATA) return Promise.resolve([]);
   const params = new URLSearchParams();
   if (from) params.set('from', from);
   if (to) params.set('to', to);
   return request(`workout/plans?${params}`);
 }
+export async function getWorkoutPlanByDate(date: string) { return request(`workout/plans/date/${date}`); }
+export async function createWorkoutPlan(body: any) { return request('workout/plans', { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateWorkoutPlan(id: number, body: any) { return request(`workout/plans/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteWorkoutPlan(id: number) { return request(`workout/plans/${id}`, { method: 'DELETE' }); }
 
-export async function getWorkoutPlanByDate(date: string) {
-  if (USE_DUMMY_DATA) return Promise.resolve(null);
-  return request(`workout/plans/date/${date}`);
-}
+export async function logWorkoutSet(planId: number, body: any) { return request(`workout/plans/${planId}/sets`, { method: 'POST', body: JSON.stringify(body) }); }
+export async function updateWorkoutSet(id: number, body: any) { return request(`workout/sets/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function deleteWorkoutSet(id: number) { return request(`workout/sets/${id}`, { method: 'DELETE' }); }
 
-export async function createWorkoutPlan(body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id: 1, ...body });
-  return request('workout/plans', { method: 'POST', body: JSON.stringify(body) });
-}
+export async function getPersonalRecords() { return request('workout/prs'); }
+export async function getWorkoutAnalytics(weeks?: number) { return request(`workout/analytics/volume${weeks ? `?weeks=${weeks}` : ''}`); }
 
-export async function updateWorkoutPlan(id: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id, ...body });
-  return request(`workout/plans/${id}`, { method: 'PUT', body: JSON.stringify(body) });
-}
-
-export async function deleteWorkoutPlan(id: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ success: true });
-  return request(`workout/plans/${id}`, { method: 'DELETE' });
-}
-
-export async function logWorkoutSet(planId: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id: 1, ...body });
-  return request(`workout/plans/${planId}/sets`, { method: 'POST', body: JSON.stringify(body) });
-}
-
-export async function updateWorkoutSet(id: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id, ...body });
-  return request(`workout/sets/${id}`, { method: 'PUT', body: JSON.stringify(body) });
-}
-
-export async function deleteWorkoutSet(id: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ success: true });
-  return request(`workout/sets/${id}`, { method: 'DELETE' });
-}
-
-export async function getPersonalRecords() {
-  if (USE_DUMMY_DATA) return Promise.resolve([]);
-  return request('workout/prs');
-}
-
-export async function getWorkoutAnalytics(weeks?: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve({});
-  return request(`workout/analytics/volume${weeks ? `?weeks=${weeks}` : ''}`);
-}
-
-export async function addWorkoutImage(planId: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id: 1, ...body });
-  return request(`workout/plans/${planId}/images`, { method: 'POST', body: JSON.stringify(body) });
-}
-
-export async function deleteWorkoutImage(id: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ success: true });
-  return request(`workout/images/${id}`, { method: 'DELETE' });
-}
+export async function addWorkoutImage(planId: number, body: any) { return request(`workout/plans/${planId}/images`, { method: 'POST', body: JSON.stringify(body) }); }
+export async function deleteWorkoutImage(id: number) { return request(`workout/images/${id}`, { method: 'DELETE' }); }
 
 // ─── Goals API ────────────────────────────────────────────────────────────────
 
@@ -630,164 +535,5 @@ export async function upsertWeeklyReview(body: any) { return request('weeklyrevi
 export async function generateWeeklyReview(weekStart?: string) {
   const qs = weekStart ? `?weekStart=${weekStart}` : '';
   return request(`weeklyreviews/generate${qs}`, { method: 'POST' });
-}
-
-// ─── DUMMY DATA (for development/testing without backend) ──────────────────
-
-const DUMMY_EXERCISES = [
-  { id: 1, name: 'Bench Press', description: 'Chest compound movement', category: 'chest', imageUrl: 'https://via.placeholder.com/300x200?text=Bench+Press' },
-  { id: 2, name: 'Squats', description: 'Leg compound movement', category: 'legs', imageUrl: 'https://via.placeholder.com/300x200?text=Squats' },
-  { id: 3, name: 'Deadlifts', description: 'Full body compound', category: 'back', imageUrl: 'https://via.placeholder.com/300x200?text=Deadlifts' },
-  { id: 4, name: 'Pull-ups', description: 'Back and arms', category: 'back', imageUrl: 'https://via.placeholder.com/300x200?text=Pull-ups' },
-  { id: 5, name: 'Shoulder Press', description: 'Shoulder compound', category: 'shoulders', imageUrl: 'https://via.placeholder.com/300x200?text=Shoulder+Press' },
-  { id: 6, name: 'Barbell Rows', description: 'Back strength', category: 'back', imageUrl: 'https://via.placeholder.com/300x200?text=Barbell+Rows' },
-  { id: 7, name: 'Bicep Curls', description: 'Arm isolation', category: 'arms', imageUrl: 'https://via.placeholder.com/300x200?text=Bicep+Curls' },
-  { id: 8, name: 'Tricep Dips', description: 'Arm isolation', category: 'arms', imageUrl: 'https://via.placeholder.com/300x200?text=Tricep+Dips' }
-];
-
-const DUMMY_SPLIT = {
-  id: 1,
-  name: 'PPL Split',
-  dayConfigs: {
-    monday: [{ exerciseId: 1, sets: 4, reps: 8 }, { exerciseId: 7, sets: 3, reps: 10 }],
-    tuesday: [{ exerciseId: 3, sets: 4, reps: 6 }, { exerciseId: 4, sets: 3, reps: 8 }],
-    wednesday: [{ exerciseId: 5, sets: 3, reps: 8 }, { exerciseId: 8, sets: 3, reps: 10 }],
-    thursday: [{ exerciseId: 1, sets: 4, reps: 10 }],
-    friday: [{ exerciseId: 3, sets: 3, reps: 8 }, { exerciseId: 6, sets: 3, reps: 8 }],
-    saturday: [],
-    sunday: []
-  }
-};
-
-const DUMMY_MEAL_INGREDIENTS = [
-  { id: 1, name: 'Chicken Breast', caloriesKcal: 165, proteinG: 31, carbsG: 0, fatsG: 3.6, createdAt: new Date().toISOString() },
-  { id: 2, name: 'Brown Rice', caloriesKcal: 111, proteinG: 2.6, carbsG: 23, fatsG: 0.9, createdAt: new Date().toISOString() },
-  { id: 3, name: 'Broccoli', caloriesKcal: 34, proteinG: 3.7, carbsG: 7, fatsG: 0.4, createdAt: new Date().toISOString() },
-  { id: 4, name: 'Sweet Potato', caloriesKcal: 86, proteinG: 1.6, carbsG: 20, fatsG: 0.1, createdAt: new Date().toISOString() },
-  { id: 5, name: 'Salmon', caloriesKcal: 208, proteinG: 20, carbsG: 0, fatsG: 13, createdAt: new Date().toISOString() },
-  { id: 6, name: 'Eggs', caloriesKcal: 155, proteinG: 13, carbsG: 1.1, fatsG: 11, createdAt: new Date().toISOString() },
-  { id: 7, name: 'Oatmeal', caloriesKcal: 389, proteinG: 17, carbsG: 66, fatsG: 6.9, createdAt: new Date().toISOString() },
-  { id: 8, name: 'Banana', caloriesKcal: 89, proteinG: 1.1, carbsG: 23, fatsG: 0.3, createdAt: new Date().toISOString() }
-];
-
-const DUMMY_MEAL_TEMPLATES = [
-  {
-    id: 1,
-    name: 'Grilled Chicken & Broccoli',
-    timing: 'lunch',
-    ingredientsJson: JSON.stringify([DUMMY_MEAL_INGREDIENTS[0], DUMMY_MEAL_INGREDIENTS[1], DUMMY_MEAL_INGREDIENTS[2]]),
-    recipe: 'Grill chicken breast, serve with steamed broccoli and brown rice',
-    imageUrl: 'https://via.placeholder.com/300x200?text=Chicken+Bowl',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 2,
-    name: 'Salmon & Sweet Potato',
-    timing: 'dinner',
-    ingredientsJson: JSON.stringify([DUMMY_MEAL_INGREDIENTS[4], DUMMY_MEAL_INGREDIENTS[3], DUMMY_MEAL_INGREDIENTS[2]]),
-    recipe: 'Bake salmon, serve with roasted sweet potato and steamed broccoli',
-    imageUrl: 'https://via.placeholder.com/300x200?text=Salmon+Plate',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 3,
-    name: 'Oatmeal with Banana',
-    timing: 'breakfast',
-    ingredientsJson: JSON.stringify([DUMMY_MEAL_INGREDIENTS[6], DUMMY_MEAL_INGREDIENTS[7]]),
-    recipe: 'Cook oatmeal with water, top with sliced banana',
-    imageUrl: 'https://via.placeholder.com/300x200?text=Oatmeal',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 4,
-    name: 'Scrambled Eggs & Toast',
-    timing: 'breakfast',
-    ingredientsJson: JSON.stringify([DUMMY_MEAL_INGREDIENTS[5]]),
-    recipe: 'Scramble 2 eggs, serve with whole grain toast',
-    imageUrl: 'https://via.placeholder.com/300x200?text=Eggs+Toast',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 5,
-    name: 'Post-Workout Protein',
-    timing: 'post-workout',
-    ingredientsJson: JSON.stringify([DUMMY_MEAL_INGREDIENTS[0], DUMMY_MEAL_INGREDIENTS[1]]),
-    recipe: 'Lean chicken with quick carbs from rice or pasta',
-    imageUrl: 'https://via.placeholder.com/300x200?text=Post-Workout',
-    createdAt: new Date().toISOString()
-  }
-];
-
-const DUMMY_WEEKLY_MEAL_PLAN = {
-  planJson: JSON.stringify({
-    monday: [1, 2],
-    tuesday: [2, 3],
-    wednesday: [1, 4],
-    thursday: [3, 2],
-    friday: [2, 5],
-    saturday: [1],
-    sunday: [4, 2]
-  })
-};
-
-// ─── Meal Planner API ─────────────────────────────────────────────────────────
-
-export async function getMealIngredients() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_MEAL_INGREDIENTS);
-  return request('meal/ingredients');
-}
-
-export async function createMealIngredient(body: any) {
-  if (USE_DUMMY_DATA) {
-    const newIngredient = { id: Math.max(...DUMMY_MEAL_INGREDIENTS.map(i => i.id), 0) + 1, ...body, createdAt: new Date().toISOString() };
-    DUMMY_MEAL_INGREDIENTS.push(newIngredient);
-    return Promise.resolve(newIngredient);
-  }
-  return request('meal/ingredients', { method: 'POST', body: JSON.stringify(body) });
-}
-
-export async function deleteMealIngredient(id: number) {
-  if (USE_DUMMY_DATA) {
-    const idx = DUMMY_MEAL_INGREDIENTS.findIndex(i => i.id === id);
-    if (idx >= 0) DUMMY_MEAL_INGREDIENTS.splice(idx, 1);
-    return Promise.resolve({ success: true });
-  }
-  return request(`meal/ingredients/${id}`, { method: 'DELETE' });
-}
-
-export async function getMealTemplates() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_MEAL_TEMPLATES);
-  return request('meal/templates');
-}
-
-export async function createMealTemplate(body: any) {
-  if (USE_DUMMY_DATA) {
-    const newTemplate = { id: Math.max(...DUMMY_MEAL_TEMPLATES.map(m => m.id), 0) + 1, ...body, createdAt: new Date().toISOString() };
-    DUMMY_MEAL_TEMPLATES.push(newTemplate);
-    return Promise.resolve(newTemplate);
-  }
-  return request('meal/templates', { method: 'POST', body: JSON.stringify(body) });
-}
-
-export async function deleteMealTemplate(id: number) {
-  if (USE_DUMMY_DATA) {
-    const idx = DUMMY_MEAL_TEMPLATES.findIndex(m => m.id === id);
-    if (idx >= 0) DUMMY_MEAL_TEMPLATES.splice(idx, 1);
-    return Promise.resolve({ success: true });
-  }
-  return request(`meal/templates/${id}`, { method: 'DELETE' });
-}
-
-export async function getWeeklyMealPlan() {
-  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_WEEKLY_MEAL_PLAN);
-  return request('meal/plan');
-}
-
-export async function upsertWeeklyMealPlan(planJson: string) {
-  if (USE_DUMMY_DATA) {
-    DUMMY_WEEKLY_MEAL_PLAN.planJson = planJson;
-    return Promise.resolve(DUMMY_WEEKLY_MEAL_PLAN);
-  }
-  return request('meal/plan', { method: 'PUT', body: JSON.stringify({ planJson }) });
 }
 

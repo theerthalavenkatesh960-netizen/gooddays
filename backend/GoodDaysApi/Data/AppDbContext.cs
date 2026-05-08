@@ -49,11 +49,6 @@ public class AppDbContext : DbContext
     // Weekly Review entities
     public DbSet<WeeklyReview> WeeklyReviews { get; set; } = null!;
 
-    // Meal planner entities
-    public DbSet<MealIngredient> MealIngredients { get; set; } = null!;
-    public DbSet<MealTemplate> MealTemplates { get; set; } = null!;
-    public DbSet<WeeklyMealPlan> WeeklyMealPlans { get; set; } = null!;
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -97,11 +92,6 @@ public class AppDbContext : DbContext
         // Journal & Weekly Review table mappings
         modelBuilder.Entity<JournalEntry>().ToTable("journal_entries");
         modelBuilder.Entity<WeeklyReview>().ToTable("weekly_reviews");
-
-        // Meal planner table mappings
-        modelBuilder.Entity<MealIngredient>().ToTable("meal_ingredients");
-        modelBuilder.Entity<MealTemplate>().ToTable("meal_templates");
-        modelBuilder.Entity<WeeklyMealPlan>().ToTable("weekly_meal_plans");
 
         // Ensure emails are unique for login
         modelBuilder.Entity<User>(entity =>
