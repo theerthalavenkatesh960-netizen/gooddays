@@ -29,6 +29,8 @@ const API_BASE = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:50
 
 // ─── Dummy Data Flag (Toggle between dummy and real API) ────────────────────
 export const USE_DUMMY_DATA = true; // Set to false to use real API endpoints
+// Daily routine can be toggled independently from global API dummy mode.
+export const USE_DUMMY_DAILY_ROUTINE_DATA = true;
 // ───────────────────────────────────────────────────────────────────────────
 
 function getAuthHeader(): Record<string, string> {
@@ -495,6 +497,11 @@ export async function getSplits() {
   return request('workout/splits');
 }
 
+export async function getActiveSplit() {
+  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_SPLIT);
+  return request('workout/splits/active');
+}
+
 export async function createSplit(body: any) {
   if (USE_DUMMY_DATA) {
     return Promise.resolve({ ...DUMMY_SPLIT, ...body });
@@ -578,6 +585,303 @@ export async function addWorkoutImage(planId: number, body: any) {
 export async function deleteWorkoutImage(id: number) {
   if (USE_DUMMY_DATA) return Promise.resolve({ success: true });
   return request(`workout/images/${id}`, { method: 'DELETE' });
+}
+
+// ─── Daily Routine API ────────────────────────────────────────────────────────
+
+type DummyRoutineBlock = {
+  id: number;
+  routineId: number;
+  title: string;
+  startTime: string;
+  endTime: string;
+  category?: string;
+  color?: string;
+  sortOrder: number;
+};
+
+type DummyRoutine = {
+  id: number;
+  name: string;
+  description?: string;
+  color: string;
+  blocks: DummyRoutineBlock[];
+};
+
+const DAILY_ROUTINE_MOCK_ENABLED = USE_DUMMY_DAILY_ROUTINE_DATA || USE_DUMMY_DATA;
+
+const _dummyDailyRoutineStore: {
+  nextRoutineId: number;
+  nextBlockId: number;
+  routines: DummyRoutine[];
+  schedule: Array<{ dayOfWeek: number; routineId: number | null }>;
+  logsByDate: Record<string, Record<number, 'completed' | 'skipped' | 'missed'>>;
+  skippedDates: Record<string, string | null>;
+} = {
+  nextRoutineId: 3,
+  nextBlockId: 9,
+  routines: [
+    {
+      id: 1,
+      name: 'Weekday Prime',
+      color: '#6C63FF',
+      blocks: [
+        { id: 1, routineId: 1, title: 'Study DSA', startTime: '04:30', endTime: '05:30', sortOrder: 1 },
+        { id: 2, routineId: 1, title: 'Workout', startTime: '05:30', endTime: '06:30', sortOrder: 2 },
+        { id: 3, routineId: 1, title: 'Deep Work Sprint', startTime: '09:00', endTime: '11:00', sortOrder: 3 },
+      ],
+    },
+    {
+      id: 2,
+      name: 'Weekend Reset',
+      color: '#43CBFF',
+      blocks: [
+        { id: 4, routineId: 2, title: 'Long Walk', startTime: '07:00', endTime: '08:00', sortOrder: 1 },
+        { id: 5, routineId: 2, title: 'Meal Prep', startTime: '10:00', endTime: '11:30', sortOrder: 2 },
+        { id: 6, routineId: 2, title: 'Weekly Review', startTime: '19:00', endTime: '20:00', sortOrder: 3 },
+      ],
+    },
+  ],
+  schedule: [
+    { dayOfWeek: 0, routineId: 2 },
+    { dayOfWeek: 1, routineId: 1 },
+    { dayOfWeek: 2, routineId: 1 },
+    { dayOfWeek: 3, routineId: 1 },
+    { dayOfWeek: 4, routineId: 1 },
+    { dayOfWeek: 5, routineId: 1 },
+    { dayOfWeek: 6, routineId: 2 },
+  ],
+  logsByDate: {},
+  skippedDates: {},
+};
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function toMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function getDayOfWeek(date: string): number {
+  const d = new Date(`${date}T00:00:00`);
+  return d.getDay();
+}
+
+export async function getDailyRoutines() {
+  if (DAILY_ROUTINE_MOCK_ENABLED) return Promise.resolve(clone(_dummyDailyRoutineStore.routines));
+  return request('dailyroutine');
+}
+
+export async function createDailyRoutine(body: { name: string; description?: string; color?: string }) {
+  if (DAILY_ROUTINE_MOCK_ENABLED) {
+    const routine: DummyRoutine = {
+      id: _dummyDailyRoutineStore.nextRoutineId++,
+      name: body.name,
+      description: body.description,
+      color: body.color || '#6C63FF',
+      blocks: [],
+    };
+    _dummyDailyRoutineStore.routines.push(routine);
+    return Promise.resolve(clone(routine));
+  }
+  return request('dailyroutine', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateDailyRoutine(id: number, body: { name: string; description?: string; color?: string }) {
+  if (DAILY_ROUTINE_MOCK_ENABLED) {
+    const routine = _dummyDailyRoutineStore.routines.find(r => r.id === id);
+    if (!routine) return Promise.reject(new Error('Routine not found'));
+    routine.name = body.name ?? routine.name;
+    routine.description = body.description;
+    routine.color = body.color || routine.color;
+    return Promise.resolve(clone(routine));
+  }
+  return request(`dailyroutine/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteDailyRoutine(id: number) {
+  if (DAILY_ROUTINE_MOCK_ENABLED) {
+    _dummyDailyRoutineStore.routines = _dummyDailyRoutineStore.routines.filter(r => r.id !== id);
+    _dummyDailyRoutineStore.schedule = _dummyDailyRoutineStore.schedule.map(e => e.routineId === id ? { ...e, routineId: null } : e);
+    return Promise.resolve({ success: true });
+  }
+  return request(`dailyroutine/${id}`, { method: 'DELETE' });
+}
+
+export async function addRoutineBlock(routineId: number, body: { title: string; startTime: string; endTime: string; category?: string; color?: string; sortOrder?: number }) {
+  if (DAILY_ROUTINE_MOCK_ENABLED) {
+    const routine = _dummyDailyRoutineStore.routines.find(r => r.id === routineId);
+    if (!routine) return Promise.reject(new Error('Routine not found'));
+    const block: DummyRoutineBlock = {
+      id: _dummyDailyRoutineStore.nextBlockId++,
+      routineId,
+      title: body.title,
+      startTime: body.startTime,
+      endTime: body.endTime,
+      category: body.category,
+      color: body.color,
+      sortOrder: body.sortOrder ?? (routine.blocks.length + 1),
+    };
+    routine.blocks.push(block);
+    return Promise.resolve(clone(block));
+  }
+  return request(`dailyroutine/${routineId}/blocks`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateRoutineBlock(id: number, body: { title: string; startTime: string; endTime: string; category?: string; color?: string; sortOrder?: number }) {
+  if (DAILY_ROUTINE_MOCK_ENABLED) {
+    for (const routine of _dummyDailyRoutineStore.routines) {
+      const block = routine.blocks.find(b => b.id === id);
+      if (!block) continue;
+      block.title = body.title ?? block.title;
+      block.startTime = body.startTime ?? block.startTime;
+      block.endTime = body.endTime ?? block.endTime;
+      block.category = body.category;
+      block.color = body.color;
+      if (typeof body.sortOrder === 'number') block.sortOrder = body.sortOrder;
+      return Promise.resolve(clone(block));
+    }
+    return Promise.reject(new Error('Block not found'));
+  }
+  return request(`dailyroutine/blocks/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteRoutineBlock(id: number) {
+  if (DAILY_ROUTINE_MOCK_ENABLED) {
+    for (const routine of _dummyDailyRoutineStore.routines) {
+      const before = routine.blocks.length;
+      routine.blocks = routine.blocks.filter(b => b.id !== id);
+      if (before !== routine.blocks.length) break;
+    }
+    Object.keys(_dummyDailyRoutineStore.logsByDate).forEach(date => {
+      delete _dummyDailyRoutineStore.logsByDate[date][id];
+    });
+    return Promise.resolve({ success: true });
+  }
+  return request(`dailyroutine/blocks/${id}`, { method: 'DELETE' });
+}
+
+export async function getWeeklyRoutineSchedule() {
+  if (DAILY_ROUTINE_MOCK_ENABLED) {
+    const rows = _dummyDailyRoutineStore.schedule.map(e => ({
+      ...e,
+      routineName: _dummyDailyRoutineStore.routines.find(r => r.id === e.routineId)?.name,
+    }));
+    return Promise.resolve(clone(rows));
+  }
+  return request('dailyroutine/schedule');
+}
+
+export async function updateWeeklyRoutineSchedule(entries: Array<{ dayOfWeek: number; routineId: number | null }>) {
+  if (DAILY_ROUTINE_MOCK_ENABLED) {
+    _dummyDailyRoutineStore.schedule = Array.from({ length: 7 }, (_, i) => {
+      const found = entries.find(e => e.dayOfWeek === i);
+      return { dayOfWeek: i, routineId: found ? found.routineId : null };
+    });
+    return Promise.resolve({ success: true });
+  }
+  return request('dailyroutine/schedule', { method: 'PUT', body: JSON.stringify(entries) });
+}
+
+export async function getTodayRoutine() {
+  if (DAILY_ROUTINE_MOCK_ENABLED) {
+    const date = new Date();
+    const dateKey = date.toISOString().slice(0, 10);
+    const dayOfWeek = getDayOfWeek(dateKey);
+    const assigned = _dummyDailyRoutineStore.schedule.find(s => s.dayOfWeek === dayOfWeek);
+    const routine = _dummyDailyRoutineStore.routines.find(r => r.id === assigned?.routineId);
+    const isSkipped = Boolean(_dummyDailyRoutineStore.skippedDates[dateKey]);
+
+    if (!routine) {
+      return Promise.resolve({
+        date: dateKey,
+        dayOfWeek,
+        routine: null,
+        isSkipped,
+        blocks: [],
+        stats: { completed: 0, skipped: 0, total: 0 },
+      });
+    }
+
+    const nowMinutes = date.getHours() * 60 + date.getMinutes();
+    const dailyLogs = _dummyDailyRoutineStore.logsByDate[dateKey] || {};
+    const blocks = [...routine.blocks]
+      .sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime))
+      .map(block => {
+        const logged = dailyLogs[block.id];
+        const missed = !logged && !isSkipped && nowMinutes >= toMinutes(block.endTime);
+        const status = (logged || (missed ? 'missed' : 'pending')) as 'pending' | 'completed' | 'skipped' | 'missed';
+        return {
+          id: block.id,
+          title: block.title,
+          startTime: block.startTime,
+          endTime: block.endTime,
+          category: block.category,
+          color: block.color,
+          status,
+          logId: status === 'pending' ? undefined : Number(`${dateKey.replace(/-/g, '')}${block.id}`),
+        };
+      });
+
+    return Promise.resolve({
+      date: dateKey,
+      dayOfWeek,
+      routine: { id: routine.id, name: routine.name, color: routine.color },
+      isSkipped,
+      blocks,
+      stats: {
+        completed: blocks.filter(b => b.status === 'completed').length,
+        skipped: blocks.filter(b => b.status === 'skipped').length,
+        total: blocks.length,
+      },
+    });
+  }
+  return request('dailyroutine/today');
+}
+
+export async function logRoutineBlock(body: { routineBlockId: number; date: string; status: 'completed' | 'skipped' | 'missed' }) {
+  if (DAILY_ROUTINE_MOCK_ENABLED) {
+    if (!_dummyDailyRoutineStore.logsByDate[body.date]) _dummyDailyRoutineStore.logsByDate[body.date] = {};
+    _dummyDailyRoutineStore.logsByDate[body.date][body.routineBlockId] = body.status;
+    return Promise.resolve({ id: Date.now(), ...body });
+  }
+  return request('dailyroutine/logs', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function skipTodayRoutine(date: string, reason?: string) {
+  if (DAILY_ROUTINE_MOCK_ENABLED) {
+    if (_dummyDailyRoutineStore.skippedDates[date]) {
+      delete _dummyDailyRoutineStore.skippedDates[date];
+    } else {
+      _dummyDailyRoutineStore.skippedDates[date] = reason || null;
+    }
+    return Promise.resolve({ success: true });
+  }
+  return request('dailyroutine/skip', { method: 'POST', body: JSON.stringify({ date, reason }) });
+}
+
+export async function getRoutineHistory(from: string, to: string) {
+  if (DAILY_ROUTINE_MOCK_ENABLED) {
+    const logs: Array<{ date: string; routineBlockId: number; status: 'completed' | 'skipped' | 'missed' }> = [];
+    const skips: Array<{ date: string; reason?: string | null }> = [];
+
+    Object.entries(_dummyDailyRoutineStore.logsByDate).forEach(([date, byBlock]) => {
+      if (date < from || date > to) return;
+      Object.entries(byBlock).forEach(([routineBlockId, status]) => {
+        logs.push({ date, routineBlockId: Number(routineBlockId), status });
+      });
+    });
+
+    Object.entries(_dummyDailyRoutineStore.skippedDates).forEach(([date, reason]) => {
+      if (date < from || date > to) return;
+      skips.push({ date, reason });
+    });
+
+    return Promise.resolve({ logs, skips });
+  }
+  return request(`dailyroutine/history?from=${from}&to=${to}`);
 }
 
 // ─── Goals API ────────────────────────────────────────────────────────────────

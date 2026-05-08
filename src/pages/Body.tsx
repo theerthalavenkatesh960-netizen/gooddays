@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Dumbbell, Trophy, Settings as SettingsIcon, Leaf, TrendingUp,
+  Dumbbell, Trophy, Settings as SettingsIcon, Leaf, TrendingUp, Check,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -44,18 +44,33 @@ type PlannedExercise = {
   targetSets?: number;
 };
 
+type RoutineEntry = {
+  exerciseId: number;
+  sets: number;
+  reps: number;
+};
+
+type RoutineMap = Record<string, RoutineEntry[]>;
+
+type SplitPreset = {
+  id: number;
+  name: string;
+  dayConfigs: string | RoutineMap;
+  isActive: boolean;
+};
+
 type WorkoutPlan = {
   id?: number;
   plannedExercises: string;
   sets?: WorkoutSet[];
 };
 
-const ROUTINE_KEY = 'gd.weeklyWorkoutRoutine';
 const MEALS_KEY = 'gd.mealTemplates';
 const CALORIE_KEY = 'calorieGoal';
+const WORKOUT_LOGS_KEY = 'gd.workoutLogs';
 const DIET_LOGS_KEY = 'gd.dietLogs';
 
-const BODY_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+const BODY_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Workout', label: 'Workout', icon: Dumbbell },
   { id: 'Diet', label: 'Diet', icon: Leaf },
   { id: 'Progress', label: 'Progress', icon: TrendingUp },
@@ -81,7 +96,7 @@ function PillTabs({ active, onChange }: { tabs: string[]; active: string; onChan
 function WorkoutTab() {
   const navigate = useNavigate();
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [routine, setRoutine] = useState<Record<string, number[]>>({});
+  const [routine, setRoutine] = useState<RoutineMap>({});
   const [loading, setLoading] = useState(true);
   const [todayPlan, setTodayPlan] = useState<WorkoutPlan | null>(null);
   const [legacyLog, setLegacyLog] = useState<WorkoutLog | null>(null);
@@ -90,22 +105,36 @@ function WorkoutTab() {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
-    const raw = localStorage.getItem(ROUTINE_KEY);
-    if (raw) {
-      try { setRoutine(JSON.parse(raw)); } catch { setRoutine({}); }
-    }
-
     Promise.all([
       api.getExercises(),
       api.getWorkoutPlanByDate(today),
+      api.getActiveSplit(),
     ])
-      .then(([exData, plan]) => {
+      .then(([exData, plan, activeSplit]) => {
         setExercises(Array.isArray(exData) ? exData : []);
         setTodayPlan(plan || null);
+        const split = activeSplit as SplitPreset | null;
+        if (!split?.dayConfigs) {
+          setRoutine({});
+          return;
+        }
+
+        if (typeof split.dayConfigs === 'string') {
+          try {
+            const parsed = JSON.parse(split.dayConfigs);
+            setRoutine(parsed && typeof parsed === 'object' ? parsed : {});
+          } catch {
+            setRoutine({});
+          }
+          return;
+        }
+
+        setRoutine(split.dayConfigs);
       })
       .catch(() => {
         setExercises([]);
         setTodayPlan(null);
+        setRoutine({});
       })
       .finally(() => setLoading(false));
 
@@ -120,11 +149,19 @@ function WorkoutTab() {
     }
   }, [today]);
 
-  const routineExercises = useMemo(() => {
-    const ids = routine[dayKey] || [];
-    const mapped = exercises.filter(e => ids.includes(e.id));
-    if (mapped.length > 0) return mapped;
-    return exercises.slice(0, 4);
+  const routineCards = useMemo(() => {
+    const entries = routine[dayKey] || [];
+    return entries
+      .map((entry) => {
+        const exercise = exercises.find(e => e.id === entry.exerciseId);
+        if (!exercise) return null;
+        return {
+          exercise,
+          sets: [] as WorkoutSet[],
+          targetSets: entry.sets || 0,
+        };
+      })
+      .filter(Boolean) as Array<{ exercise: Exercise; sets: WorkoutSet[]; targetSets: number }>;
   }, [routine, dayKey, exercises]);
 
   const plannedExercises = useMemo<PlannedExercise[]>(() => {
@@ -176,7 +213,7 @@ function WorkoutTab() {
       .filter(Boolean) as Array<{ exercise: Exercise; sets: WorkoutSet[]; targetSets: number }>;
   }, [legacyLog, exercises]);
 
-  const cardData = apiExerciseCards.length > 0 ? apiExerciseCards : legacyCards;
+  const cardData = apiExerciseCards.length > 0 ? apiExerciseCards : (routineCards.length > 0 ? routineCards : legacyCards);
   const noTodayPlan = !loading && !todayPlan?.id;
 
   function openExerciseLogger(exerciseId: number) {

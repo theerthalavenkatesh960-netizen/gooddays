@@ -29,6 +29,18 @@ public class WorkoutController : ControllerBase
         return Ok(await _db.WorkoutSplitPresets.Where(s => s.UserId == userId).ToListAsync());
     }
 
+    [HttpGet("splits/active")]
+    public async Task<IActionResult> GetActiveSplit()
+    {
+        var userId = GetUserId();
+        var split = await _db.WorkoutSplitPresets
+            .Where(s => s.UserId == userId)
+            .OrderByDescending(s => s.IsActive)
+            .ThenByDescending(s => s.CreatedAt)
+            .FirstOrDefaultAsync();
+        return Ok(split);
+    }
+
     [HttpPost("splits")]
     public async Task<IActionResult> CreateSplit([FromBody] WorkoutSplitPreset body)
     {

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Settings, CheckCircle2, Moon, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Clock, ChevronDown, GripVertical, LayoutDashboard, CheckSquare, Repeat } from 'lucide-react';
+import { Bell, Settings, CheckCircle2, Moon, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Clock, ChevronDown, GripVertical, LayoutDashboard, CheckSquare, Repeat, X } from 'lucide-react';
 import { format, isToday, parseISO, subDays, addDays, startOfWeek, isSameDay, isPast } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
@@ -829,99 +829,176 @@ function TasksTab({ user }: { user: any }) {
 
 // ─── Daily Routine Tab ────────────────────────────────────────────────────────
 
-function DailyRoutineTab({ userId }: { userId: string | number }) {
-  const routineKey = `routine_blocks_${userId}`;
-  const doneKey = `routine_done_${userId}_${format(new Date(), 'yyyy-MM-dd')}`;
+type TodayRoutineBlock = {
+  id: number;
+  title: string;
+  startTime: string;
+  endTime: string;
+  category?: string;
+  color?: string;
+  status: 'pending' | 'completed' | 'skipped' | 'missed';
+  logId?: number;
+};
 
-  const [blocks, setBlocks] = useState<RoutineBlock[]>(() => {
-    try {
-      const saved = localStorage.getItem(routineKey);
-      return saved ? JSON.parse(saved) : DEFAULT_ROUTINE;
-    } catch { return DEFAULT_ROUTINE; }
-  });
+type TodayRoutine = {
+  date: string;
+  dayOfWeek: number;
+  routine: { id: number; name: string; color: string } | null;
+  isSkipped: boolean;
+  blocks: TodayRoutineBlock[];
+  stats: { completed: number; skipped: number; total: number };
+};
 
-  const [done, setDone] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem(doneKey);
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
-  });
+function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
+  const navigate = useNavigate();
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const [data, setData] = useState<TodayRoutine | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [skipping, setSkipping] = useState(false);
 
-  const [editing, setEditing] = useState(false);
-  const [addingBlock, setAddingBlock] = useState(false);
-  const [newBlock, setNewBlock] = useState({ startTime: '09:00', endTime: '10:00', label: '' });
   const now = currentMinutes();
 
-  const saveBlocks = (updated: RoutineBlock[]) => {
-    setBlocks(updated);
-    localStorage.setItem(routineKey, JSON.stringify(updated));
-  };
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await (api as any).getTodayRoutine();
+      setData(res || null);
+    } catch {
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const saveDone = (updated: Record<string, boolean>) => {
-    setDone(updated);
-    localStorage.setItem(doneKey, JSON.stringify(updated));
-  };
+  useEffect(() => { load(); }, []);
 
-  const toggleDone = (id: string) => saveDone({ ...done, [id]: !done[id] });
+  async function toggleBlock(block: TodayRoutineBlock) {
+    const nextStatus = block.status === 'completed' ? 'pending' : 'completed';
+    // Optimistic update
+    setData(prev => prev ? {
+      ...prev,
+      blocks: prev.blocks.map(b => b.id === block.id ? { ...b, status: nextStatus as any } : b),
+      stats: {
+        ...prev.stats,
+        completed: prev.stats.completed + (nextStatus === 'completed' ? 1 : -1),
+      },
+    } : prev);
+    try {
+      if (nextStatus === 'pending') {
+        // No "un-log" endpoint — just re-log as missed to clear; simplest approach: reload
+        await (api as any).logRoutineBlock({ routineBlockId: block.id, date: today, status: 'missed' });
+      } else {
+        await (api as any).logRoutineBlock({ routineBlockId: block.id, date: today, status: nextStatus });
+      }
+    } catch {
+      load(); // revert on error
+    }
+  }
 
-  const removeBlock = (id: string) => saveBlocks(blocks.filter(b => b.id !== id));
+  async function skipBlock(block: TodayRoutineBlock) {
+    setData(prev => prev ? {
+      ...prev,
+      blocks: prev.blocks.map(b => b.id === block.id ? { ...b, status: 'skipped' as any } : b),
+    } : prev);
+    try {
+      await (api as any).logRoutineBlock({ routineBlockId: block.id, date: today, status: 'skipped' });
+    } catch {
+      load();
+    }
+  }
 
-  const addBlock = () => {
-    if (!newBlock.label.trim()) return;
-    const b: RoutineBlock = { id: Date.now().toString(), ...newBlock, done: false };
-    const sorted = [...blocks, b].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
-    saveBlocks(sorted);
-    setNewBlock({ startTime: '09:00', endTime: '10:00', label: '' });
-    setAddingBlock(false);
-  };
+  async function handleSkipDay() {
+    setSkipping(true);
+    try {
+      await (api as any).skipTodayRoutine(today);
+      await load();
+    } finally {
+      setSkipping(false);
+    }
+  }
 
-  const completedCount = blocks.filter(b => done[b.id]).length;
-  const totalCount = blocks.length;
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="rounded-xl p-3 animate-pulse" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', height: 64 }} />
+        ))}
+      </div>
+    );
+  }
+
+  if (!data || !data.routine) {
+    return (
+      <div className="rounded-2xl p-6 text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>No routine for today</p>
+        <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>Assign a routine to this day to start tracking.</p>
+        <button onClick={() => navigate('/settings/routines')}
+          className="px-4 py-2 rounded-xl text-xs font-semibold text-white press"
+          style={{ backgroundColor: 'var(--accent)' }}>
+          Configure Routines →
+        </button>
+      </div>
+    );
+  }
+
+  const { routine, blocks, stats, isSkipped } = data;
+  const pct = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
 
   return (
     <div>
+      {/* Skipped banner */}
+      {isSkipped && (
+        <div className="rounded-xl px-4 py-3 mb-3 flex items-center justify-between"
+          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)', opacity: 0.9 }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>Day skipped</p>
+          <button onClick={handleSkipDay} disabled={skipping}
+            className="text-xs underline press" style={{ color: 'var(--text-muted)' }}>
+            Undo
+          </button>
+        </div>
+      )}
+
       {/* Progress header */}
       <div className="rounded-2xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="flex items-center justify-between mb-2">
           <div>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Today's routine</p>
-            <p className="text-xl font-bold num mt-0.5" style={{ color: 'var(--text-primary)' }}>{completedCount}/{totalCount}</p>
+            <div className="flex items-center gap-2 mb-0.5">
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: routine.color || 'var(--accent)' }} />
+              <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{routine.name}</p>
+            </div>
+            <p className="text-xl font-bold num" style={{ color: 'var(--text-primary)' }}>
+              {stats.completed}/{stats.total}
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setEditing(!editing)}
+          {!isSkipped && (
+            <button onClick={handleSkipDay} disabled={skipping}
               className="px-3 py-1.5 rounded-xl text-xs font-semibold press"
-              style={{ backgroundColor: editing ? 'var(--accent)' : 'var(--surface-elevated)', color: editing ? '#fff' : 'var(--text-secondary)' }}>
-              {editing ? 'Done' : 'Edit'}
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+              Skip Day
             </button>
-            <button onClick={() => setAddingBlock(true)}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold press text-white"
-              style={{ backgroundColor: 'var(--accent)' }}>
-              + Block
-            </button>
-          </div>
+          )}
         </div>
         <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-          <motion.div className="h-full rounded-full" style={{ backgroundColor: 'var(--accent)', width: `${totalCount > 0 ? (completedCount / totalCount) * 100 : 0}%` }}
+          <motion.div className="h-full rounded-full"
+            style={{ backgroundColor: routine.color || 'var(--accent)', width: `${pct}%` }}
             transition={{ duration: 0.5 }} />
         </div>
       </div>
 
       {/* Time blocks */}
       <div className="space-y-2">
-        {blocks.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)).map(block => {
+        {blocks.map(block => {
           const start = timeToMinutes(block.startTime);
           const end = timeToMinutes(block.endTime);
           const isActive = now >= start && now < end;
-          const isPassed = now >= end;
-          const isDone = done[block.id];
+          const isDone = block.status === 'completed';
+          const isBlockSkipped = block.status === 'skipped';
 
           return (
             <motion.div key={block.id} layout
               className="rounded-xl overflow-hidden"
-              style={{
-                border: isActive ? `1px solid var(--accent)` : '1px solid var(--border)',
-                backgroundColor: isDone ? 'var(--surface)' : 'var(--surface)',
-              }}>
+              style={{ border: isActive ? `1px solid var(--accent)` : '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
               <div className="flex items-center gap-3 p-3">
                 {/* Time */}
                 <div className="text-center flex-shrink-0 w-14">
@@ -930,45 +1007,53 @@ function DailyRoutineTab({ userId }: { userId: string | number }) {
                   <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>{block.endTime}</p>
                 </div>
 
-                {/* Active indicator */}
-                {isActive && (
+                {/* Active dot */}
+                {isActive && !isDone && !isBlockSkipped && (
                   <div className="w-1.5 h-1.5 rounded-full animate-pulse-dot flex-shrink-0" style={{ backgroundColor: 'var(--accent)' }} />
                 )}
 
                 {/* Label */}
                 <p className="flex-1 text-sm font-medium" style={{
-                  color: isDone ? 'var(--text-muted)' : 'var(--text-primary)',
-                  textDecoration: isDone ? 'line-through' : 'none',
+                  color: isDone || isBlockSkipped ? 'var(--text-muted)' : 'var(--text-primary)',
+                  textDecoration: isDone ? 'line-through' : isBlockSkipped ? 'line-through' : 'none',
                 }}>
-                  {block.label}
+                  {block.title}
+                  {isBlockSkipped && (
+                    <span className="ml-2 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>skipped</span>
+                  )}
                 </p>
 
-                {/* Status */}
-                {isActive && !isDone && (
+                {/* Now badge */}
+                {isActive && !isDone && !isBlockSkipped && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
                     Now
                   </span>
                 )}
 
-                {/* Check / delete */}
-                {editing ? (
-                  <button onClick={() => removeBlock(block.id)} className="p-1.5 rounded-lg press" style={{ color: '#ef4444' }}>
-                    <Trash2 size={14} />
+                {/* Skip button (only for pending) */}
+                {!isDone && !isBlockSkipped && !isSkipped && (
+                  <button onClick={() => skipBlock(block)}
+                    className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}
+                    title="Skip this block">
+                    <X size={13} />
                   </button>
-                ) : (
-                  <button onClick={() => toggleDone(block.id)} className="press">
+                )}
+
+                {/* Check toggle */}
+                {!isSkipped && (
+                  <button onClick={() => toggleBlock(block)} className="press ml-0.5">
                     {isDone
-                      ? <CheckCircle2 size={20} style={{ color: 'var(--accent)' }} />
+                      ? <CheckCircle2 size={20} style={{ color: routine.color || 'var(--accent)' }} />
                       : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--border)' }} />}
                   </button>
                 )}
               </div>
 
               {/* Active progress bar */}
-              {isActive && (
+              {isActive && !isDone && !isBlockSkipped && (
                 <div className="h-0.5 w-full" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                   <div className="h-full" style={{
-                    backgroundColor: 'var(--accent)',
+                    backgroundColor: routine.color || 'var(--accent)',
                     width: `${Math.min(100, ((now - start) / (end - start)) * 100)}%`,
                     transition: 'width 60s linear',
                   }} />
@@ -979,51 +1064,12 @@ function DailyRoutineTab({ userId }: { userId: string | number }) {
         })}
       </div>
 
-      {/* Add block sheet */}
-      <AnimatePresence>
-        {addingBlock && (
-          <>
-            <motion.div className="fixed inset-0 z-40 bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setAddingBlock(false)} />
-            <motion.div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl p-5"
-              style={{ backgroundColor: 'var(--surface)', paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 350 }}>
-              <h3 className="text-base font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Add Routine Block</h3>
-              <div className="space-y-3">
-                <input type="text" value={newBlock.label} onChange={e => setNewBlock({ ...newBlock, label: e.target.value })}
-                  placeholder="e.g. Morning workout" autoFocus
-                  className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>Start</p>
-                    <input type="time" value={newBlock.startTime} onChange={e => setNewBlock({ ...newBlock, startTime: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl text-sm outline-none"
-                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>End</p>
-                    <input type="time" value={newBlock.endTime} onChange={e => setNewBlock({ ...newBlock, endTime: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl text-sm outline-none"
-                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2 mt-4">
-                <button onClick={() => setAddingBlock(false)} className="px-4 py-2.5 rounded-xl text-sm font-semibold press"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                  Cancel
-                </button>
-                <button onClick={addBlock} disabled={!newBlock.label.trim()}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white press disabled:opacity-40"
-                  style={{ backgroundColor: 'var(--accent)' }}>
-                  Add Block
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {/* Footer */}
+      <button onClick={() => navigate('/settings/routines')}
+        className="mt-4 w-full py-2.5 rounded-xl text-xs font-semibold press"
+        style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+        Configure Routines →
+      </button>
     </div>
   );
 }

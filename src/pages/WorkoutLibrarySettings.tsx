@@ -22,7 +22,6 @@ type SplitPreset = { id: number; name: string; dayConfigs: string; isActive: boo
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio', 'Full Body'];
-const SPLIT_NAME = 'Weekly Routine';
 
 const MUSCLE_MAP: Record<string, string> = {
   'Chest': 'chest',
@@ -56,10 +55,9 @@ export default function WorkoutLibrarySettings() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [exData, splitsData] = await Promise.all([api.getExercises(), api.getSplits()]);
+      const [exData, activeSplit] = await Promise.all([api.getExercises(), api.getActiveSplit()]);
       setExercises(Array.isArray(exData) ? exData : []);
-      const splits: SplitPreset[] = Array.isArray(splitsData) ? splitsData : [];
-      const found = splits.find(s => s.name === SPLIT_NAME) ?? splits[0] ?? null;
+      const found = activeSplit as SplitPreset | null;
       if (found) {
         setSplit(found);
         if (typeof found.dayConfigs === 'string') {
@@ -85,7 +83,7 @@ export default function WorkoutLibrarySettings() {
         const updated = await api.updateSplit(split.id, { ...split, dayConfigs });
         setSplit(updated);
       } else {
-        const created = await api.createSplit({ name: SPLIT_NAME, dayConfigs, isActive: true });
+        const created = await api.createSplit({ name: 'Weekly Routine', dayConfigs, isActive: true });
         setSplit(created);
       }
       setStatus('Routine saved');
