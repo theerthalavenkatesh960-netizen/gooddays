@@ -1254,3 +1254,125 @@ export async function upsertDailyMealLog(date: string, mealIds: number[]) {
   return request('meal/logs', { method: 'PUT', body: JSON.stringify({ date, mealIds }) });
 }
 
+// ─── Water Intake API ─────────────────────────────────────────────────────────
+
+type DailyWaterLog = {
+  date: string;
+  cupsConsumed: number;
+  goalCups: number;
+};
+
+const DUMMY_DAILY_WATER_LOGS: Record<string, DailyWaterLog> = {};
+
+export async function getDailyWaterLog(date: string) {
+  if (USE_DUMMY_DATA) {
+    const log = DUMMY_DAILY_WATER_LOGS[asDateKey(date)];
+    return Promise.resolve(log || { date: asDateKey(date), cupsConsumed: 0, goalCups: 8 });
+  }
+  return request(`water/logs/${date}`);
+}
+
+export async function logWaterCups(date: string, cups: number, goalCups: number = 8) {
+  if (USE_DUMMY_DATA) {
+    const key = asDateKey(date);
+    DUMMY_DAILY_WATER_LOGS[key] = { date: key, cupsConsumed: Math.max(0, cups), goalCups };
+    return Promise.resolve(DUMMY_DAILY_WATER_LOGS[key]);
+  }
+  return request('water/logs', { method: 'POST', body: JSON.stringify({ date, cupsConsumed: cups, goalCups }) });
+}
+
+export async function incrementWaterCups(date: string, increment: number = 1) {
+  if (USE_DUMMY_DATA) {
+    const key = asDateKey(date);
+    const current = DUMMY_DAILY_WATER_LOGS[key] || { date: key, cupsConsumed: 0, goalCups: 8 };
+    const next = { ...current, cupsConsumed: Math.max(0, current.cupsConsumed + increment) };
+    DUMMY_DAILY_WATER_LOGS[key] = next;
+    return Promise.resolve(next);
+  }
+  return request('water/logs/increment', { method: 'POST', body: JSON.stringify({ date, increment }) });
+}
+
+// ─── Unified Quick Log API ────────────────────────────────────────────────────
+
+export type QuickLogEntry = {
+  id: number;
+  date: string;
+  type: 'workout' | 'meal' | 'expense' | 'water';
+  payload: Record<string, any>;
+  createdAt: string;
+};
+
+const DUMMY_QUICK_LOG_ENTRIES: QuickLogEntry[] = [];
+
+export async function logQuickEntry(type: 'workout' | 'meal' | 'expense' | 'water', payload: Record<string, any>, date?: string) {
+  if (USE_DUMMY_DATA) {
+    const entry: QuickLogEntry = {
+      id: DUMMY_QUICK_LOG_ENTRIES.length + 1,
+      date: asDateKey(date),
+      type,
+      payload,
+      createdAt: new Date().toISOString(),
+    };
+    DUMMY_QUICK_LOG_ENTRIES.push(entry);
+
+    // Also update the appropriate domain store based on type
+    if (type === 'workout' && payload.exerciseId) {
+      // Create/update workout set in dummy store
+      const store = getDummyWorkoutStore();
+      const plan = findWorkoutPlanById(payload.planId) || await createWorkoutPlan({ date: entry.date, dayLabel: 'quick-log' });
+      if (plan) {
+        await logWorkoutSet(plan.id, {
+          exerciseId: payload.exerciseId,
+          reps: payload.reps || 10,
+          weightKg: payload.weightKg || 0,
+          isCompleted: true,
+        });
+      }
+    } else if (type === 'meal' && payload.mealIds) {
+      // Log meal in meal log store
+      const current = DUMMY_DAILY_MEAL_LOGS[entry.date] || [];
+      const mealIds = Array.isArray(payload.mealIds) ? payload.mealIds : [payload.mealIds];
+      DUMMY_DAILY_MEAL_LOGS[entry.date] = [...new Set([...current, ...mealIds])];
+    } else if (type === 'water' && payload.cups) {
+      // Log water cups
+      const key = entry.date;
+      const current = DUMMY_DAILY_WATER_LOGS[key] || { date: key, cupsConsumed: 0, goalCups: 8 };
+      current.cupsConsumed += payload.cups;
+      DUMMY_DAILY_WATER_LOGS[key] = current;
+    }
+
+    return Promise.resolve(cloneAny(entry));
+  }
+  return request('quicklog', { method: 'POST', body: JSON.stringify({ type, payload, date: date || asDateKey() }) });
+}
+
+export async function getQuickLogHistory(from: string, to: string, type?: 'workout' | 'meal' | 'expense' | 'water') {
+  if (USE_DUMMY_DATA) {
+    let filtered = DUMMY_QUICK_LOG_ENTRIES.filter(e => e.date >= asDateKey(from) && e.date <= asDateKey(to));
+    if (type) filtered = filtered.filter(e => e.type === type);
+    return Promise.resolve(cloneAny(filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())));
+  }
+  const params = new URLSearchParams();
+  params.set('from', from);
+  params.set('to', to);
+  if (type) params.set('type', type);
+  return request(`quicklog/history?${params}`);
+}
+
+export async function deleteQuickLogEntry(id: number) {
+  if (USE_DUMMY_DATA) {
+    const idx = DUMMY_QUICK_LOG_ENTRIES.findIndex(e => e.id === id);
+    if (idx >= 0) DUMMY_QUICK_LOG_ENTRIES.splice(idx, 1);
+    return Promise.resolve({ success: true });
+  }
+  return request(`quicklog/${id}`, { method: 'DELETE' });
+}
+
+export async function getTodayQuickLogs() {
+  if (USE_DUMMY_DATA) {
+    const today = asDateKey();
+    return Promise.resolve(cloneAny(DUMMY_QUICK_LOG_ENTRIES.filter(e => e.date === today)));
+  }
+  return request('quicklog/today');
+}
+

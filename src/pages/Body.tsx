@@ -362,6 +362,8 @@ function DietTab() {
   const [plannedMeals, setPlannedMeals] = useState<MealTemplate[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [goal, setGoal] = useState(2400);
+  const [waterCups, setWaterCups] = useState(0);
+  const [waterGoal, setWaterGoal] = useState(8);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -371,10 +373,11 @@ function DietTab() {
     async function load() {
       setLoading(true);
       try {
-        const [templates, weeklyPlan, todayLog] = await Promise.all([
+        const [templates, weeklyPlan, todayLog, waterLog] = await Promise.all([
           api.getMealTemplates(),
           api.getWeeklyMealPlan() as Promise<WeeklyMealPlan>,
           (api as any).getDailyMealLog(today) as Promise<DailyMealLog | null>,
+          (api as any).getDailyWaterLog(today),
         ]);
 
         const list = Array.isArray(templates) ? templates : [];
@@ -392,6 +395,11 @@ function DietTab() {
           .filter((m): m is MealTemplate => !!m);
         setPlannedMeals(planned);
         setSelected(Array.isArray(todayLog?.mealIds) ? todayLog!.mealIds : []);
+        
+        if (waterLog) {
+          setWaterCups(waterLog.cupsConsumed || 0);
+          setWaterGoal(waterLog.goalCups || 8);
+        }
       } finally {
         setLoading(false);
       }
@@ -413,6 +421,16 @@ function DietTab() {
     }
   }
 
+  async function addWaterCup() {
+    const next = waterCups + 1;
+    setWaterCups(next);
+    try {
+      await (api as any).incrementWaterCups(today, 1);
+    } catch {
+      // Optimistic update
+    }
+  }
+
   const consumedCalories = useMemo(() => {
     return plannedMeals
       .filter(m => selected.includes(m.id))
@@ -422,11 +440,13 @@ function DietTab() {
       }, 0);
   }, [selected, plannedMeals]);
 
-  const pct = goal > 0 ? Math.min(100, Math.round((consumedCalories / goal) * 100)) : 0;
+  const caloriePercentage = goal > 0 ? Math.min(100, Math.round((consumedCalories / goal) * 100)) : 0;
+  const waterPercentage = waterGoal > 0 ? Math.min(100, Math.round((waterCups / waterGoal) * 100)) : 0;
 
   return (
-    <div className="px-4">
-      <div className="p-5 rounded-2xl mb-4 flex items-center gap-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div className="px-4 space-y-4">
+      {/* Calorie Progress */}
+      <div className="p-5 rounded-2xl flex items-center gap-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="relative flex-shrink-0">
           <svg width="88" height="88" className="-rotate-90">
             <circle cx="44" cy="44" r="36" stroke="var(--surface-elevated)" strokeWidth="8" fill="none" />
@@ -436,18 +456,34 @@ function DietTab() {
               strokeWidth="8"
               fill="none"
               strokeDasharray={`${2 * Math.PI * 36}`}
-              strokeDashoffset={`${2 * Math.PI * 36 * (1 - pct / 100)}`}
+              strokeDashoffset={`${2 * Math.PI * 36 * (1 - caloriePercentage / 100)}`}
               strokeLinecap="round"
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-lg font-bold num" style={{ color: 'var(--text-primary)' }}>{pct}%</span>
+            <span className="text-lg font-bold num" style={{ color: 'var(--text-primary)' }}>{caloriePercentage}%</span>
           </div>
         </div>
         <div>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Consumed</p>
           <p className="text-2xl font-bold num" style={{ color: 'var(--text-primary)' }}>{Math.round(consumedCalories)}</p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>of {goal} kcal</p>
+        </div>
+      </div>
+
+      {/* Water Intake */}
+      <div className="p-4 rounded-2xl space-y-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>💧 Water Intake</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{waterCups} of {waterGoal} cups</p>
+          </div>
+          <button onClick={addWaterCup} className="px-3 py-1 rounded-lg text-sm font-semibold text-white" style={{ backgroundColor: 'var(--accent)' }}>+ Cup</button>
+        </div>
+        <div className="flex gap-1">
+          {Array.from({ length: waterGoal }).map((_, i) => (
+            <div key={i} className="flex-1 h-6 rounded-md" style={{ backgroundColor: i < waterCups ? 'var(--accent)' : 'var(--surface-elevated)' }} />
+          ))}
         </div>
       </div>
 
@@ -497,58 +533,81 @@ function DietTab() {
 }
 
 function ProgressTab() {
-  const [logs, setLogs] = useState<WorkoutLog[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [prs, setPrs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const raw = localStorage.getItem(WORKOUT_LOGS_KEY);
-    if (raw) {
-      try { setLogs(JSON.parse(raw)); } catch { setLogs([]); }
-    }
-  }, []);
-
-  const prs = useMemo(() => {
-    const map = new Map<string, { exerciseName: string; bestWeight: number; bestReps: number; achievedAt: string }>();
-    for (const log of logs) {
-      for (const ex of log.exercises) {
-        for (const set of ex.sets) {
-          const existing = map.get(ex.name);
-          if (!existing || (set.weight > existing.bestWeight || (set.weight === existing.bestWeight && set.reps > existing.bestReps))) {
-            map.set(ex.name, {
-              exerciseName: ex.name,
-              bestWeight: set.weight || 0,
-              bestReps: set.reps || 0,
-              achievedAt: log.date,
-            });
-          }
-        }
+    async function load() {
+      setLoading(true);
+      try {
+        const [analyticsData, prsData] = await Promise.all([
+          api.getWorkoutAnalytics().catch(() => null),
+          api.getPersonalRecords().catch(() => []),
+        ]);
+        setAnalytics(analyticsData);
+        setPrs(Array.isArray(prsData) ? prsData : []);
+      } finally {
+        setLoading(false);
       }
     }
-    return Array.from(map.values()).slice(0, 8);
-  }, [logs]);
+    load();
+    const interval = setInterval(load, 10000); // Refresh every 10s
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <div className="px-4">
+    <div className="px-4 space-y-4">
+      {/* Stats */}
+      {analytics && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Days Logged</p>
+            <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{analytics.daysLogged || 0}</p>
+          </div>
+          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Total Sets</p>
+            <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{analytics.totalSets || 0}</p>
+          </div>
+          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Total Volume</p>
+            <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{Math.round(analytics.totalVolume || 0)}</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>kg</p>
+          </div>
+          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Last 12w</p>
+            <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{analytics.weeks || 12}</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>weeks</p>
+          </div>
+        </div>
+      )}
+
       <div className="section-header px-0 mb-2">
         <span className="section-label">Personal Records</span>
       </div>
-      {prs.length === 0 ? (
+      
+      {loading ? (
+        <div className="py-8 text-center">
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</p>
+        </div>
+      ) : prs.length === 0 ? (
         <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-sm" style={{ color: 'var(--text-primary)' }}>No workout logs yet.</p>
+          <p className="text-sm" style={{ color: 'var(--text-primary)' }}>No personal records yet.</p>
+          <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Log your first workout to see your PRs here!</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {prs.map(pr => (
-            <div key={pr.exerciseName} className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          {prs.slice(0, 10).map((pr, idx) => (
+            <div key={idx} className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--accent-gold)22' }}>
-                <Trophy size={16} style={{ color: 'var(--accent-gold)' }} />
+                🏆
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{pr.exerciseName}</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Exercise #{pr.exerciseId}</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  {pr.bestWeight} kg x {pr.bestReps} reps
+                  {pr.weightKg} kg x {pr.reps} reps
                 </p>
               </div>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{format(new Date(pr.achievedAt), 'd MMM')}</span>
             </div>
           ))}
         </div>
