@@ -92,6 +92,100 @@ function currentMinutes() {
   return n.getHours() * 60 + n.getMinutes();
 }
 
+const DEFAULT_MOMENTUM_WEIGHTS = {
+  tasks: 35,
+  routine: 20,
+  body: 15,
+  workout: 15,
+  finance: 10,
+  journal: 5,
+} as const;
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function momentumBand(score: number) {
+  if (score >= 90) return 'Legendary';
+  if (score >= 70) return 'Strong';
+  if (score >= 40) return 'Build';
+  return 'Recover';
+}
+
+function pickVariant(items: string[], seed: number) {
+  if (items.length === 0) return '';
+  return items[Math.abs(seed) % items.length];
+}
+
+function getHeroMessage(params: {
+  score: number;
+  delta: number;
+  dayKey: string;
+  routinePendingCount: number;
+  tasksPendingCount: number;
+}) {
+  const band = momentumBand(params.score);
+  const scoreSeed = [...params.dayKey].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) + params.score;
+
+  const byBand: Record<string, string[]> = {
+    Recover: [
+      'Reset mode: one intentional action can flip this day.',
+      'Low momentum is not failure. It is your launch point.',
+      'Start tiny, finish strong. First action wins today.',
+    ],
+    Build: [
+      'You are building momentum. Protect it with the next step.',
+      'Solid base today. One focused push lifts the whole score.',
+      'Consistency is forming. Keep stacking clean wins.',
+    ],
+    Strong: [
+      'You are in strong form. Convert this into a streak day.',
+      'Great pace. Stay disciplined for one more high-value action.',
+      'You are close to elite mode. Keep the chain unbroken.',
+    ],
+    Legendary: [
+      'Legendary pace. Lock it in and make this your new normal.',
+      'You are operating at peak consistency today.',
+      'Top-tier day. Use this energy to pull tomorrow forward.',
+    ],
+  };
+
+  let suffix = '';
+  if (params.delta > 0) suffix = ` (+${params.delta} vs yesterday)`;
+  if (params.delta < 0) suffix = ` (${params.delta} vs yesterday, recover now)`;
+  if (params.routinePendingCount > 0) suffix += ` · ${params.routinePendingCount} routine block${params.routinePendingCount > 1 ? 's' : ''} pending`;
+  if (!suffix && params.tasksPendingCount > 0) suffix = ` · ${params.tasksPendingCount} task${params.tasksPendingCount > 1 ? 's' : ''} to close`;
+
+  return `${pickVariant(byBand[band] ?? byBand.Build, scoreSeed)}${suffix}`;
+}
+
+function calculateMomentumScore(input: {
+  taskCompletionRatio: number;
+  routineRatio: number;
+  sleepHours: number;
+  waterCups: number;
+  waterGoal: number;
+  calories: number;
+  workoutDone: boolean;
+  financeTouched: boolean;
+  journalDone: boolean;
+  weights: typeof DEFAULT_MOMENTUM_WEIGHTS;
+}) {
+  const bodyScore =
+    (input.sleepHours > 0 ? input.weights.body / 3 : 0) +
+    clamp((input.waterCups / Math.max(1, input.waterGoal)) * (input.weights.body / 3), 0, input.weights.body / 3) +
+    (input.calories > 0 ? input.weights.body / 3 : 0);
+
+  return Math.round(
+    clamp(input.taskCompletionRatio, 0, 1) * input.weights.tasks +
+    clamp(input.routineRatio, 0, 1) * input.weights.routine +
+    bodyScore +
+    (input.workoutDone ? input.weights.workout : 0) +
+    (input.financeTouched ? input.weights.finance : 0) +
+    (input.journalDone ? input.weights.journal : 0)
+  );
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function StatChip({ icon: Icon, label, value, color, empty }: {
@@ -110,105 +204,509 @@ function StatChip({ icon: Icon, label, value, color, empty }: {
 
 // ─── Dashboard Tab ────────────────────────────────────────────────────────────
 
-function DashboardTab({ user, navigate }: { user: any; navigate: (p: string) => void }) {
+function DashboardTab({
+  user,
+  navigate,
+  onOpenTasks,
+  onOpenRoutine,
+}: {
+  user: any;
+  navigate: (p: string) => void;
+  onOpenTasks: () => void;
+  onOpenRoutine: () => void;
+}) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [sleep, setSleep] = useState('');
   const [water, setWater] = useState(0);
   const [waterGoal] = useState(8);
   const [workoutStreak, setWorkoutStreak] = useState(0);
-  const [reminders, setReminders] = useState<any[]>([]);
-  const [streaks, setStreaks] = useState({ tasks: Array(7).fill(false), workout: Array(7).fill(false) });
   const [calToday, setCalToday] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [reminders, setReminders] = useState<any[]>([]);
+  const [momentumScore, setMomentumScore] = useState(0);
+  const [momentumDelta, setMomentumDelta] = useState(0);
+  const [weeklyTaskDays, setWeeklyTaskDays] = useState(0);
+  const [weeklyWorkoutDays, setWeeklyWorkoutDays] = useState(0);
+  const [weeklyJournalDays, setWeeklyJournalDays] = useState(0);
+  const [weeklySpend, setWeeklySpend] = useState(0);
+  const [goalsInProgress, setGoalsInProgress] = useState(0);
+  const [monthlyNet, setMonthlyNet] = useState<number | null>(null);
+  const [journalToday, setJournalToday] = useState(false);
+  const [workoutToday, setWorkoutToday] = useState(false);
+  const [financeTouchedToday, setFinanceTouchedToday] = useState(false);
+  const [routinePendingCount, setRoutinePendingCount] = useState(0);
+  const [routineCompletionText, setRoutineCompletionText] = useState('No routine');
+  const [momentumWeights, setMomentumWeights] = useState(DEFAULT_MOMENTUM_WEIGHTS);
 
   const today = format(new Date(), 'yyyy-MM-dd');
-  const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  const isEvening = new Date().getHours() >= 20;
+  const completedTaskCount = tasks.filter(t => t.isCompleted ?? t.status === 'completed').length;
+  const pendingTaskCount = tasks.filter(t => !(t.isCompleted ?? t.status === 'completed')).length;
+  const scoreBand = momentumBand(momentumScore);
+
+  const nextActionRules: Array<() => {
+    title: string;
+    subtitle: string;
+    points: number;
+    cta: string;
+    onPress: () => void;
+    icon: React.ElementType;
+  } | null> = [
+    () => tasks.length === 0 ? {
+      title: 'Create your first task for today',
+      subtitle: 'Start small to trigger momentum.',
+      points: Math.max(5, Math.round(momentumWeights.tasks / 4)),
+      cta: 'Add Task',
+      onPress: onOpenTasks,
+      icon: Plus,
+    } : null,
+    () => {
+      const incompleteTask = tasks.find(t => !(t.isCompleted ?? t.status === 'completed'));
+      if (!incompleteTask) return null;
+      return {
+        title: 'Complete one pending task',
+        subtitle: incompleteTask.title,
+        points: Math.max(5, Math.round(momentumWeights.tasks / 4)),
+        cta: 'Open Tasks',
+        onPress: onOpenTasks,
+        icon: CheckCircle2,
+      };
+    },
+    () => routinePendingCount > 0 ? {
+      title: 'Finish your next routine block',
+      subtitle: `${routinePendingCount} block${routinePendingCount > 1 ? 's' : ''} pending today`,
+      points: Math.max(4, Math.round(momentumWeights.routine / 4)),
+      cta: 'Open Routine',
+      onPress: onOpenRoutine,
+      icon: Repeat,
+    } : null,
+    () => !workoutToday ? {
+      title: 'Log your workout',
+      subtitle: 'Keep your training chain alive.',
+      points: Math.max(4, Math.round(momentumWeights.workout / 2)),
+      cta: 'Open Workout',
+      onPress: () => navigate('/body/workout-log'),
+      icon: Dumbbell,
+    } : null,
+    () => water < waterGoal ? {
+      title: 'Hydration check',
+      subtitle: `Drink ${waterGoal - water} more cup${waterGoal - water > 1 ? 's' : ''}.`,
+      points: Math.max(3, Math.round((momentumWeights.body / 3) * 0.7)),
+      cta: 'Open Body',
+      onPress: () => navigate('/body'),
+      icon: Droplets,
+    } : null,
+    () => !journalToday ? {
+      title: 'Write today\'s journal entry',
+      subtitle: 'Capture your momentum while it is fresh.',
+      points: Math.max(3, momentumWeights.journal),
+      cta: 'Open Journal',
+      onPress: () => navigate('/journal/new'),
+      icon: BookOpen,
+    } : null,
+    () => !financeTouchedToday ? {
+      title: 'Log a finance entry',
+      subtitle: 'One money log keeps your month honest.',
+      points: Math.max(3, Math.round(momentumWeights.finance / 2)),
+      cta: 'Open Finance',
+      onPress: () => navigate('/finance'),
+      icon: DollarSign,
+    } : null,
+  ];
+
+  const nextAction = nextActionRules.map((rule) => rule()).find(Boolean) ?? {
+    title: 'You\'re in flow. Keep the streak alive.',
+    subtitle: 'Pick any meaningful action and compound the day.',
+    points: 3,
+    cta: 'Go to Life',
+    onPress: () => navigate('/life'),
+    icon: Flame,
+  };
+
+  const heroMessage = getHeroMessage({
+    score: momentumScore,
+    delta: momentumDelta,
+    dayKey: today,
+    routinePendingCount,
+    tasksPendingCount: pendingTaskCount,
+  });
+
+  const wins = [
+    completedTaskCount > 0
+      ? `${completedTaskCount} tasks done today`
+      : null,
+    workoutToday ? 'Workout logged today' : null,
+    journalToday ? 'Journal written today' : null,
+    financeTouchedToday ? 'Finance tracked today' : null,
+    workoutStreak > 0 ? `${workoutStreak} day workout streak` : null,
+  ].filter(Boolean).slice(0, 4) as string[];
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([loadTasks(), loadTracking(), loadReminders(), loadStreaks()]).finally(() => setLoading(false));
+    loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const loadTasks = async () => {
+  const loadDashboard = async () => {
+    const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const currentMonthKey = format(new Date(), 'yyyy-MM');
+
+    setLoading(true);
     try {
-      const data = await api.getTasks(user.id);
-      const list = Array.isArray(data) ? data : [];
-      const todayTasks = list.filter((t: Task) => {
+      const [
+        settingsData,
+        taskData,
+        trackingData,
+        yesterdayTrackingData,
+        reminderData,
+        workoutData,
+        journalData,
+        routineData,
+        expenseData,
+        budgetData,
+        goalsData,
+      ] = await Promise.all([
+        api.getUserSettings().catch(() => null),
+        api.getTasks(user.id).catch(() => []),
+        api.getDailyTracking(user.id, today).catch(() => null),
+        api.getDailyTracking(user.id, yesterday).catch(() => null),
+        api.getReminders().catch(() => []),
+        api.getWorkoutAnalytics().catch(() => ({ trainedDates: [] })),
+        api.getJournalEntries(1).catch(() => []),
+        (api as any).getTodayRoutine().catch(() => null),
+        api.getExpenses(user.id).catch(() => []),
+        (api as any).getFinanceBudgetProfile(new Date().getMonth() + 1, new Date().getFullYear()).catch(() => null),
+        api.getGoals().catch(() => []),
+      ]);
+
+      const settingsWeights = (settingsData as any)?.dashboardWeights;
+      if (settingsWeights) {
+        const normalized = {
+          tasks: clamp(Number(settingsWeights.tasks || DEFAULT_MOMENTUM_WEIGHTS.tasks), 0, 100),
+          routine: clamp(Number(settingsWeights.routine || DEFAULT_MOMENTUM_WEIGHTS.routine), 0, 100),
+          body: clamp(Number(settingsWeights.body || DEFAULT_MOMENTUM_WEIGHTS.body), 0, 100),
+          workout: clamp(Number(settingsWeights.workout || DEFAULT_MOMENTUM_WEIGHTS.workout), 0, 100),
+          finance: clamp(Number(settingsWeights.finance || DEFAULT_MOMENTUM_WEIGHTS.finance), 0, 100),
+          journal: clamp(Number(settingsWeights.journal || DEFAULT_MOMENTUM_WEIGHTS.journal), 0, 100),
+        };
+        const total = normalized.tasks + normalized.routine + normalized.body + normalized.workout + normalized.finance + normalized.journal;
+        if (total > 0) {
+          const scale = 100 / total;
+          const scaled = {
+            tasks: Math.round(normalized.tasks * scale),
+            routine: Math.round(normalized.routine * scale),
+            body: Math.round(normalized.body * scale),
+            workout: Math.round(normalized.workout * scale),
+            finance: Math.round(normalized.finance * scale),
+            journal: 0,
+          };
+          scaled.journal = Math.max(0, 100 - scaled.tasks - scaled.routine - scaled.body - scaled.workout - scaled.finance);
+          setMomentumWeights(scaled);
+        }
+      }
+
+      const allTasks = Array.isArray(taskData) ? taskData : [];
+      const todayTasks = allTasks.filter((t: Task) => {
         const due = t.dueDate ?? t.due_date;
         if (!due) return false;
-        try { return isToday(parseISO(due)); } catch { return false; }
-      });
-      setTasks(todayTasks.slice(0, 5));
-    } catch {}
-  };
+        try {
+          return isToday(parseISO(due));
+        } catch {
+          return false;
+        }
+      }).slice(0, 5);
+      setTasks(todayTasks);
 
-  const loadTracking = async () => {
-    try {
-      const rec: any = await api.getDailyTracking(user.id, today);
-      if (rec) {
-        setSleep((rec.sleepHours ?? rec.sleep_hours)?.toString() || '');
-        setWater(rec.waterCups ?? 0);
-        setCalToday(rec.calories ?? 0);
-      }
-    } catch {}
-  };
+      const completedToday = allTasks.filter((t: any) => {
+        const done = t.isCompleted ?? t.status === 'completed';
+        if (!done) return false;
+        const updated = t.updatedAt ? format(new Date(t.updatedAt), 'yyyy-MM-dd') : null;
+        return updated === today;
+      }).length;
 
-  const loadReminders = async () => {
-    try {
-      const data = await api.getReminders();
-      setReminders(Array.isArray(data) ? data.filter((r: any) => r.isEnabled).slice(0, 3) : []);
-    } catch {}
-  };
+      const completedYesterday = allTasks.filter((t: any) => {
+        const done = t.isCompleted ?? t.status === 'completed';
+        if (!done) return false;
+        const updated = t.updatedAt ? format(new Date(t.updatedAt), 'yyyy-MM-dd') : null;
+        return updated === yesterday;
+      }).length;
 
-  const loadStreaks = async () => {
-    try {
-      const last7 = Array.from({ length: 7 }, (_, i) => format(subDays(new Date(), 6 - i), 'yyyy-MM-dd'));
-      const [tasksData, workoutData] = await Promise.all([
-        api.getTasks(user.id).catch(() => []),
-        api.getWorkoutAnalytics().catch(() => ({ trainedDates: [] })),
-      ]);
-      const tList = Array.isArray(tasksData) ? tasksData : [];
-      const trainedDates: string[] = workoutData?.trainedDates ?? [];
-      const tStreak = last7.map(d =>
-        tList.some((t: any) => {
-          if (!t.isCompleted) return false;
-          const dt = new Date(t.updatedAt);
-          return !isNaN(dt.getTime()) && format(dt, 'yyyy-MM-dd') === d;
-        })
-      );
-      setStreaks({ tasks: tStreak, workout: last7.map(d => trainedDates.includes(d)) });
+      const tracking: any = trackingData ?? {};
+      const yesterdayTracking: any = yesterdayTrackingData ?? {};
+      const sleepHours = Number((tracking.sleepHours ?? tracking.sleep_hours) || 0);
+      const waterCups = Number(tracking.waterCups ?? 0);
+      const calories = Number(tracking.calories ?? 0);
+      const ySleepHours = Number((yesterdayTracking.sleepHours ?? yesterdayTracking.sleep_hours) || 0);
+      const yWaterCups = Number(yesterdayTracking.waterCups ?? 0);
+      const yCalories = Number(yesterdayTracking.calories ?? 0);
+      setSleep(sleepHours > 0 ? sleepHours.toString() : '');
+      setWater(waterCups);
+      setCalToday(calories);
+
+      const remindersList = Array.isArray(reminderData) ? reminderData.filter((r: any) => r.isEnabled).slice(0, 3) : [];
+      setReminders(remindersList);
+
+      const trainedDates: string[] = Array.isArray((workoutData as any)?.trainedDates) ? (workoutData as any).trainedDates : [];
+      const workoutDoneToday = trainedDates.includes(today);
+      setWorkoutToday(workoutDoneToday);
+
       let streak = 0;
-      for (let i = 6; i >= 0; i--) {
-        if (trainedDates.includes(format(subDays(new Date(), i), 'yyyy-MM-dd'))) streak++;
+      for (let i = 0; i < 14; i++) {
+        const key = format(subDays(new Date(), i), 'yyyy-MM-dd');
+        if (trainedDates.includes(key)) streak += 1;
         else break;
       }
       setWorkoutStreak(streak);
-    } catch {}
+
+      const last7 = Array.from({ length: 7 }, (_, i) => format(subDays(new Date(), 6 - i), 'yyyy-MM-dd'));
+      const weeklyTaskHitCount = last7.filter(d =>
+        allTasks.some((t: any) => {
+          const done = t.isCompleted ?? t.status === 'completed';
+          if (!done || !t.updatedAt) return false;
+          return format(new Date(t.updatedAt), 'yyyy-MM-dd') === d;
+        })
+      ).length;
+      setWeeklyTaskDays(weeklyTaskHitCount);
+      setWeeklyWorkoutDays(last7.filter(d => trainedDates.includes(d)).length);
+
+      const journalEntries = Array.isArray(journalData) ? journalData : Array.isArray((journalData as any)?.entries) ? (journalData as any).entries : [];
+      const hasJournalToday = journalEntries.some((j: any) => {
+        const raw = j.date ?? j.createdAt ?? j.created_at;
+        if (!raw) return false;
+        return format(new Date(raw), 'yyyy-MM-dd') === today;
+      });
+      setJournalToday(hasJournalToday);
+      setWeeklyJournalDays(last7.filter(d =>
+        journalEntries.some((j: any) => {
+          const raw = j.date ?? j.createdAt ?? j.created_at;
+          if (!raw) return false;
+          return format(new Date(raw), 'yyyy-MM-dd') === d;
+        })
+      ).length);
+
+      const routineBlocks = Array.isArray((routineData as any)?.blocks) ? (routineData as any).blocks : [];
+      const routineCompleted = Number((routineData as any)?.stats?.completed ?? 0);
+      const routineTotal = Number((routineData as any)?.stats?.total ?? 0);
+      const pendingRoutine = routineBlocks.filter((b: any) => b.status === 'pending').length;
+      setRoutinePendingCount(pendingRoutine);
+      setRoutineCompletionText(routineTotal > 0 ? `${routineCompleted}/${routineTotal} completed` : 'No routine today');
+
+      const expenses = Array.isArray(expenseData) ? expenseData : [];
+      const touchedFinanceToday = expenses.some((e: any) => {
+        const raw = e.date ?? e.createdAt ?? e.created_at;
+        if (!raw) return false;
+        return format(new Date(raw), 'yyyy-MM-dd') === today;
+      });
+      setFinanceTouchedToday(touchedFinanceToday);
+
+      const weeklyExpenseTotal = expenses
+        .filter((e: any) => {
+          const raw = e.date ?? e.createdAt ?? e.created_at;
+          if (!raw) return false;
+          const dt = new Date(raw);
+          return dt >= weekStart;
+        })
+        .reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
+      setWeeklySpend(weeklyExpenseTotal);
+
+      const monthExpenseTotal = expenses
+        .filter((e: any) => {
+          const raw = e.date ?? e.createdAt ?? e.created_at;
+          if (!raw) return false;
+          return format(new Date(raw), 'yyyy-MM') === currentMonthKey;
+        })
+        .reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
+
+      if (budgetData) {
+        const fixed = (budgetData.fixedExpenses ?? []).reduce((sum: number, f: any) => sum + Number(f.effectiveAmount ?? f.amount ?? 0), 0);
+        const income = Number(budgetData.effectiveMonthlyIncome ?? budgetData.monthlyIncome ?? 0);
+        setMonthlyNet(income - fixed - monthExpenseTotal);
+      } else {
+        setMonthlyNet(null);
+      }
+
+      const goals = Array.isArray(goalsData) ? goalsData : [];
+      setGoalsInProgress(goals.filter((g: any) => (g.status ?? '').toLowerCase() !== 'completed').length);
+
+      // Daily momentum model (0..100)
+      const taskCompletionRatio = todayTasks.length > 0 ? todayTasks.filter(t => t.isCompleted ?? t.status === 'completed').length / todayTasks.length : 0.4;
+      const routineRatio = routineTotal > 0 ? routineCompleted / routineTotal : 0.5;
+      const score = calculateMomentumScore({
+        taskCompletionRatio,
+        routineRatio,
+        sleepHours,
+        waterCups,
+        waterGoal,
+        calories,
+        workoutDone: workoutDoneToday,
+        financeTouched: touchedFinanceToday,
+        journalDone: hasJournalToday,
+        weights: settingsWeights ? {
+          tasks: Number(settingsWeights.tasks ?? momentumWeights.tasks),
+          routine: Number(settingsWeights.routine ?? momentumWeights.routine),
+          body: Number(settingsWeights.body ?? momentumWeights.body),
+          workout: Number(settingsWeights.workout ?? momentumWeights.workout),
+          finance: Number(settingsWeights.finance ?? momentumWeights.finance),
+          journal: Number(settingsWeights.journal ?? momentumWeights.journal),
+        } : momentumWeights,
+      });
+
+      const yesterdayScore = calculateMomentumScore({
+        taskCompletionRatio: completedYesterday > 0 ? 0.6 : 0.25,
+        routineRatio: 0.5,
+        sleepHours: ySleepHours,
+        waterCups: yWaterCups,
+        waterGoal,
+        calories: yCalories,
+        workoutDone: trainedDates.includes(yesterday),
+        financeTouched: false,
+        journalDone: false,
+        weights: settingsWeights ? {
+          tasks: Number(settingsWeights.tasks ?? momentumWeights.tasks),
+          routine: Number(settingsWeights.routine ?? momentumWeights.routine),
+          body: Number(settingsWeights.body ?? momentumWeights.body),
+          workout: Number(settingsWeights.workout ?? momentumWeights.workout),
+          finance: Number(settingsWeights.finance ?? momentumWeights.finance),
+          journal: Number(settingsWeights.journal ?? momentumWeights.journal),
+        } : momentumWeights,
+      });
+
+      setMomentumScore(clamp(score, 0, 100));
+      setMomentumDelta(clamp(score - yesterdayScore, -100, 100));
+    } catch {
+      // Keep prior values for resilience.
+    } finally {
+      setLoading(false);
+    }
   };
 
   const toggleTask = async (task: Task) => {
     const done = !(task.isCompleted ?? task.status === 'completed');
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, isCompleted: done } : t));
-    try { await api.updateTask(task.id, { isCompleted: done }); } catch {}
+    try {
+      await api.updateTask(Number(task.id), { isCompleted: done });
+      await loadDashboard();
+    } catch {
+      await loadDashboard();
+    }
   };
+
+  const NextIcon = nextAction.icon;
 
   return (
     <div>
-      {/* Stat Chips */}
-      <div className="flex gap-2 mb-5">
-        <StatChip icon={Moon}     label="Sleep"   value={sleep ? `${sleep}h` : '--'}               color="var(--accent)"      empty={!sleep} />
-        <StatChip icon={Flame}    label="Workout" value={workoutStreak > 0 ? `${workoutStreak}d` : '--'} color="var(--accent-warm)" empty={workoutStreak === 0} />
-        <StatChip icon={Droplets} label="Water"   value={`${water}/${waterGoal}`}                  color="#06B6D4"            empty={water === 0} />
-        <StatChip icon={Zap}      label="Cals"    value={calToday > 0 ? `${calToday}` : '--'}      color="var(--accent-gold)" empty={calToday === 0} />
+      {/* Momentum hero */}
+      <div className="mb-4 p-4 rounded-2xl" style={{ background: 'linear-gradient(135deg, var(--accent)26, var(--surface))', border: '1px solid var(--accent)33' }}>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>Daily Momentum</p>
+            <p className="text-3xl font-extrabold num mt-0.5" style={{ color: 'var(--text-primary)' }}>{momentumScore}</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+              {scoreBand} mode {momentumDelta !== 0 ? `· ${momentumDelta > 0 ? '+' : ''}${momentumDelta} vs yesterday` : '· same as yesterday'}
+            </p>
+          </div>
+          <div className="px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface)' }}>
+            <TrendingUp size={16} style={{ color: 'var(--accent)' }} />
+          </div>
+        </div>
+        <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>{heroMessage}</p>
       </div>
 
-      {/* Today's Tasks */}
-      <div className="mb-5">
+      {/* Next best action */}
+      <div className="mb-4 rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>Next Best Action</p>
+          <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>+{nextAction.points}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--accent)22' }}>
+            <NextIcon size={16} style={{ color: 'var(--accent)' }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{nextAction.title}</p>
+            <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>{nextAction.subtitle}</p>
+          </div>
+          <button onClick={nextAction.onPress} className="h-8 px-3 rounded-lg text-xs font-semibold text-white press" style={{ backgroundColor: 'var(--accent)' }}>
+            {nextAction.cta}
+          </button>
+        </div>
+      </div>
+
+      {/* Snapshot */}
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <StatChip icon={Target} label="Tasks Today" value={`${completedTaskCount}/${tasks.length || 0}`} color="var(--accent)" empty={tasks.length === 0} />
+        <StatChip icon={Repeat} label="Routine" value={routineCompletionText} color="var(--accent-green)" empty={routineCompletionText === 'No routine'} />
+        <StatChip icon={Flame} label="Workout" value={workoutToday ? 'Logged' : `${workoutStreak}d streak`} color="var(--accent-warm)" empty={!workoutToday && workoutStreak === 0} />
+        <StatChip icon={DollarSign} label="Monthly Net" value={monthlyNet === null ? '--' : `${monthlyNet >= 0 ? '+' : '-'}₹${Math.abs(monthlyNet).toLocaleString()}`} color={monthlyNet !== null && monthlyNet >= 0 ? 'var(--accent-green)' : 'var(--accent-warm)'} empty={monthlyNet === null} />
+      </div>
+
+      {/* Quick add row */}
+      <div className="grid grid-cols-4 gap-2 mb-4">
+        {[
+          { label: 'Task', icon: Plus, onPress: onOpenTasks },
+          { label: 'Quick Log', icon: Zap, onPress: () => navigate('/life') },
+          { label: 'Journal', icon: BookOpen, onPress: () => navigate('/journal/new') },
+          { label: 'Expense', icon: DollarSign, onPress: () => navigate('/finance') },
+        ].map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.label}
+              onClick={item.onPress}
+              className="rounded-xl py-2.5 flex flex-col items-center gap-1.5 press"
+              style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+            >
+              <Icon size={14} style={{ color: 'var(--accent)' }} />
+              <span className="text-[10px] font-semibold" style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Wins board */}
+      <div className="mb-4 rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="section-header px-0 mb-2">
+          <span className="section-label">Wins Board</span>
+        </div>
+        {wins.length === 0 ? (
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Your wins will show here as soon as you complete actions today.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {wins.map((win) => (
+              <span key={win} className="text-[11px] px-2 py-1 rounded-full" style={{ backgroundColor: 'var(--accent-green)22', color: 'var(--accent-green)' }}>
+                {win}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Weekly trend mini cards */}
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Task consistency</p>
+          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>{weeklyTaskDays}/7 days</p>
+        </div>
+        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Workout consistency</p>
+          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>{weeklyWorkoutDays}/7 days</p>
+        </div>
+        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Journal days</p>
+          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>{weeklyJournalDays}/7 days</p>
+        </div>
+        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Week spend</p>
+          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>₹{Math.round(weeklySpend).toLocaleString()}</p>
+        </div>
+      </div>
+
+      {/* Today tasks quick list */}
+      <div className="mb-4">
         <div className="section-header px-0 mb-2">
           <span className="section-label">Today's Tasks</span>
-          <button onClick={() => {}} className="flex items-center gap-0.5 text-xs press" style={{ color: 'var(--accent)' }}>
-            <ChevronRight size={14} />
+          <button onClick={onOpenTasks} className="flex items-center gap-0.5 text-xs press" style={{ color: 'var(--accent)' }}>
+            Open <ChevronRight size={14} />
           </button>
         </div>
         <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -242,76 +740,19 @@ function DashboardTab({ user, navigate }: { user: any; navigate: (p: string) => 
         </div>
       </div>
 
-      {/* Streaks */}
-      <div className="mb-5">
-        <div className="section-header px-0 mb-2">
-          <span className="section-label">This Week</span>
+      {/* Reminders + goals snapshot */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Active reminders</p>
+          <p className="text-base font-bold num" style={{ color: 'var(--text-primary)' }}>{reminders.length}</p>
+          <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>today</p>
         </div>
-        <div className="rounded-2xl p-4 space-y-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          {[
-            { label: 'Tasks', data: streaks.tasks, color: 'var(--accent)' },
-            { label: 'Workout', data: streaks.workout, color: 'var(--accent-warm)' },
-          ].map(({ label, data, color }) => (
-            <div key={label}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>{label}</span>
-                <span className="text-xs num" style={{ color: 'var(--text-muted)' }}>{data.filter(Boolean).length}/7</span>
-              </div>
-              <div className="flex gap-1">
-                {data.map((done, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1 flex-1">
-                    <div className="w-full h-6 rounded-md flex items-center justify-center transition-all" style={{ backgroundColor: done ? color : 'var(--surface-elevated)' }}>
-                      {done && <span style={{ color: '#fff', fontSize: 9 }}>✓</span>}
-                    </div>
-                    <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{DAYS[i]}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Goals in progress</p>
+          <p className="text-base font-bold num" style={{ color: 'var(--text-primary)' }}>{goalsInProgress}</p>
+          <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>keep compounding</p>
         </div>
       </div>
-
-      {/* Reminders */}
-      {reminders.length > 0 && (
-        <div className="mb-5">
-          <div className="section-header px-0 mb-2">
-            <span className="section-label">Reminders</span>
-          </div>
-          <div className="space-y-2">
-            {reminders.map((r: any) => (
-              <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="w-2 h-2 rounded-full animate-pulse-dot" style={{ backgroundColor: 'var(--accent)' }} />
-                <span className="text-sm flex-1" style={{ color: 'var(--text-primary)' }}>{r.title}</span>
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.time}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Evening check-in */}
-      {isEvening && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-5 p-4 rounded-2xl"
-          style={{ backgroundColor: 'var(--surface)', border: `1px solid var(--accent)44` }}
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full animate-pulse-dot" style={{ backgroundColor: 'var(--accent)' }} />
-            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Evening Check-in</span>
-          </div>
-          <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>How was your day? Tap to complete it.</p>
-          <button
-            onClick={() => navigate('/life')}
-            className="w-full h-10 rounded-xl text-sm font-semibold text-white press"
-            style={{ backgroundColor: 'var(--accent)' }}
-          >
-            Complete Day
-          </button>
-        </motion.div>
-      )}
     </div>
   );
 }
@@ -1129,7 +1570,14 @@ export default function Dashboard() {
       <AnimatePresence mode="wait">
         <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.18 }}>
-          {activeTab === 'dashboard' && <DashboardTab user={user} navigate={navigate} />}
+          {activeTab === 'dashboard' && (
+            <DashboardTab
+              user={user}
+              navigate={navigate}
+              onOpenTasks={() => setActiveTab('tasks')}
+              onOpenRoutine={() => setActiveTab('routine')}
+            />
+          )}
           {activeTab === 'tasks' && <TasksTab user={user} />}
           {activeTab === 'routine' && user && <DailyRoutineTab userId={user.id} />}
         </motion.div>

@@ -42,6 +42,12 @@ public class User
     [Column("tracking_options_json")]
     public string TrackingOptionsJson { get; set; } = "[\"sleep_hours\",\"workout_minutes\",\"phone_minutes\"]";
 
+    [Column("dashboard_preset")]
+    public string DashboardPreset { get; set; } = "balanced";
+
+    [Column("dashboard_weights_json")]
+    public string DashboardWeightsJson { get; set; } = "{\"tasks\":35,\"routine\":20,\"body\":15,\"workout\":15,\"finance\":10,\"journal\":5}";
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

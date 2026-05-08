@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   level integer DEFAULT 1,
   points integer DEFAULT 0,
   theme text DEFAULT 'light',
+  dashboard_preset text DEFAULT 'balanced',
+  dashboard_weights_json text DEFAULT '{"tasks":35,"routine":20,"body":15,"workout":15,"finance":10,"journal":5}',
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -557,6 +559,12 @@ ALTER TABLE user_profiles
 
 ALTER TABLE user_profiles
   ADD COLUMN IF NOT EXISTS tracking_options_json jsonb NOT NULL DEFAULT '["sleep_hours","workout_minutes","phone_minutes"]'::jsonb;
+
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS dashboard_preset text NOT NULL DEFAULT 'balanced';
+
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS dashboard_weights_json jsonb NOT NULL DEFAULT '{"tasks":35,"routine":20,"body":15,"workout":15,"finance":10,"journal":5}'::jsonb;
 
 -- ===================================================================
 -- 007: ADVANCED GOALS (checklist + milestone support)

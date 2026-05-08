@@ -25,6 +25,15 @@ export type UserSettings = {
   theme: 'light' | 'dark' | 'blue' | 'green' | 'ocean' | 'futuristic';
   calorieGoal: number;
   trackingOptions: string[];
+  dashboardPreset: 'balanced' | 'discipline' | 'health-first' | 'wealth-first' | 'custom';
+  dashboardWeights: {
+    tasks: number;
+    routine: number;
+    body: number;
+    workout: number;
+    finance: number;
+    journal: number;
+  };
 };
 
 const API_BASE = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
@@ -107,10 +116,18 @@ let DUMMY_USER_SETTINGS: UserSettings = {
   theme: 'light',
   calorieGoal: 2400,
   trackingOptions: ['sleep_hours', 'workout_minutes', 'phone_minutes'],
+  dashboardPreset: 'balanced',
+  dashboardWeights: { tasks: 35, routine: 20, body: 15, workout: 15, finance: 10, journal: 5 },
 };
 
 export async function getUserSettings(): Promise<UserSettings> {
-  if (USE_DUMMY_DATA) return Promise.resolve({ ...DUMMY_USER_SETTINGS, trackingOptions: [...DUMMY_USER_SETTINGS.trackingOptions] });
+  if (USE_DUMMY_DATA) {
+    return Promise.resolve({
+      ...DUMMY_USER_SETTINGS,
+      trackingOptions: [...DUMMY_USER_SETTINGS.trackingOptions],
+      dashboardWeights: { ...DUMMY_USER_SETTINGS.dashboardWeights },
+    });
+  }
   return request('userprofiles/me/settings');
 }
 
@@ -120,8 +137,13 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
       ...DUMMY_USER_SETTINGS,
       ...patch,
       trackingOptions: patch.trackingOptions ? [...patch.trackingOptions] : DUMMY_USER_SETTINGS.trackingOptions,
+      dashboardWeights: patch.dashboardWeights ? { ...patch.dashboardWeights } : DUMMY_USER_SETTINGS.dashboardWeights,
     };
-    return Promise.resolve({ ...DUMMY_USER_SETTINGS, trackingOptions: [...DUMMY_USER_SETTINGS.trackingOptions] });
+    return Promise.resolve({
+      ...DUMMY_USER_SETTINGS,
+      trackingOptions: [...DUMMY_USER_SETTINGS.trackingOptions],
+      dashboardWeights: { ...DUMMY_USER_SETTINGS.dashboardWeights },
+    });
   }
   return request('userprofiles/me/settings', { method: 'PUT', body: JSON.stringify(patch) });
 }

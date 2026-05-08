@@ -42,6 +42,12 @@ ALTER TABLE user_profiles
   DROP COLUMN IF EXISTS tracking_options_json;
 
 ALTER TABLE user_profiles
+  DROP COLUMN IF EXISTS dashboard_weights_json;
+
+ALTER TABLE user_profiles
+  DROP COLUMN IF EXISTS dashboard_preset;
+
+ALTER TABLE user_profiles
   DROP COLUMN IF EXISTS calorie_goal;
 
 -- ===================================================================
