@@ -17,6 +17,9 @@ import WorkoutLibrarySettings from './pages/WorkoutLibrarySettings';
 import MealPlannerSettings from './pages/MealPlannerSettings';
 import WorkoutExerciseDetails from './pages/WorkoutExerciseDetails';
 import MealTemplateDetails from './pages/MealTemplateDetails';
+import WorkoutAddExercisePage from './pages/WorkoutAddExercisePage';
+import MealIngredientLibraryPage from './pages/MealIngredientLibraryPage';
+import MealCreateTemplatePage from './pages/MealCreateTemplatePage';
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -60,8 +63,11 @@ function App() {
               <Route path="/life"     element={<PrivateRoute><Layout><Life /></Layout></PrivateRoute>} />
               <Route path="/settings" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library" element={<PrivateRoute><Layout><WorkoutLibrarySettings /></Layout></PrivateRoute>} />
+              <Route path="/settings/workout-library/new-exercise" element={<PrivateRoute><Layout><WorkoutAddExercisePage /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library/exercise/:id" element={<PrivateRoute><Layout><WorkoutExerciseDetails /></Layout></PrivateRoute>} />
               <Route path="/settings/meals" element={<PrivateRoute><Layout><MealPlannerSettings /></Layout></PrivateRoute>} />
+              <Route path="/settings/meals/ingredients" element={<PrivateRoute><Layout><MealIngredientLibraryPage /></Layout></PrivateRoute>} />
+              <Route path="/settings/meals/new-template" element={<PrivateRoute><Layout><MealCreateTemplatePage /></Layout></PrivateRoute>} />
               <Route path="/settings/meals/template/:id" element={<PrivateRoute><Layout><MealTemplateDetails /></Layout></PrivateRoute>} />
 
               {/* Journal editor — full screen, no nav */}

@@ -57,10 +57,11 @@ export default function Journal() {
         </motion.button>
       </div>
 
-      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-2xl">
+      <div className="flex gap-1 mb-6 p-1 rounded-2xl" style={{ backgroundColor: 'var(--surface)' }}>
         {['entries', 'memory'].map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab as any)}
-            className={`px-4 py-2 rounded-xl font-medium text-sm transition-all ${activeTab === tab ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500'}`}>
+            className="flex-1 px-4 py-2 rounded-xl font-medium text-sm transition-all"
+            style={{ backgroundColor: activeTab === tab ? 'var(--accent)' : 'transparent', color: activeTab === tab ? '#fff' : 'var(--text-muted)' }}>
             {tab === 'entries' ? '📔 Entries' : '🖼️ Memory Wall'}
           </button>
         ))}

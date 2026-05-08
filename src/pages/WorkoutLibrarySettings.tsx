@@ -16,8 +16,6 @@ type Exercise = {
 
 type RoutineEntry = { exerciseId: number; sets: number; reps: number };
 type RoutineMap = Record<string, RoutineEntry[]>;
-type NewExercise = { name: string; muscleGroup: string; description: string; imageUrl: string };
-
 // A workout split preset stored on the server.
 // DayConfigs JSON: { monday: [{exerciseId, sets, reps}, ...], ... }
 type SplitPreset = { id: number; name: string; dayConfigs: string; isActive: boolean };
@@ -52,9 +50,6 @@ export default function WorkoutLibrarySettings() {
   const [pickExerciseId, setPickExerciseId] = useState<number | null>(null);
   const [pickSets, setPickSets] = useState(3);
   const [pickReps, setPickReps] = useState(10);
-  const [newExercise, setNewExercise] = useState<NewExercise>({
-    name: '', muscleGroup: 'Chest', description: '', imageUrl: '',
-  });
 
   useEffect(() => { loadAll(); }, []);
 
@@ -100,21 +95,6 @@ export default function WorkoutLibrarySettings() {
       setTimeout(() => setStatus(''), 2000);
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function addExercise() {
-    if (!newExercise.name.trim()) return;
-    try {
-      await api.createExercise(newExercise);
-      setNewExercise({ name: '', muscleGroup: 'Chest', description: '', imageUrl: '' });
-      setStatus('Exercise added');
-      const data = await api.getExercises();
-      setExercises(Array.isArray(data) ? data : []);
-      setTimeout(() => setStatus(''), 1500);
-    } catch (e: any) {
-      setStatus(e?.message || 'Failed to add');
-      setTimeout(() => setStatus(''), 2000);
     }
   }
 
@@ -357,54 +337,17 @@ export default function WorkoutLibrarySettings() {
       {/* ── EXERCISE LIBRARY TAB ── */}
       {tab === 'library' && (
         <>
-          <div className="rounded-2xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <p className="section-label mb-3">Add Exercise to Library</p>
-            <div className="space-y-3">
-              <input
-                value={newExercise.name}
-                onChange={e => setNewExercise(p => ({ ...p, name: e.target.value }))}
-                placeholder="Exercise name"
-                className="w-full px-3 py-2 text-sm rounded-xl outline-none"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={newExercise.muscleGroup}
-                  onChange={e => setNewExercise(p => ({ ...p, muscleGroup: e.target.value }))}
-                  className="px-3 py-2 text-sm rounded-xl outline-none"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-                >
-                  {MUSCLE_GROUPS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-                <input
-                  value={newExercise.imageUrl}
-                  onChange={e => setNewExercise(p => ({ ...p, imageUrl: e.target.value }))}
-                  placeholder="Image URL"
-                  className="px-3 py-2 text-sm rounded-xl outline-none"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-                />
-              </div>
-              <input
-                value={newExercise.description}
-                onChange={e => setNewExercise(p => ({ ...p, description: e.target.value }))}
-                placeholder="Description / instructions"
-                className="w-full px-3 py-2 text-sm rounded-xl outline-none"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-              />
-              <button
-                onClick={addExercise}
-                className="w-full h-10 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
-                style={{ backgroundColor: 'var(--accent)' }}
-              >
-                <Plus size={14} /> Add Exercise
-              </button>
-            </div>
-          </div>
-
           <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between mb-3">
               <p className="section-label">Exercise Library</p>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => navigate('/settings/workout-library/new-exercise')}
+                  className="h-8 px-2.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1"
+                  style={{ backgroundColor: 'var(--accent)' }}
+                >
+                  <Plus size={12} /> Add
+                </button>
                 <span className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
                   {filteredExercises.length} / {exercises.length}
                 </span>

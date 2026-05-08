@@ -245,7 +245,7 @@ export default function Workout() {
       </div>
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto gap-1 mb-6 bg-gray-100 p-1.5 rounded-2xl hide-scrollbar">
+      <div className="flex overflow-x-auto gap-1 mb-6 p-1 rounded-2xl hide-scrollbar" style={{ backgroundColor: 'var(--surface)' }}>
         {TABS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -256,7 +256,8 @@ export default function Workout() {
                 if (tab.id === 'history') loadHistory();
                 if (tab.id === 'analytics') loadAnalytics();
               }}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl font-medium text-sm transition-all flex-shrink-0 ${isActive ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500'}`}>
+              className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl font-medium text-sm transition-all flex-shrink-0"
+              style={{ backgroundColor: isActive ? 'var(--accent)' : 'transparent', color: isActive ? '#fff' : 'var(--text-muted)' }}>
               <Icon size={14} />
               <span>{tab.shortLabel}</span>
             </motion.button>

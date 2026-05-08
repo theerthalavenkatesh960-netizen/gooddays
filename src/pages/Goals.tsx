@@ -162,10 +162,11 @@ export default function Goals() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mb-4 sm:mb-6 bg-gray-100 p-1 rounded-2xl overflow-x-auto hide-scrollbar">
+        <div className="flex gap-1 mb-4 sm:mb-6 p-1 rounded-2xl overflow-x-auto hide-scrollbar" style={{ backgroundColor: 'var(--surface)' }}>
           {['logs', 'notes', 'cards'].map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all ${activeTab === tab ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500'}`}>
+              className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl font-medium text-xs sm:text-sm whitespace-nowrap transition-all"
+              style={{ backgroundColor: activeTab === tab ? 'var(--accent)' : 'transparent', color: activeTab === tab ? '#fff' : 'var(--text-muted)' }}>
               {tab === 'notes' ? '📝 Notes' : tab === 'logs' ? '📊 Activity' : '🎴 Study'}
             </button>
           ))}
