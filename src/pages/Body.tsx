@@ -470,23 +470,47 @@ function DietTab() {
       </div>
 
       {/* Water Intake */}
-      <div className="p-4 rounded-2xl space-y-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>💧 Water Intake</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{waterMl} of {waterGoalMl} ml</p>
+      <div className="p-4 rounded-2xl space-y-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-5">
+          {/* Mini ring */}
+          <div className="relative flex-shrink-0" style={{ width: 96, height: 96 }}>
+            <svg width="96" height="96" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="48" cy="48" r="38" stroke="var(--surface-elevated)" strokeWidth="9" fill="none" />
+              <circle cx="48" cy="48" r="38"
+                stroke={waterPercentage >= 100 ? '#f59e0b' : 'var(--accent)'}
+                strokeWidth="9" fill="none" strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 38}
+                strokeDashoffset={2 * Math.PI * 38 * (1 - Math.min(1, waterPercentage / 100))}
+                style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-lg font-black leading-none" style={{ color: 'var(--text-primary)' }}>
+                {waterMl >= 1000 ? `${(waterMl/1000).toFixed(1)}L` : `${waterMl}`}
+              </span>
+              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>ml</span>
+            </div>
           </div>
-          <div className="text-lg font-bold" style={{ color: 'var(--accent)' }}>{waterPercentage}%</div>
+          <div className="flex-1 space-y-1">
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>💧 Water Intake</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{waterMl} / {waterGoalMl} ml</p>
+            <div className="h-1.5 rounded-full overflow-hidden mt-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+              <div className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, waterPercentage)}%`, backgroundColor: waterPercentage >= 100 ? '#f59e0b' : 'var(--accent)' }} />
+            </div>
+            <p className="text-xs font-bold" style={{ color: waterPercentage >= 100 ? '#f59e0b' : 'var(--accent)' }}>
+              {waterPercentage >= 100 ? `Goal smashed! 🔥` : `${waterGoalMl - waterMl}ml remaining`}
+            </p>
+          </div>
         </div>
-        <div className="flex gap-1">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="flex-1 h-6 rounded-md" style={{ backgroundColor: (i * 250) < waterMl ? 'var(--accent)' : 'var(--surface-elevated)' }} />
+        <div className="grid grid-cols-4 gap-2">
+          {[{ label: '💧', ml: 100 }, { label: '🥛 250', ml: 250 }, { label: '🍶 500', ml: 500 }, { label: '🫙 1L', ml: 1000 }].map(p => (
+            <button key={p.ml} onClick={() => addWater(p.ml)}
+              className="py-2 rounded-xl text-xs font-bold transition-all"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>
+              {p.label}
+            </button>
           ))}
-        </div>
-        <div className="flex gap-2 text-xs">
-          <button onClick={() => addWater(250)} className="flex-1 px-2 py-1 rounded-lg text-white" style={{ backgroundColor: 'var(--accent)' }}>+250ml</button>
-          <button onClick={() => addWater(500)} className="flex-1 px-2 py-1 rounded-lg text-white" style={{ backgroundColor: 'var(--accent)' }}>+500ml</button>
-          <button onClick={() => addWater(1000)} className="flex-1 px-2 py-1 rounded-lg text-white" style={{ backgroundColor: 'var(--accent)' }}>+1L</button>
         </div>
       </div>
 

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, DollarSign, Dumbbell, UtensilsCrossed, Fuel,
   CheckSquare, BookOpen, MessageSquare, Scale,
-  ChevronLeft, Check
+  ChevronLeft, Check, Droplets, Plus
 } from 'lucide-react';
 import * as api from '../lib/api';
 import { format } from 'date-fns';
@@ -13,17 +13,18 @@ interface LogSheetProps {
   userId?: number;
 }
 
-type SubSheet = 'expense' | 'workout' | 'meal' | 'refill' | 'task' | 'journal' | 'note' | 'weight' | null;
+type SubSheet = 'expense' | 'workout' | 'meal' | 'refill' | 'task' | 'journal' | 'note' | 'weight' | 'water' | null;
 
 const QUICK_OPTIONS = [
-  { id: 'expense',  label: 'Expense',    icon: DollarSign,     color: '#FF6B6B' },
-  { id: 'workout',  label: 'Workout',    icon: Dumbbell,       color: '#4ECDC4' },
+  { id: 'expense',  label: 'Expense',    icon: DollarSign,      color: '#FF6B6B' },
+  { id: 'workout',  label: 'Workout',    icon: Dumbbell,        color: '#4ECDC4' },
   { id: 'meal',     label: 'Meal',       icon: UtensilsCrossed, color: '#FFD93D' },
-  { id: 'refill',   label: 'Car Refill', icon: Fuel,           color: '#6C63FF' },
-  { id: 'task',     label: 'Task',       icon: CheckSquare,    color: '#4ECDC4' },
-  { id: 'journal',  label: 'Journal',    icon: BookOpen,       color: '#FF6B6B' },
-  { id: 'note',     label: 'Quick Note', icon: MessageSquare,  color: '#8888A0' },
-  { id: 'weight',   label: 'Body Weight',icon: Scale,          color: '#FFD93D' },
+  { id: 'water',    label: 'Water',      icon: Droplets,        color: '#06B6D4' },
+  { id: 'refill',   label: 'Car Refill', icon: Fuel,            color: '#6C63FF' },
+  { id: 'task',     label: 'Task',       icon: CheckSquare,     color: '#4ECDC4' },
+  { id: 'journal',  label: 'Journal',    icon: BookOpen,        color: '#FF6B6B' },
+  { id: 'note',     label: 'Quick Note', icon: MessageSquare,   color: '#8888A0' },
+  { id: 'weight',   label: 'Body Weight',icon: Scale,           color: '#FFD93D' },
 ] as const;
 
 const EXPENSE_CATEGORIES = [
@@ -68,6 +69,9 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
   // Weight state
   const [weight, setWeight] = useState('');
 
+  // Water state
+  const [waterMl, setWaterMl] = useState(250);
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -91,6 +95,9 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
       } else if (sub === 'weight' && weight && userId) {
         const today = format(new Date(), 'yyyy-MM-dd');
         await api.saveDailyTracking(userId, today, 0, 0, 0, false, 3, '', 0, 8);
+      } else if (sub === 'water' && waterMl > 0 && userId) {
+        const today = format(new Date(), 'yyyy-MM-dd');
+        await (api as any).logQuickEntry('water', { ml: waterMl }, today);
       }
       setSaved(true);
       setTimeout(() => {
@@ -127,7 +134,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
       />
 
       <motion.div
-        className="relative sheet max-h-[85dvh] overflow-y-auto scrollbar-none"
+        className="relative sheet max-h-[92dvh] overflow-y-auto scrollbar-none"
         variants={sheetVariants}
         initial="hidden"
         animate="visible"
@@ -157,7 +164,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="grid grid-cols-2 gap-3 px-4 pb-6 pt-2"
+              className="grid grid-cols-3 gap-3 px-4 pb-8 pt-2"
             >
               {QUICK_OPTIONS.map(opt => {
                 const Icon = opt.icon;
@@ -409,6 +416,33 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
                     style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
                     autoFocus
                   />
+                </div>
+              )}
+
+              {sub === 'water' && (
+                <div className="space-y-4">
+                  <label className="section-label mb-2 block">Water amount</label>
+                  <div className="flex items-end gap-2 p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      value={waterMl}
+                      onChange={e => setWaterMl(Math.max(1, Number(e.target.value)))}
+                      className="flex-1 bg-transparent text-4xl font-bold num outline-none"
+                      style={{ color: 'var(--accent)' }}
+                      autoFocus
+                    />
+                    <span className="text-xl font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>ml</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[100, 250, 500, 1000].map(ml => (
+                      <button key={ml} onClick={() => setWaterMl(ml)}
+                        className="py-2 rounded-xl text-xs font-bold transition-all"
+                        style={{ backgroundColor: waterMl === ml ? 'var(--accent)' : 'var(--surface-elevated)', color: waterMl === ml ? '#fff' : 'var(--text-primary)' }}>
+                        {ml >= 1000 ? '1L' : `${ml}ml`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
