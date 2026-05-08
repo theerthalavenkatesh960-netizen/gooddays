@@ -1997,6 +1997,87 @@ export async function incrementWaterIntake(date: string, incrementMl: number = 2
 // ─── Task Logging for Quick Log ────────────────────────────────────────────
 // Tasks logged via Quick Log are stored as quick log entries, not as full task records
 
+// ─── Body Metrics API ─────────────────────────────────────────────────────────
+
+export type BodyWeightLog = { date: string; weightKg: number; note?: string };
+export type BodyMetricsProfile = { heightCm: number | null; targetWeightKg: number | null };
+
+// Seed dummy weight logs for the last 30 days to show a nice chart
+function buildDummyWeightLogs(): Record<string, BodyWeightLog> {
+  const logs: Record<string, BodyWeightLog> = {};
+  const today = new Date();
+  let w = 78.5;
+  for (let i = 30; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    // Skip a few days randomly to make it realistic
+    if (i % 4 === 3) continue;
+    w = Math.round((w + (Math.random() - 0.52) * 0.4) * 10) / 10;
+    const key = asDateKey(d.toISOString());
+    logs[key] = { date: key, weightKg: w };
+  }
+  return logs;
+}
+
+let _dummyWeightLogs: Record<string, BodyWeightLog> | null = null;
+function getDummyWeightLogs() {
+  if (!_dummyWeightLogs) _dummyWeightLogs = buildDummyWeightLogs();
+  return _dummyWeightLogs;
+}
+
+let _dummyBodyProfile: BodyMetricsProfile = { heightCm: 175, targetWeightKg: 74.0 };
+
+export async function getBodyMetricsProfile(): Promise<BodyMetricsProfile> {
+  if (USE_DUMMY_DATA) return Promise.resolve({ ..._dummyBodyProfile });
+  return request('bodymetrics/profile');
+}
+
+export async function updateBodyMetricsProfile(data: Partial<BodyMetricsProfile>): Promise<BodyMetricsProfile> {
+  if (USE_DUMMY_DATA) {
+    _dummyBodyProfile = { ..._dummyBodyProfile, ...data };
+    return Promise.resolve({ ..._dummyBodyProfile });
+  }
+  return request('bodymetrics/profile', { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function getBodyWeightLogs(from?: string, to?: string): Promise<BodyWeightLog[]> {
+  if (USE_DUMMY_DATA) {
+    const logs = getDummyWeightLogs();
+    return Promise.resolve(
+      Object.values(logs)
+        .filter(l => (!from || l.date >= from) && (!to || l.date <= to))
+        .sort((a, b) => a.date.localeCompare(b.date))
+    );
+  }
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  return request(`bodymetrics/weight-logs?${params.toString()}`);
+}
+
+export async function logBodyWeight(weightKg: number, date?: string, note?: string): Promise<BodyWeightLog> {
+  const key = date ? asDateKey(date) : asDateKey(new Date().toISOString());
+  if (USE_DUMMY_DATA) {
+    const logs = getDummyWeightLogs();
+    logs[key] = { date: key, weightKg, note };
+    return Promise.resolve(logs[key]);
+  }
+  return request('bodymetrics/weight-logs', {
+    method: 'POST',
+    body: JSON.stringify({ weightKg, date: key, note }),
+  });
+}
+
+export async function deleteBodyWeightLog(date: string): Promise<void> {
+  const key = asDateKey(date);
+  if (USE_DUMMY_DATA) {
+    const logs = getDummyWeightLogs();
+    delete logs[key];
+    return Promise.resolve();
+  }
+  return request(`bodymetrics/weight-logs/${key}`, { method: 'DELETE' });
+}
+
 // ─── Unified Quick Log API ────────────────────────────────────────────────────
 
 export type QuickLogEntry = {

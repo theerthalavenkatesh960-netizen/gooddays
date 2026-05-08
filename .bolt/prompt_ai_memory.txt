@@ -1,0 +1,118 @@
+You are a senior staff engineer. Build a production-ready AI Personal Memory System for my app so every user gets personalized AI responses using long-term and recent behavioral context.
+
+Project context
+
+Tech stack: .NET 8 Web API backend, React + TypeScript frontend, PostgreSQL.
+Use PostgreSQL as the only persistence system for this feature.
+No external vector database.
+Optional: pgvector can be added later as a phase-2 extension, but do not make it required now.
+Scale target: 10,000 users over 5 years of activity.
+Existing codebase has user settings, tasks, workout, routine, finance, journal, reminders.
+Important backend files:
+AppDbContext.cs
+UserProfilesController.cs
+User.cs
+Existing frontend files:
+api.ts
+Dashboard.tsx
+Settings.tsx
+Goal
+
+Create a robust user memory architecture for AI context generation.
+Replace fragile “single giant file per user” approach with structured memory layers.
+AI should receive concise, relevant context per prompt: stable profile + recent state + key events.
+Hard requirements
+
+Memory model
+Stable profile memory: long-lived user traits, preferences, constraints, goals, motivation style.
+Dynamic state snapshots: daily and weekly aggregate state.
+Episodic memory events: notable moments, trends, milestones, regressions.
+Context retrieval logs: record what memory was assembled for each AI request.
+PostgreSQL design
+Create schema and entities for:
+ai_user_profile_memory
+ai_user_state_snapshot_daily
+ai_user_state_snapshot_weekly
+ai_user_event_memory
+ai_prompt_context_log
+ai_memory_update_job
+Add proper foreign keys to user id.
+Add indexes for user_id + created_at desc retrieval patterns.
+Partition high-volume tables by time (monthly or quarterly), especially events/logs/jobs.
+Add idempotency keys and constraints for jobs to avoid duplicate processing.
+Update pipeline
+Implement background memory update pipeline that ingests from existing domains:
+tasks, workout, routine, finance, journal, reminders, daily tracking.
+Memory updates must be incremental and idempotent.
+Use queue table and worker/hosted service pattern in backend.
+Include retry strategy, dead-letter handling, and observability fields (attempt_count, last_error, processed_at).
+Context assembly service
+Build a service method:
+BuildContext(userId, userPrompt, contextBudget)
+It should:
+fetch profile memory
+fetch latest daily and weekly snapshots
+fetch top relevant episodic events
+compose compact context JSON and text summary
+respect token budget
+Add clear ranking rules for relevance without vector DB:
+recency score
+domain match score
+severity/importance score
+frequency score
+API endpoints
+Add endpoints:
+GET user memory profile
+PUT user memory profile
+POST trigger memory rebuild
+POST build ai context for prompt
+GET memory diagnostics summary
+Require authorization and user isolation.
+Frontend integration
+In settings, add user controls for AI memory:
+enable/disable memory domains
+privacy controls
+manual memory refresh
+view summary of stored memory
+In dashboard, optionally surface “AI memory freshness” indicator and last updated time.
+Extend frontend API client methods accordingly.
+Privacy and safety
+Per-user strict data isolation.
+Data minimization in prompt context.
+User can delete or reset their memory profile.
+Log context assembly metadata without leaking sensitive raw payloads unnecessarily.
+Add clear retention policy support.
+Performance and scale
+Design for 10k users and multi-year history.
+No full-history scan on each prompt.
+Retrieval must be bounded and index-friendly.
+Use precomputed snapshots to keep latency low.
+Deliverables
+
+A phased implementation plan with dependencies and parallelizable steps.
+Database schema changes and migration scripts.
+Backend models, services, controllers, and worker pipeline.
+Frontend settings and API integration.
+Tests:
+unit tests for scoring/ranking and context assembly
+integration tests for API and worker idempotency
+Documentation:
+architecture overview
+data flow
+ops runbook for jobs and retention
+Validation commands and expected outcomes.
+Execution style
+
+First provide the implementation plan in phases and wait for approval.
+After approval, implement phase by phase.
+After each phase, run compile/build checks and report results.
+Keep changes backward-compatible where possible.
+If assumptions are needed, state them explicitly before coding.
+Quality bar
+
+Production-grade code.
+Clear abstractions and naming.
+Deterministic behavior.
+Observable and debuggable.
+Minimal prompt payload with maximum relevance.
+Prompt ends above

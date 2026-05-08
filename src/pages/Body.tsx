@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dumbbell, Trophy, Settings as SettingsIcon, Leaf, TrendingUp, Check,
+  Pencil, X, Scale,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -583,6 +584,229 @@ function DietTab() {
   );
 }
 
+// ─── Body Weight Progress Chart (SVG) ────────────────────────────────────────
+function WeightChart({ logs, targetWeight }: { logs: api.BodyWeightLog[]; targetWeight: number | null }) {
+  if (logs.length === 0) return (
+    <div className="flex items-center justify-center h-32 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No weight entries yet. Log your first entry below!</p>
+    </div>
+  );
+
+  const W = 320, H = 130, padX = 28, padY = 12;
+  const innerW = W - padX * 2;
+  const innerH = H - padY * 2;
+
+  const weights = logs.map(l => l.weightKg);
+  const allVals = targetWeight !== null ? [...weights, targetWeight] : weights;
+  const minW = Math.min(...allVals) - 1;
+  const maxW = Math.max(...allVals) + 1;
+
+  const toX = (i: number) => padX + (i / Math.max(logs.length - 1, 1)) * innerW;
+  const toY = (w: number) => padY + innerH - ((w - minW) / (maxW - minW)) * innerH;
+
+  const points = logs.map((l, i) => `${toX(i)},${toY(l.weightKg)}`).join(' ');
+  const areaPoints = `${toX(0)},${H} ` + logs.map((l, i) => `${toX(i)},${toY(l.weightKg)}`).join(' ') + ` ${toX(logs.length - 1)},${H}`;
+
+  const labelIndexes = logs.length <= 7
+    ? logs.map((_, i) => i)
+    : [0, Math.floor(logs.length / 2), logs.length - 1];
+
+  const targetY = targetWeight !== null ? toY(targetWeight) : null;
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible' }}>
+      {/* Area fill */}
+      <polygon points={areaPoints} fill="var(--accent-blue, #3b82f6)" fillOpacity="0.08" />
+      {/* Target weight dashed line */}
+      {targetY !== null && (
+        <>
+          <line x1={padX} y1={targetY} x2={W - padX} y2={targetY}
+            stroke="var(--accent-gold, #f59e0b)" strokeWidth="1.5" strokeDasharray="5,3" />
+          <text x={W - padX + 3} y={targetY + 4} fontSize="9" fill="var(--accent-gold, #f59e0b)">goal</text>
+        </>
+      )}
+      {/* Line */}
+      <polyline points={points}
+        fill="none" stroke="var(--accent-blue, #3b82f6)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      {/* Dots */}
+      {logs.map((l, i) => (
+        <circle key={i} cx={toX(i)} cy={toY(l.weightKg)} r={logs.length > 15 ? 2 : 3}
+          fill="var(--accent-blue, #3b82f6)" />
+      ))}
+      {/* X-axis date labels */}
+      {labelIndexes.map(i => (
+        <text key={i} x={toX(i)} y={H + 12} textAnchor="middle" fontSize="8" fill="var(--text-muted, #888)">
+          {logs[i].date.slice(5)}
+        </text>
+      ))}
+    </svg>
+  );
+}
+
+// ─── Body Metrics Section ─────────────────────────────────────────────────────
+function BodyMetricsSection() {
+  const [profile, setProfile] = useState<api.BodyMetricsProfile | null>(null);
+  const [logs, setLogs] = useState<api.BodyWeightLog[]>([]);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [heightInput, setHeightInput] = useState('');
+  const [targetInput, setTargetInput] = useState('');
+  const [weightInput, setWeightInput] = useState('');
+  const [dateInput, setDateInput] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    const [p, l] = await Promise.all([
+      api.getBodyMetricsProfile().catch(() => null),
+      api.getBodyWeightLogs().catch(() => [] as api.BodyWeightLog[]),
+    ]);
+    setProfile(p);
+    setLogs(l);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  const currentWeight = logs.length > 0 ? logs[logs.length - 1].weightKg : null;
+
+  function openEditProfile() {
+    setHeightInput(profile?.heightCm != null ? String(profile.heightCm) : '');
+    setTargetInput(profile?.targetWeightKg != null ? String(profile.targetWeightKg) : '');
+    setEditingProfile(true);
+  }
+
+  async function saveProfile() {
+    setSaving(true);
+    try {
+      const updated = await api.updateBodyMetricsProfile({
+        heightCm: heightInput ? parseFloat(heightInput) : null,
+        targetWeightKg: targetInput ? parseFloat(targetInput) : null,
+      });
+      setProfile(updated);
+      setEditingProfile(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveWeight() {
+    if (!weightInput) return;
+    setSaving(true);
+    try {
+      await api.logBodyWeight(parseFloat(weightInput), dateInput);
+      setWeightInput('');
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const bmi = profile?.heightCm && currentWeight
+    ? Math.round(currentWeight / Math.pow(profile.heightCm / 100, 2) * 10) / 10
+    : null;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between px-0">
+        <span className="section-label flex items-center gap-1.5"><Scale size={14} /> Body Metrics</span>
+        <button onClick={openEditProfile} className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg"
+          style={{ color: 'var(--text-muted)', backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <Pencil size={11} /> Edit
+        </button>
+      </div>
+
+      {/* Edit profile modal */}
+      {editingProfile && (
+        <div className="p-4 rounded-2xl space-y-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Edit Body Profile</p>
+            <button onClick={() => setEditingProfile(false)}><X size={16} style={{ color: 'var(--text-muted)' }} /></button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Height (cm)</label>
+              <input type="number" value={heightInput} onChange={e => setHeightInput(e.target.value)}
+                placeholder="e.g. 175" className="w-full px-3 py-2 rounded-xl text-sm"
+                style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+            </div>
+            <div>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Target Weight (kg)</label>
+              <input type="number" step="0.1" value={targetInput} onChange={e => setTargetInput(e.target.value)}
+                placeholder="e.g. 72.0" className="w-full px-3 py-2 rounded-xl text-sm"
+                style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+            </div>
+          </div>
+          <button onClick={saveProfile} disabled={saving}
+            className="w-full py-2 rounded-xl text-sm font-semibold"
+            style={{ backgroundColor: 'var(--accent-blue, #3b82f6)', color: '#fff' }}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      )}
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Height</p>
+          <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            {profile?.heightCm != null ? profile.heightCm : '—'}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>cm</p>
+        </div>
+        <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Current</p>
+          <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            {currentWeight != null ? currentWeight : '—'}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>kg</p>
+        </div>
+        <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Target</p>
+          <p className="text-xl font-bold" style={{ color: 'var(--accent-gold, #f59e0b)' }}>
+            {profile?.targetWeightKg != null ? profile.targetWeightKg : '—'}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>kg</p>
+        </div>
+      </div>
+
+      {/* BMI badge */}
+      {bmi !== null && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
+          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>BMI</span>
+          <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{bmi}</span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {bmi < 18.5 ? '· Underweight' : bmi < 25 ? '· Normal' : bmi < 30 ? '· Overweight' : '· Obese'}
+          </span>
+        </div>
+      )}
+
+      {/* Progress chart */}
+      <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold mb-3" style={{ color: 'var(--text-muted)' }}>Weight Progress</p>
+        <WeightChart logs={logs} targetWeight={profile?.targetWeightKg ?? null} />
+      </div>
+
+      {/* Log weight */}
+      <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <p className="text-xs font-semibold mb-3" style={{ color: 'var(--text-muted)' }}>Log Today's Weight</p>
+        <div className="flex gap-2">
+          <input type="date" value={dateInput} onChange={e => setDateInput(e.target.value)}
+            className="flex-1 px-3 py-2 rounded-xl text-sm"
+            style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+          <input type="number" step="0.1" value={weightInput} onChange={e => setWeightInput(e.target.value)}
+            placeholder="kg" className="w-24 px-3 py-2 rounded-xl text-sm text-center"
+            style={{ backgroundColor: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+          <button onClick={saveWeight} disabled={saving || !weightInput}
+            className="px-4 py-2 rounded-xl text-sm font-semibold"
+            style={{ backgroundColor: 'var(--accent-blue, #3b82f6)', color: '#fff', opacity: !weightInput ? 0.5 : 1 }}>
+            {saving ? '…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProgressTab() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [prs, setPrs] = useState<any[]>([]);
@@ -609,7 +833,13 @@ function ProgressTab() {
 
   return (
     <div className="px-4 space-y-4">
-      {/* Stats */}
+      {/* Body Metrics (height, weight, chart) */}
+      <BodyMetricsSection />
+
+      <div className="border-t" style={{ borderColor: 'var(--border)' }} />
+
+      {/* Workout Stats */}
+      {/* Workout Stats */}
       {analytics && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>

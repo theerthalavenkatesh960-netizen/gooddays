@@ -64,6 +64,9 @@ public class AppDbContext : DbContext
     // Quick log entities
     public DbSet<QuickLogEntry> QuickLogEntries { get; set; } = null!;
 
+    // Body metrics
+    public DbSet<BodyWeightLog> BodyWeightLogs { get; set; } = null!;
+
     // Daily routine entities
     public DbSet<DailyRoutine> DailyRoutines { get; set; } = null!;
     public DbSet<RoutineBlock> RoutineBlocks { get; set; } = null!;

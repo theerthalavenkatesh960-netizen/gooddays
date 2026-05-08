@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   theme text DEFAULT 'light',
   dashboard_preset text DEFAULT 'balanced',
   dashboard_weights_json text DEFAULT '{"tasks":35,"routine":20,"body":15,"workout":15,"finance":10,"journal":5}',
+  height_cm              decimal(5,1),
+  target_weight_kg       decimal(5,2),
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -602,5 +604,25 @@ CREATE TABLE IF NOT EXISTS goal_checklist_items (
 
 CREATE INDEX IF NOT EXISTS idx_goal_checklist_goal_position ON goal_checklist_items(goal_id, position);
 CREATE INDEX IF NOT EXISTS idx_goal_checklist_goal_completed ON goal_checklist_items(goal_id, is_completed);
+
+-- ===================================================================
+-- 008: BODY METRICS (height, target weight, daily weight logs)
+-- ===================================================================
+
+ALTER TABLE user_profiles
+  ADD COLUMN IF NOT EXISTS height_cm        decimal(5,1),
+  ADD COLUMN IF NOT EXISTS target_weight_kg decimal(5,2);
+
+CREATE TABLE IF NOT EXISTS body_weight_logs (
+  id          SERIAL PRIMARY KEY,
+  user_id     integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  date        date NOT NULL,
+  weight_kg   decimal(5,2) NOT NULL,
+  note        text,
+  logged_at   timestamptz DEFAULT now(),
+  UNIQUE(user_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_body_weight_logs_user_date ON body_weight_logs(user_id, date);
 
 COMMIT;
