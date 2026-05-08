@@ -342,17 +342,42 @@ function ExpenseTab({ today, onLog, logs }: { today: string, onLog: () => void, 
 
 // ─── Water Tab ────────────────────────────────────────────────────────────────
 
+const WATER_PRESETS = [
+  { label: 'Sip', ml: 100, emoji: '💧' },
+  { label: 'Glass', ml: 250, emoji: '🥛' },
+  { label: 'Bottle', ml: 500, emoji: '🍶' },
+  { label: '1 Litre', ml: 1000, emoji: '🫙' },
+];
+
 function WaterTab({ today, onLog, logs }: { today: string, onLog: () => void, logs: QuickLogEntry[] }) {
   const [saving, setSaving] = useState(false);
-  const [unit, setUnit] = useState<'ml' | 'l'>('ml');
+  const [customMl, setCustomMl] = useState(250);
+  const [ripples, setRipples] = useState<{ id: number; ml: number }[]>([]);
+  const [lastAdded, setLastAdded] = useState<number | null>(null);
 
   const waterLogs = useMemo(() => logs.filter(l => l.type === 'water' && l.date === today), [logs, today]);
   const totalMl = useMemo(() => waterLogs.reduce((sum, log) => sum + (log.payload.ml || 0), 0), [waterLogs]);
-  const goalMl = 2000;
-  const percentage = Math.min(100, (totalMl / goalMl) * 100);
+  const goalMl = 3000;
+
+  // Clamp ring to 100%, but let the fill text show overflow
+  const ringPct = Math.min(100, (totalMl / goalMl) * 100);
+  const isOverGoal = totalMl > goalMl;
+  const overflowMl = isOverGoal ? totalMl - goalMl : 0;
+
+  // SVG ring dimensions
+  const R = 72;
+  const CIRC = 2 * Math.PI * R;
+  const strokeDash = CIRC;
+  const strokeOffset = CIRC * (1 - ringPct / 100);
 
   const handleAddWater = async (ml: number) => {
+    if (saving) return;
     setSaving(true);
+    const rid = Date.now();
+    setRipples(prev => [...prev, { id: rid, ml }]);
+    setLastAdded(ml);
+    setTimeout(() => setRipples(prev => prev.filter(r => r.id !== rid)), 900);
+    setTimeout(() => setLastAdded(null), 1800);
     try {
       await (api as any).logQuickEntry('water', { ml }, today);
       onLog();
@@ -366,67 +391,220 @@ function WaterTab({ today, onLog, logs }: { today: string, onLog: () => void, lo
     onLog();
   };
 
+  const displayTotal = totalMl >= 1000 ? `${(totalMl / 1000).toFixed(2).replace(/\.?0+$/, '')}L` : `${totalMl}ml`;
+  const displayGoal = goalMl >= 1000 ? `${goalMl / 1000}L` : `${goalMl}ml`;
+
   return (
-    <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl p-6 space-y-6" style={{ backgroundColor: 'var(--surface)' }}>
-        <div className="flex items-center gap-4">
-          <div className="relative w-24 h-24 flex-shrink-0">
-            <svg width="100" height="100" className="-rotate-90">
-              <circle cx="50" cy="50" r="40" stroke="var(--surface-elevated)" strokeWidth="6" fill="none" />
-              <circle cx="50" cy="50" r="40" stroke="var(--accent)" strokeWidth="6" fill="none" strokeDasharray={`${2 * Math.PI * 40}`} strokeDashoffset={`${2 * Math.PI * 40 * (1 - percentage / 100)}`} strokeLinecap="round" />
+    <div className="space-y-5">
+      {/* ── Ring card ── */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl p-6" style={{ backgroundColor: 'var(--surface)' }}>
+
+        {/* Big ring + stats row */}
+        <div className="flex items-center gap-6">
+          {/* Ring */}
+          <div className="relative flex-shrink-0" style={{ width: 168, height: 168 }}>
+            <svg width="168" height="168" style={{ transform: 'rotate(-90deg)' }}>
+              {/* Track */}
+              <circle cx="84" cy="84" r={R} stroke="var(--surface-elevated)" strokeWidth="12" fill="none" />
+              {/* Progress */}
+              <motion.circle
+                cx="84" cy="84" r={R}
+                stroke={isOverGoal ? '#f59e0b' : 'var(--accent)'}
+                strokeWidth="12"
+                fill="none"
+                strokeLinecap="round"
+                strokeDasharray={strokeDash}
+                animate={{ strokeDashoffset: strokeOffset }}
+                transition={{ duration: 0.7, ease: 'easeOut' }}
+              />
+              {/* Overflow second ring (amber) */}
+              {isOverGoal && (
+                <motion.circle
+                  cx="84" cy="84" r={R}
+                  stroke="#f59e0b"
+                  strokeWidth="4"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={CIRC}
+                  animate={{ strokeDashoffset: CIRC * (1 - Math.min(1, overflowMl / goalMl)) }}
+                  transition={{ duration: 0.7, ease: 'easeOut' }}
+                  style={{ opacity: 0.45 }}
+                />
+              )}
             </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{Math.round(percentage)}</span>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>%</span>
+            {/* Ripple animations */}
+            <AnimatePresence>
+              {ripples.map(r => (
+                <motion.div
+                  key={r.id}
+                  className="absolute inset-0 rounded-full pointer-events-none"
+                  style={{ border: '2px solid var(--accent)' }}
+                  initial={{ scale: 0.85, opacity: 0.7 }}
+                  animate={{ scale: 1.25, opacity: 0 }}
+                  exit={{}}
+                  transition={{ duration: 0.8, ease: 'easeOut' }}
+                />
+              ))}
+            </AnimatePresence>
+            {/* Center label */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 text-center">
+              <Droplets size={20} style={{ color: isOverGoal ? '#f59e0b' : 'var(--accent)' }} />
+              <motion.span
+                key={totalMl}
+                className="text-2xl font-black leading-none"
+                style={{ color: 'var(--text-primary)' }}
+                initial={{ scale: 1.3, opacity: 0.6 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                {displayTotal}
+              </motion.span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>of {displayGoal}</span>
+              {isOverGoal && (
+                <span className="text-xs font-bold" style={{ color: '#f59e0b' }}>+{overflowMl}ml extra 🔥</span>
+              )}
             </div>
           </div>
-          <div>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Water Intake</p>
-            <p className="text-3xl font-bold" style={{ color: 'var(--accent)' }}>{totalMl}</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>/ {goalMl} ml</p>
+
+          {/* Stats column */}
+          <div className="flex-1 space-y-3">
+            {/* Progress bar */}
+            <div>
+              <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                <span>Progress</span>
+                <span style={{ color: isOverGoal ? '#f59e0b' : 'var(--accent)', fontWeight: 700 }}>{Math.round((totalMl / goalMl) * 100)}%</span>
+              </div>
+              <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                <motion.div
+                  className="h-full rounded-full"
+                  style={{ background: isOverGoal ? 'linear-gradient(90deg,var(--accent),#f59e0b)' : 'var(--accent)' }}
+                  animate={{ width: `${Math.min(100, (totalMl / goalMl) * 100)}%` }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                />
+              </div>
+            </div>
+
+            {/* Remaining */}
+            <div className="rounded-2xl p-3 text-center" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+              {isOverGoal ? (
+                <>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Goal smashed!</p>
+                  <p className="text-lg font-bold" style={{ color: '#f59e0b' }}>+{overflowMl}ml</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Remaining</p>
+                  <p className="text-lg font-bold" style={{ color: 'var(--accent)' }}>{goalMl - totalMl}ml</p>
+                </>
+              )}
+            </div>
+
+            {/* Log count */}
+            <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>{waterLogs.length} {waterLogs.length === 1 ? 'entry' : 'entries'} today</p>
           </div>
         </div>
 
-        <div className="flex gap-2">
-          <button onClick={() => handleAddWater(250)} disabled={saving} className="flex-1 py-2 rounded-xl font-semibold text-white transition-all" style={{ backgroundColor: 'var(--accent)', opacity: saving ? 0.5 : 1 }}>
-            + 250ml
-          </button>
-          <button onClick={() => handleAddWater(500)} disabled={saving} className="flex-1 py-2 rounded-xl font-semibold text-white transition-all" style={{ backgroundColor: 'var(--accent)', opacity: saving ? 0.5 : 1 }}>
-            + 500ml
-          </button>
-          <button onClick={() => handleAddWater(1000)} disabled={saving} className="flex-1 py-2 rounded-xl font-semibold text-white transition-all" style={{ backgroundColor: 'var(--accent)', opacity: saving ? 0.5 : 1 }}>
-            + 1L
-          </button>
+        {/* ── Quick-add bubbles ── */}
+        <div className="mt-5 grid grid-cols-4 gap-2">
+          {WATER_PRESETS.map(p => (
+            <motion.button
+              key={p.ml}
+              whileTap={{ scale: 0.88 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => handleAddWater(p.ml)}
+              disabled={saving}
+              className="flex flex-col items-center gap-1 py-3 rounded-2xl font-semibold text-xs transition-all"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)', opacity: saving ? 0.6 : 1 }}
+            >
+              <span className="text-xl">{p.emoji}</span>
+              <span>{p.label}</span>
+              <span style={{ color: 'var(--text-muted)' }}>{p.ml}ml</span>
+            </motion.button>
+          ))}
         </div>
 
-        <div className="flex gap-2">
-          <input type="number" placeholder="Custom (ml)" defaultValue="250" className="flex-1 px-3 py-2 rounded-xl border" style={{ borderColor: 'var(--border)' }} id="customWater" />
-          <button onClick={() => {
-            const val = (document.getElementById('customWater') as HTMLInputElement)?.value;
-            if (val) handleAddWater(parseInt(val));
-          }} disabled={saving} className="px-4 py-2 rounded-xl font-semibold text-white" style={{ backgroundColor: 'var(--accent)', opacity: saving ? 0.5 : 1 }}>
-            Add
-          </button>
+        {/* ── Manual ml input ── */}
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Custom amount</span>
+            <span className="text-sm font-black tabular-nums" style={{ color: 'var(--accent)' }}>{customMl} ml</span>
+          </div>
+          {/* Slider */}
+          <input
+            type="range"
+            min={50}
+            max={2000}
+            step={50}
+            value={customMl}
+            onChange={e => setCustomMl(Number(e.target.value))}
+            className="w-full accent-[var(--accent)] cursor-pointer"
+            style={{ accentColor: 'var(--accent)' }}
+          />
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              value={customMl}
+              onChange={e => setCustomMl(Math.max(1, Number(e.target.value)))}
+              className="flex-1 px-3 py-2 rounded-xl border text-sm font-semibold"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+              placeholder="Enter ml"
+            />
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => handleAddWater(customMl)}
+              disabled={saving}
+              className="flex items-center gap-2 px-5 py-2 rounded-xl font-bold text-white text-sm"
+              style={{ backgroundColor: 'var(--accent)', opacity: saving ? 0.6 : 1 }}
+            >
+              <Plus size={16} /> Add
+            </motion.button>
+          </div>
         </div>
+
+        {/* ── Flash toast ── */}
+        <AnimatePresence>
+          {lastAdded !== null && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="mt-3 text-center text-sm font-bold"
+              style={{ color: 'var(--accent)' }}
+            >
+              +{lastAdded}ml logged 💧
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
+      {/* ── Log list ── */}
       <div>
-        <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Today's Logs ({waterLogs.length})</h3>
+        <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Today's Entries ({waterLogs.length})</h3>
         <div className="space-y-2">
           {waterLogs.length === 0 ? (
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No water logged yet</p>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No water logged yet — start hydrating! 💧</p>
           ) : (
-            waterLogs.map(log => (
-              <div key={log.id} className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)' }}>
-                <Droplets size={18} style={{ color: 'var(--accent)' }} />
+            [...waterLogs].reverse().map((log, i) => (
+              <motion.div
+                key={log.id}
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className="flex items-center gap-3 p-3 rounded-2xl"
+                style={{ backgroundColor: 'var(--surface)' }}
+              >
+                <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                  <Droplets size={18} style={{ color: 'var(--accent)' }} />
+                </div>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{log.payload.ml}ml</p>
+                  <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{log.payload.ml >= 1000 ? `${log.payload.ml / 1000}L` : `${log.payload.ml}ml`}</p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{format(parseISO(log.createdAt), 'h:mm a')}</p>
                 </div>
-                <button onClick={() => handleDelete(log.id)} className="text-red-500 hover:text-red-700 p-1">
-                  <Trash2 size={16} />
+                <button onClick={() => handleDelete(log.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors">
+                  <Trash2 size={15} />
                 </button>
-              </div>
+              </motion.div>
             ))
           )}
         </div>
