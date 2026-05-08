@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DollarSign, TrendingUp, ChevronRight, ChevronLeft,
-  Plus, Wallet, BarChart3, Car, Settings2,
+  Plus, Wallet, BarChart3, Car,
   ArrowUpRight, ArrowDownRight, Trash2
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
@@ -16,7 +16,6 @@ const FINANCE_TABS: { id: string; label: string; icon: React.ComponentType<{ siz
   { id: 'Transactions', label: 'Transactions', icon: DollarSign },
   { id: 'Buckets', label: 'Buckets', icon: Wallet },
   { id: 'Investments', label: 'Investments', icon: TrendingUp },
-  { id: 'Analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
 function PillTabs({ active, onChange }: { active: string; onChange: (t: string) => void }) {
@@ -488,15 +487,15 @@ export default function Finance() {
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Finance</h1>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate('/finance/settings')}
+            onClick={() => setTab('Analytics')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
             style={{
-              backgroundColor: 'var(--surface)',
+              backgroundColor: tab === 'Analytics' ? 'var(--accent)' : 'var(--surface)',
               border: '1px solid var(--border)'
             }}
           >
-            <Settings2 size={14} style={{ color: 'var(--text-secondary)' }} />
-            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Settings</span>
+            <BarChart3 size={14} style={{ color: tab === 'Analytics' ? '#fff' : 'var(--text-secondary)' }} />
+            <span className="text-xs font-medium" style={{ color: tab === 'Analytics' ? '#fff' : 'var(--text-secondary)' }}>Analytics</span>
           </button>
           <button
             onClick={() => navigate('/finance/vehicles')}
