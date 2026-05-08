@@ -42,17 +42,18 @@ export default function Journal() {
     e.body?.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} /></div>;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Journal</h1>
-          <p className="text-gray-500 mt-0.5">Reflect, document & track your journey</p>
+          <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>Journal</h1>
+          <p className="mt-0.5" style={{ color: 'var(--text-muted)' }}>Reflect, document & track your journey</p>
         </div>
         <motion.button whileTap={{ scale: 0.95 }} onClick={openEditor}
-          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl font-semibold shadow-md">
+          className="flex items-center gap-2 px-4 py-2 text-white rounded-xl font-semibold shadow-md"
+          style={{ backgroundColor: 'var(--accent)' }}>
           <Plus size={18} /> Write
         </motion.button>
       </div>
@@ -70,20 +71,21 @@ export default function Journal() {
       {activeTab === 'entries' && (
         <div className="space-y-4">
           {entries.length > 0 && (
-            <div className="flex items-center gap-2 bg-white rounded-xl px-4 py-2 border border-gray-200">
-              <Search size={16} className="text-gray-400" />
+            <div className="flex items-center gap-2 rounded-xl px-4 py-2 border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <Search size={16} style={{ color: 'var(--text-muted)' }} />
               <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search entries..."
-                className="flex-1 bg-transparent outline-none text-sm" />
+                className="flex-1 bg-transparent outline-none text-sm" style={{ color: 'var(--text-primary)' }} />
             </div>
           )}
 
           {filteredEntries.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-200">
-              <BookOpen size={48} className="mx-auto text-gray-300 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-600 mb-2">No entries yet</h3>
-              <p className="text-gray-400 mb-6">Start your journal — capture moments, thoughts & progress</p>
+            <div className="text-center py-16 rounded-2xl border-2 border-dashed" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <BookOpen size={48} className="mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
+              <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>No entries yet</h3>
+              <p className="mb-6" style={{ color: 'var(--text-muted)' }}>Start your journal — capture moments, thoughts & progress</p>
               <motion.button whileTap={{ scale: 0.95 }} onClick={openEditor}
-                className="inline-flex items-center gap-2 px-6 py-2 bg-emerald-500 text-white rounded-xl font-semibold">
+                className="inline-flex items-center gap-2 px-6 py-2 text-white rounded-xl font-semibold"
+                style={{ backgroundColor: 'var(--accent)' }}>
                 <Plus size={18} /> Write Entry
               </motion.button>
             </div>
@@ -92,21 +94,22 @@ export default function Journal() {
               {filteredEntries.map(entry => (
                 <motion.button key={entry.id} whileHover={{ y: -2 }}
                   onClick={() => openEditorForEntry(entry.id)}
-                  className="w-full text-left bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  className="w-full text-left rounded-2xl shadow-sm border overflow-hidden"
+                  style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                   {entry.imageUrl && (
                     <img src={entry.imageUrl} alt="" className="w-full h-32 object-cover" />
                   )}
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-1">
                       <div className="flex-1">
-                        <p className="font-bold text-gray-900">{entry.title}</p>
-                        <p className="text-xs text-gray-400">{format(new Date(entry.date), 'MMM d, yyyy')}</p>
+                        <p className="font-bold" style={{ color: 'var(--text-primary)' }}>{entry.title}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{format(new Date(entry.date), 'MMM d, yyyy')}</p>
                       </div>
                       {entry.moodTag && <span className="text-2xl">{entry.moodTag === 'happy' ? '😊' : entry.moodTag === 'grateful' ? '🙏' : entry.moodTag === 'motivated' ? '💪' : entry.moodTag === 'tired' ? '😴' : '😐'}</span>}
                     </div>
-                    {entry.body && <p className="text-sm text-gray-600 line-clamp-2 mt-2">{entry.body}</p>}
+                    {entry.body && <p className="text-sm line-clamp-2 mt-2" style={{ color: 'var(--text-secondary)' }}>{entry.body}</p>}
                     <motion.button whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
-                      className="text-gray-300 hover:text-red-400 mt-2">
+                      style={{ color: 'var(--text-muted)' }} className="mt-2 hover:text-red-400">
                       <Trash2 size={16} />
                     </motion.button>
                   </div>
@@ -120,10 +123,10 @@ export default function Journal() {
       {activeTab === 'memory' && (
         <div>
           {memoryWall.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-gray-200">
-              <ImageIcon size={48} className="mx-auto text-gray-300 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-600 mb-2">Memory Wall Empty</h3>
-              <p className="text-gray-400">Add photos to your journal entries to see them here</p>
+            <div className="text-center py-16 rounded-2xl border-2 border-dashed" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+              <ImageIcon size={48} className="mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
+              <h3 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Memory Wall Empty</h3>
+              <p style={{ color: 'var(--text-muted)' }}>Add photos to your journal entries to see them here</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">

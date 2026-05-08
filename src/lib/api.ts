@@ -1297,6 +1297,265 @@ export async function deleteFlashcard(id: number) {
   return request(`goals/flashcards/${id}`, { method: 'DELETE' });
 }
 
+// ─── Finance: Buckets API ──────────────────────────────────────────────────────
+
+let DUMMY_BUCKETS = [
+  { id: 1, name: 'Emergency Fund', icon: '🛡️', target: 200000, current: 148000, color: '#4ECDC4', monthlyTarget: 10000 },
+  { id: 2, name: 'Vacation — Goa', icon: '🏖️', target: 50000, current: 22500, color: '#FFD93D', monthlyTarget: 5000 },
+  { id: 3, name: 'New Phone', icon: '📱', target: 80000, current: 40000, color: '#6C63FF', monthlyTarget: 8000 },
+  { id: 4, name: 'Car Service', icon: '🔧', target: 15000, current: 9200, color: '#FF6B6B', monthlyTarget: 3000 },
+];
+
+export async function getBuckets() {
+  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_BUCKETS);
+  return request('financialbuckets');
+}
+
+export async function createBucket(body: any) {
+  if (USE_DUMMY_DATA) {
+    const b = { id: Math.max(...DUMMY_BUCKETS.map(b => b.id), 0) + 1, ...body };
+    DUMMY_BUCKETS.push(b);
+    return Promise.resolve(b);
+  }
+  return request('financialbuckets', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateBucket(id: number, body: any) {
+  if (USE_DUMMY_DATA) {
+    const b = DUMMY_BUCKETS.find(b => b.id === id);
+    if (b) Object.assign(b, body);
+    return Promise.resolve(b);
+  }
+  return request(`financialbuckets/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteBucket(id: number) {
+  if (USE_DUMMY_DATA) {
+    const idx = DUMMY_BUCKETS.findIndex(b => b.id === id);
+    if (idx >= 0) DUMMY_BUCKETS.splice(idx, 1);
+    return Promise.resolve({ success: true });
+  }
+  return request(`financialbuckets/${id}`, { method: 'DELETE' });
+}
+
+export async function addToBucket(id: number, amount: number) {
+  if (USE_DUMMY_DATA) {
+    const b = DUMMY_BUCKETS.find(b => b.id === id);
+    if (b) b.current = Math.min(b.target, b.current + amount);
+    return Promise.resolve(b);
+  }
+  return request(`financialbuckets/${id}/deposit`, { method: 'POST', body: JSON.stringify({ amount }) });
+}
+
+export async function withdrawFromBucket(id: number, amount: number) {
+  if (USE_DUMMY_DATA) {
+    const b = DUMMY_BUCKETS.find(b => b.id === id);
+    if (b) b.current = Math.max(0, b.current - amount);
+    return Promise.resolve(b);
+  }
+  return request(`financialbuckets/${id}/withdraw`, { method: 'POST', body: JSON.stringify({ amount }) });
+}
+
+// ─── Finance: Investments API ──────────────────────────────────────────────────
+
+let DUMMY_INVESTMENTS = [
+  { id: 1, name: 'Nifty BeES', type: 'ETF', invested: 50000, current: 62800, change: 25.6 },
+  { id: 2, name: 'ICICI Bank', type: 'Stock', invested: 30000, current: 34200, change: 14.0 },
+  { id: 3, name: 'Parag Parikh FoF', type: 'MF', invested: 80000, current: 96400, change: 20.5 },
+  { id: 4, name: 'Gold BeES', type: 'ETF', invested: 20000, current: 23100, change: 15.5 },
+];
+
+export async function getInvestments() {
+  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_INVESTMENTS);
+  return request('investments');
+}
+
+export async function createInvestment(body: any) {
+  if (USE_DUMMY_DATA) {
+    const inv = { id: Math.max(...DUMMY_INVESTMENTS.map(i => i.id), 0) + 1, change: 0, ...body };
+    DUMMY_INVESTMENTS.push(inv);
+    return Promise.resolve(inv);
+  }
+  return request('investments', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateInvestment(id: number, body: any) {
+  if (USE_DUMMY_DATA) {
+    const inv = DUMMY_INVESTMENTS.find(i => i.id === id);
+    if (inv) {
+      Object.assign(inv, body);
+      const newChange = ((inv.current - inv.invested) / inv.invested) * 100;
+      inv.change = parseFloat(newChange.toFixed(1));
+    }
+    return Promise.resolve(inv);
+  }
+  return request(`investments/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteInvestment(id: number) {
+  if (USE_DUMMY_DATA) {
+    const idx = DUMMY_INVESTMENTS.findIndex(i => i.id === id);
+    if (idx >= 0) DUMMY_INVESTMENTS.splice(idx, 1);
+    return Promise.resolve({ success: true });
+  }
+  return request(`investments/${id}`, { method: 'DELETE' });
+}
+
+// ─── Vehicles API ──────────────────────────────────────────────────────────────
+
+export type Refill = { id: number; date: string; litres: number; amount: number; odometer: number; mileage?: number };
+export type ServiceLog = { id: number; date: string; items: string[]; cost: number; nextDue?: string; odometer?: number };
+export type IssueLog = { id: number; date: string; description: string; resolved: boolean };
+export type Vehicle = { id: number; name: string; make: string; model: string; year: number; regNo: string; fuelType: string; color: string; odometer: number; refills: Refill[]; services: ServiceLog[]; issues: IssueLog[] };
+
+let DUMMY_VEHICLES: Vehicle[] = [
+  {
+    id: 1, name: 'Daily Driver', make: 'Maruti', model: 'Baleno', year: 2022,
+    regNo: 'KA-01-AB-1234', fuelType: 'Petrol', color: '#6C63FF', odometer: 28450,
+    refills: [
+      { id: 1, date: '2026-05-05', litres: 35.2, amount: 3450, odometer: 28450, mileage: 16.2 },
+      { id: 2, date: '2026-04-20', litres: 33.8, amount: 3310, odometer: 27880, mileage: 15.9 },
+      { id: 3, date: '2026-04-08', litres: 36.0, amount: 3528, odometer: 27340, mileage: 16.4 },
+      { id: 4, date: '2026-03-22', litres: 34.5, amount: 3381, odometer: 26750, mileage: 15.7 },
+    ],
+    services: [
+      { id: 1, date: '2026-03-15', items: ['Engine Oil', 'Oil Filter', 'Air Filter', 'AC Service'], cost: 8500, nextDue: '2026-09-15', odometer: 26000 },
+      { id: 2, date: '2025-09-10', items: ['Engine Oil', 'Oil Filter'], cost: 3800, nextDue: '2026-03-10', odometer: 20000 },
+    ],
+    issues: [
+      { id: 1, date: '2026-04-28', description: 'Unusual noise from front left wheel at low speed', resolved: false },
+      { id: 2, date: '2026-03-05', description: 'AC not cooling properly', resolved: true },
+      { id: 3, date: '2026-02-10', description: 'Rear wiper not working', resolved: true },
+    ],
+  },
+];
+
+function findVehicle(id: number) { return DUMMY_VEHICLES.find(v => v.id === id); }
+
+export async function getVehicles() {
+  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_VEHICLES);
+  return request('vehicles');
+}
+
+export async function createVehicle(body: any) {
+  if (USE_DUMMY_DATA) {
+    const v: Vehicle = { id: Math.max(...DUMMY_VEHICLES.map(v => v.id), 0) + 1, refills: [], services: [], issues: [], ...body };
+    DUMMY_VEHICLES.push(v);
+    return Promise.resolve(v);
+  }
+  return request('vehicles', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateVehicle(id: number, body: any) {
+  if (USE_DUMMY_DATA) {
+    const v = findVehicle(id);
+    if (v) Object.assign(v, body);
+    return Promise.resolve(v);
+  }
+  return request(`vehicles/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteVehicle(id: number) {
+  if (USE_DUMMY_DATA) {
+    DUMMY_VEHICLES = DUMMY_VEHICLES.filter(v => v.id !== id);
+    return Promise.resolve({ success: true });
+  }
+  return request(`vehicles/${id}`, { method: 'DELETE' });
+}
+
+export async function addRefill(vehicleId: number, body: Omit<Refill, 'id'>) {
+  if (USE_DUMMY_DATA) {
+    const v = findVehicle(vehicleId);
+    if (!v) throw new Error('Vehicle not found');
+    const prev = v.refills[0];
+    const mileage = prev ? parseFloat(((v.odometer - prev.odometer) / (body.litres || 1)).toFixed(1)) : undefined;
+    const r: Refill = { id: Math.max(...v.refills.map(r => r.id), 0) + 1, mileage, ...body };
+    v.refills.unshift(r);
+    v.odometer = Math.max(v.odometer, body.odometer);
+    return Promise.resolve(r);
+  }
+  return request(`vehicles/${vehicleId}/refills`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateRefill(vehicleId: number, refillId: number, body: Partial<Refill>) {
+  if (USE_DUMMY_DATA) {
+    const v = findVehicle(vehicleId);
+    const r = v?.refills.find(r => r.id === refillId);
+    if (r) Object.assign(r, body);
+    return Promise.resolve(r);
+  }
+  return request(`vehicles/${vehicleId}/refills/${refillId}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteRefill(vehicleId: number, refillId: number) {
+  if (USE_DUMMY_DATA) {
+    const v = findVehicle(vehicleId);
+    if (v) v.refills = v.refills.filter(r => r.id !== refillId);
+    return Promise.resolve({ success: true });
+  }
+  return request(`vehicles/${vehicleId}/refills/${refillId}`, { method: 'DELETE' });
+}
+
+export async function addService(vehicleId: number, body: Omit<ServiceLog, 'id'>) {
+  if (USE_DUMMY_DATA) {
+    const v = findVehicle(vehicleId);
+    if (!v) throw new Error('Vehicle not found');
+    const s: ServiceLog = { id: Math.max(...v.services.map(s => s.id), 0) + 1, ...body };
+    v.services.unshift(s);
+    return Promise.resolve(s);
+  }
+  return request(`vehicles/${vehicleId}/services`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateService(vehicleId: number, serviceId: number, body: Partial<ServiceLog>) {
+  if (USE_DUMMY_DATA) {
+    const v = findVehicle(vehicleId);
+    const s = v?.services.find(s => s.id === serviceId);
+    if (s) Object.assign(s, body);
+    return Promise.resolve(s);
+  }
+  return request(`vehicles/${vehicleId}/services/${serviceId}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteService(vehicleId: number, serviceId: number) {
+  if (USE_DUMMY_DATA) {
+    const v = findVehicle(vehicleId);
+    if (v) v.services = v.services.filter(s => s.id !== serviceId);
+    return Promise.resolve({ success: true });
+  }
+  return request(`vehicles/${vehicleId}/services/${serviceId}`, { method: 'DELETE' });
+}
+
+export async function addIssue(vehicleId: number, body: Omit<IssueLog, 'id'>) {
+  if (USE_DUMMY_DATA) {
+    const v = findVehicle(vehicleId);
+    if (!v) throw new Error('Vehicle not found');
+    const issue: IssueLog = { id: Math.max(...v.issues.map(i => i.id), 0) + 1, ...body };
+    v.issues.unshift(issue);
+    return Promise.resolve(issue);
+  }
+  return request(`vehicles/${vehicleId}/issues`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function resolveIssue(vehicleId: number, issueId: number, resolved: boolean) {
+  if (USE_DUMMY_DATA) {
+    const v = findVehicle(vehicleId);
+    const issue = v?.issues.find(i => i.id === issueId);
+    if (issue) issue.resolved = resolved;
+    return Promise.resolve(issue);
+  }
+  return request(`vehicles/${vehicleId}/issues/${issueId}/resolve`, { method: 'POST', body: JSON.stringify({ resolved }) });
+}
+
+export async function deleteIssue(vehicleId: number, issueId: number) {
+  if (USE_DUMMY_DATA) {
+    const v = findVehicle(vehicleId);
+    if (v) v.issues = v.issues.filter(i => i.id !== issueId);
+    return Promise.resolve({ success: true });
+  }
+  return request(`vehicles/${vehicleId}/issues/${issueId}`, { method: 'DELETE' });
+}
+
 // ─── Reminders API ────────────────────────────────────────────────────────────
 
 export async function getReminders() { return request('reminders'); }

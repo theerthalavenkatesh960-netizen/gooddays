@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   DollarSign, TrendingUp, TrendingDown, ChevronRight, ChevronLeft,
   ChevronDown, Plus, Wallet, Target, BarChart3, Car, PiggyBank,
-  ArrowUpRight, ArrowDownRight, Check
+  ArrowUpRight, ArrowDownRight, Check, Trash2
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -160,29 +160,60 @@ function TransactionsTab() {
 // ──────────────────────────────────────────────────
 // Buckets Tab
 // ──────────────────────────────────────────────────
-const DEMO_BUCKETS = [
-  { id: 1, name: 'Emergency Fund',  icon: '🛡️', target: 200000, current: 148000, color: '#4ECDC4', monthlyTarget: 10000 },
-  { id: 2, name: 'Vacation — Goa',  icon: '🏖️', target: 50000,  current: 22500,  color: '#FFD93D', monthlyTarget: 5000 },
-  { id: 3, name: 'New Phone',       icon: '📱', target: 80000,  current: 40000,  color: '#6C63FF', monthlyTarget: 8000 },
-  { id: 4, name: 'Car Service',     icon: '🔧', target: 15000,  current: 9200,   color: '#FF6B6B', monthlyTarget: 3000 },
-];
 
 function BucketsTab() {
-  const [buckets] = useState(DEMO_BUCKETS);
+  const [buckets, setBuckets] = useState<any[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [amountInput, setAmountInput] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [newBucket, setNewBucket] = useState({ name: '', icon: '🪣', target: '', color: '#4ECDC4', monthlyTarget: '' });
+
+  useEffect(() => {
+    api.getBuckets().then((data: any) => setBuckets(Array.isArray(data) ? data : [])).finally(() => setLoading(false));
+  }, []);
+
+  async function handleAdd() {
+    if (!newBucket.name.trim() || !newBucket.target) return;
+    const created = await api.createBucket({ ...newBucket, target: Number(newBucket.target), current: 0, monthlyTarget: Number(newBucket.monthlyTarget || 0) });
+    setBuckets(p => [...p, created]);
+    setNewBucket({ name: '', icon: '🪣', target: '', color: '#4ECDC4', monthlyTarget: '' });
+    setShowAdd(false);
+  }
+
+  async function handleDeposit(id: number) {
+    const amt = Number(amountInput);
+    if (!amt || amt <= 0) return;
+    const updated = await api.addToBucket(id, amt);
+    setBuckets(p => p.map(b => b.id === id ? updated : b));
+    setAmountInput('');
+  }
+
+  async function handleWithdraw(id: number) {
+    const amt = Number(amountInput);
+    if (!amt || amt <= 0) return;
+    const updated = await api.withdrawFromBucket(id, amt);
+    setBuckets(p => p.map(b => b.id === id ? updated : b));
+    setAmountInput('');
+  }
+
+  async function handleDelete(id: number) {
+    await api.deleteBucket(id);
+    setBuckets(p => p.filter(b => b.id !== id));
+    setSelected(null);
+  }
+
+  if (loading) return <div className="px-4 py-8 flex justify-center"><div className="w-6 h-6 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent)' }} /></div>;
 
   return (
     <div className="px-4">
       <div className="space-y-3">
         {buckets.map(b => {
-          const pct = Math.round((b.current / b.target) * 100);
+          const pct = b.target > 0 ? Math.min(100, Math.round((b.current / b.target) * 100)) : 0;
           const isOpen = selected === b.id;
           return (
             <div key={b.id} className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <button
-                onClick={() => setSelected(isOpen ? null : b.id)}
-                className="w-full flex items-center gap-3 p-4 press"
-              >
+              <button onClick={() => setSelected(isOpen ? null : b.id)} className="w-full flex items-center gap-3 p-4 press">
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ backgroundColor: b.color + '22' }}>
                   {b.icon}
                 </div>
@@ -202,29 +233,24 @@ function BucketsTab() {
               </button>
               <AnimatePresence initial={false}>
                 {isOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
                     <div className="px-4 pb-4 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
                       <div className="grid grid-cols-2 gap-2 pt-3">
                         <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Monthly Target</p>
-                          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>₹{b.monthlyTarget.toLocaleString()}</p>
+                          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>₹{(b.monthlyTarget || 0).toLocaleString()}</p>
                         </div>
                         <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Remaining</p>
                           <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>₹{(b.target - b.current).toLocaleString()}</p>
                         </div>
                       </div>
+                      <input type="number" value={amountInput} onChange={e => setAmountInput(e.target.value)} placeholder="Amount ₹" className="w-full h-9 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
                       <div className="flex gap-2">
-                        <button className="flex-1 h-9 rounded-xl text-xs font-medium press" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
-                          Add
-                        </button>
-                        <button className="flex-1 h-9 rounded-xl text-xs font-medium press" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-                          Withdraw
+                        <button onClick={() => handleDeposit(b.id)} className="flex-1 h-9 rounded-xl text-xs font-medium press" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>Add</button>
+                        <button onClick={() => handleWithdraw(b.id)} className="flex-1 h-9 rounded-xl text-xs font-medium press" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>Withdraw</button>
+                        <button onClick={() => handleDelete(b.id)} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
@@ -234,7 +260,23 @@ function BucketsTab() {
             </div>
           );
         })}
-        <button className="w-full h-12 rounded-2xl text-sm font-medium press flex items-center justify-center gap-2" style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
+
+        {showAdd && (
+          <div className="p-4 rounded-2xl space-y-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>New Bucket</p>
+            <input value={newBucket.name} onChange={e => setNewBucket(p => ({ ...p, name: e.target.value }))} placeholder="Bucket name" className="w-full h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            <div className="grid grid-cols-2 gap-2">
+              <input type="number" value={newBucket.target} onChange={e => setNewBucket(p => ({ ...p, target: e.target.value }))} placeholder="Target ₹" className="h-10 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+              <input type="number" value={newBucket.monthlyTarget} onChange={e => setNewBucket(p => ({ ...p, monthlyTarget: e.target.value }))} placeholder="Monthly ₹" className="h-10 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowAdd(false)} className="flex-1 h-9 rounded-xl text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Cancel</button>
+              <button onClick={handleAdd} className="flex-1 h-9 rounded-xl text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>Create</button>
+            </div>
+          </div>
+        )}
+
+        <button onClick={() => setShowAdd(v => !v)} className="w-full h-12 rounded-2xl text-sm font-medium press flex items-center justify-center gap-2" style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
           <Plus size={16} /> Add Bucket
         </button>
       </div>
@@ -245,62 +287,101 @@ function BucketsTab() {
 // ──────────────────────────────────────────────────
 // Investments Tab
 // ──────────────────────────────────────────────────
-const DEMO_HOLDINGS = [
-  { name: 'Nifty BeES',    type: 'ETF',       invested: 50000, current: 62800, change: 25.6 },
-  { name: 'ICICI Bank',    type: 'Stock',     invested: 30000, current: 34200, change: 14.0 },
-  { name: 'Parag Parikh FoF', type: 'MF',    invested: 80000, current: 96400, change: 20.5 },
-  { name: 'Gold BeES',     type: 'ETF',       invested: 20000, current: 23100, change: 15.5 },
-];
 
 function InvestmentsTab() {
-  const totalInvested = DEMO_HOLDINGS.reduce((s, h) => s + h.invested, 0);
-  const totalCurrent  = DEMO_HOLDINGS.reduce((s, h) => s + h.current, 0);
+  const [holdings, setHoldings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newHolding, setNewHolding] = useState({ name: '', type: 'MF', invested: '', current: '' });
+
+  useEffect(() => {
+    api.getInvestments().then((data: any) => setHoldings(Array.isArray(data) ? data : [])).finally(() => setLoading(false));
+  }, []);
+
+  async function handleAdd() {
+    if (!newHolding.name.trim() || !newHolding.invested || !newHolding.current) return;
+    const inv = Number(newHolding.invested);
+    const cur = Number(newHolding.current);
+    const created = await api.createInvestment({ name: newHolding.name, type: newHolding.type, invested: inv, current: cur, change: inv > 0 ? parseFloat(((cur - inv) / inv * 100).toFixed(1)) : 0 });
+    setHoldings(p => [...p, created]);
+    setNewHolding({ name: '', type: 'MF', invested: '', current: '' });
+    setShowAdd(false);
+  }
+
+  async function handleDelete(id: number) {
+    await api.deleteInvestment(id);
+    setHoldings(p => p.filter(h => h.id !== id));
+  }
+
+  if (loading) return <div className="px-4 py-8 flex justify-center"><div className="w-6 h-6 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent)' }} /></div>;
+
+  const totalInvested = holdings.reduce((s, h) => s + (h.invested || 0), 0);
+  const totalCurrent  = holdings.reduce((s, h) => s + (h.current || 0), 0);
   const totalPnL      = totalCurrent - totalInvested;
-  const pnlPct        = ((totalPnL / totalInvested) * 100).toFixed(1);
+  const pnlPct        = totalInvested > 0 ? ((totalPnL / totalInvested) * 100).toFixed(1) : '0.0';
+  const pos           = totalPnL >= 0;
 
   return (
     <div className="px-4">
-      {/* Portfolio summary */}
       <div className="p-5 rounded-2xl mb-4" style={{ background: 'linear-gradient(135deg, var(--accent-green)22, var(--surface))', border: '1px solid var(--accent-green)33' }}>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Portfolio Value</p>
         <p className="text-3xl font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>₹{totalCurrent.toLocaleString()}</p>
         <div className="flex items-center gap-2 mt-2">
-          <ArrowUpRight size={14} style={{ color: 'var(--accent-green)' }} />
-          <span className="text-sm font-semibold num" style={{ color: 'var(--accent-green)' }}>
-            +₹{totalPnL.toLocaleString()} ({pnlPct}%)
+          {pos ? <ArrowUpRight size={14} style={{ color: 'var(--accent-green)' }} /> : <ArrowDownRight size={14} style={{ color: 'var(--accent-warm)' }} />}
+          <span className="text-sm font-semibold num" style={{ color: pos ? 'var(--accent-green)' : 'var(--accent-warm)' }}>
+            {pos ? '+' : ''}₹{totalPnL.toLocaleString()} ({pnlPct}%)
           </span>
         </div>
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Invested: ₹{totalInvested.toLocaleString()}</span>
-        </div>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Invested: ₹{totalInvested.toLocaleString()}</p>
       </div>
 
-      {/* Holdings */}
       <div className="section-header px-0 mb-2">
         <span className="section-label">Holdings</span>
-        <button className="text-xs press" style={{ color: 'var(--accent)' }}>
-          <Plus size={14} />
+        <button onClick={() => setShowAdd(v => !v)} className="press" style={{ color: 'var(--accent)' }}>
+          <Plus size={18} />
         </button>
       </div>
+
+      {showAdd && (
+        <div className="p-4 rounded-2xl mb-3 space-y-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Add Holding</p>
+          <input value={newHolding.name} onChange={e => setNewHolding(p => ({ ...p, name: e.target.value }))} placeholder="Name (e.g. Nifty BeES)" className="w-full h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+          <select value={newHolding.type} onChange={e => setNewHolding(p => ({ ...p, type: e.target.value }))} className="w-full h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
+            {['MF', 'ETF', 'Stock', 'FD', 'Gold', 'Crypto', 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <div className="grid grid-cols-2 gap-2">
+            <input type="number" value={newHolding.invested} onChange={e => setNewHolding(p => ({ ...p, invested: e.target.value }))} placeholder="Invested ₹" className="h-10 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            <input type="number" value={newHolding.current} onChange={e => setNewHolding(p => ({ ...p, current: e.target.value }))} placeholder="Current ₹" className="h-10 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowAdd(false)} className="flex-1 h-9 rounded-xl text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Cancel</button>
+            <button onClick={handleAdd} className="flex-1 h-9 rounded-xl text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>Add</button>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2">
-        {DEMO_HOLDINGS.map(h => {
-          const pnl = h.current - h.invested;
-          const pos = pnl >= 0;
+        {holdings.map(h => {
+          const pnl = (h.current || 0) - (h.invested || 0);
+          const hpos = pnl >= 0;
           return (
-            <div key={h.name} className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: pos ? 'var(--accent-green)22' : 'var(--accent-warm)22' }}>
-                <TrendingUp size={18} style={{ color: pos ? 'var(--accent-green)' : 'var(--accent-warm)' }} />
+            <div key={h.id ?? h.name} className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: hpos ? 'var(--accent-green)22' : 'var(--accent-warm)22' }}>
+                <TrendingUp size={18} style={{ color: hpos ? 'var(--accent-green)' : 'var(--accent-warm)' }} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{h.name}</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{h.type} · ₹{h.invested.toLocaleString()}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{h.type} · ₹{(h.invested || 0).toLocaleString()}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>₹{h.current.toLocaleString()}</p>
-                <p className="text-xs num font-medium mt-0.5" style={{ color: pos ? 'var(--accent-green)' : 'var(--accent-warm)' }}>
-                  {pos ? '+' : ''}{h.change}%
+                <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>₹{(h.current || 0).toLocaleString()}</p>
+                <p className="text-xs num font-medium mt-0.5" style={{ color: hpos ? 'var(--accent-green)' : 'var(--accent-warm)' }}>
+                  {hpos ? '+' : ''}{h.change ?? 0}%
                 </p>
               </div>
+              <button onClick={() => handleDelete(h.id)} className="w-8 h-8 rounded-lg flex items-center justify-center press ml-1" style={{ color: '#ef4444' }}>
+                <Trash2 size={14} />
+              </button>
             </div>
           );
         })}
