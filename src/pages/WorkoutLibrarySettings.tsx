@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Dumbbell, Plus, Trash2, Save, Search, Calendar, BookOpen, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Plus, Trash2, Save, Search, Calendar, BookOpen, X, Loader2, Filter } from 'lucide-react';
+import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
 import * as api from '../lib/api';
 import MuscleVisualization from '../components/MuscleVisualization';
 
@@ -37,6 +38,7 @@ const MUSCLE_MAP: Record<string, string> = {
 export default function WorkoutLibrarySettings() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<'routine' | 'library'>('routine');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [split, setSplit] = useState<SplitPreset | null>(null);
   const [routine, setRoutine] = useState<RoutineMap>({});
@@ -45,6 +47,7 @@ export default function WorkoutLibrarySettings() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [filterMuscle, setFilterMuscle] = useState<string | null>(null);
+  const [showExerciseFilters, setShowExerciseFilters] = useState(false);
   const [addingToDay, setAddingToDay] = useState<string | null>(null);
   const [pickExerciseId, setPickExerciseId] = useState<number | null>(null);
   const [pickSets, setPickSets] = useState(3);
@@ -64,7 +67,13 @@ export default function WorkoutLibrarySettings() {
       const found = splits.find(s => s.name === SPLIT_NAME) ?? splits[0] ?? null;
       if (found) {
         setSplit(found);
-        try { setRoutine(JSON.parse(found.dayConfigs) || {}); } catch { setRoutine({}); }
+        if (typeof found.dayConfigs === 'string') {
+          try { setRoutine(JSON.parse(found.dayConfigs) || {}); } catch { setRoutine({}); }
+        } else if (found.dayConfigs && typeof found.dayConfigs === 'object') {
+          setRoutine(found.dayConfigs as any);
+        } else {
+          setRoutine({});
+        }
       }
     } catch (e: any) {
       setStatus(e?.message || 'Failed to load');
@@ -130,6 +139,10 @@ export default function WorkoutLibrarySettings() {
     setPickReps(10);
   }
 
+  function dayKey(date: Date) {
+    return format(date, 'EEEE').toLowerCase();
+  }
+
   function addToRoutine(day: string) {
     if (!pickExerciseId) return;
     setRoutine(prev => {
@@ -157,6 +170,17 @@ export default function WorkoutLibrarySettings() {
   }, [exercises, filterMuscle, search]);
 
   const pickedExercise = exercises.find(e => e.id === pickExerciseId) ?? null;
+  const selectedDay = dayKey(selectedDate);
+  const selectedDayEntries = routine[selectedDay] || [];
+  const selectedDayExercises = selectedDayEntries
+    .map(e => ({ entry: e, ex: exercises.find(x => x.id === e.exerciseId) }))
+    .filter((x): x is { entry: RoutineEntry; ex: Exercise } => !!x.ex);
+
+  const selectedIntensity: Record<string, number> = {};
+  selectedDayExercises.forEach(({ ex }) => {
+    const map = MUSCLE_MAP[ex.muscleGroup];
+    if (map) selectedIntensity[map] = Math.min(1, (selectedIntensity[map] || 0) + 0.4);
+  });
 
   if (loading) {
     return (
@@ -230,78 +254,103 @@ export default function WorkoutLibrarySettings() {
             </button>
           </div>
 
-          {DAYS.map(day => {
-            const entries = routine[day] || [];
-            const dayExercises = entries
-              .map(e => ({ entry: e, ex: exercises.find(x => x.id === e.exerciseId) }))
-              .filter((x): x is { entry: RoutineEntry; ex: Exercise } => !!x.ex);
-            const intensity: Record<string, number> = {};
-            dayExercises.forEach(({ ex }) => {
-              const map = MUSCLE_MAP[ex.muscleGroup];
-              if (map) intensity[map] = Math.min(1, (intensity[map] || 0) + 0.4);
-            });
-
-            return (
-              <div key={day} className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="text-sm font-bold capitalize" style={{ color: 'var(--text-primary)' }}>{day}</p>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {entries.length} exercise{entries.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {dayExercises.length > 0 && <MuscleVisualization intensity={intensity} side="front" height={48} />}
-                    <button
-                      onClick={() => openAddModal(day)}
-                      className="w-8 h-8 rounded-xl flex items-center justify-center press"
-                      style={{ backgroundColor: 'rgba(108, 99, 255, 0.15)', color: 'var(--accent)' }}
-                    >
-                      <Plus size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                {dayExercises.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    {dayExercises.map(({ entry, ex }) => (
-                      <div key={entry.exerciseId} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
-                        <div className="w-full h-24 flex items-center justify-center relative" style={{ backgroundColor: 'rgba(108, 99, 255, 0.07)' }}>
-                          {ex.imageUrl
-                            ? <img src={ex.imageUrl} alt={ex.name} className="w-full h-full object-cover" />
-                            : <Dumbbell size={30} style={{ color: 'var(--accent)', opacity: 0.5 }} />
-                          }
-                          <span className="absolute top-1.5 left-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(0,0,0,0.55)', color: '#fff' }}>
-                            {ex.muscleGroup}
-                          </span>
-                        </div>
-                        <div className="p-2.5">
-                          <p className="text-xs font-semibold line-clamp-1 mb-0.5" style={{ color: 'var(--text-primary)' }}>{ex.name}</p>
-                          {ex.description && <p className="text-[10px] line-clamp-1 mb-1.5" style={{ color: 'var(--text-muted)' }}>{ex.description}</p>}
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(108, 99, 255, 0.18)', color: 'var(--accent)' }}>
-                              {entry.sets}×{entry.reps}
-                            </span>
-                            <button onClick={() => removeFromRoutine(day, entry.exerciseId)} className="p-1 rounded-lg press" style={{ color: 'var(--accent-warm)' }}>
-                              <X size={12} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => openAddModal(day)}
-                    className="w-full py-4 rounded-xl flex items-center justify-center gap-2 text-sm press"
-                    style={{ border: '1.5px dashed var(--border)', color: 'var(--text-muted)' }}
-                  >
-                    <Plus size={14} /> Add exercises
-                  </button>
-                )}
+          <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{format(selectedDate, 'EEEE, MMM d')}</p>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>◀ Week</button>
+                <button onClick={() => setSelectedDate(new Date())} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Today</button>
+                <button onClick={() => setSelectedDate(addDays(selectedDate, 7))} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Week ▶</button>
               </div>
-            );
-          })}
+            </div>
+
+            <div className="overflow-x-auto mb-4">
+              <div className="flex gap-1.5 pb-1.5">
+                {Array.from({ length: 7 }).map((_, i) => {
+                  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
+                  const d = addDays(weekStart, i);
+                  const active = isSameDay(d, selectedDate);
+                  const key = dayKey(d);
+                  return (
+                    <button
+                      key={d.toISOString()}
+                      onClick={() => setSelectedDate(d)}
+                      className="min-w-[64px] px-2 py-2 rounded-lg text-center border"
+                      style={{
+                        backgroundColor: active ? 'var(--accent)' : 'var(--surface-elevated)',
+                        color: active ? '#fff' : 'var(--text-secondary)',
+                        borderColor: active ? 'var(--accent)' : 'var(--border)',
+                      }}
+                    >
+                      <div className="text-[11px]">{format(d, 'EEE')}</div>
+                      <div className="font-semibold text-sm">{format(d, 'd')}</div>
+                      <div className="text-[10px] opacity-80">{(routine[key] || []).length}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm font-bold capitalize" style={{ color: 'var(--text-primary)' }}>{selectedDay}</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{selectedDayEntries.length} exercise{selectedDayEntries.length !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {selectedDayExercises.length > 0 && <MuscleVisualization intensity={selectedIntensity} side="front" height={48} />}
+                <button
+                  onClick={() => openAddModal(selectedDay)}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center press"
+                  style={{ backgroundColor: 'rgba(108, 99, 255, 0.15)', color: 'var(--accent)' }}
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+            </div>
+
+            {selectedDayExercises.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2">
+                {selectedDayExercises.map(({ entry, ex }) => (
+                  <div key={`${selectedDay}-${entry.exerciseId}`} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+                    <button
+                      onClick={() => navigate(`/settings/workout-library/exercise/${entry.exerciseId}`, { state: { day: selectedDay, sets: entry.sets, reps: entry.reps } })}
+                      className="w-full text-left"
+                    >
+                      <div className="w-full h-24 flex items-center justify-center relative" style={{ backgroundColor: 'rgba(108, 99, 255, 0.07)' }}>
+                        {ex.imageUrl
+                          ? <img src={ex.imageUrl} alt={ex.name} className="w-full h-full object-cover" />
+                          : <Dumbbell size={30} style={{ color: 'var(--accent)', opacity: 0.5 }} />
+                        }
+                        <span className="absolute top-1.5 left-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(0,0,0,0.55)', color: '#fff' }}>
+                          {ex.muscleGroup}
+                        </span>
+                      </div>
+                      <div className="p-2.5">
+                        <p className="text-xs font-semibold line-clamp-1 mb-0.5" style={{ color: 'var(--text-primary)' }}>{ex.name}</p>
+                        {ex.description && <p className="text-[10px] line-clamp-1 mb-1.5" style={{ color: 'var(--text-muted)' }}>{ex.description}</p>}
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(108, 99, 255, 0.18)', color: 'var(--accent)' }}>
+                          {entry.sets}×{entry.reps}
+                        </span>
+                      </div>
+                    </button>
+                    <div className="px-2.5 pb-2.5">
+                      <button onClick={() => removeFromRoutine(selectedDay, entry.exerciseId)} className="w-full py-1 rounded-lg text-[10px] font-medium press flex items-center justify-center gap-1" style={{ color: 'var(--accent-warm)', backgroundColor: 'var(--surface)' }}>
+                        <X size={10} /> Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <button
+                onClick={() => openAddModal(selectedDay)}
+                className="w-full py-4 rounded-xl flex items-center justify-center gap-2 text-sm press"
+                style={{ border: '1.5px dashed var(--border)', color: 'var(--text-muted)' }}
+              >
+                <Plus size={14} /> Add exercises for {selectedDay}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -355,42 +404,57 @@ export default function WorkoutLibrarySettings() {
           <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between mb-3">
               <p className="section-label">Exercise Library</p>
-              <span className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
-                {filteredExercises.length} / {exercises.length}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
+                  {filteredExercises.length} / {exercises.length}
+                </span>
+                <button
+                  onClick={() => setShowExerciseFilters(v => !v)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center press"
+                  style={{
+                    backgroundColor: showExerciseFilters ? 'var(--accent)' : 'var(--surface-elevated)',
+                    color: showExerciseFilters ? '#fff' : 'var(--text-secondary)',
+                  }}
+                  title="Toggle filters"
+                >
+                  <Filter size={14} />
+                </button>
+              </div>
             </div>
 
-            <div className="mb-3 space-y-2">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                <Search size={16} style={{ color: 'var(--text-muted)' }} />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search exercises..."
-                  className="flex-1 bg-transparent text-sm outline-none"
-                  style={{ color: 'var(--text-primary)' }}
-                />
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  onClick={() => setFilterMuscle(null)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium press"
-                  style={{ backgroundColor: !filterMuscle ? 'var(--accent)' : 'var(--surface-elevated)', color: !filterMuscle ? '#fff' : 'var(--text-muted)' }}
-                >
-                  All
-                </button>
-                {MUSCLE_GROUPS.map(mg => (
+            {showExerciseFilters && (
+              <div className="mb-3 space-y-2">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                  <Search size={16} style={{ color: 'var(--text-muted)' }} />
+                  <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search exercises..."
+                    className="flex-1 bg-transparent text-sm outline-none"
+                    style={{ color: 'var(--text-primary)' }}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-1.5">
                   <button
-                    key={mg}
-                    onClick={() => setFilterMuscle(filterMuscle === mg ? null : mg)}
+                    onClick={() => setFilterMuscle(null)}
                     className="px-3 py-1.5 rounded-lg text-xs font-medium press"
-                    style={{ backgroundColor: filterMuscle === mg ? 'var(--accent)' : 'var(--surface-elevated)', color: filterMuscle === mg ? '#fff' : 'var(--text-muted)' }}
+                    style={{ backgroundColor: !filterMuscle ? 'var(--accent)' : 'var(--surface-elevated)', color: !filterMuscle ? '#fff' : 'var(--text-muted)' }}
                   >
-                    {mg}
+                    All
                   </button>
-                ))}
+                  {MUSCLE_GROUPS.map(mg => (
+                    <button
+                      key={mg}
+                      onClick={() => setFilterMuscle(filterMuscle === mg ? null : mg)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium press"
+                      style={{ backgroundColor: filterMuscle === mg ? 'var(--accent)' : 'var(--surface-elevated)', color: filterMuscle === mg ? '#fff' : 'var(--text-muted)' }}
+                    >
+                      {mg}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {filteredExercises.length === 0 ? (
               <div className="py-6 text-center">
@@ -401,18 +465,22 @@ export default function WorkoutLibrarySettings() {
               <div className="grid grid-cols-2 gap-2">
                 {filteredExercises.map(ex => (
                   <div key={ex.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
-                    <div className="w-full h-24 flex items-center justify-center relative" style={{ backgroundColor: 'rgba(108, 99, 255, 0.07)' }}>
-                      {ex.imageUrl
-                        ? <img src={ex.imageUrl} alt={ex.name} className="w-full h-full object-cover" />
-                        : <Dumbbell size={28} style={{ color: 'var(--accent)', opacity: 0.5 }} />
-                      }
-                      <span className="absolute top-1.5 left-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(0,0,0,0.55)', color: '#fff' }}>
-                        {ex.muscleGroup}
-                      </span>
-                    </div>
-                    <div className="p-2.5">
-                      <p className="text-xs font-semibold line-clamp-1 mb-0.5" style={{ color: 'var(--text-primary)' }}>{ex.name}</p>
-                      {ex.description && <p className="text-[10px] line-clamp-2 mb-2" style={{ color: 'var(--text-muted)' }}>{ex.description}</p>}
+                    <button onClick={() => navigate(`/settings/workout-library/exercise/${ex.id}`)} className="w-full text-left">
+                      <div className="w-full h-24 flex items-center justify-center relative" style={{ backgroundColor: 'rgba(108, 99, 255, 0.07)' }}>
+                        {ex.imageUrl
+                          ? <img src={ex.imageUrl} alt={ex.name} className="w-full h-full object-cover" />
+                          : <Dumbbell size={28} style={{ color: 'var(--accent)', opacity: 0.5 }} />
+                        }
+                        <span className="absolute top-1.5 left-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(0,0,0,0.55)', color: '#fff' }}>
+                          {ex.muscleGroup}
+                        </span>
+                      </div>
+                      <div className="p-2.5">
+                        <p className="text-xs font-semibold line-clamp-1 mb-0.5" style={{ color: 'var(--text-primary)' }}>{ex.name}</p>
+                        {ex.description && <p className="text-[10px] line-clamp-2 mb-2" style={{ color: 'var(--text-muted)' }}>{ex.description}</p>}
+                      </div>
+                    </button>
+                    <div className="px-2.5 pb-2.5">
                       <button
                         onClick={() => deleteExercise(ex)}
                         className="w-full py-1 rounded-lg text-[10px] font-medium press flex items-center justify-center gap-1"
