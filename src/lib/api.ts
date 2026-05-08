@@ -524,8 +524,70 @@ export async function deleteSplit(id: number) {
   return request(`workout/splits/${id}`, { method: 'DELETE' });
 }
 
+function asDateKey(input?: string) {
+  if (!input) return new Date().toISOString().slice(0, 10);
+  return String(input).slice(0, 10);
+}
+
+let _dummyWorkoutStore: {
+  nextPlanId: number;
+  nextSetId: number;
+  plansByDate: Record<string, any>;
+} | null = null;
+
+function getDummyWorkoutStore() {
+  if (_dummyWorkoutStore) return _dummyWorkoutStore;
+  const today = asDateKey(new Date().toISOString());
+  const dayKey = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+  const entries = (DUMMY_SPLIT.dayConfigs as any)?.[dayKey] || [];
+  const plannedExercises = entries.map((e: any) => ({
+    exerciseId: e.exerciseId,
+    targetSets: e.sets || 3,
+    targetReps: e.reps || 10,
+    targetWeightKg: null,
+  }));
+
+  _dummyWorkoutStore = {
+    nextPlanId: 2,
+    nextSetId: 1,
+    plansByDate: {
+      [today]: {
+        id: 1,
+        date: `${today}T00:00:00.000Z`,
+        dayLabel: dayKey,
+        plannedExercises: JSON.stringify(plannedExercises),
+        isCompleted: false,
+        sets: [],
+        images: [],
+      },
+    },
+  };
+  return _dummyWorkoutStore;
+}
+
+function cloneAny<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function findWorkoutPlanById(id: number) {
+  const store = getDummyWorkoutStore();
+  const values = Object.values(store.plansByDate);
+  return values.find((p: any) => p.id === id) || null;
+}
+
 export async function getWorkoutPlans(from?: string, to?: string) {
-  if (USE_DUMMY_DATA) return Promise.resolve([]);
+  if (USE_DUMMY_DATA) {
+    const store = getDummyWorkoutStore();
+    const list = Object.values(store.plansByDate)
+      .filter((p: any) => {
+        const dateKey = asDateKey(p.date);
+        if (from && dateKey < asDateKey(from)) return false;
+        if (to && dateKey > asDateKey(to)) return false;
+        return true;
+      })
+      .sort((a: any, b: any) => String(b.date).localeCompare(String(a.date)));
+    return Promise.resolve(cloneAny(list));
+  }
   const params = new URLSearchParams();
   if (from) params.set('from', from);
   if (to) params.set('to', to);
@@ -533,47 +595,127 @@ export async function getWorkoutPlans(from?: string, to?: string) {
 }
 
 export async function getWorkoutPlanByDate(date: string) {
-  if (USE_DUMMY_DATA) return Promise.resolve(null);
+  if (USE_DUMMY_DATA) {
+    const store = getDummyWorkoutStore();
+    const found = store.plansByDate[asDateKey(date)] || null;
+    return Promise.resolve(cloneAny(found));
+  }
   return request(`workout/plans/date/${date}`);
 }
 
 export async function createWorkoutPlan(body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id: 1, ...body });
+  if (USE_DUMMY_DATA) {
+    const store = getDummyWorkoutStore();
+    const dateKey = asDateKey(body.date);
+    const plan = {
+      id: store.nextPlanId++,
+      date: body.date,
+      dayLabel: body.dayLabel,
+      plannedExercises: body.plannedExercises || '[]',
+      isCompleted: Boolean(body.isCompleted),
+      sets: [],
+      images: [],
+    };
+    store.plansByDate[dateKey] = plan;
+    return Promise.resolve(cloneAny(plan));
+  }
   return request('workout/plans', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function updateWorkoutPlan(id: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id, ...body });
+  if (USE_DUMMY_DATA) {
+    const store = getDummyWorkoutStore();
+    const current = findWorkoutPlanById(id);
+    if (!current) return Promise.resolve({ id, ...body });
+    const next = { ...current, ...body, id };
+    store.plansByDate[asDateKey(next.date)] = next;
+    return Promise.resolve(cloneAny(next));
+  }
   return request(`workout/plans/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export async function deleteWorkoutPlan(id: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ success: true });
+  if (USE_DUMMY_DATA) {
+    const store = getDummyWorkoutStore();
+    Object.keys(store.plansByDate).forEach(k => {
+      if (store.plansByDate[k]?.id === id) delete store.plansByDate[k];
+    });
+    return Promise.resolve({ success: true });
+  }
   return request(`workout/plans/${id}`, { method: 'DELETE' });
 }
 
 export async function logWorkoutSet(planId: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id: 1, ...body });
+  if (USE_DUMMY_DATA) {
+    const store = getDummyWorkoutStore();
+    const plan = findWorkoutPlanById(planId);
+    if (!plan) return Promise.reject(new Error('Workout plan not found'));
+    const created = { id: store.nextSetId++, ...body };
+    plan.sets = [...(plan.sets || []), created];
+    store.plansByDate[asDateKey(plan.date)] = plan;
+    return Promise.resolve(cloneAny(created));
+  }
   return request(`workout/plans/${planId}/sets`, { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function updateWorkoutSet(id: number, body: any) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ id, ...body });
+  if (USE_DUMMY_DATA) {
+    const store = getDummyWorkoutStore();
+    for (const key of Object.keys(store.plansByDate)) {
+      const plan = store.plansByDate[key];
+      const idx = (plan.sets || []).findIndex((s: any) => s.id === id);
+      if (idx >= 0) {
+        plan.sets[idx] = { ...plan.sets[idx], ...body, id };
+        return Promise.resolve(cloneAny(plan.sets[idx]));
+      }
+    }
+    return Promise.resolve({ id, ...body });
+  }
   return request(`workout/sets/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export async function deleteWorkoutSet(id: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve({ success: true });
+  if (USE_DUMMY_DATA) {
+    const store = getDummyWorkoutStore();
+    for (const key of Object.keys(store.plansByDate)) {
+      const plan = store.plansByDate[key];
+      plan.sets = (plan.sets || []).filter((s: any) => s.id !== id);
+    }
+    return Promise.resolve({ success: true });
+  }
   return request(`workout/sets/${id}`, { method: 'DELETE' });
 }
 
 export async function getPersonalRecords() {
-  if (USE_DUMMY_DATA) return Promise.resolve([]);
+  if (USE_DUMMY_DATA) {
+    const store = getDummyWorkoutStore();
+    const byExercise = new Map<number, any>();
+    Object.values(store.plansByDate).forEach((plan: any) => {
+      (plan.sets || []).forEach((set: any) => {
+        if (!set.isCompleted) return;
+        const prev = byExercise.get(set.exerciseId);
+        if (!prev || Number(set.weightKg || 0) > Number(prev.weightKg || 0)) {
+          byExercise.set(set.exerciseId, set);
+        }
+      });
+    });
+    return Promise.resolve(Array.from(byExercise.values()).map((s: any) => ({ exerciseId: s.exerciseId, weightKg: s.weightKg, reps: s.reps })));
+  }
   return request('workout/prs');
 }
 
 export async function getWorkoutAnalytics(weeks?: number) {
-  if (USE_DUMMY_DATA) return Promise.resolve({});
+  if (USE_DUMMY_DATA) {
+    const store = getDummyWorkoutStore();
+    const plans = Object.values(store.plansByDate);
+    const sets = plans.flatMap((p: any) => p.sets || []);
+    return Promise.resolve({
+      weeks: weeks || 12,
+      daysLogged: plans.length,
+      totalSets: sets.length,
+      totalVolume: sets.reduce((sum: number, s: any) => sum + Number(s.weightKg || 0) * Number(s.reps || 0), 0),
+    });
+  }
   return request(`workout/analytics/volume${weeks ? `?weeks=${weeks}` : ''}`);
 }
 
@@ -1093,5 +1235,22 @@ export async function upsertWeeklyMealPlan(planJson: string) {
     return Promise.resolve(DUMMY_WEEKLY_MEAL_PLAN);
   }
   return request('meal/plan', { method: 'PUT', body: JSON.stringify({ planJson }) });
+}
+
+const DUMMY_DAILY_MEAL_LOGS: Record<string, number[]> = {};
+
+export async function getDailyMealLog(date: string) {
+  if (USE_DUMMY_DATA) {
+    return Promise.resolve({ date, mealIds: [...(DUMMY_DAILY_MEAL_LOGS[date] || [])] });
+  }
+  return request(`meal/logs/${date}`);
+}
+
+export async function upsertDailyMealLog(date: string, mealIds: number[]) {
+  if (USE_DUMMY_DATA) {
+    DUMMY_DAILY_MEAL_LOGS[date] = [...mealIds];
+    return Promise.resolve({ date, mealIds: [...mealIds] });
+  }
+  return request('meal/logs', { method: 'PUT', body: JSON.stringify({ date, mealIds }) });
 }
 

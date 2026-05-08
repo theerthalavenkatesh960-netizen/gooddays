@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ChevronDown, ChevronUp, X, Check } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, X, Check, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -213,6 +214,7 @@ function RoutineCard({
 // ─── Main page ─────────────────────────────────────────────────────────────
 
 export default function RoutineManager() {
+  const navigate = useNavigate();
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -276,6 +278,13 @@ export default function RoutineManager() {
 
   return (
     <div className="px-4 pt-4 pb-nav">
+      <div className="flex items-center gap-3 mb-3">
+        <button onClick={() => navigate('/settings')} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <ArrowLeft size={17} style={{ color: 'var(--text-secondary)' }} />
+        </button>
+        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Routine Manager</h1>
+      </div>
+
       {/* ── Section 1: Routines ── */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Routines</h2>

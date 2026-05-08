@@ -13,6 +13,7 @@ type Exercise = {
   id: number;
   name: string;
   muscleGroup?: string;
+  category?: string;
   imageUrl?: string;
 };
 
@@ -25,14 +26,18 @@ type WorkoutSet = {
   isCompleted?: boolean;
 };
 
-type MealIngredient = { id: string; name: string; calories: number };
+type MealIngredient = { id: number; name: string; caloriesKcal: number };
 type MealTemplate = {
-  id: string;
+  id: number;
   name: string;
-  timing: 'pre-workout' | 'post-workout' | 'breakfast' | 'lunch' | 'dinner' | 'snack';
-  ingredients: MealIngredient[];
+  timing: string;
+  ingredientsJson: string;
   recipe: string;
+  imageUrl?: string;
 };
+
+type WeeklyMealPlan = { planJson?: string } | null;
+type DailyMealLog = { date: string; mealIds: number[] };
 
 type WorkoutLog = {
   date: string;
@@ -65,10 +70,8 @@ type WorkoutPlan = {
   sets?: WorkoutSet[];
 };
 
-const MEALS_KEY = 'gd.mealTemplates';
 const CALORIE_KEY = 'calorieGoal';
 const WORKOUT_LOGS_KEY = 'gd.workoutLogs';
-const DIET_LOGS_KEY = 'gd.dietLogs';
 
 const BODY_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Workout', label: 'Workout', icon: Dumbbell },
@@ -99,7 +102,8 @@ function WorkoutTab() {
   const [routine, setRoutine] = useState<RoutineMap>({});
   const [loading, setLoading] = useState(true);
   const [todayPlan, setTodayPlan] = useState<WorkoutPlan | null>(null);
-  const [legacyLog, setLegacyLog] = useState<WorkoutLog | null>(null);
+  const [loggedSets, setLoggedSets] = useState<WorkoutSet[]>([]);
+  const [busyExerciseId, setBusyExerciseId] = useState<number | null>(null);
 
   const dayKey = format(new Date(), 'EEEE').toLowerCase();
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -112,7 +116,10 @@ function WorkoutTab() {
     ])
       .then(([exData, plan, activeSplit]) => {
         setExercises(Array.isArray(exData) ? exData : []);
-        setTodayPlan(plan || null);
+        const normalizedPlan = plan || null;
+        setTodayPlan(normalizedPlan);
+        setLoggedSets(Array.isArray(normalizedPlan?.sets) ? normalizedPlan.sets : []);
+
         const split = activeSplit as SplitPreset | null;
         if (!split?.dayConfigs) {
           setRoutine({});
@@ -134,19 +141,10 @@ function WorkoutTab() {
       .catch(() => {
         setExercises([]);
         setTodayPlan(null);
+        setLoggedSets([]);
         setRoutine({});
       })
       .finally(() => setLoading(false));
-
-    const logsRaw = localStorage.getItem('gd.workoutLogs');
-    if (!logsRaw) return;
-    try {
-      const logs: WorkoutLog[] = JSON.parse(logsRaw);
-      const existing = logs.find(l => l.date === today) || null;
-      setLegacyLog(existing);
-    } catch {
-      setLegacyLog(null);
-    }
   }, [today]);
 
   const routineCards = useMemo(() => {
@@ -179,7 +177,7 @@ function WorkoutTab() {
       .map((planned) => {
         const exercise = exercises.find(ex => ex.id === planned.exerciseId);
         if (!exercise) return null;
-        const sets = (todayPlan?.sets || [])
+        const sets = loggedSets
           .filter(s => s.exerciseId === planned.exerciseId)
           .sort((a, b) => a.setNumber - b.setNumber);
         return {
@@ -189,40 +187,61 @@ function WorkoutTab() {
         };
       })
       .filter(Boolean) as Array<{ exercise: Exercise; sets: WorkoutSet[]; targetSets: number }>;
-  }, [plannedExercises, exercises, todayPlan?.sets]);
+  }, [plannedExercises, exercises, loggedSets]);
 
-  const legacyCards = useMemo(() => {
-    if (!legacyLog) return [];
-    return legacyLog.exercises
-      .map((item) => {
-        const exercise = exercises.find(ex => ex.id === item.exerciseId);
-        if (!exercise) return null;
-        const sets = item.sets.map(s => ({
-          exerciseId: item.exerciseId,
-          setNumber: s.setNumber,
-          reps: s.reps,
-          weightKg: s.weight,
-          isCompleted: s.isCompleted,
-        }));
-        return {
-          exercise,
-          sets,
-          targetSets: item.sets.length,
-        };
-      })
-      .filter(Boolean) as Array<{ exercise: Exercise; sets: WorkoutSet[]; targetSets: number }>;
-  }, [legacyLog, exercises]);
+  const cardData = apiExerciseCards.length > 0 ? apiExerciseCards : routineCards;
 
-  const cardData = apiExerciseCards.length > 0 ? apiExerciseCards : (routineCards.length > 0 ? routineCards : legacyCards);
-  const noTodayPlan = !loading && !todayPlan?.id;
+  async function ensureTodayPlan(seedExerciseId: number, seedTargetSets: number) {
+    if (todayPlan?.id) return todayPlan;
 
-  function openExerciseLogger(exerciseId: number) {
-    const search = new URLSearchParams({
-      tab: 'today',
-      exerciseId: String(exerciseId),
-      return: '/body',
+    const plannedSource = cardData.length > 0 ? cardData : [{ exercise: exercises.find(e => e.id === seedExerciseId), sets: [], targetSets: seedTargetSets }]
+      .filter(x => x.exercise) as Array<{ exercise: Exercise; sets: WorkoutSet[]; targetSets: number }>;
+
+    const planned = plannedSource.map(item => ({
+      exerciseId: item.exercise.id,
+      targetSets: item.targetSets || 3,
+      targetReps: 10,
+      targetWeightKg: null,
+    }));
+
+    const created = await api.createWorkoutPlan({
+      date: new Date().toISOString(),
+      dayLabel: format(new Date(), 'EEEE'),
+      plannedExercises: JSON.stringify(planned),
+      isCompleted: false,
     });
-    navigate(`/body/workout-log?${search.toString()}`);
+    setTodayPlan(created);
+    setLoggedSets([]);
+    return created;
+  }
+
+  async function addSet(exerciseId: number, targetSets: number) {
+    setBusyExerciseId(exerciseId);
+    try {
+      const plan = await ensureTodayPlan(exerciseId, targetSets);
+      const existingSets = loggedSets.filter(s => s.exerciseId === exerciseId).sort((a, b) => a.setNumber - b.setNumber);
+      const prevSet = existingSets[existingSets.length - 1];
+      const created = await api.logWorkoutSet(plan.id!, {
+        exerciseId,
+        setNumber: existingSets.length + 1,
+        reps: prevSet?.reps ?? 10,
+        weightKg: prevSet?.weightKg ?? 0,
+        isCompleted: true,
+      });
+      setLoggedSets(prev => [...prev, created]);
+    } finally {
+      setBusyExerciseId(null);
+    }
+  }
+
+  async function updateSet(setId: number | undefined, patch: Partial<WorkoutSet>) {
+    if (!setId) return;
+    setLoggedSets(prev => prev.map(s => s.id === setId ? { ...s, ...patch } : s));
+    try {
+      await api.updateWorkoutSet(setId, patch);
+    } catch {
+      // no-op; optimistic update in body card
+    }
   }
 
   return (
@@ -237,7 +256,7 @@ function WorkoutTab() {
           </button>
         </div>
         <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-          {cardData.length > 0 ? `${cardData.length} exercises for today` : noTodayPlan ? 'No workout plan for today' : 'No routine configured'}
+          {cardData.length > 0 ? `${cardData.length} exercises for today` : 'No workout routine configured for today'}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{format(new Date(), 'EEEE, d MMM')}</p>
       </div>
@@ -253,10 +272,10 @@ function WorkoutTab() {
         <div className="py-10 text-center">
           <Dumbbell size={40} className="mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
           <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
-            {noTodayPlan ? 'No workout planned for today' : 'No workout library configured'}
+            Set up your weekly workout routine in Settings.
           </p>
-          <button onClick={() => navigate('/body/workout-log')} className="mt-2 h-10 px-4 rounded-xl text-sm font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>
-            Open Workout Log
+          <button onClick={() => navigate('/settings/workout-library')} className="mt-2 h-10 px-4 rounded-xl text-sm font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>
+            Configure Workout
           </button>
         </div>
       ) : (
@@ -274,34 +293,51 @@ function WorkoutTab() {
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{exercise.name}</p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{exercise.muscleGroup || 'General'}</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{exercise.muscleGroup || exercise.category || 'General'}</p>
                 </div>
                 <button
-                  onClick={() => openExerciseLogger(exercise.id)}
+                  onClick={() => addSet(exercise.id, targetSets || 3)}
                   className="h-7 px-2 rounded-lg text-[11px] font-semibold"
                   style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}
+                  disabled={busyExerciseId === exercise.id}
                 >
-                  Log
+                  {busyExerciseId === exercise.id ? '...' : '+ Set'}
                 </button>
                 <div className="text-right">
-                  <span className="text-xs block" style={{ color: 'var(--text-muted)' }}>{completed}/{targetSets || sets.length}</span>
+                  <span className="text-xs block" style={{ color: 'var(--text-muted)' }}>{completed}/{targetSets || sets.length || 0}</span>
                 </div>
               </div>
 
               <div className="px-3 pb-3 pt-2 space-y-2">
                 {sets.map((s, idx) => (
-                  <div key={`${exercise.id}-${s.id ?? idx}`} className="grid grid-cols-4 gap-2 items-center rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                  <div key={`${exercise.id}-${s.id ?? idx}`} className="grid grid-cols-[58px_1fr_1fr_52px] gap-2 items-center rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                     <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>Set #{s.setNumber}</span>
-                    <span className="text-xs num" style={{ color: 'var(--text-primary)' }}>{s.reps ?? 0} reps</span>
-                    <span className="text-xs num" style={{ color: 'var(--text-primary)' }}>{s.weightKg ?? 0} kg</span>
-                    <span className="text-[11px] text-right" style={{ color: s.isCompleted ? 'var(--accent-green)' : 'var(--text-muted)' }}>
-                      {s.isCompleted ? 'done' : 'pending'}
-                    </span>
+                    <input
+                      type="number"
+                      value={s.reps ?? 0}
+                      onChange={e => updateSet(s.id, { reps: Number(e.target.value || 0) })}
+                      className="w-full h-7 px-2 rounded-md text-xs num outline-none"
+                      style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
+                    <input
+                      type="number"
+                      value={s.weightKg ?? 0}
+                      onChange={e => updateSet(s.id, { weightKg: Number(e.target.value || 0) })}
+                      className="w-full h-7 px-2 rounded-md text-xs num outline-none"
+                      style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
+                    <button
+                      onClick={() => updateSet(s.id, { isCompleted: !s.isCompleted })}
+                      className="h-7 rounded-md text-[10px] font-semibold"
+                      style={{ backgroundColor: s.isCompleted ? 'var(--accent-green)' : 'var(--surface)', color: s.isCompleted ? '#fff' : 'var(--text-muted)', border: '1px solid var(--border)' }}
+                    >
+                      {s.isCompleted ? 'Done' : 'Log'}
+                    </button>
                   </div>
                 ))}
                 {sets.length === 0 && (
                   <p className="text-xs px-1" style={{ color: 'var(--text-muted)' }}>
-                    No sets logged yet. Tap Log to start.
+                    No sets logged yet. Tap + Set to log directly here.
                   </p>
                 )}
               </div>
@@ -313,51 +349,80 @@ function WorkoutTab() {
   );
 }
 
+function parseMealIngredients(json: string): MealIngredient[] {
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function DietTab() {
-  const [meals, setMeals] = useState<MealTemplate[]>([]);
-  const [selected, setSelected] = useState<string[]>([]);
+  const [plannedMeals, setPlannedMeals] = useState<MealTemplate[]>([]);
+  const [selected, setSelected] = useState<number[]>([]);
   const [goal, setGoal] = useState(2400);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
+  const todayKey = format(new Date(), 'EEEE').toLowerCase();
 
   useEffect(() => {
-    const rawMeals = localStorage.getItem(MEALS_KEY);
-    if (rawMeals) {
-      try { setMeals(JSON.parse(rawMeals)); } catch { setMeals([]); }
+    async function load() {
+      setLoading(true);
+      try {
+        const [templates, weeklyPlan, todayLog] = await Promise.all([
+          api.getMealTemplates(),
+          api.getWeeklyMealPlan() as Promise<WeeklyMealPlan>,
+          (api as any).getDailyMealLog(today) as Promise<DailyMealLog | null>,
+        ]);
+
+        const list = Array.isArray(templates) ? templates : [];
+
+        let plannedIds: number[] = [];
+        try {
+          const map = weeklyPlan?.planJson ? JSON.parse(weeklyPlan.planJson) : {};
+          plannedIds = Array.isArray(map?.[todayKey]) ? map[todayKey] : [];
+        } catch {
+          plannedIds = [];
+        }
+
+        const planned = plannedIds
+          .map(id => list.find(m => m.id === id))
+          .filter((m): m is MealTemplate => !!m);
+        setPlannedMeals(planned);
+        setSelected(Array.isArray(todayLog?.mealIds) ? todayLog!.mealIds : []);
+      } finally {
+        setLoading(false);
+      }
     }
+
     const rawGoal = localStorage.getItem(CALORIE_KEY);
     if (rawGoal) setGoal(Number(rawGoal) || 2400);
 
-    const rawLogs = localStorage.getItem(DIET_LOGS_KEY);
-    if (rawLogs) {
-      try {
-        const logs = JSON.parse(rawLogs) as Record<string, string[]>;
-        setSelected(logs[today] || []);
-      } catch {
-        setSelected([]);
-      }
-    }
-  }, [today]);
+    load();
+  }, [today, todayKey]);
 
-  const consumedCalories = useMemo(() => {
-    return meals
-      .filter(m => selected.includes(m.id))
-      .reduce((sum, meal) => sum + meal.ingredients.reduce((s, i) => s + i.calories, 0), 0);
-  }, [selected, meals]);
-
-  const pct = goal > 0 ? Math.min(100, Math.round((consumedCalories / goal) * 100)) : 0;
-
-  function toggleMeal(id: string) {
+  async function toggleMeal(id: number) {
     const next = selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id];
     setSelected(next);
-    const raw = localStorage.getItem(DIET_LOGS_KEY);
-    let logs: Record<string, string[]> = {};
-    if (raw) {
-      try { logs = JSON.parse(raw); } catch { logs = {}; }
+    try {
+      await (api as any).upsertDailyMealLog(today, next);
+    } catch {
+      // Keep optimistic UI in dummy-first flow
     }
-    logs[today] = next;
-    localStorage.setItem(DIET_LOGS_KEY, JSON.stringify(logs));
   }
+
+  const consumedCalories = useMemo(() => {
+    return plannedMeals
+      .filter(m => selected.includes(m.id))
+      .reduce((sum, meal) => {
+        const ingredients = parseMealIngredients(meal.ingredientsJson);
+        return sum + ingredients.reduce((s, i) => s + Number(i.caloriesKcal || 0), 0);
+      }, 0);
+  }, [selected, plannedMeals]);
+
+  const pct = goal > 0 ? Math.min(100, Math.round((consumedCalories / goal) * 100)) : 0;
 
   return (
     <div className="px-4">
@@ -381,26 +446,28 @@ function DietTab() {
         </div>
         <div>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Consumed</p>
-          <p className="text-2xl font-bold num" style={{ color: 'var(--text-primary)' }}>{consumedCalories}</p>
+          <p className="text-2xl font-bold num" style={{ color: 'var(--text-primary)' }}>{Math.round(consumedCalories)}</p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>of {goal} kcal</p>
         </div>
       </div>
 
       <div className="flex items-center justify-between mb-2">
-        <span className="section-label">Configured Meals</span>
+        <span className="section-label">Planned Meals Today</span>
         <button onClick={() => navigate('/settings/meals')} className="text-xs" style={{ color: 'var(--accent)' }}>Manage</button>
       </div>
 
-      {meals.length === 0 ? (
+      {loading ? (
+        [1, 2].map(i => <div key={i} className="h-16 rounded-xl mb-2" style={{ backgroundColor: 'var(--surface)' }} />)
+      ) : plannedMeals.length === 0 ? (
         <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-sm" style={{ color: 'var(--text-primary)' }}>No meals configured yet.</p>
+          <p className="text-sm" style={{ color: 'var(--text-primary)' }}>No meals planned for today.</p>
           <button onClick={() => navigate('/settings/meals')} className="mt-2 h-9 px-3 rounded-xl text-sm font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>
-            Configure Meals
+            Configure Weekly Meals
           </button>
         </div>
       ) : (
-        meals.map(meal => {
-          const total = meal.ingredients.reduce((s, i) => s + i.calories, 0);
+        plannedMeals.map(meal => {
+          const total = parseMealIngredients(meal.ingredientsJson).reduce((s, i) => s + Number(i.caloriesKcal || 0), 0);
           const on = selected.includes(meal.id);
           return (
             <button
@@ -417,10 +484,10 @@ function DietTab() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
-                <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{meal.timing} - {meal.ingredients.map(i => i.name).join(' - ')}</p>
+                <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{meal.timing} · tap to {on ? 'unlog' : 'log'}</p>
                 {meal.recipe && <p className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{meal.recipe}</p>}
               </div>
-              <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{total}</span>
+              <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{Math.round(total)}</span>
             </button>
           );
         })
