@@ -37,6 +37,7 @@ public class AppDbContext : DbContext
     public DbSet<Goal> Goals { get; set; } = null!;
     public DbSet<GoalNote> GoalNotes { get; set; } = null!;
     public DbSet<GoalDailyLog> GoalDailyLogs { get; set; } = null!;
+    public DbSet<GoalChecklistItem> GoalChecklistItems { get; set; } = null!;
     public DbSet<Flashcard> Flashcards { get; set; } = null!;
 
     // Reminder entities
@@ -102,6 +103,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Goal>().ToTable("goals");
         modelBuilder.Entity<GoalNote>().ToTable("goal_notes");
         modelBuilder.Entity<GoalDailyLog>().ToTable("goal_daily_logs");
+        modelBuilder.Entity<GoalChecklistItem>().ToTable("goal_checklist_items");
         modelBuilder.Entity<Flashcard>().ToTable("flashcards");
 
         // Reminder table mappings
@@ -243,6 +245,12 @@ public class AppDbContext : DbContext
             .HasOne(l => l.Goal).WithMany(g => g.DailyLogs).HasForeignKey(l => l.GoalId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<GoalDailyLog>()
             .HasIndex(l => new { l.GoalId, l.Date }).IsUnique();
+        modelBuilder.Entity<GoalChecklistItem>()
+            .HasOne(i => i.Goal).WithMany(g => g.ChecklistItems).HasForeignKey(i => i.GoalId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<GoalChecklistItem>()
+            .HasIndex(i => new { i.GoalId, i.Position });
+        modelBuilder.Entity<GoalChecklistItem>()
+            .HasIndex(i => new { i.GoalId, i.IsCompleted });
         modelBuilder.Entity<Flashcard>()
             .HasOne(f => f.Goal).WithMany(g => g.Flashcards).HasForeignKey(f => f.GoalId).OnDelete(DeleteBehavior.Cascade);
 

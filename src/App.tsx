@@ -11,6 +11,7 @@ import Body from './pages/Body';
 import Workout from './pages/Workout';
 import Finance from './pages/Finance';
 import Life from './pages/Life';
+import Goals from './pages/Goals';
 import Settings from './pages/Settings';
 import JournalEditor from './pages/JournalEditor';
 import Vehicles from './pages/Vehicles';
@@ -64,6 +65,8 @@ function App() {
               <Route path="/finance"  element={<PrivateRoute><Layout><Finance /></Layout></PrivateRoute>} />
               <Route path="/finance/vehicles" element={<PrivateRoute><Layout><Vehicles /></Layout></PrivateRoute>} />
               <Route path="/life"     element={<PrivateRoute><Layout><Life /></Layout></PrivateRoute>} />
+              <Route path="/goals" element={<PrivateRoute><Layout><Goals /></Layout></PrivateRoute>} />
+              <Route path="/goals/:id" element={<PrivateRoute><Layout><Goals /></Layout></PrivateRoute>} />
               <Route path="/settings" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library" element={<PrivateRoute><Layout><WorkoutLibrarySettings /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library/new-exercise" element={<PrivateRoute><Layout><WorkoutAddExercisePage /></Layout></PrivateRoute>} />
@@ -80,7 +83,6 @@ function App() {
 
               {/* Legacy redirects */}
               <Route path="/workout"  element={<Navigate to="/body" />} />
-              <Route path="/goals"    element={<Navigate to="/life" />} />
               <Route path="/tasks"    element={<Navigate to="/life" />} />
               <Route path="/calendar" element={<Navigate to="/life" />} />
             </Routes>

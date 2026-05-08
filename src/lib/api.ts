@@ -1056,25 +1056,246 @@ export async function getRoutineHistory(from: string, to: string) {
 
 // ─── Goals API ────────────────────────────────────────────────────────────────
 
-export async function getGoals() { return request('goals'); }
-export async function createGoal(body: any) { return request('goals', { method: 'POST', body: JSON.stringify(body) }); }
-export async function updateGoal(id: number, body: any) { return request(`goals/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
-export async function deleteGoal(id: number) { return request(`goals/${id}`, { method: 'DELETE' }); }
+let DUMMY_GOALS = [
+  {
+    id: 1,
+    title: 'Learn TypeScript',
+    category: 'Learning',
+    color: '#3b82f6',
+    icon: '📚',
+    goalType: 'milestone' as const,
+    targetValue: 100,
+    currentValue: 45,
+    unit: 'lessons',
+    deadlineDate: '2026-12-31',
+    status: 'in_progress',
+    progressPercent: 45,
+    daysRemaining: 237,
+  },
+  {
+    id: 2,
+    title: 'Morning Routine',
+    category: 'Health',
+    color: '#10b981',
+    icon: '🌅',
+    goalType: 'checklist' as const,
+    deadlineDate: null,
+    status: 'in_progress',
+    checklistTotal: 5,
+    checklistCompleted: 3,
+    progressPercent: 60,
+    daysRemaining: null,
+  },
+  {
+    id: 3,
+    title: 'Save for Emergency Fund',
+    category: 'Finance',
+    color: '#f59e0b',
+    icon: '💰',
+    goalType: 'milestone' as const,
+    targetValue: 50000,
+    currentValue: 15000,
+    unit: 'INR',
+    deadlineDate: '2026-11-30',
+    status: 'in_progress',
+    progressPercent: 30,
+    daysRemaining: 176,
+  },
+];
 
-export async function getGoalNotes(goalId: number) { return request(`goals/${goalId}/notes`); }
-export async function createGoalNote(goalId: number, body: any) { return request(`goals/${goalId}/notes`, { method: 'POST', body: JSON.stringify(body) }); }
-export async function updateGoalNote(id: number, body: any) { return request(`goals/notes/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
-export async function deleteGoalNote(id: number) { return request(`goals/notes/${id}`, { method: 'DELETE' }); }
+let DUMMY_CHECKLIST_ITEMS: Record<number, any[]> = {
+  2: [
+    { id: 1, goalId: 2, title: 'Meditate', isCompleted: true, position: 1 },
+    { id: 2, goalId: 2, title: 'Exercise', isCompleted: true, position: 2 },
+    { id: 3, goalId: 2, title: 'Journal', isCompleted: false, position: 3 },
+    { id: 4, goalId: 2, title: 'Hydrate', isCompleted: true, position: 4 },
+    { id: 5, goalId: 2, title: 'Read', isCompleted: false, position: 5 },
+  ],
+};
 
-export async function getGoalLogs(goalId: number) { return request(`goals/${goalId}/logs`); }
-export async function addGoalLog(goalId: number, body: any) { return request(`goals/${goalId}/logs`, { method: 'POST', body: JSON.stringify(body) }); }
-export async function updateGoalLog(id: number, body: any) { return request(`goals/logs/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
+export async function getGoals() {
+  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_GOALS);
+  return request('goals');
+}
 
-export async function getFlashcards(goalId: number) { return request(`goals/${goalId}/flashcards`); }
-export async function getFlashcardReviewQueue(goalId: number) { return request(`goals/${goalId}/flashcards/review`); }
-export async function createFlashcard(goalId: number, body: any) { return request(`goals/${goalId}/flashcards`, { method: 'POST', body: JSON.stringify(body) }); }
-export async function updateFlashcard(id: number, body: any) { return request(`goals/flashcards/${id}`, { method: 'PUT', body: JSON.stringify(body) }); }
-export async function deleteFlashcard(id: number) { return request(`goals/flashcards/${id}`, { method: 'DELETE' }); }
+export async function createGoal(body: any) {
+  if (USE_DUMMY_DATA) {
+    const newGoal = {
+      id: Math.max(...DUMMY_GOALS.map(g => g.id), 0) + 1,
+      ...body,
+      progressPercent: body.goalType === 'milestone' ? 0 : 0,
+      daysRemaining: body.deadlineDate ? Math.ceil((new Date(body.deadlineDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null,
+      checklistTotal: body.goalType === 'checklist' ? 0 : undefined,
+      checklistCompleted: body.goalType === 'checklist' ? 0 : undefined,
+      currentValue: body.goalType === 'milestone' ? 0 : undefined,
+    };
+    DUMMY_GOALS.push(newGoal);
+    if (body.goalType === 'checklist') DUMMY_CHECKLIST_ITEMS[newGoal.id] = [];
+    return Promise.resolve(newGoal);
+  }
+  return request('goals', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateGoal(id: number, body: any) {
+  if (USE_DUMMY_DATA) {
+    const goal = DUMMY_GOALS.find(g => g.id === id);
+    if (goal) Object.assign(goal, body);
+    return Promise.resolve(goal);
+  }
+  return request(`goals/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteGoal(id: number) {
+  if (USE_DUMMY_DATA) {
+    const idx = DUMMY_GOALS.findIndex(g => g.id === id);
+    if (idx >= 0) DUMMY_GOALS.splice(idx, 1);
+    delete DUMMY_CHECKLIST_ITEMS[id];
+    return Promise.resolve({ success: true });
+  }
+  return request(`goals/${id}`, { method: 'DELETE' });
+}
+
+export async function getGoalChecklistItems(goalId: number) {
+  if (USE_DUMMY_DATA) return Promise.resolve(DUMMY_CHECKLIST_ITEMS[goalId] || []);
+  return request(`goals/${goalId}/checklist-items`);
+}
+
+export async function createGoalChecklistItem(goalId: number, body: any) {
+  if (USE_DUMMY_DATA) {
+    if (!DUMMY_CHECKLIST_ITEMS[goalId]) DUMMY_CHECKLIST_ITEMS[goalId] = [];
+    const items = DUMMY_CHECKLIST_ITEMS[goalId];
+    const newItem = {
+      id: Math.max(...items.map(i => i.id), 0) + 1,
+      goalId,
+      ...body,
+      isCompleted: false,
+      position: items.length,
+    };
+    items.push(newItem);
+    const goal = DUMMY_GOALS.find(g => g.id === goalId);
+    if (goal) {
+      goal.checklistTotal = (goal.checklistTotal || 0) + 1;
+      goal.progressPercent = goal.checklistTotal ? Math.round((goal.checklistCompleted || 0) * 100 / goal.checklistTotal) : 0;
+    }
+    return Promise.resolve(newItem);
+  }
+  return request(`goals/${goalId}/checklist-items`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateGoalChecklistItem(id: number, body: any) {
+  if (USE_DUMMY_DATA) {
+    for (const items of Object.values(DUMMY_CHECKLIST_ITEMS)) {
+      const item = items.find(i => i.id === id);
+      if (item) {
+        Object.assign(item, body);
+        const goal = DUMMY_GOALS.find(g => g.id === item.goalId);
+        if (goal && body.isCompleted !== undefined) {
+          const wasCompleted = item.isCompleted;
+          const change = body.isCompleted ? 1 : -1;
+          goal.checklistCompleted = Math.max(0, (goal.checklistCompleted || 0) + change);
+          goal.progressPercent = goal.checklistTotal ? Math.round((goal.checklistCompleted) * 100 / goal.checklistTotal) : 0;
+        }
+        return Promise.resolve(item);
+      }
+    }
+    return Promise.resolve(null);
+  }
+  return request(`goals/checklist-items/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteGoalChecklistItem(id: number) {
+  if (USE_DUMMY_DATA) {
+    for (const items of Object.values(DUMMY_CHECKLIST_ITEMS)) {
+      const idx = items.findIndex(i => i.id === id);
+      if (idx >= 0) {
+        const item = items[idx];
+        const goal = DUMMY_GOALS.find(g => g.id === item.goalId);
+        if (goal) {
+          goal.checklistTotal = Math.max(0, (goal.checklistTotal || 0) - 1);
+          if (item.isCompleted) goal.checklistCompleted = Math.max(0, (goal.checklistCompleted || 0) - 1);
+          goal.progressPercent = goal.checklistTotal ? Math.round((goal.checklistCompleted || 0) * 100 / goal.checklistTotal) : 0;
+        }
+        items.splice(idx, 1);
+        return Promise.resolve({ success: true });
+      }
+    }
+    return Promise.resolve({ success: true });
+  }
+  return request(`goals/checklist-items/${id}`, { method: 'DELETE' });
+}
+
+export async function updateGoalProgress(goalId: number, body: any) {
+  if (USE_DUMMY_DATA) {
+    const goal = DUMMY_GOALS.find(g => g.id === goalId);
+    if (goal && body.valueDelta) {
+      goal.currentValue = (goal.currentValue || 0) + body.valueDelta;
+      goal.progressPercent = goal.targetValue ? Math.round((goal.currentValue) * 100 / goal.targetValue) : 0;
+      if (goal.progressPercent >= 100) goal.status = 'completed';
+    }
+    return Promise.resolve(goal);
+  }
+  return request(`goals/${goalId}/progress`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function getGoalNotes(goalId: number) {
+  if (USE_DUMMY_DATA) return Promise.resolve([]);
+  return request(`goals/${goalId}/notes`);
+}
+
+export async function createGoalNote(goalId: number, body: any) {
+  if (USE_DUMMY_DATA) return Promise.resolve({ id: 1, goalId, ...body });
+  return request(`goals/${goalId}/notes`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateGoalNote(id: number, body: any) {
+  if (USE_DUMMY_DATA) return Promise.resolve({ id, ...body });
+  return request(`goals/notes/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteGoalNote(id: number) {
+  if (USE_DUMMY_DATA) return Promise.resolve({ success: true });
+  return request(`goals/notes/${id}`, { method: 'DELETE' });
+}
+
+export async function getGoalLogs(goalId: number) {
+  if (USE_DUMMY_DATA) return Promise.resolve([]);
+  return request(`goals/${goalId}/logs`);
+}
+
+export async function addGoalLog(goalId: number, body: any) {
+  if (USE_DUMMY_DATA) return Promise.resolve({ id: 1, goalId, ...body });
+  return request(`goals/${goalId}/logs`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateGoalLog(id: number, body: any) {
+  if (USE_DUMMY_DATA) return Promise.resolve({ id, ...body });
+  return request(`goals/logs/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function getFlashcards(goalId: number) {
+  if (USE_DUMMY_DATA) return Promise.resolve([]);
+  return request(`goals/${goalId}/flashcards`);
+}
+
+export async function getFlashcardReviewQueue(goalId: number) {
+  if (USE_DUMMY_DATA) return Promise.resolve([]);
+  return request(`goals/${goalId}/flashcards/review`);
+}
+
+export async function createFlashcard(goalId: number, body: any) {
+  if (USE_DUMMY_DATA) return Promise.resolve({ id: 1, goalId, ...body });
+  return request(`goals/${goalId}/flashcards`, { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateFlashcard(id: number, body: any) {
+  if (USE_DUMMY_DATA) return Promise.resolve({ id, ...body });
+  return request(`goals/flashcards/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteFlashcard(id: number) {
+  if (USE_DUMMY_DATA) return Promise.resolve({ success: true });
+  return request(`goals/flashcards/${id}`, { method: 'DELETE' });
+}
 
 // ─── Reminders API ────────────────────────────────────────────────────────────
 

@@ -39,6 +39,7 @@ function PillTabs({ active, onChange }: { tabs: string[]; active: string; onChan
 // Goals Tab
 // ─────────────────────────────────────────────
 function GoalsTab() {
+  const navigate = useNavigate();
   const [goals, setGoals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,7 +55,7 @@ function GoalsTab() {
     <div className="px-4">
       <div className="section-header px-0 mb-3">
         <span className="section-label">Active Goals</span>
-        <button className="press" style={{ color: 'var(--accent)' }}><Plus size={18} /></button>
+        <button onClick={() => navigate('/goals')} className="press" style={{ color: 'var(--accent)' }}><Plus size={18} /></button>
       </div>
 
       {loading ? (
@@ -75,7 +76,7 @@ function GoalsTab() {
           const color = g.color ?? ICON_COLORS[i % ICON_COLORS.length];
           const pct = Math.min(100, Math.round((g.currentProgress ?? 0) / Math.max(1, g.targetValue ?? 100) * 100));
           return (
-            <div key={g.id} className="rounded-2xl p-4 mb-3 press" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <button key={g.id} onClick={() => navigate(`/goals/${g.id}`)} className="w-full text-left rounded-2xl p-4 mb-3 press" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style={{ backgroundColor: color + '22' }}>
                   {g.icon ?? '🎯'}
@@ -99,7 +100,7 @@ function GoalsTab() {
               <div className="progress-bar">
                 <div className="progress-fill" style={{ width: `${pct}%`, backgroundColor: color }} />
               </div>
-            </div>
+            </button>
           );
         })
       )}
