@@ -96,11 +96,9 @@ const startKey=format(start,'yyyy-MM-dd');
 const endKey=format(end,'yyyy-MM-dd');
 
 
-const [tasks,study,expenses,selfcare,reminders,reminderHistory]=await Promise.all([
+const [tasks,expenses,reminders,reminderHistory]=await Promise.all([
 api.getTasks(user.id),
-api.getStudySessions(user.id),
 api.getExpenses(user.id),
-api.getSelfCareActivities(user.id),
 api.getReminders(),
 api.getReminderHistory()
 ]);
@@ -143,24 +141,6 @@ data[key].tasks.push(t);
 
 
 
-study?.forEach((s:any)=>{
-
-const d=new Date(s.date);
-
-if(isNaN(d.getTime()))return;
-
-const key=format(d,'yyyy-MM-dd');
-
-if(key<startKey || key>endKey)return;
-
-data[key]??={};
-
-data[key].study=(data[key].study||0)+s.durationMinutes;
-
-});
-
-
-
 expenses?.forEach((e:any)=>{
 
 const d=new Date(e.date);
@@ -174,23 +154,6 @@ if(key<startKey || key>endKey)return;
 data[key]??={};
 
 data[key].expenses=(data[key].expenses||0)+parseFloat(e.amount);
-
-});
-
-
-selfcare?.forEach((s:any)=>{
-
-const d=new Date(s.date);
-
-if(isNaN(d.getTime()))return;
-
-const key=format(d,'yyyy-MM-dd');
-
-if(key<startKey || key>endKey)return;
-
-data[key]??={};
-
-data[key].selfcare=(data[key].selfcare||0)+1;
 
 });
 

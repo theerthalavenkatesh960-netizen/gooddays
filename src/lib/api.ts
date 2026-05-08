@@ -21,9 +21,6 @@ type Task = {
   updatedAt: string;
 };
 type Expense = { id: number; userId: number; description: string; amount: number; category: string; date: string; createdAt: string };
-// stored as logs referencing a template
-type SelfCareActivity = { id: number; userId: number; date: string; templateId: number; completed: boolean; createdAt: string };
-type StudySession = { id: number; userId: number; durationMinutes: number; notes?: string; date: string; createdAt: string };
 export type UserSettings = {
   theme: 'light' | 'dark' | 'blue' | 'green' | 'ocean' | 'futuristic';
   calorieGoal: number;
@@ -217,57 +214,6 @@ export async function deleteExpense(id: number) {
   return request(`expenses/${id}`, { method: 'DELETE' });
 }
 
-// Self Care
-export async function getSelfCareActivities(userId: number) {
-  return request(`selfcare/user/${userId}`);
-}
-
-export async function getSelfCareActivity(id: number) {
-  return request(`selfcare/${id}`);
-}
-
-// create a log entry; templateId should refer to a SelfCareTemplate record
-export async function createSelfCareActivity(userId: number, date: Date, templateId: number, completed = false) {
-  const body: any = { userId, templateId, completed };
-  if (date) body.date = date.toISOString();
-  return request('selfcare', { method: 'POST', body: JSON.stringify(body) });
-}
-
-// Self care templates
-export type SelfCareTemplate = {
-  id: number;
-  userId: number;
-  category: string;
-  item: string;
-  order_index: number;
-  createdAt: string;
-};
-
-export async function getSelfCareTemplates(userId: number) {
-  return request(`selfcaretemplate/user/${userId}`);
-}
-
-export async function createSelfCareTemplate(userId: number, category: string, item: string, order_index: number) {
-  return request('selfcaretemplate', {
-    method: 'POST',
-    body: JSON.stringify({ userId, category, item, order_index }),
-  });
-}
-
-export async function deleteSelfCareTemplate(id: number) {
-  return request(`selfcaretemplate/${id}`, { method: 'DELETE' });
-}
-
-export async function updateSelfCareActivity(id: number, date?: Date, templateId?: number, completed?: boolean) {
-  const body: any = { templateId, completed };
-  if (date) body.date = date.toISOString();
-  return request(`selfcare/${id}`, { method: 'PUT', body: JSON.stringify(body) });
-}
-
-export async function deleteSelfCareActivity(id: number) {
-  return request(`selfcare/${id}`, { method: 'DELETE' });
-}
-
 // Daily tracking (sleep/workout/phone/sunlight/mood)
 export type DailyTracking = {
   id: number;
@@ -415,31 +361,6 @@ export async function exportStatsCsv(userId: number) {
   return request(`thesis/stats/export/stats/${userId}`);
 }
 
-// Study Sessions
-export async function getStudySessions(userId: number) {
-  return request(`study/user/${userId}`);
-}
-
-export async function getStudySession(id: number) {
-  return request(`study/${id}`);
-}
-
-export async function createStudySession(userId: number, durationMinutes: number, notes?: string, date?: Date) {
-  const body: any = { userId, durationMinutes, notes };
-  if (date) body.date = date.toISOString();
-  return request('study', { method: 'POST', body: JSON.stringify(body) });
-}
-
-export async function updateStudySession(id: number, durationMinutes?: number, notes?: string, date?: Date) {
-  const body: any = { durationMinutes, notes };
-  if (date) body.date = date.toISOString();
-  return request(`study/${id}`, { method: 'PUT', body: JSON.stringify(body) });
-}
-
-export async function deleteStudySession(id: number) {
-  return request(`study/${id}`, { method: 'DELETE' });
-}
-
 // Gamification
 export async function getGamification(userId: number) {
   return request(`gamification/user/${userId}`);
@@ -470,21 +391,11 @@ export const api = {
   createExpense,
   updateExpense,
   deleteExpense,
-  getSelfCareActivities,
-  getSelfCareActivity,
-  createSelfCareActivity,
-  updateSelfCareActivity,
-  deleteSelfCareActivity,
-  getStudySessions,
-  getStudySession,
-  createStudySession,
-  updateStudySession,
-  deleteStudySession,
   getGamification,
   getUserPoints,
   addPoints,
 };
-export type { User, Session, Task, Expense, SelfCareActivity, StudySession };
+export type { User, Session, Task, Expense };
 
 // ─── Workout API ──────────────────────────────────────────────────────────────
 

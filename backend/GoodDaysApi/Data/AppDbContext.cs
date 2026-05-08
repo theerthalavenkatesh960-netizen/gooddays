@@ -10,9 +10,6 @@ public class AppDbContext : DbContext
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<DailyTask> Tasks { get; set; } = null!;
     public DbSet<Expense> Expenses { get; set; } = null!;
-    public DbSet<SelfCareLog> SelfCareLogs { get; set; } = null!;
-    public DbSet<SelfCareTemplate> SelfCareTemplates { get; set; } = null!;
-    public DbSet<StudySession> StudySessions { get; set; } = null!;
     public DbSet<GamificationEntry> GamificationEntries { get; set; } = null!;
     public DbSet<DailyTracking> DailyTrackings { get; set; } = null!;
     public DbSet<DailyNote> DailyNotes { get; set; } = null!;
@@ -76,9 +73,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>().ToTable("user_profiles");
         modelBuilder.Entity<DailyTask>().ToTable("tasks");
         modelBuilder.Entity<Expense>().ToTable("expenses");
-        modelBuilder.Entity<SelfCareLog>().ToTable("self_care_logs");
-        modelBuilder.Entity<SelfCareTemplate>().ToTable("self_care_template");
-        modelBuilder.Entity<StudySession>().ToTable("study_sessions");
         modelBuilder.Entity<GamificationEntry>().ToTable("gamification_entries");
         modelBuilder.Entity<DailyTracking>().ToTable("daily_tracking");
         modelBuilder.Entity<DailyNote>().ToTable("daily_notes");
@@ -173,28 +167,10 @@ public class AppDbContext : DbContext
             .HasForeignKey(d => d.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<SelfCareTemplate>()
-            .HasOne(t => t.User)
-            .WithMany()
-            .HasForeignKey(t => t.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<SelfCareLog>()
-            .HasOne(s => s.User)
-            .WithMany()
-            .HasForeignKey(s => s.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
         modelBuilder.Entity<Expense>()
             .HasOne(e => e.User)
             .WithMany()
             .HasForeignKey(e => e.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<StudySession>()
-            .HasOne(s => s.User)
-            .WithMany()
-            .HasForeignKey(s => s.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<GamificationEntry>()
