@@ -16,12 +16,11 @@ const FINANCE_TABS: { id: string; label: string; icon: React.ComponentType<{ siz
   { id: 'Transactions', label: 'Transactions', icon: DollarSign },
   { id: 'Buckets', label: 'Buckets', icon: Wallet },
   { id: 'Investments', label: 'Investments', icon: TrendingUp },
-  { id: 'Analytics', label: 'Analytics', icon: BarChart3 },
 ];
 
 function PillTabs({ active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
   return (
-    <div className="flex gap-1 mx-4 mb-2 p-1 rounded-2xl overflow-x-auto hide-scrollbar" style={{ backgroundColor: 'var(--surface)' }}>
+    <div className="flex gap-1 mx-4 mb-2 p-1 rounded-2xl" style={{ backgroundColor: 'var(--surface)' }}>
       {FINANCE_TABS.map(t => {
         const Icon = t.icon;
         return (
@@ -390,18 +389,31 @@ export default function Finance() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 mb-2">
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Finance</h1>
-        <button
-          onClick={() => navigate('/finance/vehicles')}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
-          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
-        >
-          <Car size={14} style={{ color: 'var(--text-secondary)' }} />
-          <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Vehicles</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setTab('Analytics')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
+            style={{
+              backgroundColor: tab === 'Analytics' ? 'var(--accent)' : 'var(--surface)',
+              border: '1px solid var(--border)'
+            }}
+          >
+            <BarChart3 size={14} style={{ color: tab === 'Analytics' ? '#fff' : 'var(--text-secondary)' }} />
+            <span className="text-xs font-medium" style={{ color: tab === 'Analytics' ? '#fff' : 'var(--text-secondary)' }}>Analytics</span>
+          </button>
+          <button
+            onClick={() => navigate('/finance/vehicles')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+          >
+            <Car size={14} style={{ color: 'var(--text-secondary)' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Vehicles</span>
+          </button>
+        </div>
       </div>
 
       <PillTabs
-        tabs={['Transactions', 'Buckets', 'Investments', 'Analytics']}
+        tabs={['Transactions', 'Buckets', 'Investments']}
         active={tab}
         onChange={t => setTab(t as Tab)}
       />

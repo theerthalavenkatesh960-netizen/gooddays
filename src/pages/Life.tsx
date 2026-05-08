@@ -10,13 +10,12 @@ import { useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 
-type LifeTab = 'Goals' | 'Journal' | 'Review' | 'Tasks';
+type LifeTab = 'Goals' | 'Journal' | 'Review';
 
 const LIFE_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
   { id: 'Goals', label: 'Goals', icon: Target },
   { id: 'Journal', label: 'Journal', icon: BookOpen },
   { id: 'Review', label: 'Review', icon: BarChart2 },
-  { id: 'Tasks', label: 'Tasks', icon: CheckSquare },
 ];
 
 function PillTabs({ active, onChange }: { tabs: string[]; active: string; onChange: (t: string) => void }) {
@@ -477,7 +476,7 @@ export default function Life() {
       </div>
 
       <PillTabs
-        tabs={['Goals', 'Journal', 'Review', 'Tasks']}
+        tabs={['Goals', 'Journal', 'Review']}
         active={tab}
         onChange={t => setTab(t as LifeTab)}
       />
@@ -494,7 +493,6 @@ export default function Life() {
           {tab === 'Goals'   && <GoalsTab />}
           {tab === 'Journal' && <JournalTab />}
           {tab === 'Review'  && <ReviewTab />}
-          {tab === 'Tasks'   && <TasksTab />}
         </motion.div>
       </AnimatePresence>
     </div>
