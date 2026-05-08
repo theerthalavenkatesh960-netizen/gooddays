@@ -362,8 +362,8 @@ function DietTab() {
   const [plannedMeals, setPlannedMeals] = useState<MealTemplate[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [goal, setGoal] = useState(2400);
-  const [waterCups, setWaterCups] = useState(0);
-  const [waterGoal, setWaterGoal] = useState(8);
+  const [waterMl, setWaterMl] = useState(0);
+  const [waterGoalMl, setWaterGoalMl] = useState(2000);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -397,8 +397,8 @@ function DietTab() {
         setSelected(Array.isArray(todayLog?.mealIds) ? todayLog!.mealIds : []);
         
         if (waterLog) {
-          setWaterCups(waterLog.cupsConsumed || 0);
-          setWaterGoal(waterLog.goalCups || 8);
+          setWaterMl(waterLog.mlConsumed || 0);
+          setWaterGoalMl(waterLog.goalMl || 2000);
         }
       } finally {
         setLoading(false);
@@ -421,11 +421,11 @@ function DietTab() {
     }
   }
 
-  async function addWaterCup() {
-    const next = waterCups + 1;
-    setWaterCups(next);
+  async function addWater(ml: number = 250) {
+    const next = waterMl + ml;
+    setWaterMl(next);
     try {
-      await (api as any).incrementWaterCups(today, 1);
+      await (api as any).incrementWaterIntake(today, ml);
     } catch {
       // Optimistic update
     }
@@ -441,7 +441,7 @@ function DietTab() {
   }, [selected, plannedMeals]);
 
   const caloriePercentage = goal > 0 ? Math.min(100, Math.round((consumedCalories / goal) * 100)) : 0;
-  const waterPercentage = waterGoal > 0 ? Math.min(100, Math.round((waterCups / waterGoal) * 100)) : 0;
+  const waterPercentage = waterGoalMl > 0 ? Math.min(100, Math.round((waterMl / waterGoalMl) * 100)) : 0;
 
   return (
     <div className="px-4 space-y-4">
@@ -476,14 +476,19 @@ function DietTab() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>💧 Water Intake</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{waterCups} of {waterGoal} cups</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{waterMl} of {waterGoalMl} ml</p>
           </div>
-          <button onClick={addWaterCup} className="px-3 py-1 rounded-lg text-sm font-semibold text-white" style={{ backgroundColor: 'var(--accent)' }}>+ Cup</button>
+          <div className="text-lg font-bold" style={{ color: 'var(--accent)' }}>{waterPercentage}%</div>
         </div>
         <div className="flex gap-1">
-          {Array.from({ length: waterGoal }).map((_, i) => (
-            <div key={i} className="flex-1 h-6 rounded-md" style={{ backgroundColor: i < waterCups ? 'var(--accent)' : 'var(--surface-elevated)' }} />
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="flex-1 h-6 rounded-md" style={{ backgroundColor: (i * 250) < waterMl ? 'var(--accent)' : 'var(--surface-elevated)' }} />
           ))}
+        </div>
+        <div className="flex gap-2 text-xs">
+          <button onClick={() => addWater(250)} className="flex-1 px-2 py-1 rounded-lg text-white" style={{ backgroundColor: 'var(--accent)' }}>+250ml</button>
+          <button onClick={() => addWater(500)} className="flex-1 px-2 py-1 rounded-lg text-white" style={{ backgroundColor: 'var(--accent)' }}>+500ml</button>
+          <button onClick={() => addWater(1000)} className="flex-1 px-2 py-1 rounded-lg text-white" style={{ backgroundColor: 'var(--accent)' }}>+1L</button>
         </div>
       </div>
 

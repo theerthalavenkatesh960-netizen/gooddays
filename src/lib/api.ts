@@ -1258,53 +1258,58 @@ export async function upsertDailyMealLog(date: string, mealIds: number[]) {
 
 type DailyWaterLog = {
   date: string;
-  cupsConsumed: number;
-  goalCups: number;
+  mlConsumed: number;
+  goalMl: number;
+  unit: 'ml' | 'l';
 };
 
 const DUMMY_DAILY_WATER_LOGS: Record<string, DailyWaterLog> = {};
 
 export async function getDailyWaterLog(date: string) {
+  const key = asDateKey(date);
   if (USE_DUMMY_DATA) {
-    const log = DUMMY_DAILY_WATER_LOGS[asDateKey(date)];
-    return Promise.resolve(log || { date: asDateKey(date), cupsConsumed: 0, goalCups: 8 });
+    const log = DUMMY_DAILY_WATER_LOGS[key];
+    return Promise.resolve(log || { date: key, mlConsumed: 0, goalMl: 2000, unit: 'ml' as const });
   }
-  return request(`water/logs/${date}`);
+  return request(`water/logs?date=${encodeURIComponent(key)}`);
 }
 
-export async function logWaterCups(date: string, cups: number, goalCups: number = 8) {
+export async function logWaterIntake(date: string, ml: number, goalMl: number = 2000) {
+  const key = asDateKey(date);
   if (USE_DUMMY_DATA) {
-    const key = asDateKey(date);
-    DUMMY_DAILY_WATER_LOGS[key] = { date: key, cupsConsumed: Math.max(0, cups), goalCups };
+    DUMMY_DAILY_WATER_LOGS[key] = { date: key, mlConsumed: Math.max(0, ml), goalMl, unit: 'ml' as const };
     return Promise.resolve(DUMMY_DAILY_WATER_LOGS[key]);
   }
-  return request('water/logs', { method: 'POST', body: JSON.stringify({ date, cupsConsumed: cups, goalCups }) });
+  return request('water/logs', { method: 'POST', body: JSON.stringify({ date: key, mlConsumed: ml, goalMl }) });
 }
 
-export async function incrementWaterCups(date: string, increment: number = 1) {
+export async function incrementWaterIntake(date: string, incrementMl: number = 250) {
+  const key = asDateKey(date);
   if (USE_DUMMY_DATA) {
-    const key = asDateKey(date);
-    const current = DUMMY_DAILY_WATER_LOGS[key] || { date: key, cupsConsumed: 0, goalCups: 8 };
-    const next = { ...current, cupsConsumed: Math.max(0, current.cupsConsumed + increment) };
+    const current = DUMMY_DAILY_WATER_LOGS[key] || { date: key, mlConsumed: 0, goalMl: 2000, unit: 'ml' as const };
+    const next = { ...current, mlConsumed: Math.max(0, current.mlConsumed + incrementMl) };
     DUMMY_DAILY_WATER_LOGS[key] = next;
     return Promise.resolve(next);
   }
-  return request('water/logs/increment', { method: 'POST', body: JSON.stringify({ date, increment }) });
+  return request('water/logs/increment', { method: 'POST', body: JSON.stringify({ date: key, incrementMl }) });
 }
+
+// ─── Task Logging for Quick Log ────────────────────────────────────────────
+// Tasks logged via Quick Log are stored as quick log entries, not as full task records
 
 // ─── Unified Quick Log API ────────────────────────────────────────────────────
 
 export type QuickLogEntry = {
   id: number;
   date: string;
-  type: 'workout' | 'meal' | 'expense' | 'water';
+  type: 'workout' | 'meal' | 'expense' | 'water' | 'task';
   payload: Record<string, any>;
   createdAt: string;
 };
 
 const DUMMY_QUICK_LOG_ENTRIES: QuickLogEntry[] = [];
 
-export async function logQuickEntry(type: 'workout' | 'meal' | 'expense' | 'water', payload: Record<string, any>, date?: string) {
+export async function logQuickEntry(type: 'workout' | 'meal' | 'expense' | 'water' | 'task', payload: Record<string, any>, date?: string) {
   if (USE_DUMMY_DATA) {
     const entry: QuickLogEntry = {
       id: DUMMY_QUICK_LOG_ENTRIES.length + 1,
@@ -1333,28 +1338,31 @@ export async function logQuickEntry(type: 'workout' | 'meal' | 'expense' | 'wate
       const current = DUMMY_DAILY_MEAL_LOGS[entry.date] || [];
       const mealIds = Array.isArray(payload.mealIds) ? payload.mealIds : [payload.mealIds];
       DUMMY_DAILY_MEAL_LOGS[entry.date] = [...new Set([...current, ...mealIds])];
-    } else if (type === 'water' && payload.cups) {
-      // Log water cups
+    } else if (type === 'water' && payload.ml) {
+      // Log water in ml
       const key = entry.date;
-      const current = DUMMY_DAILY_WATER_LOGS[key] || { date: key, cupsConsumed: 0, goalCups: 8 };
-      current.cupsConsumed += payload.cups;
+      const current = DUMMY_DAILY_WATER_LOGS[key] || { date: key, mlConsumed: 0, goalMl: 2000, unit: 'ml' as const };
+      current.mlConsumed += payload.ml;
       DUMMY_DAILY_WATER_LOGS[key] = current;
     }
+    // Tasks are logged as quick log entries, no additional processing needed
 
     return Promise.resolve(cloneAny(entry));
   }
   return request('quicklog', { method: 'POST', body: JSON.stringify({ type, payload, date: date || asDateKey() }) });
 }
 
-export async function getQuickLogHistory(from: string, to: string, type?: 'workout' | 'meal' | 'expense' | 'water') {
+export async function getQuickLogHistory(from: string, to: string, type?: 'workout' | 'meal' | 'expense' | 'water' | 'task') {
+  const fromKey = asDateKey(from);
+  const toKey = asDateKey(to);
   if (USE_DUMMY_DATA) {
-    let filtered = DUMMY_QUICK_LOG_ENTRIES.filter(e => e.date >= asDateKey(from) && e.date <= asDateKey(to));
+    let filtered = DUMMY_QUICK_LOG_ENTRIES.filter(e => e.date >= fromKey && e.date <= toKey);
     if (type) filtered = filtered.filter(e => e.type === type);
     return Promise.resolve(cloneAny(filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())));
   }
   const params = new URLSearchParams();
-  params.set('from', from);
-  params.set('to', to);
+  params.set('from', fromKey);
+  params.set('to', toKey);
   if (type) params.set('type', type);
   return request(`quicklog/history?${params}`);
 }

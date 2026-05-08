@@ -54,6 +54,12 @@ public class AppDbContext : DbContext
     public DbSet<MealTemplate> MealTemplates { get; set; } = null!;
     public DbSet<WeeklyMealPlan> WeeklyMealPlans { get; set; } = null!;
 
+    // Water tracking entities
+    public DbSet<DailyWaterLog> DailyWaterLogs { get; set; } = null!;
+
+    // Quick log entities
+    public DbSet<QuickLogEntry> QuickLogEntries { get; set; } = null!;
+
     // Daily routine entities
     public DbSet<DailyRoutine> DailyRoutines { get; set; } = null!;
     public DbSet<RoutineBlock> RoutineBlocks { get; set; } = null!;
@@ -109,6 +115,14 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<MealIngredient>().ToTable("meal_ingredients");
         modelBuilder.Entity<MealTemplate>().ToTable("meal_templates");
         modelBuilder.Entity<WeeklyMealPlan>().ToTable("weekly_meal_plans");
+
+        // Water tracking table mappings
+        modelBuilder.Entity<DailyWaterLog>().ToTable("daily_water_logs");
+        modelBuilder.Entity<DailyWaterLog>()
+            .HasIndex(w => new { w.UserId, w.Date }).IsUnique();
+
+        // Quick log table mappings
+        modelBuilder.Entity<QuickLogEntry>().ToTable("quick_log_entries");
 
         // Daily routine table mappings
         modelBuilder.Entity<DailyRoutine>().ToTable("daily_routines");
