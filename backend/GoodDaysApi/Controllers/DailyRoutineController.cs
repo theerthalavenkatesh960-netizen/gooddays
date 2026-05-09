@@ -35,25 +35,32 @@ public class DailyRoutineController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateRoutine([FromBody] DailyRoutine body)
+    public async Task<IActionResult> CreateRoutine([FromBody] RoutineRequest body)
     {
-        body.UserId = GetUserId();
-        body.CreatedAt = DateTime.UtcNow;
-        body.UpdatedAt = DateTime.UtcNow;
-        _db.DailyRoutines.Add(body);
+        var routine = new DailyRoutine
+        {
+            UserId = GetUserId(),
+            Name = body.Name,
+            Description = body.Description,
+            Color = string.IsNullOrWhiteSpace(body.Color) ? "#6C63FF" : body.Color,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+
+        _db.DailyRoutines.Add(routine);
         await _db.SaveChangesAsync();
-        return Ok(body);
+        return Ok(routine);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateRoutine(int id, [FromBody] DailyRoutine body)
+    public async Task<IActionResult> UpdateRoutine(int id, [FromBody] RoutineRequest body)
     {
         var userId = GetUserId();
         var routine = await _db.DailyRoutines.FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
         if (routine is null) return NotFound();
         routine.Name = body.Name;
         routine.Description = body.Description;
-        routine.Color = body.Color;
+        routine.Color = string.IsNullOrWhiteSpace(body.Color) ? routine.Color : body.Color;
         routine.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return Ok(routine);
@@ -73,20 +80,30 @@ public class DailyRoutineController : ControllerBase
     // ─── Blocks CRUD ──────────────────────────────────────────────────────
 
     [HttpPost("{routineId}/blocks")]
-    public async Task<IActionResult> AddBlock(int routineId, [FromBody] RoutineBlock body)
+    public async Task<IActionResult> AddBlock(int routineId, [FromBody] RoutineBlockRequest body)
     {
         var userId = GetUserId();
         var routine = await _db.DailyRoutines.FirstOrDefaultAsync(r => r.Id == routineId && r.UserId == userId);
         if (routine is null) return NotFound();
-        body.RoutineId = routineId;
-        body.CreatedAt = DateTime.UtcNow;
-        _db.RoutineBlocks.Add(body);
+        var block = new RoutineBlock
+        {
+            RoutineId = routineId,
+            Title = body.Title,
+            StartTime = body.StartTime,
+            EndTime = body.EndTime,
+            Category = body.Category,
+            Color = body.Color,
+            SortOrder = body.SortOrder ?? 0,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        _db.RoutineBlocks.Add(block);
         await _db.SaveChangesAsync();
-        return Ok(body);
+        return Ok(block);
     }
 
     [HttpPut("blocks/{id}")]
-    public async Task<IActionResult> UpdateBlock(int id, [FromBody] RoutineBlock body)
+    public async Task<IActionResult> UpdateBlock(int id, [FromBody] RoutineBlockRequest body)
     {
         var userId = GetUserId();
         var block = await _db.RoutineBlocks
@@ -98,7 +115,7 @@ public class DailyRoutineController : ControllerBase
         block.EndTime = body.EndTime;
         block.Category = body.Category;
         block.Color = body.Color;
-        block.SortOrder = body.SortOrder;
+        if (body.SortOrder.HasValue) block.SortOrder = body.SortOrder.Value;
         await _db.SaveChangesAsync();
         return Ok(block);
     }
@@ -157,6 +174,8 @@ public class DailyRoutineController : ControllerBase
         return Ok();
     }
 
+    public record RoutineRequest(string Name, string? Description, string? Color);
+    public record RoutineBlockRequest(string Title, string StartTime, string EndTime, string? Category, string? Color, int? SortOrder);
     public record ScheduleEntry(int DayOfWeek, int? RoutineId);
 
     // ─── Today ────────────────────────────────────────────────────────────
