@@ -48,21 +48,20 @@ function envBool(name: string, fallback: boolean): boolean {
 }
 
 export const DUMMY_FLAGS = {
-  settings: envBool('VITE_USE_DUMMY_SETTINGS', true),
-  workout: envBool('VITE_USE_DUMMY_WORKOUT', true),
-  dailyRoutine: envBool('VITE_USE_DUMMY_DAILY_ROUTINE', true),
-  goals: envBool('VITE_USE_DUMMY_GOALS', true),
-  finance: envBool('VITE_USE_DUMMY_FINANCE', true),
-  vehicles: envBool('VITE_USE_DUMMY_VEHICLES', true),
-  meals: envBool('VITE_USE_DUMMY_MEALS', true),
-  water: envBool('VITE_USE_DUMMY_WATER', true),
-  bodyMetrics: envBool('VITE_USE_DUMMY_BODY_METRICS', true),
-  quickLog: envBool('VITE_USE_DUMMY_QUICK_LOG', true),
+  settings: envBool('VITE_USE_DUMMY_SETTINGS', false),
+  workout: envBool('VITE_USE_DUMMY_WORKOUT', false),
+  dailyRoutine: envBool('VITE_USE_DUMMY_DAILY_ROUTINE', false),
+  goals: envBool('VITE_USE_DUMMY_GOALS', false),
+  finance: envBool('VITE_USE_DUMMY_FINANCE', false),
+  vehicles: envBool('VITE_USE_DUMMY_VEHICLES', false),
+  meals: envBool('VITE_USE_DUMMY_MEALS', false),
+  water: envBool('VITE_USE_DUMMY_WATER', false),
+  bodyMetrics: envBool('VITE_USE_DUMMY_BODY_METRICS', false),
+  quickLog: envBool('VITE_USE_DUMMY_QUICK_LOG', false ),
 };
 
 // Legacy compatibility exports
 export const USE_DUMMY_DATA = DUMMY_FLAGS.settings;
-export const USE_DUMMY_DAILY_ROUTINE_DATA = DUMMY_FLAGS.dailyRoutine;
 // ───────────────────────────────────────────────────────────────────────────
 
 function getAuthHeader(): Record<string, string> {
@@ -732,7 +731,6 @@ type DummyRoutine = {
   blocks: DummyRoutineBlock[];
 };
 
-const DAILY_ROUTINE_MOCK_ENABLED = DUMMY_FLAGS.dailyRoutine;
 
 const _dummyDailyRoutineStore: {
   nextRoutineId: number;
@@ -794,12 +792,12 @@ function getDayOfWeek(date: string): number {
 }
 
 export async function getDailyRoutines() {
-  if (DAILY_ROUTINE_MOCK_ENABLED) return Promise.resolve(clone(_dummyDailyRoutineStore.routines));
+  if (DUMMY_FLAGS.dailyRoutine) return Promise.resolve(clone(_dummyDailyRoutineStore.routines));
   return request('dailyroutine');
 }
 
 export async function createDailyRoutine(body: { name: string; description?: string; color?: string }) {
-  if (DAILY_ROUTINE_MOCK_ENABLED) {
+  if (DUMMY_FLAGS.dailyRoutine) {
     const routine: DummyRoutine = {
       id: _dummyDailyRoutineStore.nextRoutineId++,
       name: body.name,
@@ -814,7 +812,7 @@ export async function createDailyRoutine(body: { name: string; description?: str
 }
 
 export async function updateDailyRoutine(id: number, body: { name: string; description?: string; color?: string }) {
-  if (DAILY_ROUTINE_MOCK_ENABLED) {
+  if (DUMMY_FLAGS.dailyRoutine) {
     const routine = _dummyDailyRoutineStore.routines.find(r => r.id === id);
     if (!routine) return Promise.reject(new Error('Routine not found'));
     routine.name = body.name ?? routine.name;
@@ -826,7 +824,7 @@ export async function updateDailyRoutine(id: number, body: { name: string; descr
 }
 
 export async function deleteDailyRoutine(id: number) {
-  if (DAILY_ROUTINE_MOCK_ENABLED) {
+  if (DUMMY_FLAGS.dailyRoutine) {
     _dummyDailyRoutineStore.routines = _dummyDailyRoutineStore.routines.filter(r => r.id !== id);
     _dummyDailyRoutineStore.schedule = _dummyDailyRoutineStore.schedule.map(e => e.routineId === id ? { ...e, routineId: null } : e);
     return Promise.resolve({ success: true });
@@ -835,7 +833,7 @@ export async function deleteDailyRoutine(id: number) {
 }
 
 export async function addRoutineBlock(routineId: number, body: { title: string; startTime: string; endTime: string; category?: string; color?: string; sortOrder?: number }) {
-  if (DAILY_ROUTINE_MOCK_ENABLED) {
+  if (DUMMY_FLAGS.dailyRoutine) {
     const routine = _dummyDailyRoutineStore.routines.find(r => r.id === routineId);
     if (!routine) return Promise.reject(new Error('Routine not found'));
     const block: DummyRoutineBlock = {
@@ -855,7 +853,7 @@ export async function addRoutineBlock(routineId: number, body: { title: string; 
 }
 
 export async function updateRoutineBlock(id: number, body: { title: string; startTime: string; endTime: string; category?: string; color?: string; sortOrder?: number }) {
-  if (DAILY_ROUTINE_MOCK_ENABLED) {
+  if (DUMMY_FLAGS.dailyRoutine) {
     for (const routine of _dummyDailyRoutineStore.routines) {
       const block = routine.blocks.find(b => b.id === id);
       if (!block) continue;
@@ -873,7 +871,7 @@ export async function updateRoutineBlock(id: number, body: { title: string; star
 }
 
 export async function deleteRoutineBlock(id: number) {
-  if (DAILY_ROUTINE_MOCK_ENABLED) {
+  if (DUMMY_FLAGS.dailyRoutine) {
     for (const routine of _dummyDailyRoutineStore.routines) {
       const before = routine.blocks.length;
       routine.blocks = routine.blocks.filter(b => b.id !== id);
@@ -888,7 +886,7 @@ export async function deleteRoutineBlock(id: number) {
 }
 
 export async function getWeeklyRoutineSchedule() {
-  if (DAILY_ROUTINE_MOCK_ENABLED) {
+  if (DUMMY_FLAGS.dailyRoutine) {
     const rows = _dummyDailyRoutineStore.schedule.map(e => ({
       ...e,
       routineName: _dummyDailyRoutineStore.routines.find(r => r.id === e.routineId)?.name,
@@ -899,7 +897,7 @@ export async function getWeeklyRoutineSchedule() {
 }
 
 export async function updateWeeklyRoutineSchedule(entries: Array<{ dayOfWeek: number; routineId: number | null }>) {
-  if (DAILY_ROUTINE_MOCK_ENABLED) {
+  if (DUMMY_FLAGS.dailyRoutine) {
     _dummyDailyRoutineStore.schedule = Array.from({ length: 7 }, (_, i) => {
       const found = entries.find(e => e.dayOfWeek === i);
       return { dayOfWeek: i, routineId: found ? found.routineId : null };
@@ -910,7 +908,7 @@ export async function updateWeeklyRoutineSchedule(entries: Array<{ dayOfWeek: nu
 }
 
 export async function getTodayRoutine() {
-  if (DAILY_ROUTINE_MOCK_ENABLED) {
+  if (DUMMY_FLAGS.dailyRoutine) {
     const date = new Date();
     const dateKey = date.toISOString().slice(0, 10);
     const dayOfWeek = getDayOfWeek(dateKey);
@@ -966,7 +964,7 @@ export async function getTodayRoutine() {
 }
 
 export async function logRoutineBlock(body: { routineBlockId: number; date: string; status: 'completed' | 'skipped' | 'missed' }) {
-  if (DAILY_ROUTINE_MOCK_ENABLED) {
+  if (DUMMY_FLAGS.dailyRoutine) {
     if (!_dummyDailyRoutineStore.logsByDate[body.date]) _dummyDailyRoutineStore.logsByDate[body.date] = {};
     _dummyDailyRoutineStore.logsByDate[body.date][body.routineBlockId] = body.status;
     return Promise.resolve({ id: Date.now(), ...body });
@@ -975,7 +973,7 @@ export async function logRoutineBlock(body: { routineBlockId: number; date: stri
 }
 
 export async function skipTodayRoutine(date: string, reason?: string) {
-  if (DAILY_ROUTINE_MOCK_ENABLED) {
+  if (DUMMY_FLAGS.dailyRoutine) {
     if (_dummyDailyRoutineStore.skippedDates[date]) {
       delete _dummyDailyRoutineStore.skippedDates[date];
     } else {
@@ -987,7 +985,7 @@ export async function skipTodayRoutine(date: string, reason?: string) {
 }
 
 export async function getRoutineHistory(from: string, to: string) {
-  if (DAILY_ROUTINE_MOCK_ENABLED) {
+  if (DUMMY_FLAGS.dailyRoutine) {
     const logs: Array<{ date: string; routineBlockId: number; status: 'completed' | 'skipped' | 'missed' }> = [];
     const skips: Array<{ date: string; reason?: string | null }> = [];
 
