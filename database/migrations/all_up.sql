@@ -22,9 +22,11 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   google_id text,
   level integer DEFAULT 1,
   points integer DEFAULT 0,
-  theme text DEFAULT 'light',
-  dashboard_preset text DEFAULT 'balanced',
-  dashboard_weights_json text DEFAULT '{"tasks":35,"routine":20,"body":15,"workout":15,"finance":10,"journal":5}',
+  theme text NOT NULL DEFAULT 'light',
+  calorie_goal integer NOT NULL DEFAULT 2400,
+  tracking_options_json jsonb NOT NULL DEFAULT '["sleep_hours","workout_minutes","phone_minutes"]'::jsonb,
+  dashboard_preset text NOT NULL DEFAULT 'balanced',
+  dashboard_weights_json jsonb NOT NULL DEFAULT '{"tasks":35,"routine":20,"body":15,"workout":15,"finance":10,"journal":5}'::jsonb,
   height_cm              decimal(5,1),
   target_weight_kg       decimal(5,2),
   created_at timestamptz DEFAULT now(),
@@ -555,18 +557,7 @@ CREATE INDEX IF NOT EXISTS idx_daily_meal_logs_user_date ON daily_meal_logs(user
 -- ===================================================================
 -- 006: USER SETTINGS COLUMNS
 -- ===================================================================
-
-ALTER TABLE user_profiles
-  ADD COLUMN IF NOT EXISTS calorie_goal integer NOT NULL DEFAULT 2400;
-
-ALTER TABLE user_profiles
-  ADD COLUMN IF NOT EXISTS tracking_options_json jsonb NOT NULL DEFAULT '["sleep_hours","workout_minutes","phone_minutes"]'::jsonb;
-
-ALTER TABLE user_profiles
-  ADD COLUMN IF NOT EXISTS dashboard_preset text NOT NULL DEFAULT 'balanced';
-
-ALTER TABLE user_profiles
-  ADD COLUMN IF NOT EXISTS dashboard_weights_json jsonb NOT NULL DEFAULT '{"tasks":35,"routine":20,"body":15,"workout":15,"finance":10,"journal":5}'::jsonb;
+-- Included directly in user_profiles base table for clean down/up runs.
 
 -- ===================================================================
 -- 007: ADVANCED GOALS (checklist + milestone support)
