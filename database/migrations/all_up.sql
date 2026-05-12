@@ -442,6 +442,9 @@ CREATE TABLE IF NOT EXISTS meal_templates (
 ALTER TABLE IF EXISTS meal_templates
   ADD COLUMN IF NOT EXISTS time_of_day text;
 
+-- plan_json format: { "2026-05-13": [{ "mealTemplateId": 1, "timeOfDay": "06:30" }, ...], ... }
+--   mealTemplateId (int)    : References meal_templates.id
+--   timeOfDay      (text)   : Time override for this week in HH:MM (nullable; falls back to meal_templates.time_of_day)
 CREATE TABLE IF NOT EXISTS weekly_meal_plans (
   id SERIAL PRIMARY KEY,
   user_id integer UNIQUE REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,

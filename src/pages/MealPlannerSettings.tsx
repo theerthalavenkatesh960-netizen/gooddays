@@ -29,7 +29,12 @@ type IngSnap = {
   description?: string;
 };
 
-type MealPlanMap = Record<string, number[]>;
+type MealAssignment = {
+  mealTemplateId: number;
+  timeOfDay?: string;
+};
+
+type MealPlanMap = Record<string, MealAssignment[]>;
 
 const TIMING_COLORS: Record<string, string> = {
   breakfast: 'var(--accent-gold)',
@@ -105,10 +110,28 @@ function parseIngredients(json: string): IngSnap[] {
   }
 }
 
-function normalizeDayMealIds(value: any): number[] {
-  if (Array.isArray(value)) return value.map((id) => Number(id)).filter((id) => Number.isFinite(id));
+function normalizeDayMealAssignments(value: any): MealAssignment[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        // Handle new format: { mealTemplateId: int, timeOfDay: string }
+        if (item && typeof item === 'object' && 'mealTemplateId' in item) {
+          return {
+            mealTemplateId: Number(item.mealTemplateId),
+            timeOfDay: item.timeOfDay ? String(item.timeOfDay).trim() : undefined,
+          } as MealAssignment;
+        }
+        // Fallback: handle old format (plain ID)
+        const id = Number(item);
+        if (Number.isFinite(id)) {
+          return { mealTemplateId: id, timeOfDay: undefined } as MealAssignment;
+        }
+        return null;
+      })
+      .filter((a): a is MealAssignment => !!a);
+  }
   if (value && typeof value === 'object' && Array.isArray(value.mealIds)) {
-    return value.mealIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id));
+    return normalizeDayMealAssignments(value.mealIds);
   }
   return [];
 }
@@ -117,7 +140,7 @@ function normalizeMealPlan(raw: any): MealPlanMap {
   if (!raw || typeof raw !== 'object') return {};
   const next: MealPlanMap = {};
   for (const key of Object.keys(raw)) {
-    next[key] = normalizeDayMealIds(raw[key]);
+    next[key] = normalizeDayMealAssignments(raw[key]);
   }
   return next;
 }
@@ -133,6 +156,7 @@ export default function MealPlannerSettings() {
   const [status, setStatus] = useState('');
   const [addingToDay, setAddingToDay] = useState<string | null>(null);
   const [pickMealId, setPickMealId] = useState<number | null>(null);
+  const [pickTimeOfDay, setPickTimeOfDay] = useState<string>('');
 
   const [showMealFilters, setShowMealFilters] = useState(false);
   const [mealSearch, setMealSearch] = useState('');
@@ -188,7 +212,7 @@ export default function MealPlannerSettings() {
 
       const nextPlan: MealPlanMap = {};
       for (const key of Object.keys(mealPlan)) {
-        nextPlan[key] = (mealPlan[key] || []).filter(mid => mid !== id);
+        nextPlan[key] = (mealPlan[key] || []).filter(assignment => assignment.mealTemplateId !== id);
       }
       await savePlan(nextPlan);
     } catch (e: any) {
@@ -219,30 +243,45 @@ export default function MealPlannerSettings() {
 
   async function addMealToDay(dayKey: string) {
     if (!pickMealId) return;
-    const existing = normalizeDayMealIds(mealPlan[dayKey]);
-    if (existing.includes(pickMealId)) {
+    const existing = mealPlan[dayKey] || [];
+    if (existing.some(a => a.mealTemplateId === pickMealId)) {
       setAddingToDay(null);
       return;
     }
-    await savePlan({ ...mealPlan, [dayKey]: [...existing, pickMealId] });
+    const newAssignment: MealAssignment = {
+      mealTemplateId: pickMealId,
+      timeOfDay: pickTimeOfDay.trim() || undefined,
+    };
+    await savePlan({ ...mealPlan, [dayKey]: [...existing, newAssignment] });
     setAddingToDay(null);
+    setPickMealId(null);
+    setPickTimeOfDay('');
   }
 
   async function removeMealFromDay(dayKey: string, mealId: number) {
-    await savePlan({ ...mealPlan, [dayKey]: normalizeDayMealIds(mealPlan[dayKey]).filter(id => id !== mealId) });
+    await savePlan({ ...mealPlan, [dayKey]: (mealPlan[dayKey] || []).filter(a => a.mealTemplateId !== mealId) });
   }
 
   const selectedMeals = useMemo(() => {
-    const dateIds = normalizeDayMealIds(mealPlan[selectedDayKey]);
-    const fallbackIds = dateIds.length > 0 ? dateIds : normalizeDayMealIds(mealPlan[toLegacyDayKey(selectedDate)]);
-    return fallbackIds
-      .map(id => meals.find(m => m.id === id))
-      .filter((m): m is MealTemplate => !!m)
+    const assignments = mealPlan[selectedDayKey] || [];
+    const fallbackAssignments = (assignments.length > 0) ? assignments : (mealPlan[toLegacyDayKey(selectedDate)] || []);
+    return fallbackAssignments
+      .map(assignment => {
+        const meal = meals.find(m => m.id === assignment.mealTemplateId);
+        return meal ? { meal, overrideTime: assignment.timeOfDay as string | undefined } : null;
+      })
+      .filter((item): item is { meal: MealTemplate; overrideTime: string | undefined } => item !== null && item !== undefined)
       .sort((a, b) => {
-        const ta = parseTimeOfDayToMinutes(a.timeOfDay);
-        const tb = parseTimeOfDayToMinutes(b.timeOfDay);
-        return ta !== tb ? ta - tb : a.id - b.id;
-      });
+        if (!a || !b) return 0;
+        // Sort by override time if present, otherwise by template's default time
+        const timeA = a.overrideTime || a.meal.timeOfDay;
+        const timeB = b.overrideTime || b.meal.timeOfDay;
+        const ta = parseTimeOfDayToMinutes(timeA);
+        const tb = parseTimeOfDayToMinutes(timeB);
+        return ta !== tb ? ta - tb : a.meal.id - b.meal.id;
+      })
+      .map(item => item?.meal)
+      .filter((meal): meal is MealTemplate => meal !== null && meal !== undefined);
   }, [mealPlan, meals, selectedDayKey, selectedDate]);
 
   const selectedDayCalories = selectedMeals.reduce((sum, meal) => {
@@ -317,7 +356,7 @@ export default function MealPlannerSettings() {
                   const active = isSameDay(d, selectedDate);
                   const dateKey = toDateKey(d);
                   const legacyKey = toLegacyDayKey(d);
-                  const dayCount = normalizeDayMealIds(mealPlan[dateKey]).length || normalizeDayMealIds(mealPlan[legacyKey]).length;
+                  const dayCount = (mealPlan[dateKey]?.length || 0) || (mealPlan[legacyKey]?.length || 0);
                   return (
                     <button key={d.toISOString()} onClick={() => setSelectedDate(d)} className="min-w-[64px] px-2 py-2 rounded-lg text-center border"
                       style={{ backgroundColor: active ? 'var(--accent-green)' : 'var(--surface-elevated)', color: active ? '#fff' : 'var(--text-secondary)', borderColor: active ? 'var(--accent-green)' : 'var(--border)' }}>
@@ -366,7 +405,7 @@ export default function MealPlannerSettings() {
                 ))}
               </div>
             ) : (
-              <button onClick={() => { setAddingToDay(selectedDayKey); setPickMealId(meals[0]?.id ?? null); }} className="w-full py-4 rounded-xl flex items-center justify-center gap-2 text-sm press"
+              <button onClick={() => { setAddingToDay(selectedDayKey); setPickMealId(meals[0]?.id ?? null); setPickTimeOfDay(''); }} className="w-full py-4 rounded-xl flex items-center justify-center gap-2 text-sm press"
                 style={{ border: '1.5px dashed var(--border)', color: 'var(--text-muted)' }}>
                 <Plus size={14} /> Add meals for {selectedDayLabel}
               </button>
@@ -458,17 +497,17 @@ export default function MealPlannerSettings() {
 
       {addingToDay && (
         <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
-          onClick={e => { if (e.target === e.currentTarget) setAddingToDay(null); }}>
+          onClick={e => { if (e.target === e.currentTarget) { setAddingToDay(null); setPickTimeOfDay(''); } }}>
           <div className="w-full max-w-md rounded-t-3xl p-5 pb-8" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between mb-4">
               <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Add meal for <span style={{ color: 'var(--accent-green)' }}>{addingToDay}</span></p>
-              <button onClick={() => setAddingToDay(null)} className="w-8 h-8 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+              <button onClick={() => { setAddingToDay(null); setPickTimeOfDay(''); }} className="w-8 h-8 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                 <X size={16} style={{ color: 'var(--text-secondary)' }} />
               </button>
             </div>
 
             <div className="space-y-3">
-              <select value={pickMealId ?? ''} onChange={e => setPickMealId(Number(e.target.value))} className="w-full px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
+              <select value={pickMealId ?? ''} onChange={e => { const id = Number(e.target.value); setPickMealId(id); const selectedMeal = meals.find(m => m.id === id); setPickTimeOfDay(selectedMeal?.timeOfDay || ''); }} className="w-full px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
                 <option value="">Select meal</option>
                 {meals.map(m => <option key={m.id} value={m.id}>{m.name} ({m.timing})</option>)}
               </select>
@@ -488,6 +527,18 @@ export default function MealPlannerSettings() {
                   </button>
                 );
               })()}
+
+              <div>
+                <label style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '500' }} className="block mb-1.5">Time (HH:MM) - uses template default if empty</label>
+                <input
+                  type="text"
+                  value={pickTimeOfDay}
+                  onChange={e => setPickTimeOfDay(e.target.value)}
+                  placeholder={pickedMeal?.timeOfDay || 'HH:MM'}
+                  className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                />
+              </div>
 
               <button onClick={() => addingToDay && addMealToDay(addingToDay)} disabled={!pickMealId} className="w-full h-11 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
                 style={{ backgroundColor: pickMealId ? 'var(--accent-green)' : 'var(--border)', opacity: pickMealId ? 1 : 0.6 }}>

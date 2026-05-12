@@ -740,81 +740,82 @@ WHERE NOT EXISTS (SELECT 1 FROM meal_templates WHERE user_id=1 AND lower(name)=l
 */
 
 -- App-compatible weekly plan format:
--- plan_json is a date-keyed object and each value is an ordered array
--- of meal_templates.id for that date.
+-- plan_json is a date-keyed object where each value is an ordered array of meal objects.
+-- Each meal object contains: mealTemplateId (int), timeOfDay (string, can override template default)
+-- Format: { "2026-05-13": [{ "mealTemplateId": 1, "timeOfDay": "06:30" }, ...], ... }
 WITH meal_ids AS (
-  SELECT id, name
+  SELECT id, name, time_of_day
   FROM meal_templates
   WHERE user_id = 1
 ), weekly_plan AS (
   SELECT jsonb_build_object(
     '2026-05-13', jsonb_build_array(
-      (SELECT id FROM meal_ids WHERE name = 'Pre-Workout: Banana + Dates + Almonds'),
-      (SELECT id FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice'),
-      (SELECT id FROM meal_ids WHERE name = 'Breakfast: Scrambled Eggs + Roti + Milk'),
-      (SELECT id FROM meal_ids WHERE name = 'Office Snack: Greek Yogurt + Seeds + Apple'),
-      (SELECT id FROM meal_ids WHERE name = 'Lunch: Chicken + Rice + Moong Dal + Palak Sabzi'),
-      (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Roasted Chana + Banana + Walnuts'),
-      (SELECT id FROM meal_ids WHERE name = 'Dinner: Paneer Bhurji + Rajma + Rotis + Raita'),
-      (SELECT id FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium')
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Pre-Workout: Banana + Dates + Almonds'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Pre-Workout: Banana + Dates + Almonds')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Breakfast: Scrambled Eggs + Roti + Milk'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Breakfast: Scrambled Eggs + Roti + Milk')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Office Snack: Greek Yogurt + Seeds + Apple'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Office Snack: Greek Yogurt + Seeds + Apple')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Lunch: Chicken + Rice + Moong Dal + Palak Sabzi'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Lunch: Chicken + Rice + Moong Dal + Palak Sabzi')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Roasted Chana + Banana + Walnuts'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Evening Snack: Roasted Chana + Banana + Walnuts')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Dinner: Paneer Bhurji + Rajma + Rotis + Raita'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Dinner: Paneer Bhurji + Rajma + Rotis + Raita')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium'))
     ),
     '2026-05-14', jsonb_build_array(
-      (SELECT id FROM meal_ids WHERE name = 'Pre-Workout: Bread + Peanut Butter + Banana'),
-      (SELECT id FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice'),
-      (SELECT id FROM meal_ids WHERE name = 'Breakfast: Oats Upma + Egg Omelette + Milk'),
-      (SELECT id FROM meal_ids WHERE name = 'Office Snack: Boiled Eggs + Banana + Mixed Nuts'),
-      (SELECT id FROM meal_ids WHERE name = 'Lunch: Fish + Rice + Masoor Dal'),
-      (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Peanut Butter Bread + Banana'),
-      (SELECT id FROM meal_ids WHERE name = 'Dinner: Chicken Curry + Palak Dal + Rotis'),
-      (SELECT id FROM meal_ids WHERE name = 'Before Bed: Paneer + Creatine + Ashwagandha')
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Pre-Workout: Bread + Peanut Butter + Banana'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Pre-Workout: Bread + Peanut Butter + Banana')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Breakfast: Oats Upma + Egg Omelette + Milk'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Breakfast: Oats Upma + Egg Omelette + Milk')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Office Snack: Boiled Eggs + Banana + Mixed Nuts'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Office Snack: Boiled Eggs + Banana + Mixed Nuts')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Lunch: Fish + Rice + Masoor Dal'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Lunch: Fish + Rice + Masoor Dal')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Peanut Butter Bread + Banana'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Evening Snack: Peanut Butter Bread + Banana')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Dinner: Chicken Curry + Palak Dal + Rotis'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Dinner: Chicken Curry + Palak Dal + Rotis')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Before Bed: Paneer + Creatine + Ashwagandha'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Before Bed: Paneer + Creatine + Ashwagandha'))
     ),
     '2026-05-15', jsonb_build_array(
-      (SELECT id FROM meal_ids WHERE name = 'Pre-Workout: Triple Banana + Dates (Legs Day)'),
-      (SELECT id FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice'),
-      (SELECT id FROM meal_ids WHERE name = 'Breakfast: Besan Chilla + Greek Yogurt + Milk'),
-      (SELECT id FROM meal_ids WHERE name = 'Office Snack: Sprouts Chaat + Boiled Egg + Guava'),
-      (SELECT id FROM meal_ids WHERE name = 'Lunch: Mutton + Rice + Rajma (Legs Day)'),
-      (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Roasted Sweet Potato + Boiled Eggs + Milk'),
-      (SELECT id FROM meal_ids WHERE name = 'Dinner: Egg Curry + Paneer + Chana Dal + Spinach + Rotis'),
-      (SELECT id FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium')
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Pre-Workout: Triple Banana + Dates (Legs Day)'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Pre-Workout: Triple Banana + Dates (Legs Day)')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Breakfast: Besan Chilla + Greek Yogurt + Milk'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Breakfast: Besan Chilla + Greek Yogurt + Milk')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Office Snack: Sprouts Chaat + Boiled Egg + Guava'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Office Snack: Sprouts Chaat + Boiled Egg + Guava')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Lunch: Mutton + Rice + Rajma (Legs Day)'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Lunch: Mutton + Rice + Rajma (Legs Day)')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Roasted Sweet Potato + Boiled Eggs + Milk'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Evening Snack: Roasted Sweet Potato + Boiled Eggs + Milk')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Dinner: Egg Curry + Paneer + Chana Dal + Spinach + Rotis'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Dinner: Egg Curry + Paneer + Chana Dal + Spinach + Rotis')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium'))
     ),
     '2026-05-16', jsonb_build_array(
-      (SELECT id FROM meal_ids WHERE name = 'Morning Juice: Beetroot Amla Carrot Lemon'),
-      (SELECT id FROM meal_ids WHERE name = 'Breakfast: Poha + Boiled Eggs + Milk'),
-      (SELECT id FROM meal_ids WHERE name = 'Office Snack: Roasted Chana + Banana + Walnuts'),
-      (SELECT id FROM meal_ids WHERE name = 'Lunch: Fish + Rice + Sambar (Rest Day)'),
-      (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Greek Yogurt + Mixed Seeds + Fruit'),
-      (SELECT id FROM meal_ids WHERE name = 'Dinner: Dal Makhani + Paneer Tikka + Rotis'),
-      (SELECT id FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium')
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Morning Juice: Beetroot Amla Carrot Lemon'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Morning Juice: Beetroot Amla Carrot Lemon')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Breakfast: Poha + Boiled Eggs + Milk'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Breakfast: Poha + Boiled Eggs + Milk')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Office Snack: Roasted Chana + Banana + Walnuts'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Office Snack: Roasted Chana + Banana + Walnuts')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Lunch: Fish + Rice + Sambar (Rest Day)'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Lunch: Fish + Rice + Sambar (Rest Day)')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Greek Yogurt + Mixed Seeds + Fruit'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Evening Snack: Greek Yogurt + Mixed Seeds + Fruit')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Dinner: Dal Makhani + Paneer Tikka + Rotis'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Dinner: Dal Makhani + Paneer Tikka + Rotis')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium'))
     ),
     '2026-05-17', jsonb_build_array(
-      (SELECT id FROM meal_ids WHERE name = 'Pre-Workout: Overnight Oats + Banana'),
-      (SELECT id FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice'),
-      (SELECT id FROM meal_ids WHERE name = 'Breakfast: Moong Dal Chilla + Egg Omelette + Milk'),
-      (SELECT id FROM meal_ids WHERE name = 'Office Snack: Greek Yogurt + Seeds + Apple'),
-      (SELECT id FROM meal_ids WHERE name = 'Lunch: Chicken + Rice + Toor Dal + Methi Sabzi'),
-      (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Peanut Butter Bread + Banana'),
-      (SELECT id FROM meal_ids WHERE name = 'Dinner: Egg Bhurji + Palak Paneer + Rotis + Raita'),
-      (SELECT id FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium')
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Pre-Workout: Overnight Oats + Banana'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Pre-Workout: Overnight Oats + Banana')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Breakfast: Moong Dal Chilla + Egg Omelette + Milk'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Breakfast: Moong Dal Chilla + Egg Omelette + Milk')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Office Snack: Greek Yogurt + Seeds + Apple'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Office Snack: Greek Yogurt + Seeds + Apple')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Lunch: Chicken + Rice + Toor Dal + Methi Sabzi'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Lunch: Chicken + Rice + Toor Dal + Methi Sabzi')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Peanut Butter Bread + Banana'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Evening Snack: Peanut Butter Bread + Banana')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Dinner: Egg Bhurji + Palak Paneer + Rotis + Raita'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Dinner: Egg Bhurji + Palak Paneer + Rotis + Raita')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium'))
     ),
     '2026-05-18', jsonb_build_array(
-      (SELECT id FROM meal_ids WHERE name = 'Pre-Workout: Bread + Peanut Butter + Banana'),
-      (SELECT id FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice'),
-      (SELECT id FROM meal_ids WHERE name = 'Breakfast: Pesarattu + Eggs + Sambar + Milk'),
-      (SELECT id FROM meal_ids WHERE name = 'Office Snack: Sprouts Chaat + Boiled Egg + Guava'),
-      (SELECT id FROM meal_ids WHERE name = 'Lunch: Mutton + Rice + Kadhi + Methi Sabzi'),
-      (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Protein Smoothie (Banana + Whey + PB + Milk)'),
-      (SELECT id FROM meal_ids WHERE name = 'Dinner: Grilled Fish + Dal Palak + Rotis + Raita'),
-      (SELECT id FROM meal_ids WHERE name = 'Before Bed: Paneer + Creatine + Ashwagandha')
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Pre-Workout: Bread + Peanut Butter + Banana'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Pre-Workout: Bread + Peanut Butter + Banana')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Post-Workout: Whey Shake + Beetroot Amla Juice')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Breakfast: Pesarattu + Eggs + Sambar + Milk'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Breakfast: Pesarattu + Eggs + Sambar + Milk')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Office Snack: Sprouts Chaat + Boiled Egg + Guava'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Office Snack: Sprouts Chaat + Boiled Egg + Guava')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Lunch: Mutton + Rice + Kadhi + Methi Sabzi'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Lunch: Mutton + Rice + Kadhi + Methi Sabzi')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Protein Smoothie (Banana + Whey + PB + Milk)'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Evening Snack: Protein Smoothie (Banana + Whey + PB + Milk)')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Dinner: Grilled Fish + Dal Palak + Rotis + Raita'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Dinner: Grilled Fish + Dal Palak + Rotis + Raita')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Before Bed: Paneer + Creatine + Ashwagandha'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Before Bed: Paneer + Creatine + Ashwagandha'))
     ),
     '2026-05-19', jsonb_build_array(
-      (SELECT id FROM meal_ids WHERE name = 'Morning Juice: Beetroot Amla Carrot Lemon'),
-      (SELECT id FROM meal_ids WHERE name = 'Breakfast: Aloo Paratha + Egg Omelette + Curd + Milk'),
-      (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Protein Smoothie (Banana + Whey + PB + Milk)'),
-      (SELECT id FROM meal_ids WHERE name = 'Lunch: Home Biryani + Raita + Dal (Sunday)'),
-      (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Roasted Sweet Potato + Boiled Eggs + Milk'),
-      (SELECT id FROM meal_ids WHERE name = 'Dinner: Paneer Curry + Palak Dal + Rotis + Raita (Sunday)'),
-      (SELECT id FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium')
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Morning Juice: Beetroot Amla Carrot Lemon'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Morning Juice: Beetroot Amla Carrot Lemon')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Breakfast: Aloo Paratha + Egg Omelette + Curd + Milk'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Breakfast: Aloo Paratha + Egg Omelette + Curd + Milk')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Protein Smoothie (Banana + Whey + PB + Milk)'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Evening Snack: Protein Smoothie (Banana + Whey + PB + Milk)')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Lunch: Home Biryani + Raita + Dal (Sunday)'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Lunch: Home Biryani + Raita + Dal (Sunday)')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Evening Snack: Roasted Sweet Potato + Boiled Eggs + Milk'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Evening Snack: Roasted Sweet Potato + Boiled Eggs + Milk')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Dinner: Paneer Curry + Palak Dal + Rotis + Raita (Sunday)'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Dinner: Paneer Curry + Palak Dal + Rotis + Raita (Sunday)')),
+      jsonb_build_object('mealTemplateId', (SELECT id FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium'), 'timeOfDay', (SELECT time_of_day FROM meal_ids WHERE name = 'Before Bed: Turmeric Milk + Creatine + Magnesium'))
     )
   ) AS plan_json
 )

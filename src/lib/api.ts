@@ -1919,6 +1919,20 @@ export async function deleteMealIngredient(id: number) {
   return request(`meal/ingredients/${id}`, { method: 'DELETE' });
 }
 
+/**
+ * Meal API Functions
+ * 
+ * Weekly Plan JSON Format:
+ * {
+ *   "2026-05-13": [
+ *     { "mealTemplateId": 1, "timeOfDay": "06:30" },
+ *     { "mealTemplateId": 3, "timeOfDay": "08:00" }
+ *   ]
+ * }
+ * - mealTemplateId (int): Reference to MealTemplate.id
+ * - timeOfDay (string, optional): Override time in HH:MM format. If omitted, uses template's default.
+ */
+
 export async function getMealTemplates() {
   if (DUMMY_FLAGS.meals) return Promise.resolve(DUMMY_MEAL_TEMPLATES);
   return request('meal/templates');
