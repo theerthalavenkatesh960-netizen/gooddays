@@ -1,5 +1,4 @@
 import { CheckCircle2, Circle, Dot, Trash2 } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 type IngredientSnap = {
   id: number;
@@ -35,17 +34,6 @@ const TIMING_COLORS: Record<string, string> = {
   snack: '#8b5cf6',
 };
 
-const MACRO_GOALS = {
-  protein: 40,
-  carbs: 60,
-  fats: 25,
-};
-
-function getMacroPercent(value: number, goal: number) {
-  if (goal <= 0) return 0;
-  return Math.max(0, Math.min(100, (value / goal) * 100));
-}
-
 export default function MealCard({
   id,
   name,
@@ -65,21 +53,36 @@ export default function MealCard({
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
-      <div className="px-4 pt-3 pb-2" style={{ backgroundColor: 'rgba(255,255,255,0.02)' }}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Dot size={18} style={{ color: timingColor }} />
-              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: timingColor }}>{timing.replace('-', ' ')}</span>
-              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{timeOfDay || '--:--'}</span>
-            </div>
-            <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{name}</p>
+      {/* Header */}
+      <div className="px-4 pt-3 pb-3" style={{ borderBottom: '1px solid var(--border)' }}>
+        {/* Timing + time row */}
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5">
+            <Dot size={16} style={{ color: timingColor, flexShrink: 0 }} />
+            <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: timingColor }}>{timing.replace(/-/g, ' ')}</span>
           </div>
-
-          <div className="text-right">
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Energy</p>
-            <p className="text-sm font-bold" style={{ color: 'var(--accent-gold)' }}>{Math.round(calories)} kcal</p>
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>{timeOfDay || '--:--'}</span>
+        </div>
+        {/* Meal name — wraps instead of truncating */}
+        <p className="text-sm font-bold leading-snug mb-2" style={{ color: 'var(--text-primary)' }}>{name}</p>
+        {/* Calorie badge */}
+        {/* Macro + calorie row */}
+        <div className="flex items-center justify-between">
+          <div className="flex gap-3">
+            <span className="text-[11px]">
+              <span style={{ color: 'var(--text-muted)' }}>P </span>
+              <strong style={{ color: '#f87171' }}>{protein.toFixed(0)}g</strong>
+            </span>
+            <span className="text-[11px]">
+              <span style={{ color: 'var(--text-muted)' }}>C </span>
+              <strong style={{ color: '#fbbf24' }}>{carbs.toFixed(0)}g</strong>
+            </span>
+            <span className="text-[11px]">
+              <span style={{ color: 'var(--text-muted)' }}>F </span>
+              <strong style={{ color: '#60a5fa' }}>{fats.toFixed(0)}g</strong>
+            </span>
           </div>
+          <span className="text-xs font-bold" style={{ color: 'var(--accent-gold)' }}>{Math.round(calories)} kcal</span>
         </div>
       </div>
 
@@ -89,60 +92,22 @@ export default function MealCard({
         </div>
       )}
 
-      <div className="px-4 py-3">
-        <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Ingredients</p>
-        <div className="space-y-1.5">
-          {ingredients.length === 0 ? (
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No ingredients</p>
-          ) : (
-            ingredients.map((ing) => (
-              <div key={`${id}-${ing.id}-${ing.name}`} className="flex items-start justify-between gap-3 text-xs">
-                <div className="min-w-0">
-                  <p className="truncate" style={{ color: 'var(--text-primary)' }}>{ing.name}</p>
-                  {ing.description && (
-                    <p className="truncate" style={{ color: 'var(--text-muted)' }}>{ing.description}</p>
-                  )}
-                </div>
-                <p className="whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
-                  {Number(ing.qty || ing.baseQty || 1)} {ing.baseUnit || 'serving'}
+      {/* Ingredients */}
+      {ingredients.length > 0 && (
+        <div className="px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Ingredients</p>
+          <div className="space-y-1.5">
+            {ingredients.map((ing) => (
+              <div key={`${id}-${ing.id}-${ing.name}`} className="flex items-center justify-between gap-2 text-xs">
+                <p className="flex-1 min-w-0" style={{ color: 'var(--text-primary)', whiteSpace: 'normal', wordBreak: 'break-word' }}>{ing.name}</p>
+                <p className="whitespace-nowrap flex-shrink-0 text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                  {Number(ing.qty || ing.baseQty || 1)}{ing.baseUnit || 'g'}
                 </p>
               </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="px-4 pb-3 space-y-2">
-        <div>
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span style={{ color: '#ef4444' }}>Protein</span>
-            <span style={{ color: '#ef4444' }}>{protein.toFixed(0)}g</span>
-          </div>
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface)' }}>
-            <motion.div className="h-full rounded-full" style={{ backgroundColor: '#ef4444' }} animate={{ width: `${getMacroPercent(protein, MACRO_GOALS.protein)}%` }} transition={{ duration: 0.35 }} />
+            ))}
           </div>
         </div>
-
-        <div>
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span style={{ color: '#f59e0b' }}>Carbs</span>
-            <span style={{ color: '#f59e0b' }}>{carbs.toFixed(0)}g</span>
-          </div>
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface)' }}>
-            <motion.div className="h-full rounded-full" style={{ backgroundColor: '#f59e0b' }} animate={{ width: `${getMacroPercent(carbs, MACRO_GOALS.carbs)}%` }} transition={{ duration: 0.35 }} />
-          </div>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span style={{ color: '#3b82f6' }}>Fats</span>
-            <span style={{ color: '#3b82f6' }}>{fats.toFixed(0)}g</span>
-          </div>
-          <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface)' }}>
-            <motion.div className="h-full rounded-full" style={{ backgroundColor: '#3b82f6' }} animate={{ width: `${getMacroPercent(fats, MACRO_GOALS.fats)}%` }} transition={{ duration: 0.35 }} />
-          </div>
-        </div>
-      </div>
+      )}
 
       <div className="px-4 pb-4 flex items-center gap-2">
         {onToggleDone && (

@@ -186,6 +186,24 @@ public class MealController : ControllerBase
         var sourceWeekStart = sourceDate.AddDays(-(int)sourceDate.DayOfWeek);
         var targetWeekStart = targetDate.AddDays(-(int)targetDate.DayOfWeek);
 
+        // Check if source week has any meals at all — abort if empty
+        var sourceWeekHasMeals = false;
+        for (var i = 0; i < 7; i++)
+        {
+            var sourceDay = sourceWeekStart.AddDays(i);
+            var sourceDateKey = sourceDay.ToString("yyyy-MM-dd");
+            var sourceWeekdayKey = sourceDay.DayOfWeek.ToString().ToLowerInvariant();
+            if ((data.TryGetValue(sourceDateKey, out var check1) && check1?.Count > 0) ||
+                (data.TryGetValue(sourceWeekdayKey, out var check2) && check2?.Count > 0))
+            {
+                sourceWeekHasMeals = true;
+                break;
+            }
+        }
+
+        if (!sourceWeekHasMeals)
+            return BadRequest("Last week has no meals to copy.");
+
         for (var i = 0; i < 7; i++)
         {
             var sourceDay = sourceWeekStart.AddDays(i);

@@ -235,9 +235,9 @@ export default function MealPlannerSettings() {
     try {
       await api.copyLastWeekMealPlan(sourceDate, targetDate);
       await loadAll();
-      flash('Copied last week');
+      flash('Copied last week ✓');
     } catch (e: any) {
-      flash(e?.message || 'Failed to copy last week');
+      flash(e?.message || 'Last week has no meals to copy');
     }
   }
 
