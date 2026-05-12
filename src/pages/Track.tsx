@@ -85,7 +85,7 @@ export default function Track() {
       <div className="px-4">
         {activeTab === 'workout' && <WorkoutTab exercises={exercises} today={today} onLog={handleRefresh} logs={todayLogs} />}
         {activeTab === 'meal' && <MealTab meals={meals} today={today} onLog={handleRefresh} logs={todayLogs} />}
-        {activeTab === 'expense' && <ExpenseTab today={today} onLog={handleRefresh} logs={todayLogs} />}
+        {activeTab === 'expense' && <ExpenseTab today={today} onLog={handleRefresh} logs={todayLogs} userId={user?.id} />}
         {activeTab === 'water' && <WaterTab today={today} onLog={handleRefresh} logs={todayLogs} />}
         {activeTab === 'task' && <TaskTab today={today} onLog={handleRefresh} logs={todayLogs} />}
         {activeTab === 'history' && <HistoryTab dateRange={dateRange} setDateRange={setDateRange} filter={historyFilter} setFilter={setHistoryFilter} />}
@@ -264,7 +264,17 @@ function MealTab({ meals, today, onLog, logs }: { meals: MealTemplate[], today: 
 
 const EXPENSE_CATEGORIES = ['Food', 'Transport', 'Utilities', 'Entertainment', 'Health', 'Shopping', 'Other'];
 
-function ExpenseTab({ today, onLog, logs }: { today: string, onLog: () => void, logs: QuickLogEntry[] }) {
+const SMART_EXPENSE_NOTES: Record<string, string[]> = {
+  Food: ['Swiggy', 'Zomato', 'Blinkit', 'Restaurant', 'Cafe'],
+  Transport: ['Uber', 'Ola', 'Metro', 'Auto', 'Fuel'],
+  Utilities: ['Electricity Bill', 'Internet Bill', 'Water Bill', 'Mobile Recharge'],
+  Entertainment: ['Netflix', 'Movie', 'Spotify', 'Gaming'],
+  Health: ['Pharmacy', 'Doctor', 'Gym', 'Lab Test'],
+  Shopping: ['Amazon', 'Flipkart', 'Myntra', 'Local Store'],
+  Other: ['Miscellaneous'],
+};
+
+function ExpenseTab({ today, onLog, logs, userId }: { today: string, onLog: () => void, logs: QuickLogEntry[], userId?: number }) {
   const [form, setForm] = useState({ amount: '', category: 'Food', note: '' });
   const [saving, setSaving] = useState(false);
 
@@ -275,11 +285,21 @@ function ExpenseTab({ today, onLog, logs }: { today: string, onLog: () => void, 
     if (!form.amount) return;
     setSaving(true);
     try {
+      const amount = parseFloat(form.amount);
+      const suggested = SMART_EXPENSE_NOTES[form.category]?.[0] ?? '';
+      const finalNote = form.note.trim() || suggested;
+
       await (api as any).logQuickEntry('expense', {
-        amount: parseFloat(form.amount),
+        amount,
         category: form.category,
-        note: form.note,
+        note: finalNote,
       }, today);
+
+      // Mirror quick expense into the main transactions table so Finance > Transactions updates correctly.
+      if (userId) {
+        await (api as any).createExpense(userId, finalNote, amount, form.category, new Date(today));
+      }
+
       setForm({ amount: '', category: 'Food', note: '' });
       onLog();
     } finally {
@@ -308,6 +328,20 @@ function ExpenseTab({ today, onLog, logs }: { today: string, onLog: () => void, 
         <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2 rounded-xl border" style={{ borderColor: 'var(--border)' }}>
           {EXPENSE_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
         </select>
+
+        <div className="flex flex-wrap gap-2">
+          {(SMART_EXPENSE_NOTES[form.category] ?? []).slice(0, 4).map((note) => (
+            <button
+              key={note}
+              type="button"
+              onClick={() => setForm(prev => ({ ...prev, note }))}
+              className="px-2.5 py-1 rounded-lg text-xs font-medium"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}
+            >
+              {note}
+            </button>
+          ))}
+        </div>
 
         <input type="text" placeholder="Optional note" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} className="w-full px-3 py-2 rounded-xl border" style={{ borderColor: 'var(--border)' }} />
 

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   DollarSign, TrendingUp, ChevronRight, ChevronLeft,
   Plus, Wallet, BarChart3, Car,
-  ArrowUpRight, ArrowDownRight, Trash2
+  ArrowUpRight, ArrowDownRight, Trash2, Pencil
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -45,6 +45,17 @@ function TransactionsTab() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [budgetProfile, setBudgetProfile] = useState<any>(null);
+  const [showEditor, setShowEditor] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null);
+  const [editorForm, setEditorForm] = useState({ amount: '', category: 'Food', note: '', date: format(new Date(), 'yyyy-MM-dd') });
+
+  const loadTransactions = () => Promise.all([
+    user ? api.getExpenses(user.id).catch(() => []) : Promise.resolve([]),
+    (api as any).getFinanceBudgetProfile(month.getMonth() + 1, month.getFullYear()).catch(() => null),
+  ]).then(([expenseData, budget]) => {
+    setExpenses(Array.isArray(expenseData) ? expenseData : []);
+    setBudgetProfile(budget);
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -62,6 +73,15 @@ function TransactionsTab() {
     return () => {
       isMounted = false;
     };
+  }, [user, month]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      if (!user) return;
+      loadTransactions().catch(() => undefined);
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, [user, month]);
 
   const monthExpenses = expenses.filter(e => {
@@ -88,6 +108,46 @@ function TransactionsTab() {
     Food: '#FF6B6B', Transport: '#6C63FF', Shopping: '#FFD93D',
     Entertainment: '#4ECDC4', Health: '#10B981', Utilities: '#8888A0',
     Education: '#3B82F6', Rent: '#F97316', Fuel: '#EF4444', Other: '#8888A0',
+  };
+
+  const openCreate = () => {
+    setEditingExpenseId(null);
+    setEditorForm({ amount: '', category: 'Food', note: '', date: format(new Date(), 'yyyy-MM-dd') });
+    setShowEditor(true);
+  };
+
+  const openEdit = (exp: any) => {
+    const sourceDate = exp.date ?? exp.createdAt ?? exp.created_at;
+    const safeDate = sourceDate ? format(new Date(sourceDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+    setEditingExpenseId(exp.id);
+    setEditorForm({
+      amount: String(exp.amount ?? ''),
+      category: exp.category || 'Other',
+      note: exp.note || exp.description || '',
+      date: safeDate,
+    });
+    setShowEditor(true);
+  };
+
+  const submitEditor = async () => {
+    if (!user) return;
+    const amount = Number(editorForm.amount);
+    if (!amount || amount <= 0) return;
+
+    const txDate = new Date(`${editorForm.date}T12:00:00`);
+    if (editingExpenseId) {
+      const updated = await api.updateExpense(editingExpenseId, editorForm.note, amount, editorForm.category, txDate);
+      setExpenses(prev => prev.map(e => e.id === editingExpenseId ? { ...e, ...updated } : e));
+    } else {
+      const created = await api.createExpense(user.id, editorForm.note, amount, editorForm.category, txDate);
+      setExpenses(prev => [created, ...prev]);
+    }
+    setShowEditor(false);
+  };
+
+  const deleteTransaction = async (id: number) => {
+    await api.deleteExpense(id);
+    setExpenses(prev => prev.filter(e => e.id !== id));
   };
 
   return (
@@ -146,6 +206,59 @@ function TransactionsTab() {
       </div>
 
       {/* Transaction list */}
+      <div className="mb-3">
+        <button
+          onClick={openCreate}
+          className="w-full h-11 rounded-2xl text-sm font-semibold text-white flex items-center justify-center gap-2 press"
+          style={{ backgroundColor: 'var(--accent)' }}
+        >
+          <Plus size={14} /> Quick Add Expense
+        </button>
+      </div>
+
+      {showEditor && (
+        <div className="mb-4 rounded-2xl p-3 space-y-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{editingExpenseId ? 'Edit Transaction' : 'Add Transaction'}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              type="number"
+              placeholder="Amount"
+              value={editorForm.amount}
+              onChange={(e) => setEditorForm(prev => ({ ...prev, amount: e.target.value }))}
+              className="h-10 px-3 rounded-xl outline-none text-sm"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+            />
+            <select
+              value={editorForm.category}
+              onChange={(e) => setEditorForm(prev => ({ ...prev, category: e.target.value }))}
+              className="h-10 px-3 rounded-xl outline-none text-sm"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+            >
+              {Object.keys(categoryColors).map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+          </div>
+          <input
+            type="date"
+            value={editorForm.date}
+            onChange={(e) => setEditorForm(prev => ({ ...prev, date: e.target.value }))}
+            className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+          />
+          <input
+            type="text"
+            placeholder="Note"
+            value={editorForm.note}
+            onChange={(e) => setEditorForm(prev => ({ ...prev, note: e.target.value }))}
+            className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+          />
+          <div className="flex gap-2">
+            <button onClick={() => setShowEditor(false)} className="flex-1 h-9 rounded-xl text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Cancel</button>
+            <button onClick={submitEditor} className="flex-1 h-9 rounded-xl text-xs font-semibold text-white" style={{ backgroundColor: 'var(--accent)' }}>{editingExpenseId ? 'Save' : 'Add'}</button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         [1,2,3].map(i => (
           <div key={i} className="flex items-center gap-3 p-3 mb-2 rounded-xl" style={{ backgroundColor: 'var(--surface)' }}>
@@ -170,7 +283,7 @@ function TransactionsTab() {
               {grouped[date].map((exp, i) => {
                 const color = categoryColors[exp.category] ?? '#8888A0';
                 return (
-                  <div key={i} className="flex items-center gap-3 p-3 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
+                  <div key={exp.id ?? i} className="flex items-center gap-3 p-3 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color + '22' }}>
                       <DollarSign size={16} style={{ color }} />
                     </div>
@@ -183,6 +296,14 @@ function TransactionsTab() {
                     <span className="text-sm font-bold num" style={{ color: 'var(--accent-warm)' }}>
                       -₹{(exp.amount ?? 0).toLocaleString()}
                     </span>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => openEdit(exp)} className="w-8 h-8 rounded-lg flex items-center justify-center press" style={{ color: 'var(--text-secondary)' }}>
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => deleteTransaction(exp.id)} className="w-8 h-8 rounded-lg flex items-center justify-center press" style={{ color: '#ef4444' }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
