@@ -1,0 +1,455 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+.wrap{padding:1rem 0;}
+.day-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.25rem;}
+.dt{padding:7px 14px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:transparent;cursor:pointer;font-size:13px;color:var(--color-text-secondary);transition:all 0.15s;}
+.dt.active{background:var(--color-background-secondary);color:var(--color-text-primary);font-weight:500;border-color:var(--color-border-primary);}
+.day-panel{display:none;}
+.day-panel.active{display:block;}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1rem;}
+.leg{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary);}
+.dot{width:10px;height:10px;border-radius:50%;}
+.meal-block{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);margin-bottom:10px;overflow:hidden;}
+.meal-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--color-background-secondary);}
+.meal-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.meal-time{font-size:12px;color:var(--color-text-secondary);min-width:64px;}
+.meal-title{font-size:14px;font-weight:500;color:var(--color-text-primary);}
+.meal-kcal{margin-left:auto;font-size:12px;color:var(--color-text-secondary);}
+.meal-body{padding:10px 14px;}
+.food-row{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px;}
+.food-row:last-child{border-bottom:none;}
+.food-name{color:var(--color-text-primary);}
+.food-note{font-size:12px;color:var(--color-text-secondary);text-align:right;padding-left:8px;}
+.macro-bar{margin:4px 0;}
+.mb-label{display:flex;justify-content:space-between;font-size:11px;color:var(--color-text-secondary);margin-bottom:2px;}
+.bar-track{height:5px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;}
+.day-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-top:1rem;}
+.ds-card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:0.75rem;text-align:center;}
+.ds-val{font-size:20px;font-weight:500;color:var(--color-text-primary);}
+.ds-label{font-size:11px;color:var(--color-text-secondary);margin-top:2px;}
+.focus-bar{font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.info-box{background:#E1F5EE;border-left:3px solid #1D9E75;border-radius:0;padding:8px 12px;font-size:12px;color:#085041;line-height:1.6;margin-top:10px;}
+.warn-box{background:#FAEEDA;border-left:3px solid #EF9F27;border-radius:0;padding:8px 12px;font-size:12px;color:#633806;line-height:1.6;margin-top:8px;}
+</style>
+
+<div class="wrap">
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;">7-day Indian meal plan, morning 7–8 AM workout, office by 9:30 AM, 2800 kcal, 165g+ protein</h2>
+
+<div class="legend">
+  <div class="leg"><div class="dot" style="background:#639922"></div>Pre-workout</div>
+  <div class="leg"><div class="dot" style="background:#7F77DD"></div>Post-workout + juice</div>
+  <div class="leg"><div class="dot" style="background:#1D9E75"></div>Breakfast / Lunch / Dinner</div>
+  <div class="leg"><div class="dot" style="background:#EF9F27"></div>Snack</div>
+  <div class="leg"><div class="dot" style="background:#888780"></div>Before bed</div>
+</div>
+
+<div class="day-tabs">
+  <button class="dt active" onclick="showDay(0,this)">Monday</button>
+  <button class="dt" onclick="showDay(1,this)">Tuesday</button>
+  <button class="dt" onclick="showDay(2,this)">Wednesday</button>
+  <button class="dt" onclick="showDay(3,this)">Thursday</button>
+  <button class="dt" onclick="showDay(4,this)">Friday</button>
+  <button class="dt" onclick="showDay(5,this)">Saturday</button>
+  <button class="dt" onclick="showDay(6,this)">Sunday</button>
+</div>
+
+<div id="days-container"></div>
+</div>
+
+<script>
+const DAYS = [
+  {
+    name:"Monday", focus:"Push — chest, shoulders, triceps",
+    meals:[
+      {time:"6:30 AM",title:"Pre-workout",color:"#639922",kcal:200,items:[
+        {name:"1 banana + 4 soaked dates",note:"fast carbs"},
+        {name:"5–6 soaked almonds",note:"light fats, no heaviness"}
+      ],p:3,c:48,f:4},
+      {time:"8:05 AM",title:"Post-workout shake + juice",color:"#7F77DD",kcal:310,items:[
+        {name:"1 scoop whey in 300 ml milk",note:"25g protein"},
+        {name:"Beetroot + amla + carrot + lemon juice",note:"nitric oxide, vitamin C, iron"}
+      ],p:28,c:36,f:5},
+      {time:"8:30 AM",title:"Breakfast",color:"#1D9E75",kcal:620,items:[
+        {name:"4 eggs scrambled with onion, tomato, spinach",note:"32g protein + iron"},
+        {name:"2 multigrain rotis",note:"complex carbs"},
+        {name:"1 glass full-fat milk (300 ml)",note:"calcium + casein"}
+      ],p:42,c:58,f:18},
+      {time:"11:00 AM",title:"Office snack",color:"#EF9F27",kcal:330,items:[
+        {name:"Greek yogurt / hung curd 200 g",note:"20g protein, zinc"},
+        {name:"1 tbsp pumpkin seeds + 1 tbsp sunflower seeds",note:"zinc, biotin"},
+        {name:"1 apple or guava",note:"vitamin C — pack from home"}
+      ],p:22,c:32,f:10},
+      {time:"1:30 PM",title:"Lunch",color:"#1D9E75",kcal:750,items:[
+        {name:"150 g chicken breast — grilled or curry",note:"35g protein"},
+        {name:"1.5 cups cooked rice",note:"primary carb"},
+        {name:"1 cup moong dal",note:"iron + plant protein"},
+        {name:"Palak sabzi",note:"iron + folate"},
+        {name:"Salad: cucumber, tomato, onion + lemon",note:"vitamin C boosts iron 3x"}
+      ],p:48,c:88,f:12},
+      {time:"4:30 PM",title:"Evening snack",color:"#EF9F27",kcal:280,items:[
+        {name:"Roasted chana — 1 cup",note:"iron, zinc, protein"},
+        {name:"1 banana",note:"energy"},
+        {name:"4 walnuts",note:"omega-3 for hair"}
+      ],p:14,c:42,f:8},
+      {time:"8:00 PM",title:"Dinner",color:"#1D9E75",kcal:650,items:[
+        {name:"Paneer bhurji — 150 g paneer",note:"28g protein"},
+        {name:"3 rotis",note:""},
+        {name:"Rajma curry",note:"iron + fiber"},
+        {name:"Raita (100 g curd + cucumber)",note:"probiotics, zinc"}
+      ],p:40,c:76,f:16},
+      {time:"10:00 PM",title:"Before bed",color:"#888780",kcal:185,items:[
+        {name:"1 cup warm milk + 1 tsp turmeric",note:"casein, anti-inflammatory"},
+        {name:"5 g creatine mixed in",note:"daily dose"},
+        {name:"Magnesium glycinate 300 mg",note:"sleep + muscle repair"}
+      ],p:8,c:12,f:5}
+    ],
+    total:{kcal:3325,p:205,c:392,f:78}
+  },
+  {
+    name:"Tuesday", focus:"Pull — back, biceps, deadlift",
+    meals:[
+      {time:"6:30 AM",title:"Pre-workout",color:"#639922",kcal:210,items:[
+        {name:"2 slices bread + 1 tbsp peanut butter",note:"sustained carbs + fats"},
+        {name:"1 banana",note:"fast energy top-up"}
+      ],p:7,c:46,f:8},
+      {time:"8:05 AM",title:"Post-workout shake + juice",color:"#7F77DD",kcal:310,items:[
+        {name:"1 scoop whey in 300 ml water",note:"25g protein, fast absorb"},
+        {name:"Beetroot + amla + carrot + lemon juice",note:"nitrates, vitamin C, iron"}
+      ],p:26,c:34,f:3},
+      {time:"8:30 AM",title:"Breakfast",color:"#1D9E75",kcal:600,items:[
+        {name:"Oats upma with peas, carrots, onion — 1.5 cups dry oats",note:"beta-glucan, iron"},
+        {name:"3 egg whites + 2 whole eggs omelette",note:"28g protein"},
+        {name:"1 glass milk",note:"calcium"},
+        {name:"1 orange",note:"vitamin C — iron absorption"}
+      ],p:38,c:68,f:12},
+      {time:"11:00 AM",title:"Office snack",color:"#EF9F27",kcal:300,items:[
+        {name:"2 boiled eggs",note:"12g protein, biotin — pack from home"},
+        {name:"1 banana",note:""},
+        {name:"Handful mixed nuts (almonds + cashews)",note:"zinc, vitamin E"}
+      ],p:16,c:30,f:14},
+      {time:"1:30 PM",title:"Lunch",color:"#1D9E75",kcal:740,items:[
+        {name:"150 g fish curry — rohu / surmai / salmon",note:"omega-3, vitamin D, 35g protein"},
+        {name:"2 cups cooked rice",note:""},
+        {name:"1 cup masoor dal",note:"iron-rich red lentil"},
+        {name:"Baingan sabzi or lauki",note:"low-cal volume"},
+        {name:"Salad + lemon squeeze",note:""}
+      ],p:46,c:86,f:14},
+      {time:"4:30 PM",title:"Evening snack",color:"#EF9F27",kcal:280,items:[
+        {name:"Peanut butter 2 tbsp + 2 bread slices",note:"fats + protein"},
+        {name:"1 glass milk",note:"8g protein"}
+      ],p:18,c:40,f:14},
+      {time:"8:00 PM",title:"Dinner",color:"#1D9E75",kcal:660,items:[
+        {name:"150 g chicken curry",note:"35g protein"},
+        {name:"3 multigrain rotis",note:""},
+        {name:"Palak dal — spinach + lentil combo",note:"iron double hit"},
+        {name:"Salad with lemon",note:""}
+      ],p:44,c:74,f:15},
+      {time:"10:00 PM",title:"Before bed",color:"#888780",kcal:180,items:[
+        {name:"100 g paneer / cottage cheese",note:"18g slow casein protein"},
+        {name:"5 g creatine",note:""},
+        {name:"Ashwagandha KSM-66 capsule",note:"cortisol + testosterone"}
+      ],p:18,c:5,f:7}
+    ],
+    total:{kcal:3280,p:213,c:383,f:87}
+  },
+  {
+    name:"Wednesday", focus:"Legs — squat, leg press, RDL",
+    meals:[
+      {time:"6:30 AM",title:"Pre-workout",color:"#639922",kcal:260,items:[
+        {name:"3 bananas",note:"legs need maximum carb load"},
+        {name:"4–5 dates",note:"quick glucose"}
+      ],p:3,c:62,f:1},
+      {time:"8:05 AM",title:"Post-workout shake + juice",color:"#7F77DD",kcal:320,items:[
+        {name:"1 scoop whey in 300 ml milk",note:"25g protein"},
+        {name:"Beetroot + amla + carrot + lemon juice",note:"nitric oxide recovery, iron"}
+      ],p:28,c:38,f:5},
+      {time:"8:30 AM",title:"Breakfast",color:"#1D9E75",kcal:660,items:[
+        {name:"Besan chilla — 3 medium pieces with veggies",note:"plant protein, iron"},
+        {name:"Greek yogurt 150 g",note:"15g protein"},
+        {name:"1 glass milk",note:""},
+        {name:"1 banana + 4 dates",note:"legs recovery carbs"}
+      ],p:40,c:80,f:14},
+      {time:"11:00 AM",title:"Office snack",color:"#EF9F27",kcal:320,items:[
+        {name:"Moong sprouts chaat 100 g with onion + lemon",note:"iron + zinc — pack in dabba"},
+        {name:"2 boiled eggs",note:"12g protein"},
+        {name:"1 guava or amla",note:"vitamin C"}
+      ],p:22,c:34,f:6},
+      {time:"1:30 PM",title:"Lunch",color:"#1D9E75",kcal:780,items:[
+        {name:"150 g mutton or chicken curry",note:"iron + zinc + 35g protein"},
+        {name:"2 cups rice",note:"leg day carb priority"},
+        {name:"1 cup rajma curry",note:"plant iron + fiber"},
+        {name:"Mixed sabzi",note:""},
+        {name:"Salad + lemon",note:"vitamin C for iron"}
+      ],p:50,c:92,f:16},
+      {time:"4:30 PM",title:"Evening snack",color:"#EF9F27",kcal:320,items:[
+        {name:"Roasted sweet potato 200 g",note:"beta-carotene = hair health"},
+        {name:"2 boiled eggs",note:"12g protein"},
+        {name:"Handful almonds",note:"vitamin E, biotin"}
+      ],p:18,c:46,f:10},
+      {time:"8:00 PM",title:"Dinner",color:"#1D9E75",kcal:640,items:[
+        {name:"4 eggs any style + 75 g paneer",note:"40g protein"},
+        {name:"2 rotis",note:""},
+        {name:"Chana dal + spinach combo",note:"iron + folate"},
+        {name:"Raita",note:"probiotics"}
+      ],p:44,c:64,f:18},
+      {time:"10:00 PM",title:"Before bed",color:"#888780",kcal:185,items:[
+        {name:"Warm turmeric milk",note:"casein, anti-inflammatory"},
+        {name:"5 g creatine + magnesium 300 mg",note:"legs recovery overnight"}
+      ],p:8,c:12,f:5}
+    ],
+    total:{kcal:3485,p:213,c:428,f:75}
+  },
+  {
+    name:"Thursday", focus:"Rest — walk 30 min or yoga",
+    meals:[
+      {time:"7:00 AM",title:"Wake-up + hydration",color:"#378ADD",kcal:90,items:[
+        {name:"500 ml warm water + 1 tsp amla powder",note:"vitamin C, iron absorption"},
+        {name:"10 soaked almonds + 3 walnuts",note:"omega-3, biotin"}
+      ],p:4,c:8,f:7},
+      {time:"8:00 AM",title:"Beetroot juice",color:"#7F77DD",kcal:110,items:[
+        {name:"Beetroot + amla + carrot + lemon — fresh blended",note:"drink within 20 min of making"},
+        {name:"No sugar, no salt added",note:"~80 mg vitamin C, 1.8 mg iron"}
+      ],p:3,c:24,f:1},
+      {time:"8:30 AM",title:"Breakfast",color:"#1D9E75",kcal:560,items:[
+        {name:"Poha with peanuts, curry leaves, onion — 2 cups",note:"iron-fortified, light"},
+        {name:"2 boiled eggs",note:"12g protein"},
+        {name:"1 glass milk",note:"8g protein"},
+        {name:"1 orange",note:"vitamin C"}
+      ],p:30,c:70,f:12},
+      {time:"11:00 AM",title:"Office snack",color:"#EF9F27",kcal:280,items:[
+        {name:"Roasted chana 1 cup",note:"iron, zinc, 15g protein"},
+        {name:"1 banana",note:""},
+        {name:"5 almonds",note:"vitamin E"}
+      ],p:16,c:42,f:7},
+      {time:"1:30 PM",title:"Lunch",color:"#1D9E75",kcal:700,items:[
+        {name:"150 g fish or chicken",note:"35g protein"},
+        {name:"1.5 cups rice + 2 rotis",note:""},
+        {name:"Sambar",note:"iron-rich, lentils + vegetables"},
+        {name:"Coconut chutney or raita",note:"healthy fats"},
+        {name:"Salad",note:""}
+      ],p:44,c:82,f:14},
+      {time:"4:30 PM",title:"Evening snack",color:"#EF9F27",kcal:280,items:[
+        {name:"Greek yogurt 200 g + mixed seeds",note:"zinc, biotin"},
+        {name:"1 fruit — apple or pear",note:""}
+      ],p:18,c:32,f:8},
+      {time:"8:00 PM",title:"Dinner",color:"#1D9E75",kcal:620,items:[
+        {name:"Dal makhani — 1.5 cups",note:"plant protein, iron"},
+        {name:"150 g paneer tikka or grilled paneer",note:"28g protein"},
+        {name:"3 rotis",note:""},
+        {name:"Salad",note:""}
+      ],p:38,c:72,f:16},
+      {time:"10:00 PM",title:"Before bed",color:"#888780",kcal:185,items:[
+        {name:"Warm milk + turmeric",note:"casein"},
+        {name:"5 g creatine",note:"take daily regardless of training"},
+        {name:"Magnesium glycinate 300 mg",note:""}
+      ],p:8,c:12,f:5}
+    ],
+    total:{kcal:2825,p:161,c:342,f:70}
+  },
+  {
+    name:"Friday", focus:"Push — incline press, dumbbell work",
+    meals:[
+      {time:"6:30 AM",title:"Pre-workout",color:"#639922",kcal:220,items:[
+        {name:"Overnight soaked oats — 50 g dry with water",note:"sustained carbs, easy to prep night before"},
+        {name:"1 banana",note:"fast energy top-up"}
+      ],p:5,c:50,f:3},
+      {time:"8:05 AM",title:"Post-workout shake + juice",color:"#7F77DD",kcal:310,items:[
+        {name:"1 scoop whey in 300 ml milk",note:"25g protein"},
+        {name:"Beetroot + amla + carrot + lemon juice",note:"vitamin C, iron, hair nutrients"}
+      ],p:28,c:36,f:5},
+      {time:"8:30 AM",title:"Breakfast",color:"#1D9E75",kcal:640,items:[
+        {name:"Moong dal chilla — 3 medium",note:"plant protein, iron"},
+        {name:"4 egg omelette with onion + tomato",note:"32g protein"},
+        {name:"1 glass milk + 1 banana",note:""}
+      ],p:44,c:68,f:16},
+      {time:"11:00 AM",title:"Office snack",color:"#EF9F27",kcal:330,items:[
+        {name:"Greek yogurt 200 g + pumpkin seeds + sunflower seeds",note:"zinc double hit — pack from home"},
+        {name:"1 apple",note:""},
+        {name:"4 walnuts",note:"omega-3"}
+      ],p:20,c:34,f:14},
+      {time:"1:30 PM",title:"Lunch",color:"#1D9E75",kcal:750,items:[
+        {name:"150 g chicken curry",note:"35g protein"},
+        {name:"2 cups rice",note:""},
+        {name:"1 cup toor dal",note:"iron"},
+        {name:"Methi sabzi — fenugreek leaves",note:"iron + hair health specifically"},
+        {name:"Salad + lemon",note:"vitamin C"}
+      ],p:46,c:88,f:13},
+      {time:"4:30 PM",title:"Evening snack",color:"#EF9F27",kcal:300,items:[
+        {name:"Peanut butter 2 tbsp + 2 bread slices",note:"fats + carbs"},
+        {name:"1 banana",note:"energy"}
+      ],p:10,c:48,f:14},
+      {time:"8:00 PM",title:"Dinner",color:"#1D9E75",kcal:660,items:[
+        {name:"Egg bhurji — 4 eggs",note:"28g protein"},
+        {name:"Palak paneer — 100 g paneer",note:"20g protein + iron"},
+        {name:"3 rotis",note:""},
+        {name:"Raita",note:"probiotics"}
+      ],p:46,c:72,f:18},
+      {time:"10:00 PM",title:"Before bed",color:"#888780",kcal:185,items:[
+        {name:"Warm milk + turmeric",note:"casein"},
+        {name:"5 g creatine + magnesium 300 mg",note:""}
+      ],p:8,c:12,f:5}
+    ],
+    total:{kcal:3395,p:207,c:408,f:88}
+  },
+  {
+    name:"Saturday", focus:"Pull — pull-ups, cable rows, curls",
+    meals:[
+      {time:"6:30 AM",title:"Pre-workout",color:"#639922",kcal:210,items:[
+        {name:"2 bananas + 1 tbsp peanut butter",note:"fats + fast carbs"},
+        {name:"4 dates",note:"glucose spike"}
+      ],p:5,c:50,f:5},
+      {time:"8:05 AM",title:"Post-workout shake + juice",color:"#7F77DD",kcal:310,items:[
+        {name:"1 scoop whey in 300 ml milk",note:"25g protein"},
+        {name:"Beetroot + amla + carrot + lemon juice",note:"highest iron + nitrate day"}
+      ],p:28,c:36,f:5},
+      {time:"8:30 AM",title:"Breakfast",color:"#1D9E75",kcal:680,items:[
+        {name:"Pesarattu / green moong dosa — 3 pieces",note:"high-protein South Indian"},
+        {name:"2 eggs boiled or fried",note:"12g protein"},
+        {name:"Sambar for dipping",note:"iron-rich"},
+        {name:"1 glass milk + 1 banana",note:""}
+      ],p:42,c:80,f:16},
+      {time:"11:00 AM",title:"Office snack",color:"#EF9F27",kcal:320,items:[
+        {name:"Boiled chickpeas chaat 100 g with onion + lemon",note:"iron, zinc — pack in dabba"},
+        {name:"1 boiled egg",note:""},
+        {name:"Handful almonds",note:"vitamin E, biotin"}
+      ],p:20,c:38,f:10},
+      {time:"1:30 PM",title:"Lunch",color:"#1D9E75",kcal:760,items:[
+        {name:"150 g mutton or prawn curry",note:"highest iron + zinc meal of the week"},
+        {name:"2 cups rice",note:""},
+        {name:"Kadhi — yogurt-based curry",note:"probiotic, zinc"},
+        {name:"Mixed sabzi with methi",note:"hair-specific nutrients"},
+        {name:"Salad + lemon",note:""}
+      ],p:46,c:90,f:16},
+      {time:"4:30 PM",title:"Evening snack",color:"#EF9F27",kcal:320,items:[
+        {name:"Protein smoothie — banana + 300 ml milk + 1 scoop whey + 1 tbsp PB",note:"if at home"},
+        {name:"Or: roasted chana + fruit if at office",note:""}
+      ],p:30,c:42,f:10},
+      {time:"8:00 PM",title:"Dinner",color:"#1D9E75",kcal:650,items:[
+        {name:"150 g grilled fish or tandoori chicken",note:"35g protein, omega-3"},
+        {name:"3 rotis",note:""},
+        {name:"Dal palak — lentil + spinach",note:"iron"},
+        {name:"Raita + salad",note:""}
+      ],p:44,c:74,f:14},
+      {time:"10:00 PM",title:"Before bed",color:"#888780",kcal:185,items:[
+        {name:"Warm turmeric milk",note:"casein + anti-inflammatory"},
+        {name:"5 g creatine + ashwagandha KSM-66",note:"cortisol + testosterone"}
+      ],p:8,c:12,f:5}
+    ],
+    total:{kcal:3435,p:223,c:422,f:81}
+  },
+  {
+    name:"Sunday", focus:"Full rest — meal prep day",
+    meals:[
+      {time:"7:00 AM",title:"Wake-up (sleep in)",color:"#378ADD",kcal:90,items:[
+        {name:"Warm water + amla powder",note:""},
+        {name:"Soaked almonds (10) + walnuts (3) + 2 dates",note:"slow morning start"}
+      ],p:4,c:10,f:7},
+      {time:"8:00 AM",title:"Beetroot juice",color:"#7F77DD",kcal:110,items:[
+        {name:"Beetroot + amla + carrot + lemon — fresh blended",note:"drink within 20 min"},
+        {name:"No sugar or salt",note:"~110 kcal, 3g protein, 24g carbs"}
+      ],p:3,c:24,f:1},
+      {time:"9:00 AM",title:"Breakfast (relaxed)",color:"#1D9E75",kcal:700,items:[
+        {name:"Aloo paratha — 2 big with ghee",note:"comfort + carbs"},
+        {name:"4 egg omelette",note:"32g protein"},
+        {name:"1 cup dahi",note:"zinc, probiotic"},
+        {name:"1 glass milk",note:""}
+      ],p:42,c:84,f:20},
+      {time:"11:30 AM",title:"Mid-morning snack",color:"#EF9F27",kcal:360,items:[
+        {name:"Banana + milk + 1 scoop whey + peanut butter smoothie",note:"30g protein"},
+        {name:"Handful pumpkin seeds",note:"zinc top-up"}
+      ],p:30,c:38,f:12},
+      {time:"1:30 PM",title:"Lunch",color:"#1D9E75",kcal:780,items:[
+        {name:"Chicken or mutton biryani — home-cooked 300 g",note:"protein + iron"},
+        {name:"Raita 200 g",note:"probiotics"},
+        {name:"Mixed salad + lemon",note:"vitamin C"},
+        {name:"1 cup dal",note:"iron"}
+      ],p:46,c:94,f:18},
+      {time:"4:00 PM",title:"Evening snack",color:"#EF9F27",kcal:320,items:[
+        {name:"Roasted sweet potato 200 g",note:"beta-carotene, hair health"},
+        {name:"2 boiled eggs",note:"12g protein"},
+        {name:"1 glass milk",note:""}
+      ],p:22,c:50,f:8},
+      {time:"8:00 PM",title:"Dinner",color:"#1D9E75",kcal:630,items:[
+        {name:"Paneer curry — 150 g paneer",note:"28g protein"},
+        {name:"3 rotis",note:""},
+        {name:"Sarson ka saag or palak dal",note:"iron, folate"},
+        {name:"Raita",note:""}
+      ],p:38,c:72,f:16},
+      {time:"10:00 PM",title:"Before bed",color:"#888780",kcal:185,items:[
+        {name:"Warm milk + turmeric",note:"casein"},
+        {name:"5 g creatine + magnesium 300 mg",note:"prep for the week"}
+      ],p:8,c:12,f:5}
+    ],
+    total:{kcal:3175,p:193,c:384,f:87}
+  }
+];
+
+function showDay(idx, btn) {
+  document.querySelectorAll('.day-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.dt').forEach(b => b.classList.remove('active'));
+  document.getElementById('dp-'+idx).classList.add('active');
+  btn.classList.add('active');
+}
+
+function buildDays() {
+  const container = document.getElementById('days-container');
+  DAYS.forEach((day, di) => {
+    const panel = document.createElement('div');
+    panel.className = 'day-panel' + (di===0?' active':'');
+    panel.id = 'dp-'+di;
+
+    let html = `<div class="focus-bar"><i class="ti ti-barbell" aria-hidden="true" style="font-size:14px"></i>${day.focus}</div>`;
+
+    day.meals.forEach(meal => {
+      const totalCals = meal.p*4 + meal.c*4 + meal.f*9;
+      const pPct = Math.round(Math.min((meal.p*4/totalCals)*100, 100));
+      const cPct = Math.round(Math.min((meal.c*4/totalCals)*100, 100));
+      const fPct = Math.round(Math.min((meal.f*9/totalCals)*100, 100));
+
+      html += `<div class="meal-block">
+        <div class="meal-header">
+          <div class="meal-dot" style="background:${meal.color}"></div>
+          <span class="meal-time">${meal.time}</span>
+          <span class="meal-title">${meal.title}</span>
+          <span class="meal-kcal">${meal.kcal} kcal</span>
+        </div>
+        <div class="meal-body">`;
+
+      meal.items.forEach(item => {
+        html += `<div class="food-row">
+          <span class="food-name">${item.name}</span>
+          <span class="food-note">${item.note}</span>
+        </div>`;
+      });
+
+      html += `<div class="macro-bar" style="margin-top:8px">
+        <div class="mb-label"><span>Protein</span><span>${meal.p}g</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pPct}%;background:#378ADD"></div></div>
+      </div>
+      <div class="macro-bar">
+        <div class="mb-label"><span>Carbs</span><span>${meal.c}g</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${cPct}%;background:#639922"></div></div>
+      </div>
+      <div class="macro-bar">
+        <div class="mb-label"><span>Fats</span><span>${meal.f}g</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${fPct}%;background:#EF9F27"></div></div>
+      </div>
+      </div></div>`;
+    });
+
+    html += `<div class="day-summary">
+      <div class="ds-card"><div class="ds-val">${day.total.kcal}</div><div class="ds-label">Total kcal</div></div>
+      <div class="ds-card"><div class="ds-val">${day.total.p}g</div><div class="ds-label">Protein</div></div>
+      <div class="ds-card"><div class="ds-val">${day.total.c}g</div><div class="ds-label">Carbs</div></div>
+      <div class="ds-card"><div class="ds-val">${day.total.f}g</div><div class="ds-label">Fats</div></div>
+    </div>`;
+
+    panel.innerHTML = html;
+    container.appendChild(panel);
+  });
+}
+
+buildDays();
+</script>
