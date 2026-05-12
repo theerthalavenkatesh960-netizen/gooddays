@@ -1,170 +1,48 @@
-Generate PostgreSQL seed SQL for my app with maximum realism and diversity.
+2MealPlannerSettings.tsx:149 Uncaught TypeError: ids.map is not a function
+    at MealPlannerSettings.tsx:149:16
+    at updateMemo (chunk-QT63QQJV.js?v=eaa51999:12210:27)
+    at Object.useMemo (chunk-QT63QQJV.js?v=eaa51999:12726:24)
+    at useMemo (chunk-RLJ2RCJQ.js?v=eaa51999:1094:29)
+    at MealPlannerSettings (MealPlannerSettings.tsx:147:25)
+    at renderWithHooks (chunk-QT63QQJV.js?v=eaa51999:11548:26)
+    at updateFunctionComponent (chunk-QT63QQJV.js?v=eaa51999:14582:28)
+    at beginWork (chunk-QT63QQJV.js?v=eaa51999:15924:22)
+    at HTMLUnknownElement.callCallback2 (chunk-QT63QQJV.js?v=eaa51999:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-QT63QQJV.js?v=eaa51999:3699:24)Understand this error
+chunk-QT63QQJV.js?v=eaa51999:14032 The above error occurred in the <MealPlannerSettings> component:
 
-Return format:
+    at MealPlannerSettings (http://localhost:5173/src/pages/MealPlannerSettings.tsx:56:20)
+    at div
+    at MotionDOMComponent (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=eaa51999:8733:40)
+    at PopChildMeasure (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=eaa51999:7879:23)
+    at PopChild (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=eaa51999:7905:21)
+    at PresenceChild (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=eaa51999:7953:24)
+    at AnimatePresence (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=eaa51999:8030:26)
+    at main
+    at div
+    at Layout (http://localhost:5173/src/components/Layout.tsx:30:34)
+    at PrivateRoute (http://localhost:5173/src/App.tsx:46:25)
+    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=eaa51999:6355:26)
+    at Routes (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=eaa51999:7222:3)
+    at LoadingProvider (http://localhost:5173/src/contexts/LoadingContext.tsx:43:35)
+    at div
+    at ThemeProvider (http://localhost:5173/src/contexts/ThemeContext.tsx:22:33)
+    at AuthProvider (http://localhost:5173/src/contexts/AuthContextApi.tsx:21:32)
+    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=eaa51999:7152:13)
+    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=eaa51999:10363:3)
+    at App
 
-SQL only
-No markdown
-No explanation
-Use clear section comments
-Business goal:
-
-Produce highly realistic seed data for meal + workout libraries
-Include both Indian and Western food patterns
-Include both advanced and beginner training split patterns
-Database assumptions:
-
-PostgreSQL
-user_profiles already has user id 1
-Use user_id = 1 for user-scoped data
-Script must be safe to rerun (idempotent style)
-Do not truncate or delete existing data
-Exact tables and columns:
-
-meal_ingredients
-
-id SERIAL PK
-user_id integer NOT NULL
-name text NOT NULL
-calories_kcal integer NOT NULL DEFAULT 0
-protein_g double precision NOT NULL DEFAULT 0
-carbs_g double precision NOT NULL DEFAULT 0
-fats_g double precision NOT NULL DEFAULT 0
-created_at timestamptz DEFAULT now()
-meal_templates
-
-id SERIAL PK
-user_id integer NOT NULL
-name text NOT NULL
-timing text NOT NULL DEFAULT 'breakfast'
-ingredients_json text DEFAULT '[]'
-recipe text DEFAULT ''
-image_url text NULL
-created_at timestamptz DEFAULT now()
-weekly_meal_plans
-
-id SERIAL PK
-user_id integer UNIQUE NOT NULL
-plan_json text DEFAULT '{}'
-updated_at timestamptz DEFAULT now()
-exercises
-
-id SERIAL PK
-name text NOT NULL
-muscle_group text NOT NULL
-description text NULL
-image_url text NULL
-is_custom boolean DEFAULT false
-user_id integer NULL
-created_at timestamptz DEFAULT now()
-workout_split_presets
-
-id SERIAL PK
-user_id integer NOT NULL
-name text NOT NULL
-day_configs text DEFAULT '{}'
-is_active boolean DEFAULT false
-created_at timestamptz DEFAULT now()
-Allowed values:
-
-meal_templates.timing must only use:
-
-breakfast
-lunch
-dinner
-pre-workout
-post-workout
-snack
-exercises.muscle_group must only use:
-
-Chest
-Back
-Shoulders
-Arms
-Legs
-Core
-Cardio
-Full Body
-JSON contract (must be strictly followed):
-
-meal_templates.ingredients_json
-Must be valid JSON text array
-Each object must include exactly:
-id, name, qty, baseQty, baseUnit, caloriesKcal, proteinG, carbsG, fatsG
-Example shape:
-[
-{
-"id": 101,
-"name": "Chicken Breast",
-"qty": 150,
-"baseQty": 100,
-"baseUnit": "g",
-"caloriesKcal": 247.5,
-"proteinG": 46.5,
-"carbsG": 0,
-"fatsG": 5.4
-}
-]
-
-workout_split_presets.day_configs
-Must be valid JSON text object
-Keys must be lowercase: monday,tuesday,wednesday,thursday,friday,saturday,sunday
-Values must be arrays of objects with:
-exerciseId, sets, reps
-Example shape:
-{
-"monday": [{ "exerciseId": 1, "sets": 4, "reps": 8 }],
-"tuesday": [],
-"wednesday": [{ "exerciseId": 15, "sets": 3, "reps": 10 }],
-"thursday": [],
-"friday": [{ "exerciseId": 22, "sets": 5, "reps": 5 }],
-"saturday": [],
-"sunday": []
-}
-
-Required output volume:
-
-Insert 60 meal_ingredients rows (user_id=1)
-Insert 36 meal_templates rows (user_id=1)
-Insert 120 exercises rows as global library (user_id=NULL, is_custom=false)
-Insert 4 workout_split_presets rows (user_id=1):
-Push Pull Legs - Intermediate
-Push Pull Legs - Advanced (higher volume)
-Full Body - Beginner 3 Day
-Upper Lower - Beginner Friendly
-Mark only one preset as active (is_active=true), all others false
-Insert 1 weekly_meal_plans row for user_id=1 with realistic mixed Indian+Western weekly plan_json
-Realism constraints:
-
-Meals:
-
-Include Indian staples and dishes: idli, dosa, upma, poha, paneer bhurji, dal, rajma, chole, roti, paratha, curd rice, khichdi, biryani variants, grilled tandoori variants, sprouts chaat
-Include Western staples: oats, Greek yogurt bowls, egg omelette, grilled chicken salad, tuna sandwich, quinoa bowls, pasta variants, stir-fry, wraps, smoothie bowls
-Balance vegetarian and non-vegetarian templates
-Include performance-focused meals for pre-workout/post-workout
-Nutrition values should be plausible and internally consistent
-Workouts:
-
-Exercises must cover all muscle groups
-Include compound + isolation balance
-Include beginner-safe movements and machine alternatives
-Include bodyweight options for Full Body beginner split
-PPL advanced should have more sets/reps volume than intermediate
-day_configs should reference valid inserted exercise IDs
-SQL quality rules:
-
-Use deterministic inserts with guarded patterns:
-INSERT ... SELECT ... WHERE NOT EXISTS (...)
-Do not rely on ON CONFLICT unless a guaranteed unique constraint exists
-Escape JSON strings correctly
-Keep timestamps using now()
-Keep ordering logical and readable
-Add section comments:
--- Seed meal_ingredients
--- Seed meal_templates
--- Seed exercises
--- Seed workout_split_presets
--- Seed weekly_meal_plans
-Important:
-
-Script must execute as a single SQL file without manual edits.
-Return only SQL text.
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-QT63QQJV.js?v=eaa51999:14032Understand this error
+chunk-QT63QQJV.js?v=eaa51999:19413 Uncaught TypeError: ids.map is not a function
+    at MealPlannerSettings.tsx:149:16
+    at updateMemo (chunk-QT63QQJV.js?v=eaa51999:12210:27)
+    at Object.useMemo (chunk-QT63QQJV.js?v=eaa51999:12726:24)
+    at useMemo (chunk-RLJ2RCJQ.js?v=eaa51999:1094:29)
+    at MealPlannerSettings (MealPlannerSettings.tsx:147:25)
+    at renderWithHooks (chunk-QT63QQJV.js?v=eaa51999:11548:26)
+    at updateFunctionComponent (chunk-QT63QQJV.js?v=eaa51999:14582:28)
+    at beginWork (chunk-QT63QQJV.js?v=eaa51999:15924:22)
+    at beginWork$1 (chunk-QT63QQJV.js?v=eaa51999:19753:22)
+    at performUnitOfWork (chunk-QT63QQJV.js?v=eaa51999:19198:20)Understand this error
