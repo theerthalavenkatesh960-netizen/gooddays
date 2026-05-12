@@ -10,11 +10,20 @@ public class Goal
     public string? Color { get; set; } // hex color for UI
     public string? Icon { get; set; } // emoji icon
     public DateTime? TargetDate { get; set; }
+    public string GoalType { get; set; } = "checklist"; // checklist | milestone
+    public decimal? TargetValue { get; set; }
+    public decimal CurrentValue { get; set; } = 0;
+    public string? Unit { get; set; } // INR, tasks, books, etc.
+    public DateTime? StartDate { get; set; }
+    public DateTime? DeadlineDate { get; set; }
+    public bool AutoComplete { get; set; } = true;
+    public DateTime? CompletedAt { get; set; }
     public string Status { get; set; } = "active"; // active, completed, paused
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<GoalNote> Notes { get; set; } = new List<GoalNote>();
     public ICollection<GoalDailyLog> DailyLogs { get; set; } = new List<GoalDailyLog>();
+    public ICollection<GoalChecklistItem> ChecklistItems { get; set; } = new List<GoalChecklistItem>();
     public ICollection<Flashcard> Flashcards { get; set; } = new List<Flashcard>();
 }
 
@@ -41,6 +50,7 @@ public class GoalDailyLog
     public DateTime Date { get; set; }
     public string? Content { get; set; } // what I did today
     public int MinutesSpent { get; set; } = 0;
+    public decimal? ValueDelta { get; set; } // optional increment for milestone goals
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 

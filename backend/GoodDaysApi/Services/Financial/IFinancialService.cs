@@ -10,6 +10,8 @@ public interface IFinancialService
     Task<FinancialBucketDto> CreateBucketAsync(CreateFinancialBucketRequest request);
     Task<FinancialBucketDto?> UpdateBucketAsync(Guid id, UpdateFinancialBucketRequest request);
     Task<bool> DeleteBucketAsync(Guid id);
+    Task<FinancialBucketDto?> AddBucketContributionAsync(Guid bucketId, CreateBucketContributionRequest request);
+    Task<FinancialBucketDto?> DeleteBucketContributionAsync(Guid bucketId, Guid contributionId);
 
     // Tasks
     Task<List<TaskDto>> GetAllTasksAsync();

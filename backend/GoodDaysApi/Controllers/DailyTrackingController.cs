@@ -60,6 +60,9 @@ public class DailyTrackingController : ControllerBase
             existing.PhoneMinutes = req.PhoneMinutes;
             existing.Sunlight = req.Sunlight;
             existing.Mood = req.Mood;
+            existing.WaterCups = req.WaterCups ?? existing.WaterCups;
+            existing.WaterGoalCups = req.WaterGoalCups ?? existing.WaterGoalCups;
+            if (req.Calories.HasValue) existing.Calories = req.Calories;
 
             // handle note update/removal
             if (string.IsNullOrWhiteSpace(req.Note))
@@ -94,6 +97,9 @@ public class DailyTrackingController : ControllerBase
             PhoneMinutes = req.PhoneMinutes,
             Sunlight = req.Sunlight,
             Mood = req.Mood,
+            WaterCups = req.WaterCups ?? 0,
+            WaterGoalCups = req.WaterGoalCups ?? 8,
+            Calories = req.Calories,
         };
         _db.DailyTrackings.Add(newRec);
 
@@ -113,4 +119,16 @@ public class DailyTrackingController : ControllerBase
     }
 }
 
-public record SaveDailyTrackingRequest(int UserId, DateTime Date, decimal SleepHours, int WorkoutMinutes, int PhoneMinutes, bool Sunlight, int Mood, string? Note);
+public record SaveDailyTrackingRequest(
+    int UserId,
+    DateTime Date,
+    decimal SleepHours,
+    int WorkoutMinutes,
+    int PhoneMinutes,
+    bool Sunlight,
+    int Mood,
+    string? Note,
+    int? WaterCups,
+    int? WaterGoalCups,
+    int? Calories
+);

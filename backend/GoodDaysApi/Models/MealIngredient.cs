@@ -1,0 +1,14 @@
+namespace GoodDaysApi.Models;
+
+public class MealIngredient
+{
+    public int Id { get; set; }
+    public int UserId { get; set; }
+    public User User { get; set; } = null!;
+    public string Name { get; set; } = string.Empty;
+    public int CaloriesKcal { get; set; }
+    public double ProteinG { get; set; }
+    public double CarbsG { get; set; }
+    public double FatsG { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}

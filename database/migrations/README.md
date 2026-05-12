@@ -34,6 +34,32 @@ Use this to start fresh:
 psql -U postgres -d gooddays -f 001_down.sql
 ```
 
+### 002_up.sql
+**Purpose:** Add meal planning feature (ingredients, templates, weekly plans)
+**Status:** Run after 001_up.sql during deployment
+**Data Impact:** Creates schema only (no data loss)
+**Tables:** 3 new tables for meal management
+
+**Tables Included:**
+- **meal_ingredients:** User's ingredient library (macros: protein, carbs, fats, calories)
+- **meal_templates:** Reusable meal recipes with ingredient snapshots (immutable at creation)
+- **weekly_meal_plans:** Weekly meal planner state (one per user, upsert model)
+
+Run after initializing with 001_up.sql:
+```bash
+psql -U postgres -d gooddays -f 002_up.sql
+```
+
+### 002_down.sql
+**Purpose:** Remove meal planning tables (rollback)
+**Status:** Use to revert meal feature
+**Data Impact:** ⚠️ **DESTRUCTIVE** - Deletes meal_ingredients, meal_templates, weekly_meal_plans
+
+Rollback sequence (if needed):
+```bash
+psql -U postgres -d gooddays -f 002_down.sql
+```
+
 ## 🚀 Quick Start
 
 ### Create Database
@@ -41,21 +67,30 @@ psql -U postgres -d gooddays -f 001_down.sql
 createdb gooddays
 ```
 
-### Initialize Schema
+### Initialize Schema (Sequential Migrations)
 ```bash
+# Apply primary schema (29 tables)
 psql -U postgres -d gooddays -f 001_up.sql
+
+# Apply meal planning feature (3 new tables)
+psql -U postgres -d gooddays -f 002_up.sql
 ```
 
 ### Verify Installation
 ```bash
 psql -U postgres -d gooddays -c "SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = 'public';"
-# Expected: 29 tables
+# Expected: 32 tables (29 from 001 + 3 from 002)
 ```
 
 ### Reset Database (if needed)
 ```bash
+# Rollback in reverse order
+psql -U postgres -d gooddays -f 002_down.sql
 psql -U postgres -d gooddays -f 001_down.sql
+
+# Reinitialize
 psql -U postgres -d gooddays -f 001_up.sql
+psql -U postgres -d gooddays -f 002_up.sql
 ```
 
 ---
@@ -103,6 +138,15 @@ daily_tracking (daily metrics)
   ├─ workouts (exercise records)
   ├─ journal_entries (reflections)
   └─ self_care_logs (care activities)
+```
+
+### Meal Planning (v2.0)
+```
+meal_ingredients (user's ingredient library)
+  ↓
+meal_templates (reusable meal recipes with ingredient snapshots)
+  ↓
+weekly_meal_plans (weekly planner - one per user)
 ```
 
 ---
@@ -208,6 +252,55 @@ thesis_patients.protocol_id → thesis_protocols.id (ON DELETE CASCADE)
 - "Diversification is Key" - Multiple asset classes
 - "No Emotional Trading" - Follow system rules
 - "Risk Management First" - Stop-losses before entry
+
+### Meal Planning Tables (v2.0)
+
+#### meal_ingredients
+User's personal ingredient library with nutritional information
+| Column | Type | Notes |
+|--------|------|-------|
+| id | SERIAL PRIMARY KEY | Auto-incrementing |
+| user_id | BIGINT FK | References user_profiles.id (CASCADE) |
+| name | VARCHAR(255) | Ingredient name (e.g., "Chicken Breast", "Brown Rice") |
+| calories_kcal | DECIMAL(6,2) | Calories per standard serving |
+| protein_g | DECIMAL(6,2) | Protein in grams |
+| carbs_g | DECIMAL(6,2) | Carbohydrates in grams |
+| fats_g | DECIMAL(6,2) | Fats in grams |
+| created_at | TIMESTAMPTZ | Auto-set on insert |
+
+**Purpose:** Building blocks for meal templates - allows reusable ingredient definitions with macros
+**Performance:** Indexed on user_id for fast ingredient list queries
+
+#### meal_templates
+Reusable meal recipes with snapshotted ingredients (immutable at creation)
+| Column | Type | Notes |
+|--------|------|-------|
+| id | SERIAL PRIMARY KEY | Auto-incrementing |
+| user_id | BIGINT FK | References user_profiles.id (CASCADE) |
+| name | VARCHAR(255) | Meal name (e.g., "Grilled Chicken & Broccoli") |
+| timing | VARCHAR(50) | Meal timing: breakfast, lunch, dinner, pre-workout, post-workout, snack |
+| ingredients_json | TEXT | JSON snapshot of selected ingredients with macros (immutable) |
+| recipe | TEXT | Preparation instructions |
+| image_url | VARCHAR(500) | Optional meal image URL |
+| created_at | TIMESTAMPTZ | Auto-set on insert |
+
+**Purpose:** Reusable meal recipe definitions - ingredients captured as immutable snapshot (prevents macro calc drift if ingredient later modified)
+**Format of ingredients_json:** `[{id, name, caloriesKcal, proteinG, carbsG, fatsG}, ...]`
+**Performance:** Indexed on user_id for fast template list queries
+
+#### weekly_meal_plans
+Weekly meal planner state - tracks which meal templates assigned to each day (one per user)
+| Column | Type | Notes |
+|--------|------|-------|
+| id | SERIAL PRIMARY KEY | Auto-incrementing |
+| user_id | BIGINT FK UNIQUE | References user_profiles.id (CASCADE) - **ONE per user** |
+| plan_json | TEXT | JSON map of day → meal template IDs (e.g., `{"monday": [1, 3], "tuesday": [2]}`) |
+| updated_at | TIMESTAMPTZ | Updated on every upsert |
+
+**Purpose:** Weekly meal planner state - efficient upsert model with single record per user
+**Format of plan_json:** `{day_name: [mealTemplateIds], ...}` where day_name in [monday, tuesday, ..., sunday]
+**Usage Pattern:** GET to fetch plan, PUT to upsert (create if not exists, update if exists)
+**Performance:** Indexed on user_id + UNIQUE constraint ensures one-per-user efficiency
 
 ---
 

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Image as ImageIcon } from 'lucide-react';
 import * as api from '../lib/api';
+import { RichTextEditor } from '../components/RichTextEditor';
 
 const MOODS = ['happy', 'grateful', 'motivated', 'tired', 'neutral'] as const;
 
@@ -73,21 +74,22 @@ export default function JournalEditor() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 p-3 sm:p-6">
+    <div className="min-h-screen p-3 sm:p-6" style={{ backgroundColor: 'var(--bg)' }}>
       <div className="max-w-5xl mx-auto">
         <button
           onClick={() => navigate('/calendar')}
-          className="mb-3 sm:mb-4 inline-flex items-center gap-2 text-emerald-700 font-semibold"
+          className="mb-3 sm:mb-4 inline-flex items-center gap-2 font-semibold"
+          style={{ color: 'var(--accent)' }}
         >
           <ArrowLeft size={18} /> Back to Calendar
         </button>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{isEditMode ? 'Edit Journal Entry' : 'New Journal Entry'}</h1>
-          <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6">Use the full screen to write freely.</p>
+        <div className="rounded-2xl shadow-sm border p-4 sm:p-6" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{isEditMode ? 'Edit Journal Entry' : 'New Journal Entry'}</h1>
+          <p className="text-sm sm:text-base mb-4 sm:mb-6" style={{ color: 'var(--text-muted)' }}>Use the full screen to write freely.</p>
 
           {loading ? (
-            <div className="py-20 text-center text-gray-500">Loading entry...</div>
+            <div className="py-20 text-center" style={{ color: 'var(--text-muted)' }}>Loading entry...</div>
           ) : (
           <div className="space-y-4">
 
@@ -95,25 +97,27 @@ export default function JournalEditor() {
               value={entry.title}
               onChange={(e) => setEntry((p) => ({ ...p, title: e.target.value }))}
               placeholder="Title"
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              className="w-full rounded-xl px-4 py-3 focus:outline-none focus:ring-2 border"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', borderColor: 'var(--border)', '--tw-ring-color': 'var(--accent)' } as any}
             />
 
-            <textarea
+            <RichTextEditor
               value={entry.body}
-              onChange={(e) => setEntry((p) => ({ ...p, body: e.target.value }))}
+              onChange={(content) => setEntry((p) => ({ ...p, body: content }))}
               placeholder="Write your thoughts..."
-              className="w-full min-h-[48vh] sm:min-h-[56vh] border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-y"
             />
 
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-medium text-gray-600">Mood:</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Mood:</span>
               {MOODS.map((mood) => (
                 <button
                   key={mood}
                   onClick={() => setEntry((p) => ({ ...p, moodTag: mood }))}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                    entry.moodTag === mood ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600'
-                  }`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all`}
+                  style={{
+                    backgroundColor: entry.moodTag === mood ? 'var(--accent)' : 'var(--surface-elevated)',
+                    color: entry.moodTag === mood ? '#fff' : 'var(--text-secondary)'
+                  }}
                 >
                   {mood === 'happy' ? '😊' : mood === 'grateful' ? '🙏' : mood === 'motivated' ? '💪' : mood === 'tired' ? '😴' : '😐'} {mood}
                 </button>
@@ -122,7 +126,7 @@ export default function JournalEditor() {
 
             {entry.imageUrl && <img src={entry.imageUrl} alt="" className="w-full h-40 object-cover rounded-xl" />}
 
-            <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-600 hover:border-emerald-400 cursor-pointer">
+            <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed rounded-xl cursor-pointer" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }} onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')} onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}>
               <ImageIcon size={18} /> Add Photo
               <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
             </label>
@@ -131,7 +135,8 @@ export default function JournalEditor() {
               whileTap={{ scale: 0.98 }}
               onClick={saveEntry}
               disabled={saving || (!entry.title && !entry.body)}
-              className="w-full py-3 bg-emerald-500 text-white rounded-xl font-semibold disabled:opacity-50"
+              className="w-full py-3 text-white rounded-xl font-semibold disabled:opacity-50"
+              style={{ backgroundColor: 'var(--accent)' }}
             >
               {saving ? 'Saving...' : isEditMode ? 'Update Entry' : 'Save Entry'}
             </motion.button>

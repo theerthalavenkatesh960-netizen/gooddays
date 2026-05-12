@@ -25,6 +25,7 @@ public class FinancialService : IFinancialService
         var buckets = await _db.InvestmentBuckets
             .Where(b => b.IsActive)
             .Include(b => b.Tasks.Where(t => t.IsActive))
+            .Include(b => b.Contributions)
             .OrderBy(b => b.SortOrder)
             .ToListAsync();
 
@@ -49,12 +50,28 @@ public class FinancialService : IFinancialService
                 Name = bucket.Name,
                 Category = bucket.Category,
                 MonthlyTarget = bucket.MonthlyTarget,
+                TargetAmount = bucket.TargetAmount,
+                CurrentAmount = bucket.CurrentAmount,
+                Frequency = bucket.Frequency,
+                PeriodMonths = bucket.PeriodMonths,
+                InvestedIn = bucket.InvestedIn,
                 ColorHex = bucket.ColorHex,
                 Icon = bucket.Icon,
                 SortOrder = bucket.SortOrder,
                 CompletionPercent = Math.Round(completionPercent, 2),
                 TasksTotal = totalTasks,
-                TasksCompleted = completedTasks
+                TasksCompleted = completedTasks,
+                Contributions = bucket.Contributions
+                    .OrderByDescending(c => c.ContributionDate)
+                    .Select(c => new BucketContributionDto
+                    {
+                        Id = c.Id,
+                        BucketId = c.BucketId,
+                        Amount = c.Amount,
+                        Note = c.Note,
+                        ContributionDate = c.ContributionDate
+                    })
+                    .ToList()
             });
         }
 
@@ -69,6 +86,7 @@ public class FinancialService : IFinancialService
 
         var bucket = await _db.InvestmentBuckets
             .Include(b => b.Tasks.Where(t => t.IsActive))
+            .Include(b => b.Contributions)
             .FirstOrDefaultAsync(b => b.Id == id && b.IsActive);
 
         if (bucket == null) return null;
@@ -106,13 +124,29 @@ public class FinancialService : IFinancialService
             Name = bucket.Name,
             Category = bucket.Category,
             MonthlyTarget = bucket.MonthlyTarget,
+            TargetAmount = bucket.TargetAmount,
+            CurrentAmount = bucket.CurrentAmount,
+            Frequency = bucket.Frequency,
+            PeriodMonths = bucket.PeriodMonths,
+            InvestedIn = bucket.InvestedIn,
             ColorHex = bucket.ColorHex,
             Icon = bucket.Icon,
             SortOrder = bucket.SortOrder,
             CompletionPercent = Math.Round(completionPercent, 2),
             TasksTotal = totalTasks,
             TasksCompleted = completedTasks,
-            Tasks = tasks
+            Tasks = tasks,
+            Contributions = bucket.Contributions
+                .OrderByDescending(c => c.ContributionDate)
+                .Select(c => new BucketContributionDto
+                {
+                    Id = c.Id,
+                    BucketId = c.BucketId,
+                    Amount = c.Amount,
+                    Note = c.Note,
+                    ContributionDate = c.ContributionDate
+                })
+                .ToList()
         };
     }
 
@@ -123,6 +157,11 @@ public class FinancialService : IFinancialService
             Name = request.Name,
             Category = request.Category,
             MonthlyTarget = request.MonthlyTarget,
+            TargetAmount = request.TargetAmount,
+            CurrentAmount = request.CurrentAmount,
+            Frequency = request.Frequency,
+            PeriodMonths = request.PeriodMonths,
+            InvestedIn = request.InvestedIn,
             ColorHex = request.ColorHex,
             Icon = request.Icon,
             SortOrder = request.SortOrder
@@ -137,12 +176,18 @@ public class FinancialService : IFinancialService
             Name = bucket.Name,
             Category = bucket.Category,
             MonthlyTarget = bucket.MonthlyTarget,
+            TargetAmount = bucket.TargetAmount,
+            CurrentAmount = bucket.CurrentAmount,
+            Frequency = bucket.Frequency,
+            PeriodMonths = bucket.PeriodMonths,
+            InvestedIn = bucket.InvestedIn,
             ColorHex = bucket.ColorHex,
             Icon = bucket.Icon,
             SortOrder = bucket.SortOrder,
             CompletionPercent = 0,
             TasksTotal = 0,
-            TasksCompleted = 0
+            TasksCompleted = 0,
+            Contributions = new List<BucketContributionDto>()
         };
     }
 
@@ -154,6 +199,11 @@ public class FinancialService : IFinancialService
         if (request.Name != null) bucket.Name = request.Name;
         if (request.Category != null) bucket.Category = request.Category;
         if (request.MonthlyTarget.HasValue) bucket.MonthlyTarget = request.MonthlyTarget.Value;
+        if (request.TargetAmount.HasValue) bucket.TargetAmount = request.TargetAmount.Value;
+        if (request.CurrentAmount.HasValue) bucket.CurrentAmount = request.CurrentAmount.Value;
+        if (request.Frequency != null) bucket.Frequency = request.Frequency;
+        if (request.PeriodMonths.HasValue) bucket.PeriodMonths = request.PeriodMonths.Value;
+        if (request.InvestedIn != null) bucket.InvestedIn = request.InvestedIn;
         if (request.ColorHex != null) bucket.ColorHex = request.ColorHex;
         if (request.Icon != null) bucket.Icon = request.Icon;
         if (request.SortOrder.HasValue) bucket.SortOrder = request.SortOrder.Value;
@@ -171,6 +221,50 @@ public class FinancialService : IFinancialService
         bucket.IsActive = false;
         await _db.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<FinancialBucketDto?> AddBucketContributionAsync(Guid bucketId, CreateBucketContributionRequest request)
+    {
+        var bucket = await _db.InvestmentBuckets.FirstOrDefaultAsync(b => b.Id == bucketId && b.IsActive);
+        if (bucket == null) return null;
+
+        var contribution = new BucketContribution
+        {
+            BucketId = bucketId,
+            Amount = request.Amount,
+            Note = request.Note,
+            ContributionDate = request.ContributionDate ?? DateTime.UtcNow
+        };
+
+        _db.BucketContributions.Add(contribution);
+        await _db.SaveChangesAsync();
+
+        bucket.CurrentAmount = await _db.BucketContributions
+            .Where(c => c.BucketId == bucketId)
+            .SumAsync(c => c.Amount);
+        await _db.SaveChangesAsync();
+
+        return await GetBucketByIdAsync(bucketId);
+    }
+
+    public async Task<FinancialBucketDto?> DeleteBucketContributionAsync(Guid bucketId, Guid contributionId)
+    {
+        var contribution = await _db.BucketContributions
+            .FirstOrDefaultAsync(c => c.Id == contributionId && c.BucketId == bucketId);
+        if (contribution == null) return null;
+
+        _db.BucketContributions.Remove(contribution);
+        await _db.SaveChangesAsync();
+
+        var bucket = await _db.InvestmentBuckets.FirstOrDefaultAsync(b => b.Id == bucketId && b.IsActive);
+        if (bucket == null) return null;
+
+        bucket.CurrentAmount = await _db.BucketContributions
+            .Where(c => c.BucketId == bucketId)
+            .SumAsync(c => c.Amount);
+        await _db.SaveChangesAsync();
+
+        return await GetBucketByIdAsync(bucketId);
     }
 
     // ========== TASKS ==========

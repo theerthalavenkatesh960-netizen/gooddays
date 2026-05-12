@@ -96,11 +96,9 @@ const startKey=format(start,'yyyy-MM-dd');
 const endKey=format(end,'yyyy-MM-dd');
 
 
-const [tasks,study,expenses,selfcare,reminders,reminderHistory]=await Promise.all([
+const [tasks,expenses,reminders,reminderHistory]=await Promise.all([
 api.getTasks(user.id),
-api.getStudySessions(user.id),
 api.getExpenses(user.id),
-api.getSelfCareActivities(user.id),
 api.getReminders(),
 api.getReminderHistory()
 ]);
@@ -143,24 +141,6 @@ data[key].tasks.push(t);
 
 
 
-study?.forEach((s:any)=>{
-
-const d=new Date(s.date);
-
-if(isNaN(d.getTime()))return;
-
-const key=format(d,'yyyy-MM-dd');
-
-if(key<startKey || key>endKey)return;
-
-data[key]??={};
-
-data[key].study=(data[key].study||0)+s.durationMinutes;
-
-});
-
-
-
 expenses?.forEach((e:any)=>{
 
 const d=new Date(e.date);
@@ -174,23 +154,6 @@ if(key<startKey || key>endKey)return;
 data[key]??={};
 
 data[key].expenses=(data[key].expenses||0)+parseFloat(e.amount);
-
-});
-
-
-selfcare?.forEach((s:any)=>{
-
-const d=new Date(s.date);
-
-if(isNaN(d.getTime()))return;
-
-const key=format(d,'yyyy-MM-dd');
-
-if(key<startKey || key>endKey)return;
-
-data[key]??={};
-
-data[key].selfcare=(data[key].selfcare||0)+1;
 
 });
 
@@ -325,14 +288,13 @@ return(
 <h1 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Calendar & Review</h1>
 
 {/* Tab switcher */}
-<div className="flex gap-1.5 mb-4 sm:mb-6 bg-gray-100 p-1 rounded-2xl w-fit overflow-x-auto hide-scrollbar">
+<div className="flex gap-1 mb-4 sm:mb-6 p-1 rounded-2xl overflow-x-auto hide-scrollbar" style={{ backgroundColor: 'var(--surface)' }}>
   {(['calendar', 'weekly-review', 'journal'] as const).map((tab) => (
     <button
       key={tab}
       onClick={() => setActiveTab(tab)}
-      className={`px-3 sm:px-5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all capitalize whitespace-nowrap ${
-        activeTab === tab ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'
-      }`}
+      className="px-3 sm:px-5 py-2 rounded-xl font-semibold text-xs sm:text-sm transition-all capitalize whitespace-nowrap"
+      style={{ backgroundColor: activeTab === tab ? 'var(--accent)' : 'transparent', color: activeTab === tab ? '#fff' : 'var(--text-muted)' }}
     >
       {tab === 'weekly-review' ? 'Weekly Review' : tab.charAt(0).toUpperCase() + tab.slice(1)}
     </button>

@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 
 namespace GoodDaysApi.Models;
 
@@ -35,6 +36,24 @@ public class User
 
     [Column("theme")]
     public string Theme { get; set; } = "light";
+
+    [Column("calorie_goal")]
+    public int CalorieGoal { get; set; } = 2400;
+
+    [Column("tracking_options_json", TypeName = "jsonb")]
+    public JsonDocument TrackingOptionsJson { get; set; } = JsonDocument.Parse("[\"sleep_hours\",\"workout_minutes\",\"phone_minutes\"]");
+
+    [Column("dashboard_preset")]
+    public string DashboardPreset { get; set; } = "balanced";
+
+    [Column("dashboard_weights_json", TypeName = "jsonb")]
+    public JsonDocument DashboardWeightsJson { get; set; } = JsonDocument.Parse("{\"tasks\":35,\"routine\":20,\"body\":15,\"workout\":15,\"finance\":10,\"journal\":5}");
+
+    [Column("height_cm")]
+    public decimal? HeightCm { get; set; }
+
+    [Column("target_weight_kg")]
+    public decimal? TargetWeightKg { get; set; }
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
