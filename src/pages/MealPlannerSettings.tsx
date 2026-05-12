@@ -61,6 +61,23 @@ function toDayKey(date: Date) {
   return format(date, 'EEEE').toLowerCase();
 }
 
+function normalizeDayMealIds(value: any): number[] {
+  if (Array.isArray(value)) return value.map((id) => Number(id)).filter((id) => Number.isFinite(id));
+  if (value && typeof value === 'object' && Array.isArray(value.mealIds)) {
+    return value.mealIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id));
+  }
+  return [];
+}
+
+function normalizeMealPlan(raw: any): MealPlanMap {
+  if (!raw || typeof raw !== 'object') return {};
+  const next: MealPlanMap = {};
+  for (const key of Object.keys(raw)) {
+    next[key] = normalizeDayMealIds(raw[key]);
+  }
+  return next;
+}
+
 export default function MealPlannerSettings() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -91,7 +108,21 @@ export default function MealPlannerSettings() {
 
       setMeals(Array.isArray(mealData) ? mealData : []);
       if (planData?.planJson) {
-        try { setMealPlan(JSON.parse(planData.planJson) || {}); } catch { setMealPlan({}); }
+        try {
+          const parsed = typeof planData.planJson === 'string' ? JSON.parse(planData.planJson) : planData.planJson;
+          setMealPlan(normalizeMealPlan(parsed));
+        } catch {
+          setMealPlan({});
+        }
+      } else if (planData?.plan_json) {
+        try {
+          const parsed = typeof planData.plan_json === 'string' ? JSON.parse(planData.plan_json) : planData.plan_json;
+          setMealPlan(normalizeMealPlan(parsed));
+        } catch {
+          setMealPlan({});
+        }
+      } else if (planData && typeof planData === 'object') {
+        setMealPlan(normalizeMealPlan(planData));
       }
     } catch (e: any) {
       setStatus(e?.message || 'Failed to load');
@@ -131,7 +162,7 @@ export default function MealPlannerSettings() {
 
   async function addMealToDay(day: string) {
     if (!pickMealId) return;
-    const existing = mealPlan[day] || [];
+    const existing = normalizeDayMealIds(mealPlan[day]);
     if (existing.includes(pickMealId)) {
       setAddingToDay(null);
       return;
@@ -141,11 +172,11 @@ export default function MealPlannerSettings() {
   }
 
   async function removeMealFromDay(day: string, mealId: number) {
-    await savePlan({ ...mealPlan, [day]: (mealPlan[day] || []).filter(id => id !== mealId) });
+    await savePlan({ ...mealPlan, [day]: normalizeDayMealIds(mealPlan[day]).filter(id => id !== mealId) });
   }
 
   const selectedMeals = useMemo(() => {
-    const ids = mealPlan[selectedDay] || [];
+    const ids = normalizeDayMealIds(mealPlan[selectedDay]);
     return ids.map(id => meals.find(m => m.id === id)).filter((m): m is MealTemplate => !!m);
   }, [mealPlan, meals, selectedDay]);
 
