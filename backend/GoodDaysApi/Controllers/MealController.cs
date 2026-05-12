@@ -107,6 +107,71 @@ public class MealController : ControllerBase
         return Ok(plan);
     }
 
+    [HttpPost("plan/copy-last-week")]
+    public async Task<IActionResult> CopyLastWeek([FromBody] CopyLastWeekRequest body)
+    {
+        if (!DateOnly.TryParse(body.SourceDate, out var sourceDate))
+            return BadRequest("Invalid sourceDate format. Use yyyy-MM-dd");
+
+        var targetDate = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (!string.IsNullOrWhiteSpace(body.TargetDate) && !DateOnly.TryParse(body.TargetDate, out targetDate))
+            return BadRequest("Invalid targetDate format. Use yyyy-MM-dd");
+
+        var userId = GetUserId();
+        var plan = await _db.WeeklyMealPlans.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (plan is null)
+        {
+            plan = new WeeklyMealPlan { UserId = userId, PlanJson = "{}", UpdatedAt = DateTime.UtcNow };
+            _db.WeeklyMealPlans.Add(plan);
+        }
+
+        Dictionary<string, List<int>> data;
+        try
+        {
+            data = JsonSerializer.Deserialize<Dictionary<string, List<int>>>(plan.PlanJson) ?? new Dictionary<string, List<int>>();
+        }
+        catch
+        {
+            data = new Dictionary<string, List<int>>();
+        }
+
+        var sourceWeekStart = sourceDate.AddDays(-(int)sourceDate.DayOfWeek);
+        var targetWeekStart = targetDate.AddDays(-(int)targetDate.DayOfWeek);
+
+        for (var i = 0; i < 7; i++)
+        {
+            var sourceDay = sourceWeekStart.AddDays(i);
+            var targetDay = targetWeekStart.AddDays(i);
+            var sourceDateKey = sourceDay.ToString("yyyy-MM-dd");
+            var sourceWeekdayKey = sourceDay.DayOfWeek.ToString().ToLowerInvariant();
+            var targetDateKey = targetDay.ToString("yyyy-MM-dd");
+
+            List<int>? sourceMealIds = null;
+            if (data.TryGetValue(sourceDateKey, out var fromDateKey) && fromDateKey is not null)
+            {
+                sourceMealIds = fromDateKey;
+            }
+            else if (data.TryGetValue(sourceWeekdayKey, out var fromWeekdayKey) && fromWeekdayKey is not null)
+            {
+                sourceMealIds = fromWeekdayKey;
+            }
+
+            if (sourceMealIds is null)
+            {
+                data.Remove(targetDateKey);
+            }
+            else
+            {
+                data[targetDateKey] = sourceMealIds.Distinct().ToList();
+            }
+        }
+
+        plan.PlanJson = JsonSerializer.Serialize(data);
+        plan.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return Ok(plan);
+    }
+
     // ─── Daily Meal Logs ────────────────────────────────────────────────
 
     [HttpGet("logs/{date}")]
@@ -181,5 +246,6 @@ public class MealController : ControllerBase
     }
 
     public record UpsertPlanRequest(string PlanJson);
+    public record CopyLastWeekRequest(string SourceDate, string? TargetDate);
     public record UpsertDailyLogRequest(string Date, List<int> MealIds);
 }

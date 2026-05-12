@@ -4,11 +4,12 @@ import { Dumbbell, Apple, DollarSign, Droplets, Clock, Trash2, Plus, Check, Tren
 import { format, subDays, parseISO } from 'date-fns';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
+import MealCard from '../components/MealCard';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Exercise { id: number; name: string; category?: string; }
-interface MealTemplate { id: number; name: string; ingredientsJson: string; timing: string; recipe?: string; }
+interface MealTemplate { id: number; name: string; ingredientsJson: string; timing: string; recipe?: string; imageUrl?: string; timeOfDay?: string; }
 interface QuickLogEntry { id: number; date: string; type: 'workout' | 'meal' | 'expense' | 'water' | 'task'; payload: Record<string, any>; createdAt: string; }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -84,7 +85,7 @@ export default function Track() {
 
       <div className="px-4">
         {activeTab === 'workout' && <WorkoutTab exercises={exercises} today={today} onLog={handleRefresh} logs={todayLogs} />}
-        {activeTab === 'meal' && <MealTab meals={meals} today={today} onLog={handleRefresh} logs={todayLogs} />}
+        {activeTab === 'meal' && <MealTab meals={meals} today={today} onLog={handleRefresh} />}
         {activeTab === 'expense' && <ExpenseTab today={today} onLog={handleRefresh} logs={todayLogs} userId={user?.id} />}
         {activeTab === 'water' && <WaterTab today={today} onLog={handleRefresh} logs={todayLogs} />}
         {activeTab === 'task' && <TaskTab today={today} onLog={handleRefresh} logs={todayLogs} />}
@@ -180,82 +181,155 @@ function WorkoutTab({ exercises, today, onLog, logs }: { exercises: Exercise[], 
 
 // ─── Meal Tab ─────────────────────────────────────────────────────────────────
 
-function MealTab({ meals, today, onLog, logs }: { meals: MealTemplate[], today: string, onLog: () => void, logs: QuickLogEntry[] }) {
+function parseTimeOfDayToMinutes(timeText?: string): number {
+  if (!timeText?.trim()) return Number.MAX_SAFE_INTEGER;
+  const t = timeText.trim().toLowerCase();
+  let match = t.match(/^(\d{1,2})[:](\d{2})\s*(am|pm)?$/);
+  if (match) {
+    let h = Number(match[1]);
+    const m = Number(match[2]);
+    const ap = match[3];
+    if (ap) {
+      if (h < 1 || h > 12 || m < 0 || m > 59) return Number.MAX_SAFE_INTEGER;
+      if (ap === 'pm' && h !== 12) h += 12;
+      if (ap === 'am' && h === 12) h = 0;
+    } else {
+      if (h < 0 || h > 23 || m < 0 || m > 59) return Number.MAX_SAFE_INTEGER;
+    }
+    return h * 60 + m;
+  }
+  const hourOnly = t.match(/^(\d{1,2})\s*(am|pm)$/);
+  if (hourOnly) {
+    let h = Number(hourOnly[1]);
+    const ap = hourOnly[2];
+    if (h < 1 || h > 12) return Number.MAX_SAFE_INTEGER;
+    if (ap === 'pm' && h !== 12) h += 12;
+    if (ap === 'am' && h === 12) h = 0;
+    return h * 60;
+  }
+  const hhmm = t.match(/^(\d{2})(\d{2})$/);
+  if (hhmm) {
+    const h = Number(hhmm[1]), m = Number(hhmm[2]);
+    if (h > 23 || m > 59) return Number.MAX_SAFE_INTEGER;
+    return h * 60 + m;
+  }
+  return Number.MAX_SAFE_INTEGER;
+}
+
+function MealTab({ meals, today, onLog }: { meals: MealTemplate[], today: string, onLog: () => void }) {
   const [saving, setSaving] = useState(false);
+  const [plannedMealIds, setPlannedMealIds] = useState<number[]>([]);
+  const [completedMealIds, setCompletedMealIds] = useState<number[]>([]);
 
-  const mealLogs = useMemo(() => logs.filter(l => l.type === 'meal' && l.date === today), [logs, today]);
+  const parseIds = (value: any): number[] => {
+    if (Array.isArray(value)) return value.map((id) => Number(id)).filter((id) => Number.isFinite(id));
+    if (value && typeof value === 'object' && Array.isArray(value.mealIds)) {
+      return value.mealIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id));
+    }
+    return [];
+  };
 
-  const handleLogMeal = async (mealId: number) => {
-    setSaving(true);
+  const parseIngredients = (json: string) => {
     try {
-      await (api as any).logQuickEntry('meal', { mealIds: [mealId] }, today);
+      const parsed = JSON.parse(json) || [];
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map((item: any) => ({
+        id: Number(item.id || 0),
+        name: String(item.name || ''),
+        qty: Number(item.qty ?? 1),
+        baseQty: Number(item.baseQty ?? 1),
+        baseUnit: String(item.baseUnit || 'serving'),
+        caloriesKcal: Number(item.caloriesKcal || 0),
+        proteinG: Number(item.proteinG || 0),
+        carbsG: Number(item.carbsG || 0),
+        fatsG: Number(item.fatsG || 0),
+        description: item.description ? String(item.description) : undefined,
+      }));
+    } catch {
+      return [];
+    }
+  };
+
+  const loadMealStatus = async () => {
+    try {
+      const [plan, dailyLog] = await Promise.all([
+        api.getWeeklyMealPlan(),
+        api.getDailyMealLog(today),
+      ]);
+
+      let rawPlan: any = {};
+      if (plan?.planJson) rawPlan = typeof plan.planJson === 'string' ? JSON.parse(plan.planJson) : plan.planJson;
+      else if (plan?.plan_json) rawPlan = typeof plan.plan_json === 'string' ? JSON.parse(plan.plan_json) : plan.plan_json;
+
+      const legacyDayKey = format(new Date(today), 'EEEE').toLowerCase();
+      const dayIds = parseIds(rawPlan?.[today]);
+      const fallbackIds = dayIds.length > 0 ? dayIds : parseIds(rawPlan?.[legacyDayKey]);
+      setPlannedMealIds(fallbackIds);
+      setCompletedMealIds(parseIds(dailyLog?.mealIds));
+    } catch {
+      setPlannedMealIds([]);
+      setCompletedMealIds([]);
+    }
+  };
+
+  useEffect(() => {
+    loadMealStatus();
+  }, [today, meals]);
+
+  const plannedMeals = useMemo(() => {
+    return plannedMealIds
+      .map((id) => meals.find((m) => m.id === id))
+      .filter((m): m is MealTemplate => !!m)
+      .sort((a, b) => {
+        const ta = parseTimeOfDayToMinutes(a.timeOfDay);
+        const tb = parseTimeOfDayToMinutes(b.timeOfDay);
+        return ta !== tb ? ta - tb : a.id - b.id;
+      });
+  }, [plannedMealIds, meals]);
+
+  const toggleDone = async (mealId: number) => {
+    if (saving) return;
+    setSaving(true);
+    const next = completedMealIds.includes(mealId)
+      ? completedMealIds.filter((id) => id !== mealId)
+      : [...completedMealIds, mealId];
+    try {
+      await api.upsertDailyMealLog(today, next);
+      setCompletedMealIds(next);
       onLog();
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    await (api as any).deleteQuickLogEntry(id);
-    onLog();
-  };
-
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-        <Apple size={16} /> Available Meals
+        <Apple size={16} /> Today&apos;s Planned Meals
       </h3>
-      <div className="space-y-2">
-        {meals.map(meal => {
-          const logged = mealLogs.some(log => log.payload.mealIds?.includes(meal.id));
-          return (
-            <motion.button
+      {plannedMeals.length === 0 ? (
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No meals planned for today. Add meals in Weekly Meals first.</p>
+      ) : (
+        <div className="space-y-3">
+          {plannedMeals.map((meal) => (
+            <MealCard
               key={meal.id}
-              onClick={() => handleLogMeal(meal.id)}
-              whileHover={{ scale: 1.02 }}
-              className="w-full text-left flex items-center gap-3 p-3 rounded-xl transition-all"
-              style={{
-                backgroundColor: logged ? 'var(--accent)11' : 'var(--surface)',
-                border: `1px solid ${logged ? 'var(--accent)55' : 'var(--border)'}`,
-              }}
-            >
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: logged ? 'var(--accent)' : 'var(--surface-elevated)' }}>
-                {logged && <Check size={14} color="#fff" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
-                <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{meal.timing}{meal.recipe ? ` · ${meal.recipe}` : ''}</p>
-              </div>
-              <button onClick={(e) => { e.stopPropagation(); handleLogMeal(meal.id); }} className="px-3 py-1 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: 'var(--accent)' }}>
-                {logged ? '✓' : '+ Log'}
-              </button>
-            </motion.button>
-          );
-        })}
-      </div>
-
-      <div className="mt-6">
-        <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Today's Meals ({mealLogs.length})</h3>
-        <div className="space-y-2">
-          {mealLogs.length === 0 ? (
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No meals logged yet</p>
-          ) : (
-            mealLogs.map((log, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)' }}>
-                <Check size={18} style={{ color: 'var(--accent)' }} />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                    {meals.find(m => log.payload.mealIds?.includes(m.id))?.name}
-                  </p>
-                </div>
-                <button onClick={() => handleDelete(log.id)} className="text-red-500 hover:text-red-700 p-1">
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))
-          )}
+              id={meal.id}
+              name={meal.name}
+              timing={meal.timing}
+              timeOfDay={meal.timeOfDay}
+              imageUrl={meal.imageUrl}
+              ingredients={parseIngredients(meal.ingredientsJson)}
+              done={completedMealIds.includes(meal.id)}
+              onToggleDone={toggleDone}
+            />
+          ))}
         </div>
-      </div>
+      )}
+
+      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        {completedMealIds.length} of {plannedMeals.length} marked done
+      </p>
     </div>
   );
 }

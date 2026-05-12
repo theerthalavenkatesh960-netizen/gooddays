@@ -432,11 +432,15 @@ CREATE TABLE IF NOT EXISTS meal_templates (
   user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
   name text NOT NULL,
   timing text NOT NULL DEFAULT 'breakfast',
+  time_of_day text,
   ingredients_json text DEFAULT '[]',
   recipe text DEFAULT '',
   image_url text,
   created_at timestamptz DEFAULT now()
 );
+
+ALTER TABLE IF EXISTS meal_templates
+  ADD COLUMN IF NOT EXISTS time_of_day text;
 
 CREATE TABLE IF NOT EXISTS weekly_meal_plans (
   id SERIAL PRIMARY KEY,

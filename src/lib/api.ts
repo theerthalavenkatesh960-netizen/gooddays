@@ -1955,6 +1955,16 @@ export async function upsertWeeklyMealPlan(planJson: string) {
   return request('meal/plan', { method: 'PUT', body: JSON.stringify({ planJson }) });
 }
 
+export async function copyLastWeekMealPlan(sourceDate: string, targetDate?: string) {
+  if (DUMMY_FLAGS.meals) {
+    return Promise.resolve(DUMMY_WEEKLY_MEAL_PLAN);
+  }
+  return request('meal/plan/copy-last-week', {
+    method: 'POST',
+    body: JSON.stringify({ sourceDate, targetDate }),
+  });
+}
+
 const DUMMY_DAILY_MEAL_LOGS: Record<string, number[]> = {};
 
 export async function getDailyMealLog(date: string) {
