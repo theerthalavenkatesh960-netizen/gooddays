@@ -21,6 +21,9 @@ export default function WorkoutExerciseDetails() {
   const { id } = useParams();
   const location = useLocation();
   const [exercise, setExercise] = useState<Exercise | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [status, setStatus] = useState('');
+  const [form, setForm] = useState({ name: '', muscleGroup: 'Chest', description: '', imageUrl: '' });
   const [plannedDays, setPlannedDays] = useState<Array<{ day: string; sets: number; reps: number }>>([]);
 
   const selectedMeta = (location.state || {}) as { day?: string; sets?: number; reps?: number };
@@ -37,6 +40,14 @@ export default function WorkoutExerciseDetails() {
     const list: Exercise[] = Array.isArray(exData) ? exData : [];
     const found = list.find(x => x.id === exerciseId) || null;
     setExercise(found);
+    if (found) {
+      setForm({
+        name: found.name || '',
+        muscleGroup: found.muscleGroup || 'Chest',
+        description: found.description || '',
+        imageUrl: found.imageUrl || '',
+      });
+    }
 
     const splits: SplitPreset[] = Array.isArray(splitsData) ? splitsData : [];
     const split = splits.find(s => s.name === 'Weekly Routine') || splits[0] || null;
@@ -61,6 +72,24 @@ export default function WorkoutExerciseDetails() {
     setPlannedDays(rows);
   }
 
+  async function save() {
+    if (!exercise || !form.name.trim()) return;
+    try {
+      const updated = await api.updateExercise(exercise.id, {
+        name: form.name.trim(),
+        muscleGroup: form.muscleGroup,
+        description: form.description,
+        imageUrl: form.imageUrl.trim() || null,
+      });
+      if (updated) setExercise(updated as Exercise);
+      setEditing(false);
+      setStatus('Workout updated');
+      setTimeout(() => setStatus(''), 1200);
+    } catch (e: any) {
+      setStatus(e?.message || 'Failed to update workout');
+    }
+  }
+
   const totalSets = useMemo(() => plannedDays.reduce((sum, x) => sum + (x.sets || 0), 0), [plannedDays]);
 
   if (!exercise) {
@@ -83,20 +112,66 @@ export default function WorkoutExerciseDetails() {
           <ArrowLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Workout Detail</h1>
+        <div className="ml-auto flex items-center gap-2">
+          {editing ? (
+            <>
+              <button onClick={() => setEditing(false)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-muted)' }}>
+                Cancel
+              </button>
+              <button onClick={save} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: 'var(--accent-green)' }}>
+                Save
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setEditing(true)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: 'var(--accent)' }}>
+              Edit
+            </button>
+          )}
+        </div>
       </div>
+
+      {status && (
+        <div className="mb-3 px-3 py-2 rounded-xl text-xs font-semibold" style={{ backgroundColor: 'rgba(78,205,196,0.1)', color: 'var(--accent-green)' }}>
+          {status}
+        </div>
+      )}
 
       <div className="rounded-2xl overflow-hidden mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="h-48 flex items-center justify-center" style={{ backgroundColor: 'rgba(108, 99, 255, 0.08)' }}>
-          {exercise.imageUrl ? (
-            <img src={exercise.imageUrl} alt={exercise.name} className="w-full h-full object-cover" />
+          {(editing ? form.imageUrl : exercise.imageUrl) ? (
+            <img src={editing ? form.imageUrl : exercise.imageUrl} alt={exercise.name} className="w-full h-full object-cover" />
           ) : (
             <Dumbbell size={44} style={{ color: 'var(--accent)' }} />
           )}
         </div>
         <div className="p-4">
-          <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{exercise.name}</p>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{exercise.muscleGroup}</p>
-          {exercise.description && <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>{exercise.description}</p>}
+          {editing ? (
+            <div className="space-y-2">
+              <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+              <select value={form.muscleGroup} onChange={e => setForm(p => ({ ...p, muscleGroup: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
+                <option>Chest</option>
+                <option>Back</option>
+                <option>Shoulders</option>
+                <option>Arms</option>
+                <option>Legs</option>
+                <option>Core</option>
+                <option>Cardio</option>
+                <option>Full Body</option>
+              </select>
+              <input value={form.imageUrl} onChange={e => setForm(p => ({ ...p, imageUrl: e.target.value }))}
+                placeholder="Image URL" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                rows={3} placeholder="Description" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            </div>
+          ) : (
+            <>
+              <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{exercise.name}</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{exercise.muscleGroup}</p>
+              {exercise.description && <p className="text-sm mt-3" style={{ color: 'var(--text-muted)' }}>{exercise.description}</p>}
+            </>
+          )}
         </div>
       </div>
 

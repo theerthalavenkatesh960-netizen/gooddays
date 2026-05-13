@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Dumbbell, Plus, Trash2, Save, Search, Calendar, BookOpen, X, Loader2, Filter } from 'lucide-react';
 import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
 import * as api from '../lib/api';
@@ -34,7 +34,8 @@ const MUSCLE_MAP: Record<string, string> = {
 
 export default function WorkoutLibrarySettings() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'routine' | 'library'>('routine');
+  const location = useLocation();
+  const [tab, setTab] = useState<'routine' | 'library'>(((location.state as any)?.tab as 'routine' | 'library') ?? 'routine');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [split, setSplit] = useState<SplitPreset | null>(null);
@@ -45,10 +46,7 @@ export default function WorkoutLibrarySettings() {
   const [search, setSearch] = useState('');
   const [filterMuscle, setFilterMuscle] = useState<string | null>(null);
   const [showExerciseFilters, setShowExerciseFilters] = useState(false);
-  const [addingToDay, setAddingToDay] = useState<string | null>(null);
-  const [pickExerciseId, setPickExerciseId] = useState<number | null>(null);
-  const [pickSets, setPickSets] = useState(3);
-  const [pickReps, setPickReps] = useState(10);
+  const [lastPickSignature, setLastPickSignature] = useState('');
 
   useEffect(() => { loadAll(); }, []);
 
@@ -110,25 +108,20 @@ export default function WorkoutLibrarySettings() {
     }
   }
 
-  function openAddModal(day: string) {
-    setAddingToDay(day);
-    setPickExerciseId(exercises[0]?.id ?? null);
-    setPickSets(3);
-    setPickReps(10);
+  function openAddPicker(day: string) {
+    navigate('/settings/workout-library/pick', { state: { day } });
   }
 
   function dayKey(date: Date) {
     return format(date, 'EEEE').toLowerCase();
   }
 
-  function addToRoutine(day: string) {
-    if (!pickExerciseId) return;
+  function addToRoutine(day: string, exerciseId: number, sets: number, reps: number) {
     setRoutine(prev => {
       const existing = prev[day] || [];
-      if (existing.some(e => e.exerciseId === pickExerciseId)) return prev;
-      return { ...prev, [day]: [...existing, { exerciseId: pickExerciseId, sets: pickSets, reps: pickReps }] };
+      if (existing.some(e => e.exerciseId === exerciseId)) return prev;
+      return { ...prev, [day]: [...existing, { exerciseId, sets, reps }] };
     });
-    setAddingToDay(null);
   }
 
   function removeFromRoutine(day: string, exerciseId: number) {
@@ -147,7 +140,17 @@ export default function WorkoutLibrarySettings() {
     return result;
   }, [exercises, filterMuscle, search]);
 
-  const pickedExercise = exercises.find(e => e.id === pickExerciseId) ?? null;
+  useEffect(() => {
+    const state: any = location.state || {};
+    const pick = state.routinePick;
+    if (state.tab) setTab(state.tab);
+    if (!pick?.day || !pick?.exerciseId) return;
+    const signature = `${pick.day}-${pick.exerciseId}-${pick.sets}-${pick.reps}`;
+    if (signature === lastPickSignature) return;
+    setLastPickSignature(signature);
+    addToRoutine(pick.day, Number(pick.exerciseId), Math.max(1, Number(pick.sets) || 3), Math.max(1, Number(pick.reps) || 10));
+  }, [location.state]);
+
   const selectedDay = dayKey(selectedDate);
   const selectedDayEntries = routine[selectedDay] || [];
   const selectedDayExercises = selectedDayEntries
@@ -277,7 +280,7 @@ export default function WorkoutLibrarySettings() {
               <div className="flex items-center gap-2">
                 {selectedDayExercises.length > 0 && <MuscleVisualization intensity={selectedIntensity} side="front" height={48} />}
                 <button
-                  onClick={() => openAddModal(selectedDay)}
+                  onClick={() => openAddPicker(selectedDay)}
                   className="w-8 h-8 rounded-xl flex items-center justify-center press"
                   style={{ backgroundColor: 'rgba(108, 99, 255, 0.15)', color: 'var(--accent)' }}
                 >
@@ -321,7 +324,7 @@ export default function WorkoutLibrarySettings() {
               </div>
             ) : (
               <button
-                onClick={() => openAddModal(selectedDay)}
+                onClick={() => openAddPicker(selectedDay)}
                 className="w-full py-4 rounded-xl flex items-center justify-center gap-2 text-sm press"
                 style={{ border: '1.5px dashed var(--border)', color: 'var(--text-muted)' }}
               >
@@ -438,80 +441,6 @@ export default function WorkoutLibrarySettings() {
         </>
       )}
 
-      {/* ── ADD EXERCISE BOTTOM SHEET ── */}
-      {addingToDay && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center"
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
-          onClick={e => { if (e.target === e.currentTarget) setAddingToDay(null); }}
-        >
-          <div className="w-full max-w-md rounded-t-3xl p-5 pb-8" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-base font-bold capitalize" style={{ color: 'var(--text-primary)' }}>
-                Add to <span style={{ color: 'var(--accent)' }}>{addingToDay}</span>
-              </p>
-              <button onClick={() => setAddingToDay(null)} className="w-8 h-8 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                <X size={16} style={{ color: 'var(--text-secondary)' }} />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <select
-                value={pickExerciseId ?? ''}
-                onChange={e => setPickExerciseId(Number(e.target.value))}
-                className="w-full px-3 py-2 text-sm rounded-xl outline-none"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-              >
-                <option value="">Select exercise</option>
-                {exercises.map(ex => <option key={ex.id} value={ex.id}>{ex.name} — {ex.muscleGroup}</option>)}
-              </select>
-
-              {pickedExercise && (
-                <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                  <div className="w-14 h-14 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0" style={{ backgroundColor: 'rgba(108, 99, 255, 0.1)' }}>
-                    {pickedExercise.imageUrl
-                      ? <img src={pickedExercise.imageUrl} alt={pickedExercise.name} className="w-full h-full object-cover" />
-                      : <Dumbbell size={22} style={{ color: 'var(--accent)' }} />
-                    }
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{pickedExercise.name}</p>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{pickedExercise.muscleGroup}</p>
-                    {pickedExercise.description && (
-                      <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{pickedExercise.description}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: 'Sets', value: pickSets, set: setPickSets, min: 1, max: 20 },
-                  { label: 'Reps', value: pickReps, set: setPickReps, min: 1, max: 100 },
-                ].map(({ label, value, set, min, max }) => (
-                  <div key={label} className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide mb-2 text-center" style={{ color: 'var(--text-muted)' }}>{label}</p>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => set(v => Math.max(min, v - 1))} className="w-8 h-8 rounded-lg text-sm font-bold press" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}>−</button>
-                      <span className="flex-1 text-center text-lg font-bold" style={{ color: 'var(--accent)' }}>{value}</span>
-                      <button onClick={() => set(v => Math.min(max, v + 1))} className="w-8 h-8 rounded-lg text-sm font-bold press" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}>+</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={() => addingToDay && addToRoutine(addingToDay)}
-                disabled={!pickExerciseId}
-                className="w-full h-11 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
-                style={{ backgroundColor: pickExerciseId ? 'var(--accent)' : 'var(--border)', opacity: pickExerciseId ? 1 : 0.6 }}
-              >
-                <Plus size={14} /> Add to {addingToDay}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

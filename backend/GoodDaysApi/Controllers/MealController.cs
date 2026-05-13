@@ -40,6 +40,23 @@ public class MealController : ControllerBase
         return Ok(body);
     }
 
+    [HttpPut("ingredients/{id}")]
+    public async Task<IActionResult> UpdateIngredient(int id, [FromBody] MealIngredient body)
+    {
+        var userId = GetUserId();
+        var item = await _db.MealIngredients.FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId);
+        if (item is null) return NotFound();
+
+        item.Name = body.Name;
+        item.CaloriesKcal = body.CaloriesKcal;
+        item.ProteinG = body.ProteinG;
+        item.CarbsG = body.CarbsG;
+        item.FatsG = body.FatsG;
+
+        await _db.SaveChangesAsync();
+        return Ok(item);
+    }
+
     [HttpDelete("ingredients/{id}")]
     public async Task<IActionResult> DeleteIngredient(int id)
     {
@@ -68,6 +85,24 @@ public class MealController : ControllerBase
         _db.MealTemplates.Add(body);
         await _db.SaveChangesAsync();
         return Ok(body);
+    }
+
+    [HttpPut("templates/{id}")]
+    public async Task<IActionResult> UpdateTemplate(int id, [FromBody] MealTemplate body)
+    {
+        var userId = GetUserId();
+        var item = await _db.MealTemplates.FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
+        if (item is null) return NotFound();
+
+        item.Name = body.Name;
+        item.Timing = body.Timing;
+        item.TimeOfDay = body.TimeOfDay;
+        item.IngredientsJson = body.IngredientsJson;
+        item.Recipe = body.Recipe;
+        item.ImageUrl = body.ImageUrl;
+
+        await _db.SaveChangesAsync();
+        return Ok(item);
     }
 
     [HttpDelete("templates/{id}")]

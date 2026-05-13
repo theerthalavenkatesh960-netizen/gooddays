@@ -96,8 +96,8 @@ SELECT 1,
   'Pre-Workout: Banana + Dates + Almonds',
   'pre-workout', '06:30',
   '[
-    {"name":"Banana","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3},
-    {"name":"Dates Dried","qty":32,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":0.6,"carbsG":24,"fatsG":0.1},
+    {"name":"Banana","qty":1,"baseQty":1,"baseUnit":"piece","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3},
+    {"name":"Dates Dried","qty":4,"baseQty":1,"baseUnit":"piece","caloriesKcal":89,"proteinG":0.6,"carbsG":24,"fatsG":0.1},
     {"name":"Almonds","qty":10,"baseQty":100,"baseUnit":"g","caloriesKcal":58,"proteinG":2.1,"carbsG":2.2,"fatsG":5.0}
   ]',
   'Soak almonds overnight. Eat banana + dates + almonds 30 min before gym. Fast carbs only — no heavy food before 7 AM session.',
@@ -110,9 +110,9 @@ SELECT 1,
   'Pre-Workout: Bread + Peanut Butter + Banana',
   'pre-workout', '06:30',
   '[
-    {"name":"Whole Wheat Bread Slice","qty":70,"baseQty":100,"baseUnit":"g","caloriesKcal":48,"proteinG":1.9,"carbsG":8.4,"fatsG":0.7},
+    {"name":"Whole Wheat Bread Slice","qty":2,"baseQty":1,"baseUnit":"slice","caloriesKcal":48,"proteinG":1.9,"carbsG":8.4,"fatsG":0.7},
     {"name":"Peanut Butter","qty":15,"baseQty":100,"baseUnit":"g","caloriesKcal":88,"proteinG":3.8,"carbsG":3.0,"fatsG":7.5},
-    {"name":"Banana","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3}
+    {"name":"Banana","qty":1,"baseQty":1,"baseUnit":"piece","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3}
   ]',
   'Spread PB on bread. Eat with banana. Provides sustained carbs + fats for 60-min pull sessions.',
   NULL, now()
@@ -124,8 +124,8 @@ SELECT 1,
   'Pre-Workout: Triple Banana + Dates (Legs Day)',
   'pre-workout', '06:30',
   '[
-    {"name":"Banana","qty":300,"baseQty":100,"baseUnit":"g","caloriesKcal":267,"proteinG":3.3,"carbsG":69,"fatsG":0.9},
-    {"name":"Dates Dried","qty":40,"baseQty":100,"baseUnit":"g","caloriesKcal":111,"proteinG":0.7,"carbsG":30,"fatsG":0.1}
+    {"name":"Banana","qty":3,"baseQty":1,"baseUnit":"piece","caloriesKcal":267,"proteinG":3.3,"carbsG":69,"fatsG":0.9},
+    {"name":"Dates Dried","qty":5,"baseQty":1,"baseUnit":"piece","caloriesKcal":111,"proteinG":0.7,"carbsG":30,"fatsG":0.1}
   ]',
   'Legs day requires maximum glycogen. Eat 3 bananas + 4-5 dates 30 min before. No fats — faster gastric emptying.',
   NULL, now()
@@ -138,7 +138,7 @@ SELECT 1,
   'pre-workout', '06:30',
   '[
     {"name":"Oats Rolled","qty":50,"baseQty":100,"baseUnit":"g","caloriesKcal":195,"proteinG":8.5,"carbsG":33,"fatsG":3.5},
-    {"name":"Banana","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3}
+    {"name":"Banana","qty":1,"baseQty":1,"baseUnit":"piece","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3}
   ]',
   'Soak oats in 200ml water the night before. Eat cold with banana at 6:30 AM. Sustained slow carbs — good for longer push sessions.',
   NULL, now()
@@ -186,10 +186,10 @@ SELECT 1,
   'Breakfast: Scrambled Eggs + Roti + Milk',
   'breakfast', '08:30',
   '[
-    {"name":"Eggs Whole","qty":200,"baseQty":100,"baseUnit":"g","caloriesKcal":286,"proteinG":26,"carbsG":2.2,"fatsG":20},
+    {"name":"Eggs Whole","qty":4,"baseQty":1,"baseUnit":"egg","caloriesKcal":286,"proteinG":26,"carbsG":2.2,"fatsG":20},
     {"name":"Spinach Palak","qty":50,"baseQty":100,"baseUnit":"g","caloriesKcal":12,"proteinG":1.5,"carbsG":1.8,"fatsG":0.2},
     {"name":"Onion","qty":30,"baseQty":100,"baseUnit":"g","caloriesKcal":12,"proteinG":0.3,"carbsG":2.8,"fatsG":0.0},
-    {"name":"Multigrain Roti","qty":120,"baseQty":100,"baseUnit":"g","caloriesKcal":142,"proteinG":5.4,"carbsG":25.2,"fatsG":3.4},
+    {"name":"Multigrain Roti","qty":2,"baseQty":1,"baseUnit":"piece","caloriesKcal":142,"proteinG":5.4,"carbsG":25.2,"fatsG":3.4},
     {"name":"Full Fat Milk","qty":300,"baseQty":100,"baseUnit":"ml","caloriesKcal":183,"proteinG":9.6,"carbsG":14.4,"fatsG":9.9}
   ]',
   'Scramble 4 eggs with spinach, onion, tomato. Serve with 2 multigrain rotis. Drink 300ml milk alongside. ~42g protein. Must finish before 9:15 AM to leave for office.',
@@ -203,8 +203,8 @@ SELECT 1,
   'breakfast', '08:30',
   '[
     {"name":"Oats Rolled","qty":80,"baseQty":100,"baseUnit":"g","caloriesKcal":311,"proteinG":13.6,"carbsG":52.8,"fatsG":5.6},
-    {"name":"Eggs Whole","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":143,"proteinG":13,"carbsG":1.1,"fatsG":10},
-    {"name":"Egg Whites","qty":90,"baseQty":100,"baseUnit":"g","caloriesKcal":47,"proteinG":9.9,"carbsG":0.6,"fatsG":0.2},
+    {"name":"Eggs Whole","qty":2,"baseQty":1,"baseUnit":"egg","caloriesKcal":143,"proteinG":13,"carbsG":1.1,"fatsG":10},
+    {"name":"Egg Whites","qty":3,"baseQty":1,"baseUnit":"egg white","caloriesKcal":47,"proteinG":9.9,"carbsG":0.6,"fatsG":0.2},
     {"name":"Full Fat Milk","qty":300,"baseQty":100,"baseUnit":"ml","caloriesKcal":183,"proteinG":9.6,"carbsG":14.4,"fatsG":9.9}
   ]',
   'Cook oats as upma with peas, carrots, curry leaves, mustard. Make omelette with 3 egg whites + 2 whole eggs. Drink milk with 1 orange (orange not in macros but take for vitamin C). ~38g protein.',
@@ -220,8 +220,8 @@ SELECT 1,
     {"name":"Besan Flour","qty":90,"baseQty":100,"baseUnit":"g","caloriesKcal":307,"proteinG":19.8,"carbsG":50.4,"fatsG":5.4},
     {"name":"Greek Yogurt","qty":150,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":15,"carbsG":5.4,"fatsG":0.6},
     {"name":"Full Fat Milk","qty":300,"baseQty":100,"baseUnit":"ml","caloriesKcal":183,"proteinG":9.6,"carbsG":14.4,"fatsG":9.9},
-    {"name":"Banana","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3},
-    {"name":"Dates Dried","qty":24,"baseQty":100,"baseUnit":"g","caloriesKcal":66,"proteinG":0.4,"carbsG":18,"fatsG":0.0}
+    {"name":"Banana","qty":1,"baseQty":1,"baseUnit":"piece","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3},
+    {"name":"Dates Dried","qty":3,"baseQty":1,"baseUnit":"piece","caloriesKcal":66,"proteinG":0.4,"carbsG":18,"fatsG":0.0}
   ]',
   'Mix besan with water, onion, green chilli, coriander. Make 3 medium chillas. Serve with Greek yogurt. Drink milk. Add banana + 4 dates for extra carbs on leg day. ~40g protein.',
   NULL, now()
@@ -235,7 +235,7 @@ SELECT 1,
   '[
     {"name":"Poha Flattened Rice","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":350,"proteinG":6,"carbsG":77,"fatsG":1},
     {"name":"Roasted Chana","qty":20,"baseQty":100,"baseUnit":"g","caloriesKcal":73,"proteinG":4.4,"carbsG":11,"fatsG":1.4},
-    {"name":"Eggs Whole","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":143,"proteinG":13,"carbsG":1.1,"fatsG":10},
+    {"name":"Eggs Whole","qty":2,"baseQty":1,"baseUnit":"egg","caloriesKcal":143,"proteinG":13,"carbsG":1.1,"fatsG":10},
     {"name":"Full Fat Milk","qty":300,"baseQty":100,"baseUnit":"ml","caloriesKcal":183,"proteinG":9.6,"carbsG":14.4,"fatsG":9.9}
   ]',
   'Cook poha with peanuts, curry leaves, mustard seeds, onion. Serve with 2 boiled eggs. Drink milk + 1 orange separately. Rest day so lighter carbs. ~30g protein.',
@@ -249,9 +249,9 @@ SELECT 1,
   'breakfast', '08:30',
   '[
     {"name":"Moong Dal Flour","qty":90,"baseQty":100,"baseUnit":"g","caloriesKcal":321,"proteinG":21.6,"carbsG":51.3,"fatsG":1.1},
-    {"name":"Eggs Whole","qty":200,"baseQty":100,"baseUnit":"g","caloriesKcal":286,"proteinG":26,"carbsG":2.2,"fatsG":20},
+    {"name":"Eggs Whole","qty":4,"baseQty":1,"baseUnit":"egg","caloriesKcal":286,"proteinG":26,"carbsG":2.2,"fatsG":20},
     {"name":"Full Fat Milk","qty":300,"baseQty":100,"baseUnit":"ml","caloriesKcal":183,"proteinG":9.6,"carbsG":14.4,"fatsG":9.9},
-    {"name":"Banana","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3}
+    {"name":"Banana","qty":1,"baseQty":1,"baseUnit":"piece","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3}
   ]',
   'Soak moong dal overnight or use moong dal flour. Make 3 chillas. 4-egg omelette with onion + tomato. Drink milk + banana. ~44g protein.',
   NULL, now()
@@ -264,10 +264,10 @@ SELECT 1,
   'breakfast', '08:30',
   '[
     {"name":"Moong Dal Flour","qty":90,"baseQty":100,"baseUnit":"g","caloriesKcal":321,"proteinG":21.6,"carbsG":51.3,"fatsG":1.1},
-    {"name":"Eggs Whole","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":143,"proteinG":13,"carbsG":1.1,"fatsG":10},
+    {"name":"Eggs Whole","qty":2,"baseQty":1,"baseUnit":"egg","caloriesKcal":143,"proteinG":13,"carbsG":1.1,"fatsG":10},
     {"name":"Moong Dal Cooked","qty":150,"baseQty":100,"baseUnit":"g","caloriesKcal":158,"proteinG":10.5,"carbsG":28.5,"fatsG":0.6},
     {"name":"Full Fat Milk","qty":300,"baseQty":100,"baseUnit":"ml","caloriesKcal":183,"proteinG":9.6,"carbsG":14.4,"fatsG":9.9},
-    {"name":"Banana","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3}
+    {"name":"Banana","qty":1,"baseQty":1,"baseUnit":"piece","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3}
   ]',
   'Green moong dosa (pesarattu) — 3 pieces with sambar. 2 eggs fried/boiled alongside. Drink milk + banana. High-protein South Indian. ~42g protein.',
   NULL, now()
@@ -280,9 +280,9 @@ SELECT 1,
   'breakfast', '09:00',
   '[
     {"name":"Aloo Potato Cooked","qty":150,"baseQty":100,"baseUnit":"g","caloriesKcal":131,"proteinG":2.9,"carbsG":30,"fatsG":0.2},
-    {"name":"Whole Wheat Roti","qty":180,"baseQty":100,"baseUnit":"g","caloriesKcal":216,"proteinG":7.2,"carbsG":39.6,"fatsG":4.5},
+    {"name":"Whole Wheat Roti","qty":3,"baseQty":1,"baseUnit":"piece","caloriesKcal":216,"proteinG":7.2,"carbsG":39.6,"fatsG":4.5},
     {"name":"Ghee","qty":10,"baseQty":100,"baseUnit":"g","caloriesKcal":90,"proteinG":0,"carbsG":0,"fatsG":10},
-    {"name":"Eggs Whole","qty":200,"baseQty":100,"baseUnit":"g","caloriesKcal":286,"proteinG":26,"carbsG":2.2,"fatsG":20},
+    {"name":"Eggs Whole","qty":4,"baseQty":1,"baseUnit":"egg","caloriesKcal":286,"proteinG":26,"carbsG":2.2,"fatsG":20},
     {"name":"Greek Yogurt","qty":200,"baseQty":100,"baseUnit":"g","caloriesKcal":118,"proteinG":20,"carbsG":7.2,"fatsG":0.8},
     {"name":"Full Fat Milk","qty":300,"baseQty":100,"baseUnit":"ml","caloriesKcal":183,"proteinG":9.6,"carbsG":14.4,"fatsG":9.9}
   ]',
@@ -314,8 +314,8 @@ SELECT 1,
   'Office Snack: Boiled Eggs + Banana + Mixed Nuts',
   'snack', '11:00',
   '[
-    {"name":"Eggs Whole","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":143,"proteinG":13,"carbsG":1.1,"fatsG":10},
-    {"name":"Banana","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3},
+    {"name":"Eggs Whole","qty":2,"baseQty":1,"baseUnit":"egg","caloriesKcal":143,"proteinG":13,"carbsG":1.1,"fatsG":10},
+    {"name":"Banana","qty":1,"baseQty":1,"baseUnit":"piece","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3},
     {"name":"Almonds","qty":15,"baseQty":100,"baseUnit":"g","caloriesKcal":87,"proteinG":3.2,"carbsG":3.3,"fatsG":7.5},
     {"name":"Walnuts","qty":10,"baseQty":100,"baseUnit":"g","caloriesKcal":65,"proteinG":1.5,"carbsG":1.4,"fatsG":6.5}
   ]',
@@ -330,7 +330,7 @@ SELECT 1,
   'snack', '11:00',
   '[
     {"name":"Moong Sprouts Raw","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":30,"proteinG":3,"carbsG":5.8,"fatsG":0.2},
-    {"name":"Eggs Whole","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":143,"proteinG":13,"carbsG":1.1,"fatsG":10},
+    {"name":"Eggs Whole","qty":2,"baseQty":1,"baseUnit":"egg","caloriesKcal":143,"proteinG":13,"carbsG":1.1,"fatsG":10},
     {"name":"Onion","qty":30,"baseQty":100,"baseUnit":"g","caloriesKcal":12,"proteinG":0.3,"carbsG":2.8,"fatsG":0.0},
     {"name":"Lemon Juice","qty":10,"baseQty":100,"baseUnit":"ml","caloriesKcal":3,"proteinG":0.1,"carbsG":0.9,"fatsG":0.0}
   ]',
@@ -345,7 +345,7 @@ SELECT 1,
   'snack', '11:00',
   '[
     {"name":"Roasted Chana","qty":50,"baseQty":100,"baseUnit":"g","caloriesKcal":182,"proteinG":11,"carbsG":27.5,"fatsG":3.5},
-    {"name":"Banana","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3},
+    {"name":"Banana","qty":1,"baseQty":1,"baseUnit":"piece","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3},
     {"name":"Walnuts","qty":15,"baseQty":100,"baseUnit":"g","caloriesKcal":98,"proteinG":2.3,"carbsG":2.1,"fatsG":9.8}
   ]',
   'Pack roasted chana in small pouch. Carry banana separately. Eat walnuts for omega-3 (hair). Easy no-prep office snack. ~14g protein.',
@@ -410,7 +410,7 @@ SELECT 1,
   '[
     {"name":"Fish Rohu Cooked","qty":150,"baseQty":100,"baseUnit":"g","caloriesKcal":222,"proteinG":39,"carbsG":0,"fatsG":6.8},
     {"name":"White Rice Cooked","qty":200,"baseQty":100,"baseUnit":"g","caloriesKcal":260,"proteinG":5.4,"carbsG":56,"fatsG":0.6},
-    {"name":"Whole Wheat Roti","qty":60,"baseQty":100,"baseUnit":"g","caloriesKcal":72,"proteinG":2.4,"carbsG":13.2,"fatsG":1.5},
+    {"name":"Whole Wheat Roti","qty":1,"baseQty":1,"baseUnit":"piece","caloriesKcal":72,"proteinG":2.4,"carbsG":13.2,"fatsG":1.5},
     {"name":"Toor Dal Cooked","qty":150,"baseQty":100,"baseUnit":"g","caloriesKcal":174,"proteinG":10.5,"carbsG":31.5,"fatsG":0.6},
     {"name":"Coconut Chutney","qty":30,"baseQty":100,"baseUnit":"g","caloriesKcal":57,"proteinG":0.6,"carbsG":2.4,"fatsG":5.1}
   ]',
@@ -477,7 +477,7 @@ SELECT 1,
   'snack', '16:30',
   '[
     {"name":"Roasted Chana","qty":50,"baseQty":100,"baseUnit":"g","caloriesKcal":182,"proteinG":11,"carbsG":27.5,"fatsG":3.5},
-    {"name":"Banana","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3},
+    {"name":"Banana","qty":1,"baseQty":1,"baseUnit":"piece","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3},
     {"name":"Walnuts","qty":15,"baseQty":100,"baseUnit":"g","caloriesKcal":98,"proteinG":2.3,"carbsG":2.1,"fatsG":9.8}
   ]',
   'Keep roasted chana in office drawer. Carry banana. Walnuts are critical — omega-3 is the most lacking fatty acid for hair health in Indian diets. ~14g protein.',
@@ -490,9 +490,9 @@ SELECT 1,
   'Evening Snack: Peanut Butter Bread + Banana',
   'snack', '16:30',
   '[
-    {"name":"Whole Wheat Bread Slice","qty":70,"baseQty":100,"baseUnit":"g","caloriesKcal":48,"proteinG":1.9,"carbsG":8.4,"fatsG":0.7},
+    {"name":"Whole Wheat Bread Slice","qty":2,"baseQty":1,"baseUnit":"slice","caloriesKcal":48,"proteinG":1.9,"carbsG":8.4,"fatsG":0.7},
     {"name":"Peanut Butter","qty":30,"baseQty":100,"baseUnit":"g","caloriesKcal":176,"proteinG":7.5,"carbsG":6,"fatsG":15},
-    {"name":"Banana","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3}
+    {"name":"Banana","qty":1,"baseQty":1,"baseUnit":"piece","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3}
   ]',
   '2 bread slices + 2 tbsp PB + banana. Quick to assemble. Good fat + carb combo for afternoon energy without post-workout spike needed. ~10g protein.',
   NULL, now()
@@ -505,7 +505,7 @@ SELECT 1,
   'snack', '16:30',
   '[
     {"name":"Sweet Potato Cooked","qty":200,"baseQty":100,"baseUnit":"g","caloriesKcal":180,"proteinG":4,"carbsG":42,"fatsG":0.2},
-    {"name":"Eggs Whole","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":143,"proteinG":13,"carbsG":1.1,"fatsG":10},
+    {"name":"Eggs Whole","qty":2,"baseQty":1,"baseUnit":"egg","caloriesKcal":143,"proteinG":13,"carbsG":1.1,"fatsG":10},
     {"name":"Full Fat Milk","qty":200,"baseQty":100,"baseUnit":"ml","caloriesKcal":122,"proteinG":6.4,"carbsG":9.6,"fatsG":6.6}
   ]',
   'Roast sweet potato in air fryer or oven — no oil needed. Eat with 2 boiled eggs. Drink milk. Beta-carotene in sweet potato converts to vitamin A — regulates scalp sebum. ~22g protein.',
@@ -532,7 +532,7 @@ SELECT 1,
   'Evening Snack: Protein Smoothie (Banana + Whey + PB + Milk)',
   'snack', '16:30',
   '[
-    {"name":"Banana","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3},
+    {"name":"Banana","qty":1,"baseQty":1,"baseUnit":"piece","caloriesKcal":89,"proteinG":1.1,"carbsG":23,"fatsG":0.3},
     {"name":"Whey Protein Powder","qty":30,"baseQty":100,"baseUnit":"g","caloriesKcal":36,"proteinG":25,"carbsG":3,"fatsG":0.5},
     {"name":"Peanut Butter","qty":15,"baseQty":100,"baseUnit":"g","caloriesKcal":88,"proteinG":3.8,"carbsG":3,"fatsG":7.5},
     {"name":"Full Fat Milk","qty":300,"baseQty":100,"baseUnit":"ml","caloriesKcal":183,"proteinG":9.6,"carbsG":14.4,"fatsG":9.9},
@@ -554,7 +554,7 @@ SELECT 1,
   '[
     {"name":"Paneer","qty":150,"baseQty":100,"baseUnit":"g","caloriesKcal":398,"proteinG":27,"carbsG":5.1,"fatsG":30},
     {"name":"Rajma Cooked","qty":150,"baseQty":100,"baseUnit":"g","caloriesKcal":191,"proteinG":13.1,"carbsG":33,"fatsG":0.8},
-    {"name":"Whole Wheat Roti","qty":180,"baseQty":100,"baseUnit":"g","caloriesKcal":216,"proteinG":7.2,"carbsG":39.6,"fatsG":4.5},
+    {"name":"Whole Wheat Roti","qty":3,"baseQty":1,"baseUnit":"piece","caloriesKcal":216,"proteinG":7.2,"carbsG":39.6,"fatsG":4.5},
     {"name":"Raita Curd Cucumber","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":62,"proteinG":3.1,"carbsG":4.8,"fatsG":3.2}
   ]',
   'Paneer bhurji with onion, tomato, capsicum. Rajma curry (iron + fiber). 3 rotis. Raita for probiotics + zinc. ~40g protein.',
@@ -570,7 +570,7 @@ SELECT 1,
     {"name":"Chicken Breast Cooked","qty":150,"baseQty":100,"baseUnit":"g","caloriesKcal":248,"proteinG":46.5,"carbsG":0,"fatsG":5.4},
     {"name":"Masoor Dal Cooked","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":116,"proteinG":9,"carbsG":20,"fatsG":0.4},
     {"name":"Spinach Palak","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":23,"proteinG":2.9,"carbsG":3.6,"fatsG":0.4},
-    {"name":"Multigrain Roti","qty":180,"baseQty":100,"baseUnit":"g","caloriesKcal":212,"proteinG":8.1,"carbsG":37.8,"fatsG":5.0}
+    {"name":"Multigrain Roti","qty":3,"baseQty":1,"baseUnit":"piece","caloriesKcal":212,"proteinG":8.1,"carbsG":37.8,"fatsG":5.0}
   ]',
   'Chicken in light curry. Palak + dal combined (iron double hit). 3 rotis. Lemon on dal. ~44g protein, highest iron dinner.',
   NULL, now()
@@ -582,11 +582,11 @@ SELECT 1,
   'Dinner: Egg Curry + Paneer + Chana Dal + Spinach + Rotis',
   'dinner', '20:00',
   '[
-    {"name":"Eggs Whole","qty":200,"baseQty":100,"baseUnit":"g","caloriesKcal":286,"proteinG":26,"carbsG":2.2,"fatsG":20},
+    {"name":"Eggs Whole","qty":4,"baseQty":1,"baseUnit":"egg","caloriesKcal":286,"proteinG":26,"carbsG":2.2,"fatsG":20},
     {"name":"Paneer","qty":75,"baseQty":100,"baseUnit":"g","caloriesKcal":199,"proteinG":13.5,"carbsG":2.6,"fatsG":15},
     {"name":"Chana Dal Cooked","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":164,"proteinG":8,"carbsG":27,"fatsG":2.7},
     {"name":"Spinach Palak","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":23,"proteinG":2.9,"carbsG":3.6,"fatsG":0.4},
-    {"name":"Whole Wheat Roti","qty":120,"baseQty":100,"baseUnit":"g","caloriesKcal":144,"proteinG":4.8,"carbsG":26.4,"fatsG":3.0}
+    {"name":"Whole Wheat Roti","qty":2,"baseQty":1,"baseUnit":"piece","caloriesKcal":144,"proteinG":4.8,"carbsG":26.4,"fatsG":3.0}
   ]',
   '4 eggs any style (curry/bhurji/boiled). 75g paneer on the side. Chana dal + spinach. 2 rotis (leg day dinner — reduce carbs a little). ~44g protein.',
   NULL, now()
@@ -601,7 +601,7 @@ SELECT 1,
     {"name":"Rajma Cooked","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":127,"proteinG":8.7,"carbsG":22,"fatsG":0.5},
     {"name":"Masoor Dal Cooked","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":116,"proteinG":9,"carbsG":20,"fatsG":0.4},
     {"name":"Paneer","qty":150,"baseQty":100,"baseUnit":"g","caloriesKcal":398,"proteinG":27,"carbsG":5.1,"fatsG":30},
-    {"name":"Multigrain Roti","qty":180,"baseQty":100,"baseUnit":"g","caloriesKcal":212,"proteinG":8.1,"carbsG":37.8,"fatsG":5.0}
+    {"name":"Multigrain Roti","qty":3,"baseQty":1,"baseUnit":"piece","caloriesKcal":212,"proteinG":8.1,"carbsG":37.8,"fatsG":5.0}
   ]',
   'Dal makhani = rajma + masoor combo slow-cooked. Paneer tikka grilled in air fryer (skip cream marinade). 3 rotis. Rest day so this is the main protein source. ~38g protein.',
   NULL, now()
@@ -613,10 +613,10 @@ SELECT 1,
   'Dinner: Egg Bhurji + Palak Paneer + Rotis + Raita',
   'dinner', '20:00',
   '[
-    {"name":"Eggs Whole","qty":200,"baseQty":100,"baseUnit":"g","caloriesKcal":286,"proteinG":26,"carbsG":2.2,"fatsG":20},
+    {"name":"Eggs Whole","qty":4,"baseQty":1,"baseUnit":"egg","caloriesKcal":286,"proteinG":26,"carbsG":2.2,"fatsG":20},
     {"name":"Paneer","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":265,"proteinG":18,"carbsG":3.4,"fatsG":20},
     {"name":"Spinach Palak","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":23,"proteinG":2.9,"carbsG":3.6,"fatsG":0.4},
-    {"name":"Whole Wheat Roti","qty":180,"baseQty":100,"baseUnit":"g","caloriesKcal":216,"proteinG":7.2,"carbsG":39.6,"fatsG":4.5},
+    {"name":"Whole Wheat Roti","qty":3,"baseQty":1,"baseUnit":"piece","caloriesKcal":216,"proteinG":7.2,"carbsG":39.6,"fatsG":4.5},
     {"name":"Raita Curd Cucumber","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":62,"proteinG":3.1,"carbsG":4.8,"fatsG":3.2}
   ]',
   'Egg bhurji (4 eggs with onion, tomato). Palak paneer (100g paneer + spinach). 3 rotis + raita. Best iron dinner — spinach in palak paneer with lemon on the side. ~46g protein.',
@@ -632,7 +632,7 @@ SELECT 1,
     {"name":"Fish Rohu Cooked","qty":150,"baseQty":100,"baseUnit":"g","caloriesKcal":222,"proteinG":39,"carbsG":0,"fatsG":6.8},
     {"name":"Masoor Dal Cooked","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":116,"proteinG":9,"carbsG":20,"fatsG":0.4},
     {"name":"Spinach Palak","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":23,"proteinG":2.9,"carbsG":3.6,"fatsG":0.4},
-    {"name":"Multigrain Roti","qty":180,"baseQty":100,"baseUnit":"g","caloriesKcal":212,"proteinG":8.1,"carbsG":37.8,"fatsG":5.0},
+    {"name":"Multigrain Roti","qty":3,"baseQty":1,"baseUnit":"piece","caloriesKcal":212,"proteinG":8.1,"carbsG":37.8,"fatsG":5.0},
     {"name":"Raita Curd Cucumber","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":62,"proteinG":3.1,"carbsG":4.8,"fatsG":3.2}
   ]',
   'Grilled fish (air fryer or tawa, minimal oil). Masoor dal + palak combo. 3 rotis. Raita. Omega-3 + iron + folate in one dinner. ~44g protein.',
@@ -648,7 +648,7 @@ SELECT 1,
     {"name":"Paneer","qty":150,"baseQty":100,"baseUnit":"g","caloriesKcal":398,"proteinG":27,"carbsG":5.1,"fatsG":30},
     {"name":"Masoor Dal Cooked","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":116,"proteinG":9,"carbsG":20,"fatsG":0.4},
     {"name":"Spinach Palak","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":23,"proteinG":2.9,"carbsG":3.6,"fatsG":0.4},
-    {"name":"Whole Wheat Roti","qty":180,"baseQty":100,"baseUnit":"g","caloriesKcal":216,"proteinG":7.2,"carbsG":39.6,"fatsG":4.5},
+    {"name":"Whole Wheat Roti","qty":3,"baseQty":1,"baseUnit":"piece","caloriesKcal":216,"proteinG":7.2,"carbsG":39.6,"fatsG":4.5},
     {"name":"Raita Curd Cucumber","qty":100,"baseQty":100,"baseUnit":"g","caloriesKcal":62,"proteinG":3.1,"carbsG":4.8,"fatsG":3.2}
   ]',
   'Sunday night — light prep, good nutrition. Paneer curry (light gravy). Palak dal. 3 rotis + raita. Week ends on high protein note. ~38g protein.',

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Filter, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowLeft, Filter, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import * as api from '../lib/api';
 
 type Ingredient = {
@@ -21,6 +21,8 @@ export default function MealIngredientLibraryPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [search, setSearch] = useState('');
   const [macroFocus, setMacroFocus] = useState<'all' | 'protein' | 'carbs' | 'fats'>('all');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editing, setEditing] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
   const [form, setForm] = useState({
     name: '', calories: '', protein: '', carbs: '', fats: '', baseQty: '100', baseUnit: 'g',
   });
@@ -61,6 +63,36 @@ export default function MealIngredientLibraryPage() {
   async function remove(id: number) {
     await api.deleteMealIngredient(id);
     setIngredients(prev => prev.filter(i => i.id !== id));
+  }
+
+  function beginEdit(item: Ingredient) {
+    setEditingId(item.id);
+    setEditing({
+      name: item.name,
+      calories: String(item.caloriesKcal ?? 0),
+      protein: String(item.proteinG ?? 0),
+      carbs: String(item.carbsG ?? 0),
+      fats: String(item.fatsG ?? 0),
+    });
+  }
+
+  async function saveEdit(id: number) {
+    if (!editing.name.trim()) return;
+    try {
+      const updated = await (api as any).updateMealIngredient(id, {
+        name: editing.name.trim(),
+        caloriesKcal: Math.max(0, Number(editing.calories) || 0),
+        proteinG: Math.max(0, Number(editing.protein) || 0),
+        carbsG: Math.max(0, Number(editing.carbs) || 0),
+        fatsG: Math.max(0, Number(editing.fats) || 0),
+      });
+      setIngredients(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i));
+      setEditingId(null);
+      setStatus('Ingredient updated');
+      setTimeout(() => setStatus(''), 1200);
+    } catch (e: any) {
+      setStatus(e?.message || 'Failed to update ingredient');
+    }
   }
 
   const filtered = useMemo(() => {
@@ -148,17 +180,47 @@ export default function MealIngredientLibraryPage() {
         <div className="space-y-2 max-h-[50vh] overflow-y-auto">
           {filtered.map(i => (
             <div key={i.id} className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{i.name}</span>
-                <button onClick={() => remove(i.id)} className="p-1 rounded-lg" style={{ color: 'var(--accent-warm)' }}><Trash2 size={14} /></button>
-              </div>
-              <p className="text-[10px] mb-1.5" style={{ color: 'var(--text-muted)' }}>per {Number(i.baseQty || 100)} {i.baseUnit || 'g'}</p>
-              <div className="flex items-center gap-3 text-[10px]">
-                <span style={{ color: 'var(--accent-gold)' }}>{i.caloriesKcal} kcal</span>
-                <span style={{ color: '#FF6B6B' }}>{i.proteinG}g P</span>
-                <span style={{ color: '#FFD93D' }}>{i.carbsG}g C</span>
-                <span style={{ color: '#4ECDC4' }}>{i.fatsG}g F</span>
-              </div>
+              {editingId === i.id ? (
+                <div className="space-y-2">
+                  <input value={editing.name} onChange={e => setEditing(p => ({ ...p, name: e.target.value }))}
+                    className="w-full px-2.5 py-2 text-sm rounded-lg outline-none" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="number" value={editing.calories} onChange={e => setEditing(p => ({ ...p, calories: e.target.value }))}
+                      placeholder="kcal" className="px-2.5 py-2 text-xs rounded-lg outline-none" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }} />
+                    <input type="number" value={editing.protein} onChange={e => setEditing(p => ({ ...p, protein: e.target.value }))}
+                      placeholder="Protein" className="px-2.5 py-2 text-xs rounded-lg outline-none" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }} />
+                    <input type="number" value={editing.carbs} onChange={e => setEditing(p => ({ ...p, carbs: e.target.value }))}
+                      placeholder="Carbs" className="px-2.5 py-2 text-xs rounded-lg outline-none" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }} />
+                    <input type="number" value={editing.fats} onChange={e => setEditing(p => ({ ...p, fats: e.target.value }))}
+                      placeholder="Fats" className="px-2.5 py-2 text-xs rounded-lg outline-none" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => saveEdit(i.id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: 'var(--accent-green)' }}>
+                      Save
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-muted)' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-1.5 gap-2">
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{i.name}</span>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => beginEdit(i)} className="p-1 rounded-lg" style={{ color: 'var(--accent)' }}><Pencil size={14} /></button>
+                      <button onClick={() => remove(i.id)} className="p-1 rounded-lg" style={{ color: 'var(--accent-warm)' }}><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                  <p className="text-[10px] mb-1.5" style={{ color: 'var(--text-muted)' }}>per {Number(i.baseQty || 100)} {i.baseUnit || 'g'}</p>
+                  <div className="flex items-center gap-3 text-[10px]">
+                    <span style={{ color: 'var(--accent-gold)' }}>{i.caloriesKcal} kcal</span>
+                    <span style={{ color: '#FF6B6B' }}>{i.proteinG}g P</span>
+                    <span style={{ color: '#FFD93D' }}>{i.carbsG}g C</span>
+                    <span style={{ color: '#4ECDC4' }}>{i.fatsG}g F</span>
+                  </div>
+                </>
+              )}
             </div>
           ))}
           {filtered.length === 0 && <p className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>No ingredients match the current filters.</p>}

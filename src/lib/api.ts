@@ -1919,6 +1919,15 @@ export async function deleteMealIngredient(id: number) {
   return request(`meal/ingredients/${id}`, { method: 'DELETE' });
 }
 
+export async function updateMealIngredient(id: number, body: any) {
+  if (DUMMY_FLAGS.meals) {
+    const item = DUMMY_MEAL_INGREDIENTS.find(i => i.id === id);
+    if (item) Object.assign(item, body);
+    return Promise.resolve(item);
+  }
+  return request(`meal/ingredients/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
 /**
  * Meal API Functions
  * 
@@ -1954,6 +1963,15 @@ export async function deleteMealTemplate(id: number) {
     return Promise.resolve({ success: true });
   }
   return request(`meal/templates/${id}`, { method: 'DELETE' });
+}
+
+export async function updateMealTemplate(id: number, body: any) {
+  if (DUMMY_FLAGS.meals) {
+    const item = DUMMY_MEAL_TEMPLATES.find(m => m.id === id);
+    if (item) Object.assign(item, body);
+    return Promise.resolve(item);
+  }
+  return request(`meal/templates/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
 export async function getWeeklyMealPlan() {
