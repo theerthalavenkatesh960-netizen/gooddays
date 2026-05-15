@@ -608,6 +608,14 @@ export default function Finance() {
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Finance</h1>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => navigate('/finance/cards')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+          >
+            <Wallet size={14} style={{ color: 'var(--text-secondary)' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Cards</span>
+          </button>
+          <button
             onClick={() => setTab('Analytics')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
             style={{
