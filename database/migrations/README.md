@@ -76,6 +76,18 @@ psql -U postgres -d gooddays -f 001_up.sql
 psql -U postgres -d gooddays -f 002_up.sql
 ```
 
+### Seed Data (Separated Scripts)
+```bash
+# Seed meals only (ingredients + meal templates)
+psql -U postgres -d gooddays -f seed_meals.sql
+
+# Seed workouts only (exercise library + lean bulk split preset)
+psql -U postgres -d gooddays -f seed_workouts.sql
+```
+
+Notes:
+- Run `seed_meals.sql` and `seed_workouts.sql` separately.
+
 ### Verify Installation
 ```bash
 psql -U postgres -d gooddays -c "SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = 'public';"

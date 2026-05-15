@@ -396,7 +396,11 @@ CREATE INDEX IF NOT EXISTS idx_financial_rules_category ON financial_rules(categ
 CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_year_month ON monthly_snapshots(year DESC, month DESC);
 CREATE INDEX IF NOT EXISTS idx_finance_fixed_expenses_profile_sort ON finance_fixed_expenses(profile_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_exercises_user_id ON exercises(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_exercises_user_name_ci
+  ON exercises (COALESCE(user_id, 0), lower(name));
 CREATE INDEX IF NOT EXISTS idx_workout_split_presets_user_id ON workout_split_presets(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_workout_split_presets_user_name_ci
+  ON workout_split_presets (user_id, lower(name));
 CREATE INDEX IF NOT EXISTS idx_workout_day_plans_user_date ON workout_day_plans(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_workout_sets_workout_day_plan_id ON workout_sets(workout_day_plan_id);
 CREATE INDEX IF NOT EXISTS idx_workout_day_images_workout_day_plan_id ON workout_day_images(workout_day_plan_id);
@@ -453,7 +457,11 @@ CREATE TABLE IF NOT EXISTS weekly_meal_plans (
 );
 
 CREATE INDEX IF NOT EXISTS idx_meal_ingredients_user_id ON meal_ingredients(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_meal_ingredients_user_name_ci
+  ON meal_ingredients (user_id, lower(name));
 CREATE INDEX IF NOT EXISTS idx_meal_templates_user_id ON meal_templates(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_meal_templates_user_name_ci
+  ON meal_templates (user_id, lower(name));
 CREATE INDEX IF NOT EXISTS idx_weekly_meal_plans_user_id ON weekly_meal_plans(user_id);
 
 -- ===================================================================

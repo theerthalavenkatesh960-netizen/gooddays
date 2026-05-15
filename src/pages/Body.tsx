@@ -37,7 +37,12 @@ type MealTemplate = {
   imageUrl?: string;
 };
 
-type WeeklyMealPlan = { planJson?: string } | null;
+type MealAssignment = {
+  mealTemplateId?: number;
+  timeOfDay?: string;
+};
+
+type WeeklyMealPlan = { planJson?: string; plan_json?: string } | null;
 type DailyMealLog = { date: string; mealIds: number[] };
 
 type WorkoutLog = {
@@ -356,6 +361,21 @@ function parseMealIngredients(json: string): MealIngredient[] {
   }
 }
 
+function normalizePlannedMealIdsForDay(dayValue: unknown): number[] {
+  if (!Array.isArray(dayValue)) return [];
+
+  return dayValue
+    .map(item => {
+      if (typeof item === 'number') return item;
+      if (item && typeof item === 'object' && 'mealTemplateId' in item) {
+        const id = Number((item as MealAssignment).mealTemplateId);
+        return Number.isFinite(id) ? id : null;
+      }
+      return null;
+    })
+    .filter((id): id is number => Number.isFinite(id));
+}
+
 function DietTab() {
   const [plannedMeals, setPlannedMeals] = useState<MealTemplate[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
@@ -383,8 +403,9 @@ function DietTab() {
 
         let plannedIds: number[] = [];
         try {
-          const map = weeklyPlan?.planJson ? JSON.parse(weeklyPlan.planJson) : {};
-          plannedIds = Array.isArray(map?.[todayKey]) ? map[todayKey] : [];
+          const rawPlanJson = weeklyPlan?.planJson ?? weeklyPlan?.plan_json;
+          const map = rawPlanJson ? JSON.parse(rawPlanJson) : {};
+          plannedIds = normalizePlannedMealIdsForDay(map?.[todayKey]);
         } catch {
           plannedIds = [];
         }
