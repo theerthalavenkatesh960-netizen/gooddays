@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { AlertCircle, Gift, Clock, Zap } from 'lucide-react';
+import { AlertCircle, Gift, Clock } from 'lucide-react';
 import {
   generateCardDesign,
   calculateCategoryDiversity,
@@ -153,17 +153,6 @@ export default function EnhancedCreditCardComponent({
               </motion.p>
               <h3 className="text-xl font-black tracking-tight">{card.name}</h3>
             </div>
-            <motion.div
-              animate={{ rotate: [0, 360] }}
-              transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 5 }}
-              className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 hover:bg-white/30"
-            >
-              {card.EmiAmount && card.EmiRemainingCount ? (
-                <Zap size={24} className="text-yellow-300" />
-              ) : (
-                <Gift size={24} className="text-amber-300" />
-              )}
-            </motion.div>
           </div>
 
           {/* Status Row */}
