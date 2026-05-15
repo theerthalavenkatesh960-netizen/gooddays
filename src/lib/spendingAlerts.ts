@@ -26,6 +26,7 @@ export function generateSpendingAlert(
   creditLimit: number,
   rewardsPoints: number
 ): SpendingAlert | null {
+  void rewardsPoints;
   const utilization = creditLimit > 0 ? (currentBalance / creditLimit) * 100 : 0;
   const id = `alert-${cardId}-${Date.now()}`;
 

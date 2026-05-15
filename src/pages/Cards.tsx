@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronRight, Plus, Upload, TrendingUp, DollarSign, Gift,
+  Upload, TrendingUp, DollarSign, Gift,
   Wallet, BarChart3, PieChart, LineChart, CreditCard as CardIcon,
-  Eye, EyeOff, Download, Edit2, ArrowUpRight
+  ArrowUpRight
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { useAuth } from '../../contexts/AuthContextApi';
-import cardApi, { CreditCard, CardAnalytics as CardAnalyticsType } from '../../lib/cardApi';
-import BankStatementImport from '../../components/financial/BankStatementImport';
-import CreditCardComponent from '../../components/financial/CreditCardComponent';
-import CardAnalyticsComponent from '../../components/financial/CardAnalytics';
-import EnhancedCreditCardComponent from '../../components/financial/EnhancedCreditCardComponent';
-import SpendingAlertBanner from '../../components/financial/SpendingAlertBanner';
-import RewardRedemptionModal from '../../components/financial/RewardRedemptionModal';
-import { generateSpendingAlert, SpendingAlert } from '../../lib/spendingAlerts';
+import { startOfMonth, endOfMonth } from 'date-fns';
+import { useAuth } from '../contexts/AuthContextApi';
+import cardApi, { CreditCard, CardAnalytics as CardAnalyticsType } from '../lib/cardApi';
+import BankStatementImport from '../components/financial/BankStatementImport';
+import CreditCardComponent from '../components/financial/CreditCardComponent';
+import CardAnalyticsComponent from '../components/financial/CardAnalytics';
+import EnhancedCreditCardComponent from '../components/financial/EnhancedCreditCardComponent';
+import SpendingAlertBanner from '../components/financial/SpendingAlertBanner';
+import RewardRedemptionModal from '../components/financial/RewardRedemptionModal';
+import { generateSpendingAlert, SpendingAlert } from '../lib/spendingAlerts';
 
 type TabType = 'overview' | 'card1' | 'card2' | 'card3' | 'combined';
 
@@ -28,20 +28,17 @@ export default function Cards() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [cards, setCards] = useState<CardWithAnalytics[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showImport, setShowImport] = useState(false);
   const [selectedCardIndex, setSelectedCardIndex] = useState(0);
-  const [showAllCards, setShowAllCards] = useState(false);
   const [showRewardModal, setShowRewardModal] = useState(false);
   const [alerts, setAlerts] = useState<SpendingAlert[]>([]);
-  const [dateRange, setDateRange] = useState({
+  const [dateRange] = useState({
     start: startOfMonth(new Date()),
     end: endOfMonth(new Date())
   });
 
   const loadCards = async () => {
     if (!user) return;
-    setLoading(true);
     try {
       const fetchedCards = await cardApi.getCards(user.id);
       
@@ -79,8 +76,6 @@ export default function Cards() {
       setAlerts(cardAlerts);
     } catch (err) {
       console.error('Failed to load cards:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -253,7 +248,7 @@ export default function Cards() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  setActiveTab(tab.id);
+                  setActiveTab(tab.id as TabType);
                   if (tab.id.startsWith('card')) {
                     setSelectedCardIndex(parseInt(tab.id.replace('card', '')) - 1);
                   }
@@ -320,11 +315,6 @@ export default function Cards() {
                   alerts={alerts.filter(a => a.cardId === currentCard.id.toString())}
                   onDismiss={(id) => {
                     setAlerts(prev => prev.filter(a => a.id !== id));
-                  }}
-                  onAction={(action) => {
-                    if (action === 'rewards') {
-                      setShowRewardModal(true);
-                    }
                   }}
                   compact={false}
                 />
@@ -527,7 +517,7 @@ export default function Cards() {
         onClose={() => setShowRewardModal(false)}
         cardName={currentCard?.name || 'Card'}
         rewardPoints={currentCard?.rewardPointsBalance || 0}
-        rewardRedemptionRate={currentCard?.rewardRedemptionRate || 1}
+        rewardRedemptionRate={currentCard?.rewardsRate || 1}
         monthlySpending={currentCard?.analytics?.totalSpending || 0}
         rewardsRate={currentCard?.rewardsRate || 1}
       />

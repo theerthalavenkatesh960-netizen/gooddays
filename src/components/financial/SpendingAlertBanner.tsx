@@ -1,18 +1,16 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, TrendingUp, Zap, ArrowRight } from 'lucide-react';
-import { SpendingAlert, analyzeBudgetHealth } from '../../lib/spendingAlerts';
+import { AlertCircle, Zap } from 'lucide-react';
+import { SpendingAlert } from '../../lib/spendingAlerts';
 
 interface SpendingAlertBannerProps {
   alerts: SpendingAlert[];
   onDismiss?: (id: string) => void;
-  onAction?: (action: string) => void;
   compact?: boolean;
 }
 
 export default function SpendingAlertBanner({
   alerts,
   onDismiss,
-  onAction,
   compact = false
 }: SpendingAlertBannerProps) {
   if (!alerts || alerts.length === 0) {

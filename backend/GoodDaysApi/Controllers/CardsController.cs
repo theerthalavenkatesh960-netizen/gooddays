@@ -67,9 +67,9 @@ public class CardsController : ControllerBase
         if (card == null) return NotFound();
 
         if (req.Name != null) card.Name = req.Name;
-        if (req.CreditLimit.HasValue) card.CreditLimit = req.CreditLimit;
-        if (req.CurrentBalance.HasValue) card.CurrentBalance = req.CurrentBalance;
-        if (req.RewardPointsBalance.HasValue) card.RewardPointsBalance = req.RewardPointsBalance;
+        if (req.CreditLimit.HasValue) card.CreditLimit = req.CreditLimit.Value;
+        if (req.CurrentBalance.HasValue) card.CurrentBalance = req.CurrentBalance.Value;
+        if (req.RewardPointsBalance.HasValue) card.RewardPointsBalance = req.RewardPointsBalance.Value;
         if (req.Status != null) card.Status = req.Status;
         card.UpdatedAt = DateTime.UtcNow;
 
@@ -96,17 +96,19 @@ public class CardsController : ControllerBase
         var cardExists = await _db.CreditCards.AnyAsync(c => c.Id == id);
         if (!cardExists) return NotFound();
 
-        var query = _db.CardExpenses
+        IQueryable<CardExpense> query = _db.CardExpenses
             .Where(ce => ce.CardId == id)
-            .Include(ce => ce.Expense)
-            .OrderByDescending(ce => ce.Expense!.Date);
+            .Include(ce => ce.Expense);
 
         if (startDate.HasValue)
             query = query.Where(ce => ce.Expense!.Date >= startDate);
         if (endDate.HasValue)
             query = query.Where(ce => ce.Expense!.Date <= endDate);
 
-        var expenses = await query.Select(ce => ce.Expense).ToListAsync();
+        var expenses = await query
+            .OrderByDescending(ce => ce.Expense!.Date)
+            .Select(ce => ce.Expense)
+            .ToListAsync();
         return Ok(expenses);
     }
 
@@ -117,7 +119,7 @@ public class CardsController : ControllerBase
         var card = await _db.CreditCards.FindAsync(id);
         if (card == null) return NotFound();
 
-        var query = _db.CardExpenses
+        IQueryable<CardExpense> query = _db.CardExpenses
             .Where(ce => ce.CardId == id)
             .Include(ce => ce.Expense);
 

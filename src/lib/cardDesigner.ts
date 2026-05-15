@@ -74,9 +74,9 @@ export function generateCardDesign(
 
   const baseTheme = issuerThemes[issuer] || issuerThemes.Other;
 
-  // Add variation based on spending
-  const spendingHue = (totalSpending % 360) * 0.5;
-  const diversityTheme = categoryDiversity > 0.7 ? 'vibrant' : categoryDiversity > 0.4 ? 'premium' : 'minimal';
+  // Keep inputs explicit for future design variation hooks.
+  void totalSpending;
+  void categoryDiversity;
 
   // Pattern selection
   const patterns: Array<'dots' | 'waves' | 'grid' | 'circles' | 'lines'> = ['dots', 'waves', 'grid', 'circles', 'lines'];
