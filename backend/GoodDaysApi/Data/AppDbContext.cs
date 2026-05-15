@@ -26,6 +26,8 @@ public class AppDbContext : DbContext
     public DbSet<MonthlyTaskCompletion> MonthlyTaskCompletions { get; set; } = null!;
     public DbSet<FinancialRule> FinancialRules { get; set; } = null!;
     public DbSet<MonthlySnapshot> MonthlySnapshots { get; set; } = null!;
+    public DbSet<CreditCard> CreditCards { get; set; } = null!;
+    public DbSet<CardExpense> CardExpenses { get; set; } = null!;
 
     // Workout tracker entities
     public DbSet<Exercise> Exercises { get; set; } = null!;

@@ -227,6 +227,36 @@ CREATE TABLE IF NOT EXISTS finance_fixed_expense_overrides (
   CONSTRAINT unique_fixed_expense_month_year_override UNIQUE (fixed_expense_id, month, year)
 );
 
+-- ===================================================================
+-- CREDIT CARDS & CARD EXPENSES
+-- ===================================================================
+
+CREATE TABLE IF NOT EXISTS credit_cards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  issuer VARCHAR(50) CHECK (issuer IN ('HDFC', 'ICICI', 'SBI', 'Axis', 'Other')) DEFAULT 'Other',
+  last4_digits VARCHAR(4),
+  credit_limit DECIMAL(12,2),
+  billing_cycle_start_date INT CHECK (billing_cycle_start_date BETWEEN 1 AND 31),
+  billing_cycle_end_date INT CHECK (billing_cycle_end_date BETWEEN 1 AND 31),
+  rewards_rate DECIMAL(5,2) DEFAULT 0,
+  reward_points_balance INT DEFAULT 0,
+  current_balance DECIMAL(12,2) DEFAULT 0,
+  status VARCHAR(20) CHECK (status IN ('active', 'inactive', 'closed')) DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT unique_user_last4 UNIQUE (user_id, last4_digits)
+);
+
+CREATE TABLE IF NOT EXISTS card_expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id UUID NOT NULL REFERENCES credit_cards(id) ON DELETE CASCADE,
+  expense_id integer NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMPTZ DEFAULT now(),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS exercises (
   id SERIAL PRIMARY KEY,
   name text NOT NULL,
@@ -395,6 +425,11 @@ CREATE INDEX IF NOT EXISTS idx_monthly_tasks_completions_month_year ON monthly_t
 CREATE INDEX IF NOT EXISTS idx_financial_rules_category ON financial_rules(category);
 CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_year_month ON monthly_snapshots(year DESC, month DESC);
 CREATE INDEX IF NOT EXISTS idx_finance_fixed_expenses_profile_sort ON finance_fixed_expenses(profile_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_credit_cards_user_id ON credit_cards(user_id);
+CREATE INDEX IF NOT EXISTS idx_credit_cards_user_issuer ON credit_cards(user_id, issuer);
+CREATE INDEX IF NOT EXISTS idx_card_expenses_card_id ON card_expenses(card_id);
+CREATE INDEX IF NOT EXISTS idx_card_expenses_expense_id ON card_expenses(expense_id);
+CREATE INDEX IF NOT EXISTS idx_card_expenses_assigned_at ON card_expenses(assigned_at);
 CREATE INDEX IF NOT EXISTS idx_exercises_user_id ON exercises(user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_exercises_user_name_ci
   ON exercises (COALESCE(user_id, 0), lower(name));

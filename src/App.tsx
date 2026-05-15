@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import Body from './pages/Body';
 import Workout from './pages/Workout';
 import Finance from './pages/Finance';
+import Cards from './pages/Cards';
 import FinanceBudgetSettings from './pages/FinanceBudgetSettings';
 import BucketDetail from './pages/BucketDetail';
 import Life from './pages/Life';
@@ -69,6 +70,7 @@ function App() {
               <Route path="/body"     element={<PrivateRoute><Layout><Body /></Layout></PrivateRoute>} />
               <Route path="/body/workout-log" element={<PrivateRoute><Layout><Workout /></Layout></PrivateRoute>} />
               <Route path="/finance"  element={<PrivateRoute><Layout><Finance /></Layout></PrivateRoute>} />
+              <Route path="/finance/cards" element={<PrivateRoute><Layout><Cards /></Layout></PrivateRoute>} />
               <Route path="/finance/settings" element={<PrivateRoute><Layout><FinanceBudgetSettings /></Layout></PrivateRoute>} />
               <Route path="/finance/bucket/:id" element={<PrivateRoute><Layout><BucketDetail /></Layout></PrivateRoute>} />
               <Route path="/finance/vehicles" element={<PrivateRoute><Layout><Vehicles /></Layout></PrivateRoute>} />

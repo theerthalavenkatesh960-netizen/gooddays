@@ -47,6 +47,57 @@ public class ExpensesController : ControllerBase
         return Ok(expense);
     }
 
+    [HttpPost("bulk")]
+    public async Task<IActionResult> BulkCreateExpenses([FromBody] List<BulkExpenseItem> items)
+    {
+        if (items == null || items.Count == 0)
+            return Ok(new { count = 0, cardIdMap = new Dictionary<Guid, int>() });
+
+        var createdExpenses = new List<Expense>();
+        var cardIdMap = new Dictionary<Guid, int>();
+
+        foreach (var item in items)
+        {
+            var expense = new Expense
+            {
+                UserId = item.Expense.UserId,
+                Description = item.Expense.Description ?? item.Expense.Note ?? string.Empty,
+                Amount = item.Expense.Amount,
+                Category = item.Expense.Category,
+                Date = item.Expense.Date ?? DateTime.UtcNow
+            };
+            _db.Expenses.Add(expense);
+            createdExpenses.Add(expense);
+        }
+
+        await _db.SaveChangesAsync();
+
+        // Now link expenses to cards if card_id is provided
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (items[i].CardId.HasValue && items[i].CardId != Guid.Empty)
+            {
+                var cardExpense = new CardExpense
+                {
+                    CardId = items[i].CardId.Value,
+                    ExpenseId = createdExpenses[i].Id,
+                    AssignedAt = DateTime.UtcNow
+                };
+                _db.CardExpenses.Add(cardExpense);
+
+                // Track count per card
+                if (!cardIdMap.ContainsKey(items[i].CardId.Value))
+                    cardIdMap[items[i].CardId.Value] = 0;
+                cardIdMap[items[i].CardId.Value]++;
+            }
+        }
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new { count = createdExpenses.Count, cardIdMap });
+    }
+
+
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateExpense(int id, [FromBody] UpdateExpenseRequest req)
     {
@@ -76,3 +127,4 @@ public class ExpensesController : ControllerBase
 
 public record CreateExpenseRequest(int UserId, string? Description, string? Note, decimal Amount, string? Category, DateTime? Date);
 public record UpdateExpenseRequest(string? Description, string? Note, decimal? Amount, string? Category, DateTime? Date);
+public record BulkExpenseItem(CreateExpenseRequest Expense, Guid? CardId);
