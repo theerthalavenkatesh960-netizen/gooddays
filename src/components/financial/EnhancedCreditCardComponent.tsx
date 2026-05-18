@@ -59,7 +59,7 @@ export default function EnhancedCreditCardComponent({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.4 }}
-      className="space-y-4"
+      className="space-y-3"
     >
       {/* Alert Badge */}
       {alert && (
@@ -119,7 +119,7 @@ export default function EnhancedCreditCardComponent({
         <div className="absolute left-0 top-0 h-full w-1.5" style={{ backgroundColor: issuerColor }} />
 
         {/* Content */}
-        <div className={`relative flex flex-col justify-between h-full ${isLarge ? 'p-6 md:p-7' : 'p-4 md:p-5'}`}>
+        <div className={`relative flex flex-col justify-between h-full ${isLarge ? 'p-5 md:p-6' : 'p-4 md:p-5'}`}>
           {/* Header */}
           <div className="flex justify-between items-start gap-3">
             <div>
@@ -131,25 +131,25 @@ export default function EnhancedCreditCardComponent({
               >
                 {card.issuer || 'CARD'}
               </motion.p>
-              <h3 className="text-lg md:text-xl font-black tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>{card.name}</h3>
+              <h3 className="text-base md:text-lg font-bold tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>{card.name}</h3>
             </div>
             <motion.div
               whileHover={{ scale: 1.08 }}
               transition={{ duration: 0.2 }}
-              className="w-10 h-10 rounded-xl flex items-center justify-center border"
+              className="w-9 h-9 rounded-xl flex items-center justify-center border"
               style={{ backgroundColor: `${issuerColor}1A`, borderColor: `${issuerColor}3D` }}
             >
-              <CreditCard size={18} style={{ color: issuerColor }} />
+              <CreditCard size={16} style={{ color: issuerColor }} />
             </motion.div>
           </div>
 
           {/* Status Row */}
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {/* Balance & Limit */}
             <div>
               <div className="flex justify-between items-baseline mb-2">
                 <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Balance</p>
-                <p className="text-sm font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
+                <p className="text-xs md:text-sm font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
                   ₹{((card.currentBalance || 0) / 1000).toFixed(1)}K / ₹{((card.creditLimit || 0) / 100000).toFixed(1)}L
                 </p>
               </div>
@@ -179,7 +179,7 @@ export default function EnhancedCreditCardComponent({
                 style={{ backgroundColor: `${issuerColor}14`, borderColor: `${issuerColor}33` }}
               >
                 <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Rewards</p>
-                <p className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>
+                <p className="font-bold text-xs md:text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>
                   {card.rewardPointsBalance || 0}
                   <span className="text-xs block" style={{ color: 'var(--accent-gold)' }}>
                     ₹{rewardValue.rupeeValue}
@@ -195,7 +195,7 @@ export default function EnhancedCreditCardComponent({
                 style={{ backgroundColor: `${issuerColor}14`, borderColor: `${issuerColor}33` }}
               >
                 <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Closes In</p>
-                <p className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>
+                <p className="font-bold text-xs md:text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>
                   {daysUntilClose}
                   <span className="text-xs block" style={{ color: 'var(--accent)' }}>days</span>
                 </p>
@@ -208,7 +208,7 @@ export default function EnhancedCreditCardComponent({
                 style={{ backgroundColor: `${issuerColor}14`, borderColor: `${issuerColor}33` }}
               >
                 <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Status</p>
-                <p className={`font-bold text-sm ${
+                <p className={`font-bold text-xs md:text-sm ${
                   card.status === 'active' ? 'text-green-500' : 'text-red-500'
                 }`}>
                   {card.status === 'active' ? '✓ Active' : 'Inactive'}

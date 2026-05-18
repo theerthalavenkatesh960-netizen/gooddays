@@ -429,6 +429,8 @@ function InvestmentsTab() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newHolding, setNewHolding] = useState({ name: '', type: 'MF', invested: '', current: '' });
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editHolding, setEditHolding] = useState({ name: '', type: 'MF', invested: '', current: '' });
 
   useEffect(() => {
     api.getInvestments().then((data: any) => setHoldings(Array.isArray(data) ? data : [])).finally(() => setLoading(false));
@@ -447,6 +449,45 @@ function InvestmentsTab() {
   async function handleDelete(id: number) {
     await api.deleteInvestment(id);
     setHoldings(p => p.filter(h => h.id !== id));
+  }
+
+  function startEdit(h: any) {
+    setEditingId(h.id);
+    setEditHolding({
+      name: h.name || '',
+      type: h.type || 'MF',
+      invested: String(h.invested ?? ''),
+      current: String(h.current ?? '')
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditHolding({ name: '', type: 'MF', invested: '', current: '' });
+  }
+
+  async function handleUpdate() {
+    if (editingId == null) return;
+    if (!editHolding.name.trim() || !editHolding.invested || !editHolding.current) return;
+
+    const inv = Number(editHolding.invested);
+    const cur = Number(editHolding.current);
+    const payload = {
+      name: editHolding.name,
+      type: editHolding.type,
+      invested: inv,
+      current: cur,
+      change: inv > 0 ? parseFloat((((cur - inv) / inv) * 100).toFixed(1)) : 0
+    };
+
+    const updated = await api.updateInvestment(editingId, payload);
+
+    setHoldings(prev => prev.map(h => {
+      if (h.id !== editingId) return h;
+      return { ...h, ...(updated || payload), id: h.id };
+    }));
+
+    cancelEdit();
   }
 
   if (loading) return <div className="px-4 py-8 flex justify-center"><div className="w-6 h-6 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent)' }} /></div>;
@@ -500,6 +541,56 @@ function InvestmentsTab() {
         {holdings.map(h => {
           const pnl = (h.current || 0) - (h.invested || 0);
           const hpos = pnl >= 0;
+
+          if (editingId === h.id) {
+            return (
+              <div key={h.id ?? h.name} className="p-4 rounded-2xl space-y-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Edit Holding</p>
+                <input
+                  value={editHolding.name}
+                  onChange={e => setEditHolding(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Name"
+                  className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                />
+                <select
+                  value={editHolding.type}
+                  onChange={e => setEditHolding(p => ({ ...p, type: e.target.value }))}
+                  className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                >
+                  {['MF', 'ETF', 'Stock', 'FD', 'Gold', 'Crypto', 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    value={editHolding.invested}
+                    onChange={e => setEditHolding(p => ({ ...p, invested: e.target.value }))}
+                    placeholder="Invested ₹"
+                    className="h-10 px-3 rounded-xl outline-none text-sm num"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                  />
+                  <input
+                    type="number"
+                    value={editHolding.current}
+                    onChange={e => setEditHolding(p => ({ ...p, current: e.target.value }))}
+                    placeholder="Current ₹"
+                    className="h-10 px-3 rounded-xl outline-none text-sm num"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={cancelEdit} className="flex-1 h-9 rounded-xl text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                    Cancel
+                  </button>
+                  <button onClick={handleUpdate} className="flex-1 h-9 rounded-xl text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>
+                    Save
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div key={h.id ?? h.name} className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: hpos ? 'var(--accent-green)22' : 'var(--accent-warm)22' }}>
@@ -515,6 +606,9 @@ function InvestmentsTab() {
                   {hpos ? '+' : ''}{h.change ?? 0}%
                 </p>
               </div>
+              <button onClick={() => startEdit(h)} className="w-8 h-8 rounded-lg flex items-center justify-center press ml-1" style={{ color: 'var(--accent)' }}>
+                <Pencil size={14} />
+              </button>
               <button onClick={() => handleDelete(h.id)} className="w-8 h-8 rounded-lg flex items-center justify-center press ml-1" style={{ color: '#ef4444' }}>
                 <Trash2 size={14} />
               </button>

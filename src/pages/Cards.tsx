@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Upload, TrendingUp, DollarSign, Gift,
-  Wallet, BarChart3, PieChart, LineChart, CreditCard as CardIcon,
-  ArrowUpRight, ArrowLeft
+  Upload, BarChart3, PieChart, CreditCard as CardIcon,
+  ArrowLeft
 } from 'lucide-react';
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -98,9 +97,13 @@ export default function Cards() {
     exit: { opacity: 0, y: -10, transition: { duration: 0.2 } }
   };
 
-  const formatRupee = (num: number) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num);
-  };
+  const allCategoryStats = cards.flatMap(c => c.analytics?.byCategory || []);
+  const totalTransactions = allCategoryStats.reduce((sum, cat) => sum + cat.count, 0);
+  const averageSpending = totalTransactions > 0 ? totalSpending / totalTransactions : 0;
+  const topCategory = allCategoryStats.reduce(
+    (prev, current) => (prev.total > current.total ? prev : current),
+    { category: 'N/A', total: 0, count: 0 }
+  );
 
   return (
     <div className="min-h-screen pb-20 overflow-x-hidden" style={{ backgroundColor: 'var(--bg)' }}>
@@ -108,33 +111,33 @@ export default function Cards() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="sticky top-0 z-40 border-b"
-        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+        className="border-b"
+        style={{ backgroundColor: 'var(--bg)', borderColor: 'var(--border)' }}
       >
-        <div className="px-4 py-4 flex items-center justify-between">
+        <div className="px-4 py-4 flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center gap-3 flex-1">
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('/finance')}
-              className="w-10 h-10 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+              className="w-10 h-10 rounded-xl flex items-center justify-center hover:opacity-70 transition-opacity"
               style={{ backgroundColor: 'var(--surface-elevated)' }}
             >
               <ArrowLeft size={20} style={{ color: 'var(--text-primary)' }} />
             </motion.button>
             <div>
-              <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>💳 Credit Cards</h1>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Track all your cards in one place</p>
+              <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Credit Cards</h1>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Track all your cards in one place</p>
             </div>
           </div>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowImport(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
             style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
           >
-            <Upload size={16} />
+            <Upload size={14} />
             <span className="hidden sm:inline">Import</span>
           </motion.button>
         </div>
@@ -149,17 +152,17 @@ export default function Cards() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3"
+            className="grid grid-cols-2 md:grid-cols-3 gap-2"
           >
             {/* Total Balance */}
-            <motion.div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Total Balance</p>
               <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent)' }}>₹{(totalBalance / 1000).toFixed(0)}k</p>
               <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>of ₹{(totalLimit / 100000).toFixed(1)}L</p>
             </motion.div>
 
             {/* Utilization */}
-            <motion.div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Utilization</p>
               <p className="text-sm font-bold num mt-1" style={{ color: totalUtilization > 80 ? 'var(--accent-warm)' : 'var(--accent-green)' }}>
                 {totalUtilization.toFixed(0)}%
@@ -176,41 +179,33 @@ export default function Cards() {
             </motion.div>
 
             {/* Rewards Points */}
-            <motion.div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Reward Points</p>
               <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent)' }}>{totalRewards}</p>
               <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>across cards</p>
             </motion.div>
 
             {/* Total Spending */}
-            <motion.div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>This Month</p>
               <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>₹{(totalSpending / 1000).toFixed(0)}k</p>
               <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>spending</p>
             </motion.div>
 
             {/* Average Spending */}
-            <motion.div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Average</p>
-              <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent)' }}>₹{cards.flatMap(c => (c.analytics?.byCategory || [])).length > 0 ? (totalSpending / Math.max(cards.flatMap(c => c.analytics?.byCategory || []).reduce((sum, cat) => sum + cat.count, 0), 1)).toFixed(0) : '0'}</p>
+              <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent)' }}>₹{averageSpending.toFixed(0)}</p>
               <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>per transaction</p>
             </motion.div>
 
             {/* Top Category */}
-            <motion.div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Top Category</p>
               <p className="text-sm font-bold num mt-1 truncate" style={{ color: 'var(--accent)' }}>
-                {(() => {
-                  const allCategories = cards.flatMap(c => c.analytics?.byCategory || []);
-                  const topCat = allCategories.reduce((prev, current) => (prev.total > current.total) ? prev : current, { category: 'N/A', total: 0, count: 0 });
-                  return topCat.category;
-                })()}
+                {topCategory.category}
               </p>
-              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>₹{(() => {
-                const allCategories = cards.flatMap(c => c.analytics?.byCategory || []);
-                const topCat = allCategories.reduce((prev, current) => (prev.total > current.total) ? prev : current, { category: 'N/A', total: 0, count: 0 });
-                return (topCat.total / 1000).toFixed(1);
-              })()}k</p>
+              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>₹{(topCategory.total / 1000).toFixed(1)}k</p>
             </motion.div>
           </motion.div>
         )}
@@ -247,7 +242,7 @@ export default function Cards() {
                     setSelectedCardIndex(parseInt(tab.id.replace('card', '')) - 1);
                   }
                 }}
-                className="relative px-3 py-2 rounded-lg font-medium flex items-center gap-1.5 whitespace-nowrap text-sm transition-all"
+                className="relative px-3 py-2 rounded-xl font-semibold flex items-center gap-1.5 whitespace-nowrap text-xs transition-all"
                 style={{
                   backgroundColor: activeTab === tab.id ? 'var(--accent)' : 'var(--surface)',
                   color: activeTab === tab.id ? '#fff' : 'var(--text-secondary)',
@@ -255,7 +250,7 @@ export default function Cards() {
                   borderColor: activeTab === tab.id ? 'var(--accent)' : 'var(--border)'
                 }}
               >
-                <Icon size={16} />
+                <Icon size={14} />
                 {tab.label}
               </motion.button>
             );

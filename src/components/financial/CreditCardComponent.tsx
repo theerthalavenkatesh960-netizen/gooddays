@@ -30,8 +30,8 @@ export default function CreditCardComponent({
   const cardBackground = `linear-gradient(145deg, ${issuerColor}1A 0%, var(--surface) 45%, var(--surface-elevated) 100%)`;
 
   const containerClass = isLarge
-    ? 'h-64'
-    : 'h-48 md:h-56';
+    ? 'h-60'
+    : 'h-44 md:h-48';
 
   return (
     <motion.div
@@ -47,7 +47,7 @@ export default function CreditCardComponent({
       <div className="absolute left-0 top-0 h-full w-1.5" style={{ backgroundColor: issuerColor }} />
 
       {/* Content */}
-      <div className={`relative h-full flex flex-col justify-between ${isLarge ? 'p-5 md:p-8' : 'p-3.5 md:p-4'}`}>
+      <div className={`relative h-full flex flex-col justify-between ${isLarge ? 'p-5 md:p-7' : 'p-3 md:p-3.5'}`}>
         {/* Header */}
         <div className={`flex justify-between items-start ${isLarge ? 'gap-3' : 'gap-2'}`}>
           <div>
@@ -59,15 +59,15 @@ export default function CreditCardComponent({
             >
               {card.issuer}
             </motion.p>
-              <h3 className={`font-black tracking-tight leading-tight ${isLarge ? 'text-xl md:text-2xl' : 'text-sm md:text-base'}`} style={{ color: 'var(--text-primary)' }}>{card.name}</h3>
+              <h3 className={`font-bold tracking-tight leading-tight ${isLarge ? 'text-lg md:text-xl' : 'text-sm md:text-[15px]'}`} style={{ color: 'var(--text-primary)' }}>{card.name}</h3>
           </div>
           <motion.div
             whileHover={{ scale: 1.08 }}
             transition={{ duration: 0.2 }}
-            className={`rounded-xl flex items-center justify-center border ${isLarge ? 'w-10 h-10' : 'w-8 h-8'}`}
+            className={`rounded-xl flex items-center justify-center border ${isLarge ? 'w-10 h-10' : 'w-7 h-7'}`}
             style={{ backgroundColor: `${issuerColor}1A`, borderColor: `${issuerColor}3D` }}
           >
-            <CreditCard size={isLarge ? 18 : 14} style={{ color: issuerColor }} />
+            <CreditCard size={isLarge ? 18 : 13} style={{ color: issuerColor }} />
           </motion.div>
         </div>
 
@@ -105,7 +105,7 @@ export default function CreditCardComponent({
           </div>
 
           {/* Stats Row */}
-          <div className={`grid grid-cols-3 ${isLarge ? 'gap-2' : 'gap-1'}`}>
+          <div className={`grid grid-cols-3 ${isLarge ? 'gap-2' : 'gap-1.5'}`}>
             <div className={`rounded-lg h-full flex flex-col justify-between ${isLarge ? 'p-3' : 'p-1.5'}`} style={{ backgroundColor: `${issuerColor}14` }}>
               <p className={`${isLarge ? 'text-xs mb-0.5' : 'text-[9px] mb-0.5'}`} style={{ color: 'var(--text-muted)' }}>Limit</p>
                 <p className={`font-bold leading-tight ${isLarge ? 'text-base' : 'text-xs'}`} style={{ color: 'var(--text-primary)' }}>₹{((card.creditLimit || 0) / 100000).toFixed(1)}L</p>
