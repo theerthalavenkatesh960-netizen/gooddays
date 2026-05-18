@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { AlertCircle, Gift, Clock, CreditCard } from 'lucide-react';
+import { AlertCircle, Gift, Clock, CreditCard, Star, Calendar, CheckCircle, XCircle } from 'lucide-react';
 import {
   generateSpendingAlert,
   getDaysUntilStatementClose
@@ -150,72 +150,106 @@ export default function EnhancedCreditCardComponent({
           {/* Status Row */}
           <div className="space-y-2.5">
             {/* Balance & Limit */}
-            <div>
-              <div className="flex justify-between items-baseline mb-2">
-                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Balance</p>
-                <p className="text-xs md:text-sm font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
-                  {formatMoney(card.currentBalance || 0)} / {formatMoney(card.creditLimit || 0)}
-                </p>
+            {isLarge ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col items-start" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.75rem', padding: '0.5rem 0.75rem' }}>
+                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Balance</p>
+                    <p className="text-sm font-semibold num truncate" style={{ color: 'var(--accent-warm)' }}>{formatMoney(card.currentBalance || 0)}</p>
+                  </div>
+                  <div className="flex flex-col items-start" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.75rem', padding: '0.5rem 0.75rem' }}>
+                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Limit</p>
+                    <p className="text-sm font-semibold num truncate" style={{ color: 'var(--text-primary)' }}>{formatMoney(card.creditLimit || 0)}</p>
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Utilization</p>
+                    <p className="text-[10px] font-semibold" style={{ color: utilization > 0.8 ? 'var(--accent-warm)' : 'var(--accent-green)' }}>{(utilization * 100).toFixed(1)}%</p>
+                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: `${issuerColor}22` }}>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(utilization * 100, 100)}%` }}
+                      transition={{ duration: 0.8, delay: 0.2 }}
+                      className={`h-full rounded-full ${utilization > 0.95 ? 'bg-red-400' : utilization > 0.8 ? 'bg-yellow-400' : 'bg-green-400'}`}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: `${issuerColor}22` }}>
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(utilization * 100, 100)}%` }}
-                  transition={{ duration: 0.8, delay: 0.2 }}
-                  className={`h-full rounded-full ${
-                    utilization > 0.95
-                      ? 'bg-red-400'
-                      : utilization > 0.8
-                      ? 'bg-yellow-400'
-                      : 'bg-green-400'
-                  }`}
-                />
+            ) : (
+              <div>
+                <div className="flex justify-between items-baseline mb-2">
+                  <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Balance</p>
+                  <p className="text-xs md:text-sm font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
+                    {formatMoney(card.currentBalance || 0)} / {formatMoney(card.creditLimit || 0)}
+                  </p>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: `${issuerColor}22` }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(utilization * 100, 100)}%` }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    className={`h-full rounded-full ${
+                      utilization > 0.95
+                        ? 'bg-red-400'
+                        : utilization > 0.8
+                        ? 'bg-yellow-400'
+                        : 'bg-green-400'
+                    }`}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-3 gap-2">
               {/* Rewards */}
               <motion.div
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.02 }}
                 onClick={() => onAction?.('rewards')}
-                className="p-2 rounded-lg cursor-pointer transition border"
-                style={{ backgroundColor: `${issuerColor}14`, borderColor: `${issuerColor}33` }}
+                className="flex flex-col items-start cursor-pointer"
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.75rem', padding: '0.5rem 0.75rem' }}
               >
-                <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Rewards</p>
-                <p className="font-bold text-xs md:text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>
-                  {card.rewardPointsBalance || 0}
-                  <span className="text-xs block" style={{ color: 'var(--accent-gold)' }}>
-                    ₹{rewardValue.rupeeValue}
-                  </span>
-                </p>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <Star size={12} style={{ color: 'var(--accent-gold)' }} />
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Rewards</p>
+                </div>
+                <p className="text-sm font-semibold num leading-tight" style={{ color: 'var(--text-primary)' }}>{card.rewardPointsBalance || 0}</p>
+                <p className="text-[10px]" style={{ color: 'var(--accent-gold)' }}>₹{rewardValue.rupeeValue}</p>
               </motion.div>
 
               {/* Due Date */}
               <motion.div
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.02 }}
                 onClick={() => onAction?.('payment')}
-                className="p-2 rounded-lg cursor-pointer transition border"
-                style={{ backgroundColor: `${issuerColor}14`, borderColor: `${issuerColor}33` }}
+                className="flex flex-col items-start cursor-pointer"
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.75rem', padding: '0.5rem 0.75rem' }}
               >
-                <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Closes In</p>
-                <p className="font-bold text-xs md:text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>
-                  {daysUntilClose}
-                  <span className="text-xs block" style={{ color: 'var(--accent)' }}>days</span>
-                </p>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <Calendar size={12} style={{ color: 'var(--accent)' }} />
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Closes In</p>
+                </div>
+                <p className="text-sm font-semibold num leading-tight" style={{ color: 'var(--text-primary)' }}>{daysUntilClose}</p>
+                <p className="text-[10px]" style={{ color: 'var(--accent)' }}>days</p>
               </motion.div>
 
               {/* Status */}
               <motion.div
-                whileHover={{ scale: 1.05 }}
-                className="p-2 rounded-lg border"
-                style={{ backgroundColor: `${issuerColor}14`, borderColor: `${issuerColor}33` }}
+                whileHover={{ scale: 1.02 }}
+                className="flex flex-col items-start"
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.75rem', padding: '0.5rem 0.75rem' }}
               >
-                <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Status</p>
-                <p className={`font-bold text-xs md:text-sm ${
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  {card.status === 'active'
+                    ? <CheckCircle size={12} className="text-green-500" />
+                    : <XCircle size={12} className="text-red-500" />}
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Status</p>
+                </div>
+                <p className={`text-sm font-semibold ${
                   card.status === 'active' ? 'text-green-500' : 'text-red-500'
                 }`}>
-                  {card.status === 'active' ? '✓' : '✗'}
+                  {card.status === 'active' ? 'Active' : 'Inactive'}
                 </p>
               </motion.div>
             </div>

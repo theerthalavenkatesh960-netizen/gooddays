@@ -275,12 +275,12 @@ export default function Cards() {
             <div className="grid grid-cols-3 gap-2">
               <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Total</p>
-                <p className="text-xs md:text-sm font-bold num mt-1 truncate" style={{ color: 'var(--accent)' }}>{formatMoney(totalBalance)}</p>
+                <p className="text-[10px] md:text-xs font-bold num mt-1 truncate" style={{ color: 'var(--accent)' }}>{formatMoney(totalBalance)}</p>
               </motion.div>
 
               <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>This Month</p>
-                <p className="text-xs md:text-sm font-bold num mt-1 truncate" style={{ color: 'var(--accent-warm)' }}>{formatMoney(totalSpending)}</p>
+                <p className="text-[10px] md:text-xs font-bold num mt-1 truncate" style={{ color: 'var(--accent-warm)' }}>{formatMoney(totalSpending)}</p>
               </motion.div>
 
               <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
