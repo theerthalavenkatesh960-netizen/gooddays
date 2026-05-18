@@ -67,7 +67,12 @@ public class CardsController : ControllerBase
         if (card == null) return NotFound();
 
         if (req.Name != null) card.Name = req.Name;
+        if (req.Issuer != null) card.Issuer = req.Issuer;
+        if (req.Last4Digits != null) card.Last4Digits = req.Last4Digits;
         if (req.CreditLimit.HasValue) card.CreditLimit = req.CreditLimit.Value;
+        if (req.BillingCycleStartDate.HasValue) card.BillingCycleStartDate = req.BillingCycleStartDate.Value;
+        if (req.BillingCycleEndDate.HasValue) card.BillingCycleEndDate = req.BillingCycleEndDate.Value;
+        if (req.RewardsRate.HasValue) card.RewardsRate = req.RewardsRate.Value;
         if (req.CurrentBalance.HasValue) card.CurrentBalance = req.CurrentBalance.Value;
         if (req.RewardPointsBalance.HasValue) card.RewardPointsBalance = req.RewardPointsBalance.Value;
         if (req.Status != null) card.Status = req.Status;
@@ -182,7 +187,12 @@ public record CreateCardRequest(
 
 public record UpdateCardRequest(
     string? Name,
+    string? Issuer,
+    string? Last4Digits,
     decimal? CreditLimit,
+    int? BillingCycleStartDate,
+    int? BillingCycleEndDate,
+    decimal? RewardsRate,
     decimal? CurrentBalance,
     int? RewardPointsBalance,
     string? Status

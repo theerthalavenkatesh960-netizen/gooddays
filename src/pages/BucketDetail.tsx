@@ -6,6 +6,8 @@ import { format, parseISO } from 'date-fns';
 import * as api from '../lib/api';
 import type { Bucket, BucketContribution } from '../lib/api';
 
+const formatMoney = (value: number) => `₹${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value || 0)}`;
+
 export default function BucketDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -111,17 +113,17 @@ export default function BucketDetail() {
           <div className="flex-1 space-y-2.5">
             <div>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Saved</p>
-              <p className="text-xl font-black num" style={{ color: bucket.color }}>₹{bucket.current.toLocaleString()}</p>
+              <p className="text-xl font-black num" style={{ color: bucket.color }}>{formatMoney(bucket.current)}</p>
             </div>
             <div className="h-px" style={{ backgroundColor: 'var(--border)' }} />
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Goal</p>
-                <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>₹{bucket.target.toLocaleString()}</p>
+                <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{formatMoney(bucket.target)}</p>
               </div>
               <div>
                 <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Remaining</p>
-                <p className="text-sm font-bold num" style={{ color: 'var(--accent-warm)' }}>₹{remaining.toLocaleString()}</p>
+                <p className="text-sm font-bold num" style={{ color: 'var(--accent-warm)' }}>{formatMoney(remaining)}</p>
               </div>
             </div>
           </div>
@@ -150,7 +152,7 @@ export default function BucketDetail() {
             <Target size={15} style={{ color: bucket.color, marginTop: 2 }} />
             <div>
               <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Per {freq}</p>
-              <p className="text-sm font-bold num" style={{ color: bucket.color }}>₹{sipAmount.toLocaleString()}</p>
+              <p className="text-sm font-bold num" style={{ color: bucket.color }}>{formatMoney(sipAmount)}</p>
             </div>
           </div>
           <div className="rounded-2xl p-3 flex items-start gap-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
@@ -204,7 +206,7 @@ export default function BucketDetail() {
                     <button key={mult} onClick={() => setAmount(String(val))}
                       className="flex-1 py-1.5 rounded-xl text-xs font-bold press"
                       style={{ backgroundColor: Number(amount) === val ? bucket.color : 'var(--surface-elevated)', color: Number(amount) === val ? '#fff' : 'var(--text-secondary)' }}>
-                      ₹{val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}
+                      {formatMoney(val)}
                     </button>
                   );
                 })}
@@ -265,11 +267,11 @@ export default function BucketDetail() {
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: bucket.color }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>₹{c.amount.toLocaleString()}</p>
+                      <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{formatMoney(c.amount)}</p>
                       {diff !== 0 && sipAmount > 0 && (
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
                           style={{ backgroundColor: diff >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)', color: diff >= 0 ? '#10b981' : '#f59e0b' }}>
-                          {diff > 0 ? '+' : ''}{diff >= 1000 ? `${(diff / 1000).toFixed(1)}k` : diff}
+                          {diff > 0 ? '+' : ''}{formatMoney(Math.abs(diff)).replace('₹', '')}
                         </span>
                       )}
                     </div>

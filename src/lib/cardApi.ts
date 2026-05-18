@@ -82,7 +82,7 @@ export interface CardAnalytics {
   endDate?: string;
 }
 
-const DUMMY_CARDS: CreditCard[] = [
+let DUMMY_CARDS: CreditCard[] = [
   {
     id: 'd9d9e3d5-4f92-4cb7-ae21-2d589d9f0001',
     userId: 1,
@@ -273,6 +273,7 @@ export const cardApi = {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
+      DUMMY_CARDS.push(created);
       return Promise.resolve(created);
     }
     return request('cards', {
@@ -288,19 +289,33 @@ export const cardApi = {
     cardId: string,
     data: {
       name?: string;
+      issuer?: string;
+      last4Digits?: string;
       creditLimit?: number;
+      billingCycleStartDate?: number;
+      billingCycleEndDate?: number;
+      rewardsRate?: number;
       currentBalance?: number;
       rewardPointsBalance?: number;
       status?: string;
     }
   ): Promise<CreditCard> => {
     if (USE_DUMMY_FINANCE) {
-      const found = DUMMY_CARDS.find(c => c.id === cardId) || DUMMY_CARDS[0];
-      return Promise.resolve({
-        ...found,
+      const idx = DUMMY_CARDS.findIndex(c => c.id === cardId);
+      const base = idx >= 0 ? DUMMY_CARDS[idx] : DUMMY_CARDS[0];
+      const updated: CreditCard = {
+        ...base,
         ...data,
+        issuer: (data.issuer as CreditCard['issuer']) || base.issuer,
+        status: (data.status as CreditCard['status']) || base.status,
         updatedAt: new Date().toISOString(),
-      });
+      };
+
+      if (idx >= 0) {
+        DUMMY_CARDS[idx] = updated;
+      }
+
+      return Promise.resolve(updated);
     }
     return request(`cards/${cardId}`, {
       method: 'PUT',
@@ -313,6 +328,7 @@ export const cardApi = {
    */
   deleteCard: async (cardId: string): Promise<void> => {
     if (USE_DUMMY_FINANCE) {
+      DUMMY_CARDS = DUMMY_CARDS.filter(c => c.id !== cardId);
       return Promise.resolve();
     }
     return request(`cards/${cardId}`, {

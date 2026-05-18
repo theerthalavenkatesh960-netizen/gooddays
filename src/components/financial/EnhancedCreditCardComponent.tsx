@@ -51,6 +51,10 @@ export default function EnhancedCreditCardComponent({
     card.creditLimit || 10000,
     card.rewardPointsBalance || 0
   );
+  const formatMoney = (value: number) => `₹${new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value || 0)}`;
 
   const containerClass = isLarge ? 'h-auto' : 'h-48';
 
@@ -150,7 +154,7 @@ export default function EnhancedCreditCardComponent({
               <div className="flex justify-between items-baseline mb-2">
                 <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Balance</p>
                 <p className="text-xs md:text-sm font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
-                  ₹{((card.currentBalance || 0) / 1000).toFixed(1)}K / ₹{((card.creditLimit || 0) / 100000).toFixed(1)}L
+                  {formatMoney(card.currentBalance || 0)} / {formatMoney(card.creditLimit || 0)}
                 </p>
               </div>
               <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: `${issuerColor}22` }}>
@@ -211,7 +215,7 @@ export default function EnhancedCreditCardComponent({
                 <p className={`font-bold text-xs md:text-sm ${
                   card.status === 'active' ? 'text-green-500' : 'text-red-500'
                 }`}>
-                  {card.status === 'active' ? '✓ Active' : 'Inactive'}
+                  {card.status === 'active' ? '✓' : '✗'}
                 </p>
               </motion.div>
             </div>

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Upload, BarChart3, PieChart, CreditCard as CardIcon,
+  Upload, BarChart3, PieChart, LineChart, CreditCard as CardIcon,
+  Plus, Pencil, X,
   ArrowLeft
 } from 'lucide-react';
 import { startOfMonth, endOfMonth } from 'date-fns';
@@ -24,6 +25,32 @@ interface CardWithAnalytics extends CreditCard {
   utilization?: number;
 }
 
+interface CardFormState {
+  name: string;
+  issuer: CreditCard['issuer'];
+  last4Digits: string;
+  creditLimit: string;
+  currentBalance: string;
+  rewardPointsBalance: string;
+  rewardsRate: string;
+  billingCycleStartDate: string;
+  billingCycleEndDate: string;
+  status: CreditCard['status'];
+}
+
+const EMPTY_CARD_FORM: CardFormState = {
+  name: '',
+  issuer: 'Other',
+  last4Digits: '',
+  creditLimit: '',
+  currentBalance: '',
+  rewardPointsBalance: '',
+  rewardsRate: '',
+  billingCycleStartDate: '',
+  billingCycleEndDate: '',
+  status: 'active'
+};
+
 export default function Cards() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -32,6 +59,10 @@ export default function Cards() {
   const [showImport, setShowImport] = useState(false);
   const [selectedCardIndex, setSelectedCardIndex] = useState(0);
   const [showRewardModal, setShowRewardModal] = useState(false);
+  const [showCardForm, setShowCardForm] = useState(false);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
+  const [cardForm, setCardForm] = useState<CardFormState>(EMPTY_CARD_FORM);
+  const [isSavingCard, setIsSavingCard] = useState(false);
   const [alerts, setAlerts] = useState<SpendingAlert[]>([]);
   const [dateRange] = useState({
     start: startOfMonth(new Date()),
@@ -105,6 +136,81 @@ export default function Cards() {
     { category: 'N/A', total: 0, count: 0 }
   );
 
+  const formatMoney = (value: number) => `₹${new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value || 0)}`;
+
+  const formatCount = (value: number) => new Intl.NumberFormat('en-IN').format(value || 0);
+
+  const openAddCardModal = () => {
+    setEditingCardId(null);
+    setCardForm(EMPTY_CARD_FORM);
+    setShowCardForm(true);
+  };
+
+  const openEditCardModal = (card: CardWithAnalytics) => {
+    setEditingCardId(card.id);
+    setCardForm({
+      name: card.name || '',
+      issuer: card.issuer || 'Other',
+      last4Digits: card.last4Digits || '',
+      creditLimit: card.creditLimit != null ? String(card.creditLimit) : '',
+      currentBalance: card.currentBalance != null ? String(card.currentBalance) : '',
+      rewardPointsBalance: card.rewardPointsBalance != null ? String(card.rewardPointsBalance) : '',
+      rewardsRate: card.rewardsRate != null ? String(card.rewardsRate) : '',
+      billingCycleStartDate: card.billingCycleStartDate != null ? String(card.billingCycleStartDate) : '',
+      billingCycleEndDate: card.billingCycleEndDate != null ? String(card.billingCycleEndDate) : '',
+      status: card.status || 'active'
+    });
+    setShowCardForm(true);
+  };
+
+  const closeCardModal = () => {
+    setShowCardForm(false);
+    setEditingCardId(null);
+    setCardForm(EMPTY_CARD_FORM);
+  };
+
+  const handleSaveCard = async () => {
+    if (!user || !cardForm.name.trim()) return;
+
+    const toNumber = (value: string) => (value.trim() === '' ? undefined : Number(value));
+
+    const payload = {
+      name: cardForm.name.trim(),
+      issuer: cardForm.issuer,
+      last4Digits: cardForm.last4Digits.trim() || undefined,
+      creditLimit: toNumber(cardForm.creditLimit),
+      currentBalance: toNumber(cardForm.currentBalance),
+      rewardPointsBalance: toNumber(cardForm.rewardPointsBalance),
+      rewardsRate: toNumber(cardForm.rewardsRate),
+      billingCycleStartDate: toNumber(cardForm.billingCycleStartDate),
+      billingCycleEndDate: toNumber(cardForm.billingCycleEndDate),
+      status: cardForm.status
+    };
+
+    setIsSavingCard(true);
+    try {
+      if (editingCardId) {
+        await cardApi.updateCard(editingCardId, payload);
+      } else {
+        await cardApi.createCard({
+          userId: user.id,
+          ...payload
+        });
+      }
+
+      await loadCards();
+      closeCardModal();
+      setActiveTab('overview');
+    } catch (err) {
+      console.error('Failed to save card:', err);
+    } finally {
+      setIsSavingCard(false);
+    }
+  };
+
   return (
     <div className="min-h-screen pb-20 overflow-x-hidden" style={{ backgroundColor: 'var(--bg)' }}>
       {/* Header */}
@@ -130,16 +236,28 @@ export default function Cards() {
               <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Track all your cards in one place</p>
             </div>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowImport(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
-            style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
-          >
-            <Upload size={14} />
-            <span className="hidden sm:inline">Import</span>
-          </motion.button>
+          <div className="flex items-center gap-2">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={openAddCardModal}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+              style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+            >
+              <Plus size={14} />
+              <span className="hidden sm:inline">Add Card</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+              style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+            >
+              <Upload size={14} />
+              <span className="hidden sm:inline">Import</span>
+            </motion.button>
+          </div>
         </div>
       </motion.div>
 
@@ -152,22 +270,33 @@ export default function Cards() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="grid grid-cols-2 md:grid-cols-3 gap-2"
+            className="space-y-2"
           >
-            {/* Total Balance */}
-            <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Total Balance</p>
-              <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent)' }}>₹{(totalBalance / 1000).toFixed(0)}k</p>
-              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>of ₹{(totalLimit / 100000).toFixed(1)}L</p>
-            </motion.div>
+            <div className="grid grid-cols-3 gap-2">
+              <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Total</p>
+                <p className="text-xs md:text-sm font-bold num mt-1 truncate" style={{ color: 'var(--accent)' }}>{formatMoney(totalBalance)}</p>
+              </motion.div>
 
-            {/* Utilization */}
-            <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Utilization</p>
-              <p className="text-sm font-bold num mt-1" style={{ color: totalUtilization > 80 ? 'var(--accent-warm)' : 'var(--accent-green)' }}>
-                {totalUtilization.toFixed(0)}%
-              </p>
-              <div className="h-1.5 bg-gray-300 rounded-full mt-1 overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+              <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>This Month</p>
+                <p className="text-xs md:text-sm font-bold num mt-1 truncate" style={{ color: 'var(--accent-warm)' }}>{formatMoney(totalSpending)}</p>
+              </motion.div>
+
+              <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Reward Points</p>
+                <p className="text-xs md:text-sm font-bold num mt-1" style={{ color: 'var(--accent)' }}>{formatCount(totalRewards)}</p>
+              </motion.div>
+            </div>
+
+            <div className="px-1 py-1">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>Utilization</p>
+                <p className="text-xs font-bold num" style={{ color: totalUtilization > 80 ? 'var(--accent-warm)' : 'var(--accent-green)' }}>
+                  {totalUtilization.toFixed(2)}%
+                </p>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${totalUtilization}%` }}
@@ -176,37 +305,20 @@ export default function Cards() {
                   style={{ backgroundColor: totalUtilization > 80 ? 'var(--accent-warm)' : 'var(--accent-green)' }}
                 />
               </div>
-            </motion.div>
+            </div>
 
-            {/* Rewards Points */}
-            <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Reward Points</p>
-              <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent)' }}>{totalRewards}</p>
-              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>across cards</p>
-            </motion.div>
+            <div className="grid grid-cols-2 gap-2">
+              <motion.div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Average</p>
+                <p className="text-xs font-semibold num mt-1 truncate" style={{ color: 'var(--text-primary)' }}>{formatMoney(averageSpending)}</p>
+              </motion.div>
 
-            {/* Total Spending */}
-            <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>This Month</p>
-              <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>₹{(totalSpending / 1000).toFixed(0)}k</p>
-              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>spending</p>
-            </motion.div>
-
-            {/* Average Spending */}
-            <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Average</p>
-              <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent)' }}>₹{averageSpending.toFixed(0)}</p>
-              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>per transaction</p>
-            </motion.div>
-
-            {/* Top Category */}
-            <motion.div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Top Category</p>
-              <p className="text-sm font-bold num mt-1 truncate" style={{ color: 'var(--accent)' }}>
-                {topCategory.category}
-              </p>
-              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>₹{(topCategory.total / 1000).toFixed(1)}k</p>
-            </motion.div>
+              <motion.div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Top Category</p>
+                <p className="text-xs font-semibold truncate mt-1" style={{ color: 'var(--text-primary)' }}>{topCategory.category}</p>
+                <p className="text-[10px] num mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>{formatMoney(topCategory.total)}</p>
+              </motion.div>
+            </div>
           </motion.div>
         )}
 
@@ -279,6 +391,17 @@ export default function Cards() {
                   }}
                     className="text-left transition-all rounded-2xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer"
                 >
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditCardModal(card);
+                    }}
+                    className="absolute z-20 top-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                    aria-label="Edit card"
+                  >
+                    <Pencil size={12} />
+                  </button>
                   <CreditCardComponent card={card} index={idx} />
                 </motion.div>
               ))}
@@ -317,6 +440,17 @@ export default function Cards() {
                 }}
               />
 
+              <div className="flex justify-end">
+                <button
+                  onClick={() => openEditCardModal(currentCard)}
+                  className="h-9 px-3 rounded-xl text-xs font-semibold flex items-center gap-2"
+                  style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                >
+                  <Pencil size={13} />
+                  Edit Card Details
+                </button>
+              </div>
+
               {/* Analytics */}
               {currentCard.analytics && (
                 <CardAnalyticsComponent
@@ -349,7 +483,7 @@ export default function Cards() {
                     >
                       <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{cat.category}</span>
                       <div className="text-right">
-                        <p className="text-sm font-bold" style={{ color: 'var(--accent)' }}>₹{(cat.total / 1000).toFixed(0)}k</p>
+                        <p className="text-sm font-bold" style={{ color: 'var(--accent)' }}>{formatMoney(cat.total)}</p>
                         <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{cat.count} txn</p>
                       </div>
                     </motion.div>
@@ -382,7 +516,7 @@ export default function Cards() {
                   <div className="space-y-3">
                     <div>
                       <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Total Balance</p>
-                      <p className="text-2xl font-black" style={{ color: 'var(--accent)' }}>₹{(totalBalance / 1000).toFixed(0)}k</p>
+                      <p className="text-lg md:text-xl font-black num" style={{ color: 'var(--accent)' }}>{formatMoney(totalBalance)}</p>
                     </div>
 
                     <div className="border-t pt-3" style={{ borderColor: 'var(--border)' }}>
@@ -435,7 +569,7 @@ export default function Cards() {
                           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{card.issuer}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold" style={{ color: 'var(--accent)' }}>₹{(card.currentBalance || 0).toLocaleString()}</p>
+                          <p className="text-sm font-bold num" style={{ color: 'var(--accent)' }}>{formatMoney(card.currentBalance || 0)}</p>
                           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{((card.utilization || 0) * 100).toFixed(0)}% used</p>
                         </div>
                       </motion.div>
@@ -489,7 +623,7 @@ export default function Cards() {
                             />
                           </div>
                         </div>
-                        <p className="text-xs font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>₹{(cat.total / 1000).toFixed(0)}k</p>
+                        <p className="text-xs font-bold flex-shrink-0 num" style={{ color: 'var(--accent)' }}>{formatMoney(cat.total)}</p>
                       </motion.button>
                     ))}
                 </div>
@@ -517,6 +651,148 @@ export default function Cards() {
         monthlySpending={currentCard?.analytics?.totalSpending || 0}
         rewardsRate={currentCard?.rewardsRate || 1}
       />
+
+      {/* Add/Edit Card Modal */}
+      {showCardForm && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+          <div className="w-full max-w-lg rounded-2xl p-4 md:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                {editingCardId ? 'Edit Card Details' : 'Add New Card'}
+              </h3>
+              <button
+                onClick={closeCardModal}
+                className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}
+                aria-label="Close"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              <input
+                value={cardForm.name}
+                onChange={(e) => setCardForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="Card Name"
+                className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+              />
+
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={cardForm.issuer}
+                  onChange={(e) => setCardForm(prev => ({ ...prev, issuer: e.target.value as CreditCard['issuer'] }))}
+                  className="h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                >
+                  {['HDFC', 'ICICI', 'SBI', 'Axis', 'Other'].map(issuer => (
+                    <option key={issuer} value={issuer}>{issuer}</option>
+                  ))}
+                </select>
+                <input
+                  value={cardForm.last4Digits}
+                  onChange={(e) => setCardForm(prev => ({ ...prev, last4Digits: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                  placeholder="Last 4 Digits"
+                  className="h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  value={cardForm.creditLimit}
+                  onChange={(e) => setCardForm(prev => ({ ...prev, creditLimit: e.target.value }))}
+                  placeholder="Credit Limit"
+                  className="h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                />
+                <input
+                  type="number"
+                  value={cardForm.currentBalance}
+                  onChange={(e) => setCardForm(prev => ({ ...prev, currentBalance: e.target.value }))}
+                  placeholder="Current Balance"
+                  className="h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  value={cardForm.rewardPointsBalance}
+                  onChange={(e) => setCardForm(prev => ({ ...prev, rewardPointsBalance: e.target.value }))}
+                  placeholder="Reward Points"
+                  className="h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  value={cardForm.rewardsRate}
+                  onChange={(e) => setCardForm(prev => ({ ...prev, rewardsRate: e.target.value }))}
+                  placeholder="Rewards Rate"
+                  className="h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={cardForm.billingCycleStartDate}
+                  onChange={(e) => setCardForm(prev => ({ ...prev, billingCycleStartDate: e.target.value }))}
+                  placeholder="Cycle Start"
+                  className="h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                />
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={cardForm.billingCycleEndDate}
+                  onChange={(e) => setCardForm(prev => ({ ...prev, billingCycleEndDate: e.target.value }))}
+                  placeholder="Cycle End"
+                  className="h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                />
+                <select
+                  value={cardForm.status}
+                  onChange={(e) => setCardForm(prev => ({ ...prev, status: e.target.value as CreditCard['status'] }))}
+                  className="h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                >
+                  {['active', 'inactive', 'closed'].map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={closeCardModal}
+                className="flex-1 h-10 rounded-xl text-xs font-semibold"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}
+                disabled={isSavingCard}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveCard}
+                className="flex-1 h-10 rounded-xl text-xs font-semibold text-white"
+                style={{ backgroundColor: 'var(--accent)' }}
+                disabled={isSavingCard}
+              >
+                {isSavingCard ? 'Saving...' : editingCardId ? 'Save Changes' : 'Create Card'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

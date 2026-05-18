@@ -24,6 +24,9 @@ function PillTabs({ tabs, active, onChange }: { tabs: string[]; active: string; 
   );
 }
 
+const formatMoney = (value: number) => `₹${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value || 0)}`;
+const formatNum = (value: number) => new Intl.NumberFormat('en-IN').format(value || 0);
+
 function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Vehicle) => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [litres, setLitres] = useState('');
@@ -61,7 +64,7 @@ function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Veh
         </div>
         <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <MapPin size={16} className="mx-auto mb-1" style={{ color: 'var(--accent-green)' }} />
-          <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{lastOdo.toLocaleString()}</p>
+              <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{formatNum(lastOdo)}</p>
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>km total</p>
         </div>
         <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -117,7 +120,7 @@ function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Veh
               {litres && amount && (
                 <div className="flex items-center gap-2 p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                   <TrendingUp size={14} style={{ color: 'var(--accent-gold)' }} />
-                  <span className="text-xs font-bold num" style={{ color: 'var(--accent-gold)' }}>₹{(parseFloat(amount)/parseFloat(litres)).toFixed(2)}/L</span>
+                  <span className="text-xs font-bold num" style={{ color: 'var(--accent-gold)' }}>{formatMoney(parseFloat(amount)/parseFloat(litres))}/L</span>
                 </div>
               )}
               <button onClick={handleSave} className="w-full h-10 rounded-xl text-sm font-semibold text-white press" style={{ backgroundColor: 'var(--accent)' }}>Save</button>
@@ -133,9 +136,9 @@ function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Veh
             <Fuel size={14} style={{ color: 'var(--accent)' }} />
             <div className="flex-1">
               <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{format(new Date(r.date), 'd MMM yyyy')}</p>
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{r.litres}L · {r.odometer.toLocaleString()} km{r.mileage ? ` · ${r.mileage} km/L` : ''}</p>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{r.litres}L · {formatNum(r.odometer)} km{r.mileage ? ` · ${r.mileage} km/L` : ''}</p>
             </div>
-            <span className="text-sm font-bold num" style={{ color: 'var(--accent-warm)' }}>₹{r.amount.toLocaleString()}</span>
+            <span className="text-sm font-bold num" style={{ color: 'var(--accent-warm)' }}>{formatMoney(r.amount)}</span>
             <button onClick={() => handleDeleteRefill(r.id)} className="w-7 h-7 rounded-lg flex items-center justify-center press" style={{ color: '#ef4444' }}>
               <Trash2 size={13} />
             </button>
@@ -216,7 +219,7 @@ function ServicesTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Ve
                 <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{format(new Date(s.date), 'd MMM yyyy')}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>₹{s.cost.toLocaleString()}</span>
+                <span className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{formatMoney(s.cost)}</span>
                 <button onClick={() => handleDelete(s.id)} className="w-7 h-7 rounded-lg flex items-center justify-center press" style={{ color: '#ef4444' }}><Trash2 size={13} /></button>
               </div>
             </div>
@@ -225,7 +228,7 @@ function ServicesTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Ve
                 <span key={item} className="text-[11px] px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>{item}</span>
               ))}
             </div>
-            {s.odometer && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.odometer.toLocaleString()} km</p>}
+            {s.odometer && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatNum(s.odometer)} km</p>}
           </div>
         ))}
       </div>
@@ -405,7 +408,7 @@ export default function Vehicles() {
                   <div className="flex items-center gap-3 mt-2">
                     <div className="flex items-center gap-1">
                       <Gauge size={11} style={{ color: 'var(--text-muted)' }} />
-                      <span className="text-[11px] num" style={{ color: 'var(--text-muted)' }}>{v.odometer.toLocaleString()} km</span>
+                      <span className="text-[11px] num" style={{ color: 'var(--text-muted)' }}>{formatNum(v.odometer)} km</span>
                     </div>
                     <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{v.regNo}</span>
                   </div>
@@ -527,7 +530,7 @@ export default function Vehicles() {
                 <div className="flex items-center gap-3 mt-2">
                   <div className="flex items-center gap-1.5">
                     <Gauge size={14} style={{ color: selected.color }} />
-                    <span className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{selected.odometer.toLocaleString()} km</span>
+                    <span className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{formatNum(selected.odometer)} km</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Fuel size={14} style={{ color: 'var(--accent-green)' }} />

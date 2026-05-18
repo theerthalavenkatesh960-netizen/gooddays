@@ -637,7 +637,7 @@ function DashboardTab({
         <StatChip icon={Target} label="Tasks Today" value={`${completedTaskCount}/${tasks.length || 0}`} color="var(--accent)" empty={tasks.length === 0} />
         <StatChip icon={Repeat} label="Routine" value={routineCompletionText} color="var(--accent-green)" empty={routineCompletionText === 'No routine'} />
         <StatChip icon={Flame} label="Workout" value={workoutToday ? 'Logged' : `${workoutStreak}d streak`} color="var(--accent-warm)" empty={!workoutToday && workoutStreak === 0} />
-        <StatChip icon={DollarSign} label="Monthly Net" value={monthlyNet === null ? '--' : `${monthlyNet >= 0 ? '+' : '-'}₹${Math.abs(monthlyNet).toLocaleString()}`} color={monthlyNet !== null && monthlyNet >= 0 ? 'var(--accent-green)' : 'var(--accent-warm)'} empty={monthlyNet === null} />
+        <StatChip icon={DollarSign} label="Monthly Net" value={monthlyNet === null ? '--' : `${monthlyNet >= 0 ? '+' : '-'}₹${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(monthlyNet))}`} color={monthlyNet !== null && monthlyNet >= 0 ? 'var(--accent-green)' : 'var(--accent-warm)'} empty={monthlyNet === null} />
       </div>
 
       {/* Quick add row */}
@@ -697,7 +697,7 @@ function DashboardTab({
         </div>
         <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Week spend</p>
-          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>₹{Math.round(weeklySpend).toLocaleString()}</p>
+          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.round(weeklySpend))}</p>
         </div>
       </div>
 

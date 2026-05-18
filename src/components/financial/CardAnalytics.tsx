@@ -28,7 +28,10 @@ export default function CardAnalytics({ analytics, card, onCategoryClick }: Card
   const totalSpending = analytics.totalSpending;
   
   const formatRupee = (num: number) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num);
+    return `₹${new Intl.NumberFormat('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(num || 0)}`;
   };
 
   const monthlyPercentage = card.creditLimit 

@@ -28,6 +28,10 @@ export default function CreditCardComponent({
   const utilization = card.utilization || 0;
   const utilizationPercent = Math.min(utilization > 1 ? utilization : utilization * 100, 100);
   const cardBackground = `linear-gradient(145deg, ${issuerColor}1A 0%, var(--surface) 45%, var(--surface-elevated) 100%)`;
+  const formatMoney = (value: number) => `₹${new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value || 0)}`;
 
   const containerClass = isLarge
     ? 'h-60'
@@ -47,7 +51,7 @@ export default function CreditCardComponent({
       <div className="absolute left-0 top-0 h-full w-1.5" style={{ backgroundColor: issuerColor }} />
 
       {/* Content */}
-      <div className={`relative h-full flex flex-col justify-between ${isLarge ? 'p-5 md:p-7' : 'p-3 md:p-3.5'}`}>
+      <div className={`relative h-full flex flex-col ${isLarge ? 'justify-between p-5 md:p-7' : 'p-3 md:p-3.5 gap-1'}`}>
         {/* Header */}
         <div className={`flex justify-between items-start ${isLarge ? 'gap-3' : 'gap-2'}`}>
           <div>
@@ -72,13 +76,13 @@ export default function CreditCardComponent({
         </div>
 
         {/* Middle - Status Indicators */}
-        <div className={isLarge ? 'space-y-3' : 'space-y-1.5'}>
+        <div className={isLarge ? 'space-y-3' : 'space-y-1'}>
           {/* Balance & Limit */}
           <div>
             <div className={`flex justify-between items-baseline ${isLarge ? 'mb-2' : 'mb-1'}`}>
               <p className={`font-medium ${isLarge ? 'text-xs' : 'text-[10px]'}`} style={{ color: 'var(--text-muted)' }}>Balance</p>
               <p className={`font-bold ${isLarge ? 'text-base' : 'text-xs'}`} style={{ color: 'var(--text-primary)' }}>
-                {card.currentBalance ? `₹${(card.currentBalance / 1000).toFixed(0)}K` : '₹0'}
+                {formatMoney(card.currentBalance || 0)}
               </p>
             </div>
             {isLarge && (
@@ -108,7 +112,7 @@ export default function CreditCardComponent({
           <div className={`grid grid-cols-3 ${isLarge ? 'gap-2' : 'gap-1.5'}`}>
             <div className={`rounded-lg h-full flex flex-col justify-between ${isLarge ? 'p-3' : 'p-1.5'}`} style={{ backgroundColor: `${issuerColor}14` }}>
               <p className={`${isLarge ? 'text-xs mb-0.5' : 'text-[9px] mb-0.5'}`} style={{ color: 'var(--text-muted)' }}>Limit</p>
-                <p className={`font-bold leading-tight ${isLarge ? 'text-base' : 'text-xs'}`} style={{ color: 'var(--text-primary)' }}>₹{((card.creditLimit || 0) / 100000).toFixed(1)}L</p>
+                <p className={`font-bold leading-tight ${isLarge ? 'text-base' : 'text-xs'}`} style={{ color: 'var(--text-primary)' }}>{formatMoney(card.creditLimit || 0)}</p>
             </div>
             <div className={`rounded-lg h-full flex flex-col justify-between ${isLarge ? 'p-3' : 'p-1.5'}`} style={{ backgroundColor: `${issuerColor}14` }}>
               <p className={`${isLarge ? 'text-xs mb-0.5' : 'text-[9px] mb-0.5'}`} style={{ color: 'var(--text-muted)' }}>Rewards</p>
