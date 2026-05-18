@@ -191,6 +191,32 @@ function getDummyAnalytics(cardId: string, startDate?: Date, endDate?: Date): Ca
   };
 }
 
+function getDummyExpenses(cardId: string): Array<{ id: number; description: string; amount: number; category: string; date: string; createdAt: string }> {
+  const analytics = getDummyAnalytics(cardId);
+  const now = new Date();
+  let idCounter = 1;
+
+  const expenses = analytics.byCategory.flatMap((cat, catIndex) => {
+    const count = Math.max(cat.count, 1);
+    const perTxn = Math.round(cat.total / count);
+    return Array.from({ length: count }).map((_, idx) => {
+      const daysAgo = catIndex * 3 + idx;
+      const date = new Date(now);
+      date.setDate(now.getDate() - daysAgo);
+      return {
+        id: idCounter++,
+        description: `${cat.category} spend #${idx + 1}`,
+        amount: perTxn,
+        category: cat.category,
+        date: date.toISOString(),
+        createdAt: date.toISOString(),
+      };
+    });
+  });
+
+  return expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
 // API Methods
 export const cardApi = {
   /**
@@ -303,7 +329,14 @@ export const cardApi = {
     endDate?: Date
   ): Promise<any[]> => {
     if (USE_DUMMY_FINANCE) {
-      return Promise.resolve([]);
+      let items = getDummyExpenses(cardId);
+      if (startDate) {
+        items = items.filter((e) => new Date(e.date) >= startDate);
+      }
+      if (endDate) {
+        items = items.filter((e) => new Date(e.date) <= endDate);
+      }
+      return Promise.resolve(items);
     }
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate.toISOString());

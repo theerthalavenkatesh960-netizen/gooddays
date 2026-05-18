@@ -268,13 +268,17 @@ export default function EnhancedCreditCardComponent({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800"
+          className="p-3 rounded-lg border"
+          style={{
+            backgroundColor: 'var(--surface)',
+            borderColor: 'var(--accent-gold)'
+          }}
         >
-          <p className="text-xs font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-2 mb-1">
-            <Gift size={14} />
+          <p className="text-xs font-semibold flex items-center gap-2 mb-1" style={{ color: 'var(--text-primary)' }}>
+            <Gift size={14} style={{ color: 'var(--accent-gold)' }} />
             Reward Redeem
           </p>
-          <p className="text-xs text-amber-800 dark:text-amber-300">
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
             Your {rewardValue.rupeeValue > 0 ? `₹${rewardValue.rupeeValue}` : 'rewards'} can get you: {rewardValue.bestRedemptionOpportunity}
           </p>
         </motion.div>

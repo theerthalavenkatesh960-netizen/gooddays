@@ -5,6 +5,7 @@ import { CardAnalytics as CardAnalyticsType, CreditCard } from '../../lib/cardAp
 interface CardAnalyticsProps {
   analytics: CardAnalyticsType;
   card: CreditCard;
+  onCategoryClick?: (category: string) => void;
 }
 
 const COLORS = [
@@ -22,7 +23,7 @@ const generateHSL = (index: number) => {
   return `hsl(${(index * 45) % 360}, 70%, 50%)`;
 };
 
-export default function CardAnalytics({ analytics, card }: CardAnalyticsProps) {
+export default function CardAnalytics({ analytics, card, onCategoryClick }: CardAnalyticsProps) {
   const maxValue = Math.max(...analytics.byCategory.map(c => c.total));
   const totalSpending = analytics.totalSpending;
   
@@ -107,10 +108,11 @@ export default function CardAnalytics({ analytics, card }: CardAnalyticsProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="p-8 rounded-2xl bg-gradient-to-br from-white to-gray-50 border border-gray-100 shadow-xl"
+        className="p-8 rounded-2xl shadow-xl"
+        style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
       >
-        <h3 className="text-xl font-bold mb-8 flex items-center gap-3">
-          <BarChart3 size={24} className="text-gray-900" />
+        <h3 className="text-xl font-bold mb-8 flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
+          <BarChart3 size={24} style={{ color: 'var(--text-primary)' }} />
           Spending by Category
         </h3>
 
@@ -120,12 +122,13 @@ export default function CardAnalytics({ analytics, card }: CardAnalyticsProps) {
             const color = generateHSL(idx);
 
             return (
-              <motion.div
+              <motion.button
                 key={category.category}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="group"
+                className="group w-full text-left"
+                onClick={() => onCategoryClick?.(category.category)}
               >
                 {/* Label Row */}
                 <div className="flex items-center justify-between mb-2">
@@ -135,7 +138,10 @@ export default function CardAnalytics({ analytics, card }: CardAnalyticsProps) {
                       style={{ backgroundColor: color }}
                       whileHover={{ scale: 1.2 }}
                     />
-                    <span className="font-medium text-gray-800">{category.category}</span>
+                    <span className="font-medium text-gray-800">
+                      {category.category}
+                      {onCategoryClick ? '  ->' : ''}
+                    </span>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-gray-900">{formatRupee(category.total)}</p>
@@ -181,7 +187,7 @@ export default function CardAnalytics({ analytics, card }: CardAnalyticsProps) {
                     {Math.round(percentage)}%
                   </motion.div>
                 </div>
-              </motion.div>
+              </motion.button>
             );
           })}
         </div>
@@ -192,10 +198,11 @@ export default function CardAnalytics({ analytics, card }: CardAnalyticsProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="p-8 rounded-2xl bg-gradient-to-br from-white to-gray-50 border border-gray-100 shadow-xl"
+        className="p-8 rounded-2xl shadow-xl"
+        style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
       >
-        <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
-          <Calendar size={24} className="text-gray-900" />
+        <h3 className="text-xl font-bold mb-6 flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
+          <Calendar size={24} style={{ color: 'var(--text-primary)' }} />
           Period Insights
         </h3>
 

@@ -296,7 +296,13 @@ export default function Cards() {
 
               {/* Analytics */}
               {currentCard.analytics && (
-                <CardAnalyticsComponent analytics={currentCard.analytics} card={currentCard} />
+                <CardAnalyticsComponent
+                  analytics={currentCard.analytics}
+                  card={currentCard}
+                  onCategoryClick={(category) => {
+                    navigate(`/finance/cards/${currentCard.id}/category/${encodeURIComponent(category)}`);
+                  }}
+                />
               )}
 
               {/* Recent Transactions */}
@@ -436,19 +442,20 @@ export default function Cards() {
                     .sort((a, b) => b.total - a.total)
                     .slice(0, 8)
                     .map((cat, i) => (
-                      <motion.div
+                      <motion.button
                         key={cat.category}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.03 }}
-                        className="flex items-center gap-2 p-2.5 rounded-lg"
+                        onClick={() => navigate(`/finance/cards/category/${encodeURIComponent(cat.category)}`)}
+                        className="w-full text-left flex items-center gap-2 p-2.5 rounded-lg"
                         style={{ backgroundColor: 'var(--surface-elevated)' }}
                       >
                         <div className="w-1.5 h-6 rounded-full flex-shrink-0" style={{
                           background: `hsl(${(i * 45) % 360}, 70%, 50%)`
                         }} />
                         <div className="flex-1">
-                          <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{cat.category}</p>
+                          <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{cat.category}  - view</p>
                           <div className="h-1.5 rounded-full mt-1 overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
                             <div
                               className="h-full rounded-full"
@@ -460,7 +467,7 @@ export default function Cards() {
                           </div>
                         </div>
                         <p className="text-xs font-bold flex-shrink-0" style={{ color: 'var(--accent)' }}>₹{(cat.total / 1000).toFixed(0)}k</p>
-                      </motion.div>
+                      </motion.button>
                     ))}
                 </div>
               </motion.div>
