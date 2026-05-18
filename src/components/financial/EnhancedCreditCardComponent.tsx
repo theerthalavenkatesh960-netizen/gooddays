@@ -123,43 +123,43 @@ export default function EnhancedCreditCardComponent({
         <div className="absolute left-0 top-0 h-full w-1.5" style={{ backgroundColor: issuerColor }} />
 
         {/* Content */}
-        <div className={`relative flex flex-col justify-between h-full ${isLarge ? 'p-5 md:p-6' : 'p-4 md:p-5'}`}>
+        <div className={`relative flex flex-col justify-between h-full ${isLarge ? 'p-3 md:p-4 gap-2' : 'p-4 md:p-5'}`}>
           {/* Header */}
-          <div className="flex justify-between items-start gap-3">
+          <div className="flex justify-between items-start gap-2">
             <div>
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.8 }}
-                className="text-xs font-semibold tracking-widest mb-1"
+                className={`font-semibold tracking-widest mb-0.5 ${isLarge ? 'text-[10px]' : 'text-xs'}`}
                 style={{ color: 'var(--text-muted)' }}
               >
                 {card.issuer || 'CARD'}
               </motion.p>
-              <h3 className="text-base md:text-lg font-bold tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>{card.name}</h3>
+              <h3 className={`font-bold tracking-tight leading-tight ${isLarge ? 'text-sm' : 'text-base md:text-lg'}`} style={{ color: 'var(--text-primary)' }}>{card.name}</h3>
             </div>
             <motion.div
               whileHover={{ scale: 1.08 }}
               transition={{ duration: 0.2 }}
-              className="w-9 h-9 rounded-xl flex items-center justify-center border"
+              className={`rounded-xl flex items-center justify-center border flex-shrink-0 ${isLarge ? 'w-7 h-7' : 'w-9 h-9'}`}
               style={{ backgroundColor: `${issuerColor}1A`, borderColor: `${issuerColor}3D` }}
             >
-              <CreditCard size={16} style={{ color: issuerColor }} />
+              <CreditCard size={isLarge ? 13 : 16} style={{ color: issuerColor }} />
             </motion.div>
           </div>
 
           {/* Status Row */}
-          <div className="space-y-2.5">
+          <div className={`${isLarge ? 'space-y-1.5' : 'space-y-2.5'}`}>
             {/* Balance & Limit */}
             {isLarge ? (
               <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col items-start" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.75rem', padding: '0.5rem 0.75rem' }}>
+                  <div className="flex flex-col items-start" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.625rem', padding: '0.375rem 0.625rem' }}>
                     <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Balance</p>
-                    <p className="text-sm font-semibold num truncate" style={{ color: 'var(--accent-warm)' }}>{formatMoney(card.currentBalance || 0)}</p>
+                    <p className="text-xs font-semibold num truncate" style={{ color: 'var(--accent-warm)' }}>{formatMoney(card.currentBalance || 0)}</p>
                   </div>
-                  <div className="flex flex-col items-start" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.75rem', padding: '0.5rem 0.75rem' }}>
+                  <div className="flex flex-col items-start" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.625rem', padding: '0.375rem 0.625rem' }}>
                     <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Limit</p>
-                    <p className="text-sm font-semibold num truncate" style={{ color: 'var(--text-primary)' }}>{formatMoney(card.creditLimit || 0)}</p>
+                    <p className="text-xs font-semibold num truncate" style={{ color: 'var(--text-primary)' }}>{formatMoney(card.creditLimit || 0)}</p>
                   </div>
                 </div>
                 <div>
@@ -209,13 +209,13 @@ export default function EnhancedCreditCardComponent({
                 whileHover={{ scale: 1.02 }}
                 onClick={() => onAction?.('rewards')}
                 className="flex flex-col items-start cursor-pointer"
-                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.75rem', padding: '0.5rem 0.75rem' }}
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.625rem', padding: '0.375rem 0.625rem' }}
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <Star size={12} style={{ color: 'var(--accent-gold)' }} />
                   <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Rewards</p>
                 </div>
-                <p className="text-sm font-semibold num leading-tight" style={{ color: 'var(--text-primary)' }}>{card.rewardPointsBalance || 0}</p>
+                <p className="text-xs font-semibold num leading-tight" style={{ color: 'var(--text-primary)' }}>{card.rewardPointsBalance || 0}</p>
                 <p className="text-[10px]" style={{ color: 'var(--accent-gold)' }}>₹{rewardValue.rupeeValue}</p>
               </motion.div>
 
@@ -224,13 +224,13 @@ export default function EnhancedCreditCardComponent({
                 whileHover={{ scale: 1.02 }}
                 onClick={() => onAction?.('payment')}
                 className="flex flex-col items-start cursor-pointer"
-                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.75rem', padding: '0.5rem 0.75rem' }}
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.625rem', padding: '0.375rem 0.625rem' }}
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <Calendar size={12} style={{ color: 'var(--accent)' }} />
                   <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Closes In</p>
                 </div>
-                <p className="text-sm font-semibold num leading-tight" style={{ color: 'var(--text-primary)' }}>{daysUntilClose}</p>
+                <p className="text-xs font-semibold num leading-tight" style={{ color: 'var(--text-primary)' }}>{daysUntilClose}</p>
                 <p className="text-[10px]" style={{ color: 'var(--accent)' }}>days</p>
               </motion.div>
 
@@ -238,7 +238,7 @@ export default function EnhancedCreditCardComponent({
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 className="flex flex-col items-start"
-                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.75rem', padding: '0.5rem 0.75rem' }}
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0.625rem', padding: '0.375rem 0.625rem' }}
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
                   {card.status === 'active'
@@ -246,7 +246,7 @@ export default function EnhancedCreditCardComponent({
                     : <XCircle size={12} className="text-red-500" />}
                   <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Status</p>
                 </div>
-                <p className={`text-sm font-semibold ${
+                <p className={`text-xs font-semibold ${
                   card.status === 'active' ? 'text-green-500' : 'text-red-500'
                 }`}>
                   {card.status === 'active' ? 'Active' : 'Inactive'}
@@ -273,8 +273,8 @@ export default function EnhancedCreditCardComponent({
           </div>
 
           {/* Footer */}
-          <div className="flex justify-between items-center pt-2">
-            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <div className="flex justify-between items-center">
+            <div className={`${isLarge ? 'text-[10px]' : 'text-xs'}`} style={{ color: 'var(--text-muted)' }}>
               {card.last4Digits && `●●●● ${card.last4Digits}`}
             </div>
             <motion.div

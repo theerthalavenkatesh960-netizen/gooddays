@@ -464,11 +464,11 @@ export default function Cards() {
 
               {/* Recent Transactions */}
               <motion.div
-                className="rounded-2xl p-4 md:p-5"
+                className="rounded-2xl p-3 md:p-4"
                 style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
               >
-                <h3 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                  <LineChart size={16} />
+                <h3 className="text-xs font-bold mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                  <LineChart size={13} />
                   Recent Transactions
                 </h3>
                 <div className="space-y-2">
@@ -478,12 +478,12 @@ export default function Cards() {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.05 }}
-                      className="flex justify-between items-center p-3 rounded-lg"
+                      className="flex justify-between items-center p-2 rounded-lg"
                       style={{ backgroundColor: 'var(--surface-elevated)' }}
                     >
-                      <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{cat.category}</span>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{cat.category}</span>
                       <div className="text-right">
-                        <p className="text-sm font-bold" style={{ color: 'var(--accent)' }}>{formatMoney(cat.total)}</p>
+                        <p className="text-xs font-bold" style={{ color: 'var(--accent)' }}>{formatMoney(cat.total)}</p>
                         <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{cat.count} txn</p>
                       </div>
                     </motion.div>
