@@ -30,8 +30,8 @@ export default function CreditCardComponent({
   const cardBackground = `linear-gradient(145deg, ${issuerColor}1A 0%, var(--surface) 45%, var(--surface-elevated) 100%)`;
 
   const containerClass = isLarge
-    ? 'h-52'
-    : 'h-32 md:h-36';
+    ? 'h-64'
+    : 'h-48 md:h-56';
 
   return (
     <motion.div
@@ -47,7 +47,7 @@ export default function CreditCardComponent({
       <div className="absolute left-0 top-0 h-full w-1.5" style={{ backgroundColor: issuerColor }} />
 
       {/* Content */}
-      <div className={`relative h-full flex flex-col justify-between ${isLarge ? 'p-5 md:p-8' : 'p-2.5 md:p-3'}`}>
+      <div className={`relative h-full flex flex-col justify-between ${isLarge ? 'p-5 md:p-8' : 'p-3.5 md:p-4'}`}>
         {/* Header */}
         <div className={`flex justify-between items-start ${isLarge ? 'gap-3' : 'gap-2'}`}>
           <div>
@@ -59,7 +59,7 @@ export default function CreditCardComponent({
             >
               {card.issuer}
             </motion.p>
-              <h3 className={`font-black tracking-tight leading-tight ${isLarge ? 'text-lg md:text-xl' : 'text-sm md:text-base'}`} style={{ color: 'var(--text-primary)' }}>{card.name}</h3>
+              <h3 className={`font-black tracking-tight leading-tight ${isLarge ? 'text-xl md:text-2xl' : 'text-sm md:text-base'}`} style={{ color: 'var(--text-primary)' }}>{card.name}</h3>
           </div>
           <motion.div
             whileHover={{ scale: 1.08 }}
@@ -77,7 +77,7 @@ export default function CreditCardComponent({
           <div>
             <div className={`flex justify-between items-baseline ${isLarge ? 'mb-2' : 'mb-1'}`}>
               <p className={`font-medium ${isLarge ? 'text-xs' : 'text-[10px]'}`} style={{ color: 'var(--text-muted)' }}>Balance</p>
-              <p className={`font-bold ${isLarge ? 'text-sm' : 'text-xs'}`} style={{ color: 'var(--text-primary)' }}>
+              <p className={`font-bold ${isLarge ? 'text-base' : 'text-xs'}`} style={{ color: 'var(--text-primary)' }}>
                 {card.currentBalance ? `₹${(card.currentBalance / 1000).toFixed(0)}K` : '₹0'}
               </p>
             </div>
@@ -106,19 +106,19 @@ export default function CreditCardComponent({
 
           {/* Stats Row */}
           <div className={`grid grid-cols-3 ${isLarge ? 'gap-2' : 'gap-1'}`}>
-            <div className={`rounded-lg h-full flex flex-col justify-between ${isLarge ? 'p-2' : 'p-1.5'}`} style={{ backgroundColor: `${issuerColor}14` }}>
+            <div className={`rounded-lg h-full flex flex-col justify-between ${isLarge ? 'p-3' : 'p-1.5'}`} style={{ backgroundColor: `${issuerColor}14` }}>
               <p className={`${isLarge ? 'text-xs mb-0.5' : 'text-[9px] mb-0.5'}`} style={{ color: 'var(--text-muted)' }}>Limit</p>
-                <p className={`font-bold leading-tight ${isLarge ? 'text-sm' : 'text-xs'}`} style={{ color: 'var(--text-primary)' }}>₹{((card.creditLimit || 0) / 100000).toFixed(1)}L</p>
+                <p className={`font-bold leading-tight ${isLarge ? 'text-base' : 'text-xs'}`} style={{ color: 'var(--text-primary)' }}>₹{((card.creditLimit || 0) / 100000).toFixed(1)}L</p>
             </div>
-            <div className={`rounded-lg h-full flex flex-col justify-between ${isLarge ? 'p-2' : 'p-1.5'}`} style={{ backgroundColor: `${issuerColor}14` }}>
+            <div className={`rounded-lg h-full flex flex-col justify-between ${isLarge ? 'p-3' : 'p-1.5'}`} style={{ backgroundColor: `${issuerColor}14` }}>
               <p className={`${isLarge ? 'text-xs mb-0.5' : 'text-[9px] mb-0.5'}`} style={{ color: 'var(--text-muted)' }}>Rewards</p>
-                <p className={`font-bold leading-tight ${isLarge ? 'text-sm' : 'text-xs'}`} style={{ color: 'var(--text-primary)' }}>{card.rewardPointsBalance || 0}</p>
+                <p className={`font-bold leading-tight ${isLarge ? 'text-base' : 'text-xs'}`} style={{ color: 'var(--text-primary)' }}>{card.rewardPointsBalance || 0}</p>
             </div>
-            <div className={`rounded-lg h-full flex flex-col justify-between ${isLarge ? 'p-2' : 'p-1.5'}`} style={{ backgroundColor: `${issuerColor}14` }}>
+            <div className={`rounded-lg h-full flex flex-col justify-between ${isLarge ? 'p-3' : 'p-1.5'}`} style={{ backgroundColor: `${issuerColor}14` }}>
               <p className={`${isLarge ? 'text-xs mb-0.5' : 'text-[9px] mb-0.5'}`} style={{ color: 'var(--text-muted)' }}>Status</p>
                 <p className={`font-bold ${
                   card.status === 'active' ? 'text-green-500' : 'text-red-500'
-                } ${isLarge ? 'text-sm' : 'text-xs'}`}>
+                } ${isLarge ? 'text-base' : 'text-xs'}`}>
                 {card.status === 'active' ? '✓' : '✗'}
               </p>
             </div>

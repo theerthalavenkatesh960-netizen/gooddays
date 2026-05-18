@@ -219,7 +219,12 @@ export default function Cards() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex flex-wrap gap-2 pb-2"
+          className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide"
+          style={{
+            scrollBehavior: 'smooth',
+            msOverflowStyle: 'none',
+            scrollbarWidth: 'none'
+          }}
         >
           {[
             { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -266,7 +271,7 @@ export default function Cards() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3 md:gap-4"
+              className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-5"
             >
               {cards.map((card, idx) => (
                 <motion.div

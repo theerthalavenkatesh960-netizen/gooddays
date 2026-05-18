@@ -52,14 +52,14 @@ export default function EnhancedCreditCardComponent({
     card.rewardPointsBalance || 0
   );
 
-  const containerClass = isLarge ? 'h-52 md:h-56' : 'h-36';
+  const containerClass = isLarge ? 'h-auto' : 'h-48';
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.4 }}
-      className="space-y-3"
+      className="space-y-4"
     >
       {/* Alert Badge */}
       {alert && (
@@ -110,7 +110,7 @@ export default function EnhancedCreditCardComponent({
       {/* Main Card */}
       <motion.div
         whileHover={{ y: -4 }}
-        className={`group relative ${containerClass} w-full rounded-2xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all`}
+        className={`group relative w-full rounded-2xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all`}
         style={{
           background: cardBackground,
           border: `1px solid ${issuerColor}33`
@@ -119,7 +119,7 @@ export default function EnhancedCreditCardComponent({
         <div className="absolute left-0 top-0 h-full w-1.5" style={{ backgroundColor: issuerColor }} />
 
         {/* Content */}
-        <div className={`relative h-full flex flex-col justify-between p-4 md:p-5 ${isLarge ? 'p-6 md:p-7' : ''}`}>
+        <div className={`relative flex flex-col justify-between h-full ${isLarge ? 'p-6 md:p-7' : 'p-4 md:p-5'}`}>
           {/* Header */}
           <div className="flex justify-between items-start gap-3">
             <div>
@@ -144,7 +144,7 @@ export default function EnhancedCreditCardComponent({
           </div>
 
           {/* Status Row */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             {/* Balance & Limit */}
             <div>
               <div className="flex justify-between items-baseline mb-2">
