@@ -27,6 +27,7 @@ export default function CreditCardComponent({
   const issuerColor = getIssuerGradient(card.issuer);
   const utilization = card.utilization || 0;
   const utilizationPercent = Math.min(utilization > 1 ? utilization : utilization * 100, 100);
+  const cardBackground = `linear-gradient(145deg, ${issuerColor}1A 0%, var(--surface) 45%, var(--surface-elevated) 100%)`;
 
   const containerClass = isLarge
     ? 'h-80'
@@ -39,8 +40,8 @@ export default function CreditCardComponent({
       transition={{ delay: index * 0.1, duration: 0.4 }}
       className={`group relative ${containerClass} w-full rounded-2xl overflow-hidden cursor-pointer transition-all`}
       style={{
-        backgroundColor: 'var(--surface)',
-        border: '1px solid var(--border)'
+        background: cardBackground,
+        border: `1px solid ${issuerColor}33`
       }}
     >
       <div className="absolute left-0 top-0 h-full w-1.5" style={{ backgroundColor: issuerColor }} />
@@ -48,7 +49,7 @@ export default function CreditCardComponent({
       {/* Content */}
       <div className={`relative h-full flex flex-col justify-between p-4 md:p-5 ${isLarge ? 'p-8' : ''}`}>
         {/* Header */}
-        <div className="flex justify-between items-start">
+        <div className="flex justify-between items-start gap-3">
           <div>
             <motion.p
               initial={{ opacity: 0 }}
@@ -63,8 +64,8 @@ export default function CreditCardComponent({
           <motion.div
             whileHover={{ scale: 1.08 }}
             transition={{ duration: 0.2 }}
-            className="w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{ backgroundColor: 'var(--surface-elevated)' }}
+            className="w-10 h-10 rounded-xl flex items-center justify-center border"
+            style={{ backgroundColor: `${issuerColor}1A`, borderColor: `${issuerColor}3D` }}
           >
             <CreditCard size={18} style={{ color: issuerColor }} />
           </motion.div>
@@ -85,7 +86,7 @@ export default function CreditCardComponent({
               <span>50%</span>
               <span>100%</span>
             </div>
-            <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+            <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: `${issuerColor}22` }}>
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${utilizationPercent}%` }}
@@ -103,15 +104,15 @@ export default function CreditCardComponent({
 
           {/* Stats Row */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+            <div className="p-2 rounded-lg h-full flex flex-col justify-between" style={{ backgroundColor: `${issuerColor}14` }}>
               <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Limit</p>
                 <p className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>₹{((card.creditLimit || 0) / 100000).toFixed(1)}L</p>
             </div>
-            <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+            <div className="p-2 rounded-lg h-full flex flex-col justify-between" style={{ backgroundColor: `${issuerColor}14` }}>
               <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Rewards</p>
                 <p className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>{card.rewardPointsBalance || 0}</p>
             </div>
-            <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+            <div className="p-2 rounded-lg h-full flex flex-col justify-between" style={{ backgroundColor: `${issuerColor}14` }}>
               <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Status</p>
                 <p className={`font-bold text-sm ${
                   card.status === 'active' ? 'text-green-500' : 'text-red-500'
@@ -139,8 +140,8 @@ export default function CreditCardComponent({
           <motion.div
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
-            className="p-2 rounded-lg transition-all cursor-pointer"
-            style={{ backgroundColor: 'var(--surface-elevated)' }}
+            className="p-2 rounded-lg transition-all cursor-pointer border"
+            style={{ backgroundColor: `${issuerColor}14`, borderColor: `${issuerColor}33` }}
           >
             <Edit2 size={16} style={{ color: 'var(--text-secondary)' }} />
           </motion.div>
