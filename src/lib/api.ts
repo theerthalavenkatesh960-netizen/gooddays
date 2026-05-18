@@ -52,7 +52,7 @@ export const DUMMY_FLAGS = {
   workout: envBool('VITE_USE_DUMMY_WORKOUT', false),
   dailyRoutine: envBool('VITE_USE_DUMMY_DAILY_ROUTINE', false),
   goals: envBool('VITE_USE_DUMMY_GOALS', false),
-  finance: envBool('VITE_USE_DUMMY_FINANCE', true),
+  finance: envBool('VITE_USE_DUMMY_FINANCE', false),
   vehicles: envBool('VITE_USE_DUMMY_VEHICLES', false),
   meals: envBool('VITE_USE_DUMMY_MEALS', false),
   water: envBool('VITE_USE_DUMMY_WATER', false),
