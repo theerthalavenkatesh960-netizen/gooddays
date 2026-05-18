@@ -52,7 +52,7 @@ export default function EnhancedCreditCardComponent({
     card.rewardPointsBalance || 0
   );
 
-  const containerClass = isLarge ? 'h-60 md:h-64' : 'h-44';
+  const containerClass = isLarge ? 'h-52 md:h-56' : 'h-36';
 
   return (
     <motion.div

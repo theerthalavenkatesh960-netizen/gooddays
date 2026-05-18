@@ -103,7 +103,7 @@ export default function Cards() {
   };
 
   return (
-    <div className="min-h-screen pb-20" style={{ backgroundColor: 'var(--bg)' }}>
+    <div className="min-h-screen pb-20 overflow-x-hidden" style={{ backgroundColor: 'var(--bg)' }}>
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -141,7 +141,7 @@ export default function Cards() {
       </motion.div>
 
       {/* Main Content */}
-      <div className="px-4 py-5 md:py-6 space-y-5 md:space-y-6 max-w-6xl mx-auto">
+      <div className="px-4 py-5 md:py-6 space-y-5 md:space-y-6 max-w-6xl mx-auto overflow-x-hidden">
         {/* Stats Cards - Overview */}
         {activeTab === 'overview' && (
           <motion.div
@@ -188,6 +188,30 @@ export default function Cards() {
               <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>₹{(totalSpending / 1000).toFixed(0)}k</p>
               <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>spending</p>
             </motion.div>
+
+            {/* Average Spending */}
+            <motion.div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Average</p>
+              <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent)' }}>₹{cards.flatMap(c => (c.analytics?.byCategory || [])).length > 0 ? (totalSpending / Math.max(cards.flatMap(c => c.analytics?.byCategory || []).reduce((sum, cat) => sum + cat.count, 0), 1)).toFixed(0) : '0'}</p>
+              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>per transaction</p>
+            </motion.div>
+
+            {/* Top Category */}
+            <motion.div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Top Category</p>
+              <p className="text-sm font-bold num mt-1 truncate" style={{ color: 'var(--accent)' }}>
+                {(() => {
+                  const allCategories = cards.flatMap(c => c.analytics?.byCategory || []);
+                  const topCat = allCategories.reduce((prev, current) => (prev.total > current.total) ? prev : current, { category: 'N/A', total: 0, count: 0 });
+                  return topCat.category;
+                })()}
+              </p>
+              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>₹{(() => {
+                const allCategories = cards.flatMap(c => c.analytics?.byCategory || []);
+                const topCat = allCategories.reduce((prev, current) => (prev.total > current.total) ? prev : current, { category: 'N/A', total: 0, count: 0 });
+                return (topCat.total / 1000).toFixed(1);
+              })()}k</p>
+            </motion.div>
           </motion.div>
         )}
 
@@ -195,7 +219,7 @@ export default function Cards() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4 md:mx-0 md:px-0"
+          className="flex flex-wrap gap-2 pb-2"
         >
           {[
             { id: 'overview', label: 'Overview', icon: BarChart3 },
