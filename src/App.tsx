@@ -10,6 +10,8 @@ import Dashboard from './pages/Dashboard';
 import Body from './pages/Body';
 import Workout from './pages/Workout';
 import Finance from './pages/Finance';
+import Cards from './pages/Cards';
+import CardCategoryTransactions from './pages/CardCategoryTransactions';
 import FinanceBudgetSettings from './pages/FinanceBudgetSettings';
 import BucketDetail from './pages/BucketDetail';
 import Life from './pages/Life';
@@ -27,6 +29,8 @@ import MealTemplateDetails from './pages/MealTemplateDetails';
 import WorkoutAddExercisePage from './pages/WorkoutAddExercisePage';
 import MealIngredientLibraryPage from './pages/MealIngredientLibraryPage';
 import MealCreateTemplatePage from './pages/MealCreateTemplatePage';
+import MealDayPickerPage from './pages/MealDayPickerPage';
+import RoutineExercisePickerPage from './pages/RoutineExercisePickerPage';
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -67,6 +71,9 @@ function App() {
               <Route path="/body"     element={<PrivateRoute><Layout><Body /></Layout></PrivateRoute>} />
               <Route path="/body/workout-log" element={<PrivateRoute><Layout><Workout /></Layout></PrivateRoute>} />
               <Route path="/finance"  element={<PrivateRoute><Layout><Finance /></Layout></PrivateRoute>} />
+              <Route path="/finance/cards" element={<PrivateRoute><Layout><Cards /></Layout></PrivateRoute>} />
+              <Route path="/finance/cards/category/:category" element={<PrivateRoute><Layout><CardCategoryTransactions /></Layout></PrivateRoute>} />
+              <Route path="/finance/cards/:cardId/category/:category" element={<PrivateRoute><Layout><CardCategoryTransactions /></Layout></PrivateRoute>} />
               <Route path="/finance/settings" element={<PrivateRoute><Layout><FinanceBudgetSettings /></Layout></PrivateRoute>} />
               <Route path="/finance/bucket/:id" element={<PrivateRoute><Layout><BucketDetail /></Layout></PrivateRoute>} />
               <Route path="/finance/vehicles" element={<PrivateRoute><Layout><Vehicles /></Layout></PrivateRoute>} />
@@ -84,6 +91,8 @@ function App() {
               <Route path="/settings/meals/ingredients" element={<PrivateRoute><Layout><MealIngredientLibraryPage /></Layout></PrivateRoute>} />
               <Route path="/settings/meals/new-template" element={<PrivateRoute><Layout><MealCreateTemplatePage /></Layout></PrivateRoute>} />
               <Route path="/settings/meals/template/:id" element={<PrivateRoute><Layout><MealTemplateDetails /></Layout></PrivateRoute>} />
+              <Route path="/settings/meals/pick" element={<PrivateRoute><Layout><MealDayPickerPage /></Layout></PrivateRoute>} />
+              <Route path="/settings/workout-library/pick" element={<PrivateRoute><Layout><RoutineExercisePickerPage /></Layout></PrivateRoute>} />
 
               {/* Journal editor — full screen, no nav */}
               <Route path="/journal/new"      element={<PrivateRoute><JournalEditor /></PrivateRoute>} />

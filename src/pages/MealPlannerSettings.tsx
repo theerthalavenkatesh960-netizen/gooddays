@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Calendar, BookOpen, X, UtensilsCrossed, Loader2, Filter, Search, Layers, ChefHat } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Calendar, BookOpen, UtensilsCrossed, Loader2, Filter, Search, Layers, ChefHat } from 'lucide-react';
 import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
 import * as api from '../lib/api';
 import MacroVisualization from '../components/MacroVisualization';
+import MealCard from '../components/MealCard';
 
 type MealTemplate = {
   id: number;
   name: string;
   timing: string;
+  timeOfDay?: string;
   ingredientsJson: string;
   recipe: string;
   imageUrl?: string;
@@ -24,9 +26,15 @@ type IngSnap = {
   proteinG: number;
   carbsG: number;
   fatsG: number;
+  description?: string;
 };
 
-type MealPlanMap = Record<string, number[]>;
+type MealAssignment = {
+  mealTemplateId: number;
+  timeOfDay?: string;
+};
+
+type MealPlanMap = Record<string, MealAssignment[]>;
 
 const TIMING_COLORS: Record<string, string> = {
   breakfast: 'var(--accent-gold)',
@@ -36,6 +44,50 @@ const TIMING_COLORS: Record<string, string> = {
   'post-workout': '#4ECDC4',
   snack: 'var(--text-muted)',
 };
+
+function toDateKey(date: Date) {
+  return format(date, 'yyyy-MM-dd');
+}
+
+function toLegacyDayKey(date: Date) {
+  return format(date, 'EEEE').toLowerCase();
+}
+
+function parseTimeOfDayToMinutes(timeText?: string): number {
+  if (!timeText?.trim()) return Number.MAX_SAFE_INTEGER;
+  const t = timeText.trim().toLowerCase();
+  let match = t.match(/^(\d{1,2})[:.](\.?\d{2})\s*(am|pm)?$/);
+  if (!match) match = t.match(/^(\d{1,2})[:](\d{2})\s*(am|pm)?$/);
+  if (match) {
+    let h = Number(match[1]);
+    const m = Number(match[2]);
+    const ap = match[3];
+    if (ap) {
+      if (h < 1 || h > 12 || m < 0 || m > 59) return Number.MAX_SAFE_INTEGER;
+      if (ap === 'pm' && h !== 12) h += 12;
+      if (ap === 'am' && h === 12) h = 0;
+    } else {
+      if (h < 0 || h > 23 || m < 0 || m > 59) return Number.MAX_SAFE_INTEGER;
+    }
+    return h * 60 + m;
+  }
+  const hourOnly = t.match(/^(\d{1,2})\s*(am|pm)$/);
+  if (hourOnly) {
+    let h = Number(hourOnly[1]);
+    const ap = hourOnly[2];
+    if (h < 1 || h > 12) return Number.MAX_SAFE_INTEGER;
+    if (ap === 'pm' && h !== 12) h += 12;
+    if (ap === 'am' && h === 12) h = 0;
+    return h * 60;
+  }
+  const hhmm = t.match(/^(\d{2})(\d{2})$/);
+  if (hhmm) {
+    const h = Number(hhmm[1]), m = Number(hhmm[2]);
+    if (h > 23 || m > 59) return Number.MAX_SAFE_INTEGER;
+    return h * 60 + m;
+  }
+  return Number.MAX_SAFE_INTEGER;
+}
 
 function parseIngredients(json: string): IngSnap[] {
   try {
@@ -51,20 +103,35 @@ function parseIngredients(json: string): IngSnap[] {
       proteinG: Number(item.proteinG || 0),
       carbsG: Number(item.carbsG || 0),
       fatsG: Number(item.fatsG || 0),
+      description: item.description ? String(item.description) : undefined,
     }));
   } catch {
     return [];
   }
 }
 
-function toDayKey(date: Date) {
-  return format(date, 'EEEE').toLowerCase();
-}
-
-function normalizeDayMealIds(value: any): number[] {
-  if (Array.isArray(value)) return value.map((id) => Number(id)).filter((id) => Number.isFinite(id));
+function normalizeDayMealAssignments(value: any): MealAssignment[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        // Handle new format: { mealTemplateId: int, timeOfDay: string }
+        if (item && typeof item === 'object' && 'mealTemplateId' in item) {
+          return {
+            mealTemplateId: Number(item.mealTemplateId),
+            timeOfDay: item.timeOfDay ? String(item.timeOfDay).trim() : undefined,
+          } as MealAssignment;
+        }
+        // Fallback: handle old format (plain ID)
+        const id = Number(item);
+        if (Number.isFinite(id)) {
+          return { mealTemplateId: id, timeOfDay: undefined } as MealAssignment;
+        }
+        return null;
+      })
+      .filter((a): a is MealAssignment => !!a);
+  }
   if (value && typeof value === 'object' && Array.isArray(value.mealIds)) {
-    return value.mealIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id));
+    return normalizeDayMealAssignments(value.mealIds);
   }
   return [];
 }
@@ -73,7 +140,7 @@ function normalizeMealPlan(raw: any): MealPlanMap {
   if (!raw || typeof raw !== 'object') return {};
   const next: MealPlanMap = {};
   for (const key of Object.keys(raw)) {
-    next[key] = normalizeDayMealIds(raw[key]);
+    next[key] = normalizeDayMealAssignments(raw[key]);
   }
   return next;
 }
@@ -87,16 +154,20 @@ export default function MealPlannerSettings() {
   const [mealPlan, setMealPlan] = useState<MealPlanMap>({});
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
-  const [addingToDay, setAddingToDay] = useState<string | null>(null);
-  const [pickMealId, setPickMealId] = useState<number | null>(null);
+  const lastAppliedPickRef = useRef<string>('');
 
   const [showMealFilters, setShowMealFilters] = useState(false);
   const [mealSearch, setMealSearch] = useState('');
   const [mealTimingFilter, setMealTimingFilter] = useState<'all' | 'breakfast' | 'lunch' | 'dinner' | 'pre-workout' | 'post-workout' | 'snack'>('all');
 
-  const selectedDay = toDayKey(selectedDate);
+  const selectedDayKey = toDateKey(selectedDate);
+  const selectedDayLabel = format(selectedDate, 'EEEE').toLowerCase();
 
   useEffect(() => { loadAll(); }, []);
+
+  useEffect(() => {
+    setTab((location.state as any)?.tab ?? 'weekly');
+  }, [location.state]);
 
   async function loadAll() {
     setLoading(true);
@@ -143,7 +214,7 @@ export default function MealPlannerSettings() {
 
       const nextPlan: MealPlanMap = {};
       for (const key of Object.keys(mealPlan)) {
-        nextPlan[key] = (mealPlan[key] || []).filter(mid => mid !== id);
+        nextPlan[key] = (mealPlan[key] || []).filter(assignment => assignment.mealTemplateId !== id);
       }
       await savePlan(nextPlan);
     } catch (e: any) {
@@ -160,25 +231,71 @@ export default function MealPlannerSettings() {
     }
   }
 
-  async function addMealToDay(day: string) {
-    if (!pickMealId) return;
-    const existing = normalizeDayMealIds(mealPlan[day]);
-    if (existing.includes(pickMealId)) {
-      setAddingToDay(null);
-      return;
+  async function copyLastWeekPlan() {
+    const sourceDate = format(addDays(selectedDate, -7), 'yyyy-MM-dd');
+    const targetDate = format(selectedDate, 'yyyy-MM-dd');
+    try {
+      await api.copyLastWeekMealPlan(sourceDate, targetDate);
+      await loadAll();
+      flash('Copied last week ✓');
+    } catch (e: any) {
+      flash(e?.message || 'Last week has no meals to copy');
     }
-    await savePlan({ ...mealPlan, [day]: [...existing, pickMealId] });
-    setAddingToDay(null);
   }
 
-  async function removeMealFromDay(day: string, mealId: number) {
-    await savePlan({ ...mealPlan, [day]: normalizeDayMealIds(mealPlan[day]).filter(id => id !== mealId) });
+  async function addMealToDay(dayKey: string, mealTemplateId: number, timeOfDay?: string) {
+    const existing = mealPlan[dayKey] || [];
+    if (existing.some(a => a.mealTemplateId === mealTemplateId)) {
+      flash('Meal already exists for this day');
+      return;
+    }
+    const newAssignment: MealAssignment = {
+      mealTemplateId,
+      timeOfDay: timeOfDay?.trim() || undefined,
+    };
+    await savePlan({ ...mealPlan, [dayKey]: [...existing, newAssignment] });
+  }
+
+  useEffect(() => {
+    const state: any = location.state || {};
+    const pick = state.mealPick;
+    if (loading) return;
+    if (!pick?.dayKey || !pick?.mealTemplateId) return;
+    const signature = `${pick.dayKey}-${pick.mealTemplateId}-${pick.timeOfDay || ''}`;
+    if (lastAppliedPickRef.current === signature) return;
+    lastAppliedPickRef.current = signature;
+    addMealToDay(pick.dayKey, Number(pick.mealTemplateId), pick.timeOfDay);
+  }, [location.state, loading]);
+
+  function openMealPicker(dayKey: string) {
+    navigate('/settings/meals/pick', { state: { dayKey } });
+  }
+
+  async function removeMealFromDay(dayKey: string, mealId: number) {
+    await savePlan({ ...mealPlan, [dayKey]: (mealPlan[dayKey] || []).filter(a => a.mealTemplateId !== mealId) });
   }
 
   const selectedMeals = useMemo(() => {
-    const ids = normalizeDayMealIds(mealPlan[selectedDay]);
-    return ids.map(id => meals.find(m => m.id === id)).filter((m): m is MealTemplate => !!m);
-  }, [mealPlan, meals, selectedDay]);
+    const assignments = mealPlan[selectedDayKey] || [];
+    const fallbackAssignments = (assignments.length > 0) ? assignments : (mealPlan[toLegacyDayKey(selectedDate)] || []);
+    return fallbackAssignments
+      .map(assignment => {
+        const meal = meals.find(m => m.id === assignment.mealTemplateId);
+        return meal ? { meal, overrideTime: assignment.timeOfDay as string | undefined } : null;
+      })
+      .filter((item): item is { meal: MealTemplate; overrideTime: string | undefined } => item !== null && item !== undefined)
+      .sort((a, b) => {
+        if (!a || !b) return 0;
+        // Sort by override time if present, otherwise by template's default time
+        const timeA = a.overrideTime || a.meal.timeOfDay;
+        const timeB = b.overrideTime || b.meal.timeOfDay;
+        const ta = parseTimeOfDayToMinutes(timeA);
+        const tb = parseTimeOfDayToMinutes(timeB);
+        return ta !== tb ? ta - tb : a.meal.id - b.meal.id;
+      })
+      .map(item => item?.meal)
+      .filter((meal): meal is MealTemplate => meal !== null && meal !== undefined);
+  }, [mealPlan, meals, selectedDayKey, selectedDate]);
 
   const selectedDayCalories = selectedMeals.reduce((sum, meal) => {
     const ingredientsForMeal = parseIngredients(meal.ingredientsJson);
@@ -194,8 +311,6 @@ export default function MealPlannerSettings() {
     if (mealTimingFilter !== 'all') list = list.filter(m => m.timing === mealTimingFilter);
     return list;
   }, [meals, mealSearch, mealTimingFilter]);
-
-  const pickedMeal = meals.find(m => m.id === pickMealId) ?? null;
 
   if (loading) {
     return (
@@ -238,9 +353,9 @@ export default function MealPlannerSettings() {
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{format(selectedDate, 'EEEE, MMM d')}</p>
               <div className="flex items-center gap-2">
-                <button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>◀ Week</button>
+                <button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Prev Week</button>
                 <button onClick={() => setSelectedDate(new Date())} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Today</button>
-                <button onClick={() => setSelectedDate(addDays(selectedDate, 7))} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Week ▶</button>
+                <button onClick={() => setSelectedDate(addDays(selectedDate, 7))} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Next Week</button>
               </div>
             </div>
 
@@ -250,13 +365,15 @@ export default function MealPlannerSettings() {
                   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
                   const d = addDays(weekStart, i);
                   const active = isSameDay(d, selectedDate);
-                  const key = toDayKey(d);
+                  const dateKey = toDateKey(d);
+                  const legacyKey = toLegacyDayKey(d);
+                  const dayCount = (mealPlan[dateKey]?.length || 0) || (mealPlan[legacyKey]?.length || 0);
                   return (
                     <button key={d.toISOString()} onClick={() => setSelectedDate(d)} className="min-w-[64px] px-2 py-2 rounded-lg text-center border"
                       style={{ backgroundColor: active ? 'var(--accent-green)' : 'var(--surface-elevated)', color: active ? '#fff' : 'var(--text-secondary)', borderColor: active ? 'var(--accent-green)' : 'var(--border)' }}>
                       <div className="text-[11px]">{format(d, 'EEE')}</div>
                       <div className="font-semibold text-sm">{format(d, 'd')}</div>
-                      <div className="text-[10px] opacity-80">{(mealPlan[key] || []).length}</div>
+                      <div className="text-[10px] opacity-80">{dayCount}</div>
                     </button>
                   );
                 })}
@@ -265,50 +382,43 @@ export default function MealPlannerSettings() {
 
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-sm font-bold capitalize" style={{ color: 'var(--text-primary)' }}>{selectedDay}</p>
+                <p className="text-sm font-bold capitalize" style={{ color: 'var(--text-primary)' }}>{selectedDayLabel}</p>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''}
-                  {selectedDayCalories > 0 && <span style={{ color: 'var(--accent-gold)' }}> · {Math.round(selectedDayCalories)} kcal</span>}
+                  {selectedDayCalories > 0 && <span style={{ color: 'var(--accent-gold)' }}> | {Math.round(selectedDayCalories)} kcal</span>}
                 </p>
               </div>
-              <button onClick={() => { setAddingToDay(selectedDay); setPickMealId(meals[0]?.id ?? null); }} className="w-8 h-8 rounded-xl flex items-center justify-center press"
-                style={{ backgroundColor: 'rgba(78, 205, 196, 0.15)', color: 'var(--accent-green)' }}>
-                <Plus size={16} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={copyLastWeekPlan} className="px-2 py-1 rounded-lg text-xs font-semibold"
+                  style={{ backgroundColor: 'rgba(78, 205, 196, 0.15)', color: 'var(--accent-green)' }}>
+                  Copy Last Week
+                </button>
+                <button onClick={() => openMealPicker(selectedDayKey)} className="w-8 h-8 rounded-xl flex items-center justify-center press"
+                  style={{ backgroundColor: 'rgba(78, 205, 196, 0.15)', color: 'var(--accent-green)' }}>
+                  <Plus size={16} />
+                </button>
+              </div>
             </div>
 
             {selectedMeals.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2">
-                {selectedMeals.map(meal => {
-                  const ings = parseIngredients(meal.ingredientsJson);
-                  const total = ings.reduce((s, i) => s + i.caloriesKcal, 0);
-                  const macros = { protein: ings.reduce((s, i) => s + i.proteinG, 0), carbs: ings.reduce((s, i) => s + i.carbsG, 0), fats: ings.reduce((s, i) => s + i.fatsG, 0) };
-                  return (
-                    <div key={meal.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
-                      <button onClick={() => navigate(`/settings/meals/template/${meal.id}`)} className="w-full text-left">
-                        <div className="w-full h-24 flex items-center justify-center relative" style={{ backgroundColor: 'rgba(78, 205, 196, 0.07)' }}>
-                          {meal.imageUrl ? <img src={meal.imageUrl} alt={meal.name} className="w-full h-full object-cover" /> : <UtensilsCrossed size={28} style={{ color: 'var(--accent-green)', opacity: 0.5 }} />}
-                          <span className="absolute top-1.5 left-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(0,0,0,0.6)', color: TIMING_COLORS[meal.timing] || '#fff' }}>{meal.timing}</span>
-                        </div>
-                        <div className="p-2.5">
-                          <p className="text-xs font-semibold line-clamp-1 mb-0.5" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
-                          <p className="text-[10px] mb-1.5" style={{ color: 'var(--accent-gold)' }}>{Math.round(total)} kcal</p>
-                          {(macros.protein + macros.carbs + macros.fats) > 0 && <div className="mb-1.5"><MacroVisualization macros={macros} compact /></div>}
-                        </div>
-                      </button>
-                      <div className="px-2.5 pb-2.5">
-                        <button onClick={() => removeMealFromDay(selectedDay, meal.id)} className="w-full py-1 rounded-lg text-[10px] font-medium press flex items-center justify-center gap-1" style={{ color: 'var(--accent-warm)', backgroundColor: 'var(--surface)' }}>
-                          <X size={10} /> Remove
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="space-y-3">
+                {selectedMeals.map(meal => (
+                  <MealCard
+                    key={meal.id}
+                    id={meal.id}
+                    name={meal.name}
+                    timing={meal.timing}
+                    timeOfDay={meal.timeOfDay}
+                    imageUrl={meal.imageUrl}
+                    ingredients={parseIngredients(meal.ingredientsJson)}
+                    onRemove={() => removeMealFromDay(selectedDayKey, meal.id)}
+                  />
+                ))}
               </div>
             ) : (
-              <button onClick={() => { setAddingToDay(selectedDay); setPickMealId(meals[0]?.id ?? null); }} className="w-full py-4 rounded-xl flex items-center justify-center gap-2 text-sm press"
+              <button onClick={() => openMealPicker(selectedDayKey)} className="w-full py-4 rounded-xl flex items-center justify-center gap-2 text-sm press"
                 style={{ border: '1.5px dashed var(--border)', color: 'var(--text-muted)' }}>
-                <Plus size={14} /> Add meals for {selectedDay}
+                <Plus size={14} /> Add meals for {selectedDayLabel}
               </button>
             )}
           </div>
@@ -396,47 +506,6 @@ export default function MealPlannerSettings() {
         </>
       )}
 
-      {addingToDay && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
-          onClick={e => { if (e.target === e.currentTarget) setAddingToDay(null); }}>
-          <div className="w-full max-w-md rounded-t-3xl p-5 pb-8" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-base font-bold capitalize" style={{ color: 'var(--text-primary)' }}>Add meal to <span style={{ color: 'var(--accent-green)' }}>{addingToDay}</span></p>
-              <button onClick={() => setAddingToDay(null)} className="w-8 h-8 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                <X size={16} style={{ color: 'var(--text-secondary)' }} />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <select value={pickMealId ?? ''} onChange={e => setPickMealId(Number(e.target.value))} className="w-full px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
-                <option value="">Select meal</option>
-                {meals.map(m => <option key={m.id} value={m.id}>{m.name} ({m.timing})</option>)}
-              </select>
-
-              {pickedMeal && (() => {
-                const ings = parseIngredients(pickedMeal.ingredientsJson);
-                const total = ings.reduce((s, i) => s + i.caloriesKcal, 0);
-                return (
-                  <button onClick={() => navigate(`/settings/meals/template/${pickedMeal.id}`)} className="w-full flex items-center gap-3 p-3 rounded-xl text-left" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                    <div className="w-14 h-14 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0" style={{ backgroundColor: 'rgba(78, 205, 196, 0.1)' }}>
-                      {pickedMeal.imageUrl ? <img src={pickedMeal.imageUrl} alt={pickedMeal.name} className="w-full h-full object-cover" /> : <UtensilsCrossed size={22} style={{ color: 'var(--accent-green)' }} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{pickedMeal.name}</p>
-                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{pickedMeal.timing} · {Math.round(total)} kcal</p>
-                    </div>
-                  </button>
-                );
-              })()}
-
-              <button onClick={() => addingToDay && addMealToDay(addingToDay)} disabled={!pickMealId} className="w-full h-11 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2"
-                style={{ backgroundColor: pickMealId ? 'var(--accent-green)' : 'var(--border)', opacity: pickMealId ? 1 : 0.6 }}>
-                <Plus size={14} /> Add to {addingToDay}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

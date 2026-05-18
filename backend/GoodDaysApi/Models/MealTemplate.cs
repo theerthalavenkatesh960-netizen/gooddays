@@ -12,6 +12,7 @@ public class MealTemplate
     public User User { get; set; } = null!;
     public string Name { get; set; } = string.Empty;
     public string Timing { get; set; } = "breakfast"; // breakfast/lunch/dinner/pre-workout/post-workout/snack
+    public string? TimeOfDay { get; set; }
     public string IngredientsJson { get; set; } = "[]"; // JSON array of ingredient snapshots
     public string Recipe { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }

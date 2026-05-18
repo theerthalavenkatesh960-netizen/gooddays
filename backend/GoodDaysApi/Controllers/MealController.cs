@@ -40,6 +40,23 @@ public class MealController : ControllerBase
         return Ok(body);
     }
 
+    [HttpPut("ingredients/{id}")]
+    public async Task<IActionResult> UpdateIngredient(int id, [FromBody] MealIngredient body)
+    {
+        var userId = GetUserId();
+        var item = await _db.MealIngredients.FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId);
+        if (item is null) return NotFound();
+
+        item.Name = body.Name;
+        item.CaloriesKcal = body.CaloriesKcal;
+        item.ProteinG = body.ProteinG;
+        item.CarbsG = body.CarbsG;
+        item.FatsG = body.FatsG;
+
+        await _db.SaveChangesAsync();
+        return Ok(item);
+    }
+
     [HttpDelete("ingredients/{id}")]
     public async Task<IActionResult> DeleteIngredient(int id)
     {
@@ -70,6 +87,24 @@ public class MealController : ControllerBase
         return Ok(body);
     }
 
+    [HttpPut("templates/{id}")]
+    public async Task<IActionResult> UpdateTemplate(int id, [FromBody] MealTemplate body)
+    {
+        var userId = GetUserId();
+        var item = await _db.MealTemplates.FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
+        if (item is null) return NotFound();
+
+        item.Name = body.Name;
+        item.Timing = body.Timing;
+        item.TimeOfDay = body.TimeOfDay;
+        item.IngredientsJson = body.IngredientsJson;
+        item.Recipe = body.Recipe;
+        item.ImageUrl = body.ImageUrl;
+
+        await _db.SaveChangesAsync();
+        return Ok(item);
+    }
+
     [HttpDelete("templates/{id}")]
     public async Task<IActionResult> DeleteTemplate(int id)
     {
@@ -95,6 +130,34 @@ public class MealController : ControllerBase
     public async Task<IActionResult> UpsertPlan([FromBody] UpsertPlanRequest body)
     {
         var userId = GetUserId();
+        
+        // Validate that plan_json can be parsed and all referenced meals exist
+        Dictionary<string, List<MealAssignment>> planData;
+        try
+        {
+            planData = JsonSerializer.Deserialize<Dictionary<string, List<MealAssignment>>>(body.PlanJson) 
+                ?? new Dictionary<string, List<MealAssignment>>();
+        }
+        catch
+        {
+            return BadRequest("Invalid plan JSON format. Each date should map to an array of meal objects with mealTemplateId and timeOfDay.");
+        }
+
+        // Extract all unique meal template IDs and validate they exist for this user
+        var allMealIds = planData.Values
+            .SelectMany(meals => meals.Select(m => m.MealTemplateId))
+            .Distinct()
+            .ToList();
+
+        var existingMeals = await _db.MealTemplates
+            .Where(m => m.UserId == userId && allMealIds.Contains(m.Id))
+            .Select(m => m.Id)
+            .ToListAsync();
+
+        var invalidIds = allMealIds.Except(existingMeals).ToList();
+        if (invalidIds.Any())
+            return BadRequest($"Invalid meal template IDs: {string.Join(", ", invalidIds)}");
+
         var plan = await _db.WeeklyMealPlans.FirstOrDefaultAsync(p => p.UserId == userId);
         if (plan is null)
         {
@@ -102,6 +165,110 @@ public class MealController : ControllerBase
             _db.WeeklyMealPlans.Add(plan);
         }
         plan.PlanJson = body.PlanJson;
+        plan.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return Ok(plan);
+    }
+
+    [HttpPost("plan/copy-last-week")]
+    public async Task<IActionResult> CopyLastWeek([FromBody] CopyLastWeekRequest body)
+    {
+        if (!DateOnly.TryParse(body.SourceDate, out var sourceDate))
+            return BadRequest("Invalid sourceDate format. Use yyyy-MM-dd");
+
+        var targetDate = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (!string.IsNullOrWhiteSpace(body.TargetDate) && !DateOnly.TryParse(body.TargetDate, out targetDate))
+            return BadRequest("Invalid targetDate format. Use yyyy-MM-dd");
+
+        var userId = GetUserId();
+        var plan = await _db.WeeklyMealPlans.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (plan is null)
+        {
+            plan = new WeeklyMealPlan { UserId = userId, PlanJson = "{}", UpdatedAt = DateTime.UtcNow };
+            _db.WeeklyMealPlans.Add(plan);
+        }
+
+        Dictionary<string, List<MealAssignment>> data;
+        try
+        {
+            data = JsonSerializer.Deserialize<Dictionary<string, List<MealAssignment>>>(plan.PlanJson) 
+                ?? new Dictionary<string, List<MealAssignment>>();
+        }
+        catch
+        {
+            // Fallback: if old format (List<int>) is detected, try to migrate
+            try
+            {
+                var oldData = JsonSerializer.Deserialize<Dictionary<string, List<int>>>(plan.PlanJson);
+                if (oldData != null)
+                {
+                    data = oldData.ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value.Select(id => new MealAssignment(id, null)).ToList()
+                    );
+                }
+                else
+                {
+                    data = new Dictionary<string, List<MealAssignment>>();
+                }
+            }
+            catch
+            {
+                data = new Dictionary<string, List<MealAssignment>>();
+            }
+        }
+
+        var sourceWeekStart = sourceDate.AddDays(-(int)sourceDate.DayOfWeek);
+        var targetWeekStart = targetDate.AddDays(-(int)targetDate.DayOfWeek);
+
+        // Check if source week has any meals at all — abort if empty
+        var sourceWeekHasMeals = false;
+        for (var i = 0; i < 7; i++)
+        {
+            var sourceDay = sourceWeekStart.AddDays(i);
+            var sourceDateKey = sourceDay.ToString("yyyy-MM-dd");
+            var sourceWeekdayKey = sourceDay.DayOfWeek.ToString().ToLowerInvariant();
+            if ((data.TryGetValue(sourceDateKey, out var check1) && check1?.Count > 0) ||
+                (data.TryGetValue(sourceWeekdayKey, out var check2) && check2?.Count > 0))
+            {
+                sourceWeekHasMeals = true;
+                break;
+            }
+        }
+
+        if (!sourceWeekHasMeals)
+            return BadRequest("Last week has no meals to copy.");
+
+        for (var i = 0; i < 7; i++)
+        {
+            var sourceDay = sourceWeekStart.AddDays(i);
+            var targetDay = targetWeekStart.AddDays(i);
+            var sourceDateKey = sourceDay.ToString("yyyy-MM-dd");
+            var sourceWeekdayKey = sourceDay.DayOfWeek.ToString().ToLowerInvariant();
+            var targetDateKey = targetDay.ToString("yyyy-MM-dd");
+
+            List<MealAssignment>? sourceMeals = null;
+            if (data.TryGetValue(sourceDateKey, out var fromDateKey) && fromDateKey is not null)
+            {
+                sourceMeals = fromDateKey;
+            }
+            else if (data.TryGetValue(sourceWeekdayKey, out var fromWeekdayKey) && fromWeekdayKey is not null)
+            {
+                sourceMeals = fromWeekdayKey;
+            }
+
+            if (sourceMeals is null)
+            {
+                data.Remove(targetDateKey);
+            }
+            else
+            {
+                // Preserve meal objects including any timeOfDay overrides
+                data[targetDateKey] = sourceMeals.Distinct().ToList();
+            }
+        }
+
+        plan.PlanJson = JsonSerializer.Serialize(data);
         plan.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return Ok(plan);
@@ -181,5 +348,7 @@ public class MealController : ControllerBase
     }
 
     public record UpsertPlanRequest(string PlanJson);
+    public record CopyLastWeekRequest(string SourceDate, string? TargetDate);
     public record UpsertDailyLogRequest(string Date, List<int> MealIds);
+    public record MealAssignment(int MealTemplateId, string? TimeOfDay);
 }

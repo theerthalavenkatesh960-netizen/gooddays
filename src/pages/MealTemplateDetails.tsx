@@ -8,6 +8,7 @@ type MealTemplate = {
   id: number;
   name: string;
   timing: string;
+  timeOfDay?: string;
   ingredientsJson: string;
   recipe: string;
   imageUrl?: string;
@@ -49,6 +50,16 @@ export default function MealTemplateDetails() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [meal, setMeal] = useState<MealTemplate | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [status, setStatus] = useState('');
+  const [form, setForm] = useState({
+    name: '',
+    timing: 'breakfast',
+    timeOfDay: '',
+    ingredientsJson: '[]',
+    recipe: '',
+    imageUrl: '',
+  });
 
   useEffect(() => {
     load();
@@ -60,7 +71,45 @@ export default function MealTemplateDetails() {
 
     const templates = await api.getMealTemplates();
     const list: MealTemplate[] = Array.isArray(templates) ? templates : [];
-    setMeal(list.find(m => m.id === mealId) || null);
+    const found = list.find(m => m.id === mealId) || null;
+    setMeal(found);
+    if (found) {
+      setForm({
+        name: found.name || '',
+        timing: found.timing || 'breakfast',
+        timeOfDay: found.timeOfDay || '',
+        ingredientsJson: found.ingredientsJson || '[]',
+        recipe: found.recipe || '',
+        imageUrl: found.imageUrl || '',
+      });
+    }
+  }
+
+  async function save() {
+    if (!meal || !form.name.trim()) return;
+    try {
+      JSON.parse(form.ingredientsJson || '[]');
+    } catch {
+      setStatus('Ingredients JSON is invalid');
+      return;
+    }
+
+    try {
+      const updated = await (api as any).updateMealTemplate(meal.id, {
+        name: form.name.trim(),
+        timing: form.timing,
+        timeOfDay: form.timeOfDay.trim() || null,
+        ingredientsJson: form.ingredientsJson,
+        recipe: form.recipe,
+        imageUrl: form.imageUrl.trim() || null,
+      });
+      setMeal(updated);
+      setEditing(false);
+      setStatus('Meal updated');
+      setTimeout(() => setStatus(''), 1200);
+    } catch (e: any) {
+      setStatus(e?.message || 'Failed to update meal');
+    }
   }
 
   const ingredients = useMemo(() => (meal ? parseIngredients(meal.ingredientsJson) : []), [meal]);
@@ -91,19 +140,65 @@ export default function MealTemplateDetails() {
           <ArrowLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Meal Detail</h1>
+        <div className="ml-auto flex items-center gap-2">
+          {editing ? (
+            <>
+              <button onClick={() => setEditing(false)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-muted)' }}>
+                Cancel
+              </button>
+              <button onClick={save} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: 'var(--accent-green)' }}>
+                Save
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setEditing(true)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: 'var(--accent)' }}>
+              Edit
+            </button>
+          )}
+        </div>
       </div>
+
+      {status && (
+        <div className="mb-3 px-3 py-2 rounded-xl text-xs font-semibold" style={{ backgroundColor: 'rgba(78,205,196,0.1)', color: 'var(--accent-green)' }}>
+          {status}
+        </div>
+      )}
 
       <div className="rounded-2xl overflow-hidden mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="h-48 flex items-center justify-center" style={{ backgroundColor: 'rgba(78, 205, 196, 0.08)' }}>
-          {meal.imageUrl ? (
-            <img src={meal.imageUrl} alt={meal.name} className="w-full h-full object-cover" />
+          {(editing ? form.imageUrl : meal.imageUrl) ? (
+            <img src={editing ? form.imageUrl : meal.imageUrl} alt={meal.name} className="w-full h-full object-cover" />
           ) : (
             <UtensilsCrossed size={42} style={{ color: 'var(--accent-green)' }} />
           )}
         </div>
         <div className="p-4">
-          <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
-          <p className="text-sm mt-1 capitalize" style={{ color: 'var(--text-secondary)' }}>{meal.timing}</p>
+          {editing ? (
+            <div className="space-y-2">
+              <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+              <div className="grid grid-cols-2 gap-2">
+                <select value={form.timing} onChange={e => setForm(p => ({ ...p, timing: e.target.value }))}
+                  className="px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
+                  <option value="breakfast">Breakfast</option>
+                  <option value="lunch">Lunch</option>
+                  <option value="dinner">Dinner</option>
+                  <option value="pre-workout">Pre-workout</option>
+                  <option value="post-workout">Post-workout</option>
+                  <option value="snack">Snack</option>
+                </select>
+                <input value={form.timeOfDay} onChange={e => setForm(p => ({ ...p, timeOfDay: e.target.value }))}
+                  placeholder="HH:MM" className="px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+              </div>
+              <input value={form.imageUrl} onChange={e => setForm(p => ({ ...p, imageUrl: e.target.value }))}
+                placeholder="Image URL" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            </div>
+          ) : (
+            <>
+              <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
+              <p className="text-sm mt-1 capitalize" style={{ color: 'var(--text-secondary)' }}>{meal.timing}{meal.timeOfDay ? ` • ${meal.timeOfDay}` : ''}</p>
+            </>
+          )}
           <p className="text-xs mt-3" style={{ color: 'var(--accent-gold)' }}>{Math.round(totals.calories)} kcal total</p>
           {(totals.protein + totals.carbs + totals.fats) > 0 && (
             <div className="mt-2"><MacroVisualization macros={{ protein: totals.protein, carbs: totals.carbs, fats: totals.fats }} /></div>
@@ -113,7 +208,15 @@ export default function MealTemplateDetails() {
 
       <div className="rounded-2xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <p className="text-xs uppercase font-semibold mb-3" style={{ color: 'var(--text-muted)' }}>Ingredients</p>
-        {ingredients.length === 0 ? (
+        {editing ? (
+          <textarea
+            value={form.ingredientsJson}
+            onChange={e => setForm(p => ({ ...p, ingredientsJson: e.target.value }))}
+            rows={8}
+            className="w-full px-3 py-2 rounded-xl text-xs outline-none font-mono"
+            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+          />
+        ) : ingredients.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No ingredients listed.</p>
         ) : (
           <div className="space-y-2">
@@ -134,9 +237,19 @@ export default function MealTemplateDetails() {
 
       <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <p className="text-xs uppercase font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Recipe</p>
-        <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>
-          {meal.recipe?.trim() || 'Recipe not added yet.'}
-        </p>
+        {editing ? (
+          <textarea
+            value={form.recipe}
+            onChange={e => setForm(p => ({ ...p, recipe: e.target.value }))}
+            rows={6}
+            className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+          />
+        ) : (
+          <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>
+            {meal.recipe?.trim() || 'Recipe not added yet.'}
+          </p>
+        )}
       </div>
     </div>
   );

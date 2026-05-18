@@ -18,6 +18,11 @@ const FINANCE_TABS: { id: string; label: string; icon: React.ComponentType<{ siz
   { id: 'Investments', label: 'Investments', icon: TrendingUp },
 ];
 
+const formatMoney = (value: number) => `₹${new Intl.NumberFormat('en-IN', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+}).format(value || 0)}`;
+
 function PillTabs({ active, onChange }: { active: string; onChange: (t: string) => void }) {
   return (
     <div className="flex gap-1 mx-4 mb-2 p-1 rounded-2xl" style={{ backgroundColor: 'var(--surface)' }}>
@@ -187,20 +192,20 @@ function TransactionsTab() {
       <div className="grid grid-cols-2 gap-2 mb-5">
         <div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Income</p>
-          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-green)' }}>₹{(totalIncome/1000).toFixed(0)}k</p>
+          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-green)' }}>{formatMoney(totalIncome)}</p>
         </div>
         <div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Variable</p>
-          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>₹{(variableExpense/1000).toFixed(1)}k</p>
+          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>{formatMoney(variableExpense)}</p>
         </div>
         <div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Fixed</p>
-          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>₹{(fixedExpense/1000).toFixed(1)}k</p>
+          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>{formatMoney(fixedExpense)}</p>
         </div>
         <div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Net</p>
           <p className="text-sm font-bold num mt-1" style={{ color: net >= 0 ? 'var(--accent-green)' : 'var(--accent-warm)' }}>
-            {net >= 0 ? '+' : ''}₹{(net/1000).toFixed(1)}k
+            {net >= 0 ? '+' : '-'}{formatMoney(Math.abs(net))}
           </p>
         </div>
       </div>
@@ -294,7 +299,7 @@ function TransactionsTab() {
                       <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{exp.category}</p>
                     </div>
                     <span className="text-sm font-bold num" style={{ color: 'var(--accent-warm)' }}>
-                      -₹{(exp.amount ?? 0).toLocaleString()}
+                      -{formatMoney(exp.amount ?? 0)}
                     </span>
                     <div className="flex items-center gap-1">
                       <button onClick={() => openEdit(exp)} className="w-8 h-8 rounded-lg flex items-center justify-center press" style={{ color: 'var(--text-secondary)' }}>
@@ -370,9 +375,9 @@ function BucketsTab() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>₹{(b.current/1000).toFixed(0)}k</p>
-                  <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>of ₹{(b.target/1000).toFixed(0)}k</p>
-                  {sipAmount > 0 && <p className="text-[10px] num mt-0.5" style={{ color: b.color }}>₹{sipAmount >= 1000 ? `${(sipAmount/1000).toFixed(0)}k` : sipAmount}/{b.frequency?.[0] ?? 'm'}</p>}
+                  <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{formatMoney(b.current)}</p>
+                  <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>of {formatMoney(b.target)}</p>
+                  {sipAmount > 0 && <p className="text-[10px] num mt-0.5" style={{ color: b.color }}>{formatMoney(sipAmount)}/{b.frequency?.[0] ?? 'm'}</p>}
                 </div>
               </button>
             </div>
@@ -392,7 +397,7 @@ function BucketsTab() {
             </div>
             {newBucket.target && newBucket.periodMonths && (
               <div className="p-2.5 rounded-xl text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>
-                📌 SIP: ₹{Math.ceil(Number(newBucket.target) / Number(newBucket.periodMonths)).toLocaleString()} / month
+                📌 SIP: {formatMoney(Math.ceil(Number(newBucket.target) / Number(newBucket.periodMonths)))} / month
               </div>
             )}
             <div className="flex gap-2">
@@ -429,6 +434,8 @@ function InvestmentsTab() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newHolding, setNewHolding] = useState({ name: '', type: 'MF', invested: '', current: '' });
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editHolding, setEditHolding] = useState({ name: '', type: 'MF', invested: '', current: '' });
 
   useEffect(() => {
     api.getInvestments().then((data: any) => setHoldings(Array.isArray(data) ? data : [])).finally(() => setLoading(false));
@@ -449,6 +456,45 @@ function InvestmentsTab() {
     setHoldings(p => p.filter(h => h.id !== id));
   }
 
+  function startEdit(h: any) {
+    setEditingId(h.id);
+    setEditHolding({
+      name: h.name || '',
+      type: h.type || 'MF',
+      invested: String(h.invested ?? ''),
+      current: String(h.current ?? '')
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditHolding({ name: '', type: 'MF', invested: '', current: '' });
+  }
+
+  async function handleUpdate() {
+    if (editingId == null) return;
+    if (!editHolding.name.trim() || !editHolding.invested || !editHolding.current) return;
+
+    const inv = Number(editHolding.invested);
+    const cur = Number(editHolding.current);
+    const payload = {
+      name: editHolding.name,
+      type: editHolding.type,
+      invested: inv,
+      current: cur,
+      change: inv > 0 ? parseFloat((((cur - inv) / inv) * 100).toFixed(1)) : 0
+    };
+
+    const updated = await api.updateInvestment(editingId, payload);
+
+    setHoldings(prev => prev.map(h => {
+      if (h.id !== editingId) return h;
+      return { ...h, ...(updated || payload), id: h.id };
+    }));
+
+    cancelEdit();
+  }
+
   if (loading) return <div className="px-4 py-8 flex justify-center"><div className="w-6 h-6 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent)' }} /></div>;
 
   const totalInvested = holdings.reduce((s, h) => s + (h.invested || 0), 0);
@@ -461,14 +507,14 @@ function InvestmentsTab() {
     <div className="px-4">
       <div className="p-5 rounded-2xl mb-4" style={{ background: 'linear-gradient(135deg, var(--accent-green)22, var(--surface))', border: '1px solid var(--accent-green)33' }}>
         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Portfolio Value</p>
-        <p className="text-3xl font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>₹{totalCurrent.toLocaleString()}</p>
+        <p className="text-3xl font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>{formatMoney(totalCurrent)}</p>
         <div className="flex items-center gap-2 mt-2">
           {pos ? <ArrowUpRight size={14} style={{ color: 'var(--accent-green)' }} /> : <ArrowDownRight size={14} style={{ color: 'var(--accent-warm)' }} />}
           <span className="text-sm font-semibold num" style={{ color: pos ? 'var(--accent-green)' : 'var(--accent-warm)' }}>
-            {pos ? '+' : ''}₹{totalPnL.toLocaleString()} ({pnlPct}%)
+            {pos ? '+' : '-'}{formatMoney(Math.abs(totalPnL))} ({pnlPct}%)
           </span>
         </div>
-        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Invested: ₹{totalInvested.toLocaleString()}</p>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Invested: {formatMoney(totalInvested)}</p>
       </div>
 
       <div className="section-header px-0 mb-2">
@@ -500,6 +546,56 @@ function InvestmentsTab() {
         {holdings.map(h => {
           const pnl = (h.current || 0) - (h.invested || 0);
           const hpos = pnl >= 0;
+
+          if (editingId === h.id) {
+            return (
+              <div key={h.id ?? h.name} className="p-4 rounded-2xl space-y-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Edit Holding</p>
+                <input
+                  value={editHolding.name}
+                  onChange={e => setEditHolding(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Name"
+                  className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                />
+                <select
+                  value={editHolding.type}
+                  onChange={e => setEditHolding(p => ({ ...p, type: e.target.value }))}
+                  className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                >
+                  {['MF', 'ETF', 'Stock', 'FD', 'Gold', 'Crypto', 'Other'].map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    value={editHolding.invested}
+                    onChange={e => setEditHolding(p => ({ ...p, invested: e.target.value }))}
+                    placeholder="Invested ₹"
+                    className="h-10 px-3 rounded-xl outline-none text-sm num"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                  />
+                  <input
+                    type="number"
+                    value={editHolding.current}
+                    onChange={e => setEditHolding(p => ({ ...p, current: e.target.value }))}
+                    placeholder="Current ₹"
+                    className="h-10 px-3 rounded-xl outline-none text-sm num"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={cancelEdit} className="flex-1 h-9 rounded-xl text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                    Cancel
+                  </button>
+                  <button onClick={handleUpdate} className="flex-1 h-9 rounded-xl text-xs font-medium text-white" style={{ backgroundColor: 'var(--accent)' }}>
+                    Save
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div key={h.id ?? h.name} className="flex items-center gap-3 p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: hpos ? 'var(--accent-green)22' : 'var(--accent-warm)22' }}>
@@ -507,14 +603,17 @@ function InvestmentsTab() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{h.name}</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{h.type} · ₹{(h.invested || 0).toLocaleString()}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{h.type} · {formatMoney(h.invested || 0)}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>₹{(h.current || 0).toLocaleString()}</p>
+                <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{formatMoney(h.current || 0)}</p>
                 <p className="text-xs num font-medium mt-0.5" style={{ color: hpos ? 'var(--accent-green)' : 'var(--accent-warm)' }}>
                   {hpos ? '+' : ''}{h.change ?? 0}%
                 </p>
               </div>
+              <button onClick={() => startEdit(h)} className="w-8 h-8 rounded-lg flex items-center justify-center press ml-1" style={{ color: 'var(--accent)' }}>
+                <Pencil size={14} />
+              </button>
               <button onClick={() => handleDelete(h.id)} className="w-8 h-8 rounded-lg flex items-center justify-center press ml-1" style={{ color: '#ef4444' }}>
                 <Trash2 size={14} />
               </button>
@@ -581,7 +680,7 @@ function AnalyticsTab() {
             <div className="flex justify-between mb-1">
               <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{c.name}</span>
               <span className="text-xs num" style={{ color: 'var(--text-muted)' }}>
-                ₹{c.amount.toLocaleString()} · {Math.round((c.amount / totalCat) * 100)}%
+                {formatMoney(c.amount)} · {Math.round((c.amount / totalCat) * 100)}%
               </span>
             </div>
             <div className="progress-bar">
@@ -607,6 +706,14 @@ export default function Finance() {
       <div className="flex items-center justify-between px-4 mb-2">
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Finance</h1>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/finance/cards')}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+          >
+            <Wallet size={14} style={{ color: 'var(--text-secondary)' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Cards</span>
+          </button>
           <button
             onClick={() => setTab('Analytics')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"

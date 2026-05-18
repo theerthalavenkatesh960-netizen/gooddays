@@ -227,6 +227,36 @@ CREATE TABLE IF NOT EXISTS finance_fixed_expense_overrides (
   CONSTRAINT unique_fixed_expense_month_year_override UNIQUE (fixed_expense_id, month, year)
 );
 
+-- ===================================================================
+-- CREDIT CARDS & CARD EXPENSES
+-- ===================================================================
+
+CREATE TABLE IF NOT EXISTS credit_cards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  issuer VARCHAR(50) CHECK (issuer IN ('HDFC', 'ICICI', 'SBI', 'Axis', 'Other')) DEFAULT 'Other',
+  last4_digits VARCHAR(4),
+  credit_limit DECIMAL(12,2),
+  billing_cycle_start_date INT CHECK (billing_cycle_start_date BETWEEN 1 AND 31),
+  billing_cycle_end_date INT CHECK (billing_cycle_end_date BETWEEN 1 AND 31),
+  rewards_rate DECIMAL(5,2) DEFAULT 0,
+  reward_points_balance INT DEFAULT 0,
+  current_balance DECIMAL(12,2) DEFAULT 0,
+  status VARCHAR(20) CHECK (status IN ('active', 'inactive', 'closed')) DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT unique_user_last4 UNIQUE (user_id, last4_digits)
+);
+
+CREATE TABLE IF NOT EXISTS card_expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id UUID NOT NULL REFERENCES credit_cards(id) ON DELETE CASCADE,
+  expense_id integer NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMPTZ DEFAULT now(),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS exercises (
   id SERIAL PRIMARY KEY,
   name text NOT NULL,
@@ -395,8 +425,17 @@ CREATE INDEX IF NOT EXISTS idx_monthly_tasks_completions_month_year ON monthly_t
 CREATE INDEX IF NOT EXISTS idx_financial_rules_category ON financial_rules(category);
 CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_year_month ON monthly_snapshots(year DESC, month DESC);
 CREATE INDEX IF NOT EXISTS idx_finance_fixed_expenses_profile_sort ON finance_fixed_expenses(profile_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_credit_cards_user_id ON credit_cards(user_id);
+CREATE INDEX IF NOT EXISTS idx_credit_cards_user_issuer ON credit_cards(user_id, issuer);
+CREATE INDEX IF NOT EXISTS idx_card_expenses_card_id ON card_expenses(card_id);
+CREATE INDEX IF NOT EXISTS idx_card_expenses_expense_id ON card_expenses(expense_id);
+CREATE INDEX IF NOT EXISTS idx_card_expenses_assigned_at ON card_expenses(assigned_at);
 CREATE INDEX IF NOT EXISTS idx_exercises_user_id ON exercises(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_exercises_user_name_ci
+  ON exercises (COALESCE(user_id, 0), lower(name));
 CREATE INDEX IF NOT EXISTS idx_workout_split_presets_user_id ON workout_split_presets(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_workout_split_presets_user_name_ci
+  ON workout_split_presets (user_id, lower(name));
 CREATE INDEX IF NOT EXISTS idx_workout_day_plans_user_date ON workout_day_plans(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_workout_sets_workout_day_plan_id ON workout_sets(workout_day_plan_id);
 CREATE INDEX IF NOT EXISTS idx_workout_day_images_workout_day_plan_id ON workout_day_images(workout_day_plan_id);
@@ -432,12 +471,19 @@ CREATE TABLE IF NOT EXISTS meal_templates (
   user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
   name text NOT NULL,
   timing text NOT NULL DEFAULT 'breakfast',
+  time_of_day text,
   ingredients_json text DEFAULT '[]',
   recipe text DEFAULT '',
   image_url text,
   created_at timestamptz DEFAULT now()
 );
 
+ALTER TABLE IF EXISTS meal_templates
+  ADD COLUMN IF NOT EXISTS time_of_day text;
+
+-- plan_json format: { "2026-05-13": [{ "mealTemplateId": 1, "timeOfDay": "06:30" }, ...], ... }
+--   mealTemplateId (int)    : References meal_templates.id
+--   timeOfDay      (text)   : Time override for this week in HH:MM (nullable; falls back to meal_templates.time_of_day)
 CREATE TABLE IF NOT EXISTS weekly_meal_plans (
   id SERIAL PRIMARY KEY,
   user_id integer UNIQUE REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
@@ -446,7 +492,11 @@ CREATE TABLE IF NOT EXISTS weekly_meal_plans (
 );
 
 CREATE INDEX IF NOT EXISTS idx_meal_ingredients_user_id ON meal_ingredients(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_meal_ingredients_user_name_ci
+  ON meal_ingredients (user_id, lower(name));
 CREATE INDEX IF NOT EXISTS idx_meal_templates_user_id ON meal_templates(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_meal_templates_user_name_ci
+  ON meal_templates (user_id, lower(name));
 CREATE INDEX IF NOT EXISTS idx_weekly_meal_plans_user_id ON weekly_meal_plans(user_id);
 
 -- ===================================================================
@@ -615,5 +665,54 @@ CREATE TABLE IF NOT EXISTS body_weight_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_body_weight_logs_user_date ON body_weight_logs(user_id, date);
+
+-- ── Vehicle Tracker ───────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS vehicles (
+    id          SERIAL PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    make        TEXT,
+    model       TEXT,
+    year        INTEGER,
+    reg_no      TEXT,
+    fuel_type   TEXT NOT NULL DEFAULT 'Petrol',
+    color       TEXT NOT NULL DEFAULT '#6C63FF',
+    odometer    INTEGER NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS vehicle_refills (
+    id          SERIAL PRIMARY KEY,
+    vehicle_id  INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    date        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    litres      DOUBLE PRECISION NOT NULL,
+    amount      DOUBLE PRECISION NOT NULL,
+    odometer    INTEGER NOT NULL,
+    mileage     DOUBLE PRECISION
+);
+
+CREATE TABLE IF NOT EXISTS vehicle_services (
+    id          SERIAL PRIMARY KEY,
+    vehicle_id  INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    date        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    items       TEXT,
+    cost        DOUBLE PRECISION NOT NULL,
+    next_due    TIMESTAMPTZ,
+    odometer    INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS vehicle_issues (
+    id          SERIAL PRIMARY KEY,
+    vehicle_id  INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    date        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    description TEXT NOT NULL DEFAULT '',
+    resolved    BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_vehicles_user_id         ON vehicles(user_id);
+CREATE INDEX IF NOT EXISTS idx_vehicle_refills_vehicle  ON vehicle_refills(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_vehicle_services_vehicle ON vehicle_services(vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_vehicle_issues_vehicle   ON vehicle_issues(vehicle_id);
 
 COMMIT;

@@ -52,7 +52,7 @@ export const DUMMY_FLAGS = {
   workout: envBool('VITE_USE_DUMMY_WORKOUT', false),
   dailyRoutine: envBool('VITE_USE_DUMMY_DAILY_ROUTINE', false),
   goals: envBool('VITE_USE_DUMMY_GOALS', false),
-  finance: envBool('VITE_USE_DUMMY_FINANCE', false),
+  finance: envBool('VITE_USE_DUMMY_FINANCE', true),
   vehicles: envBool('VITE_USE_DUMMY_VEHICLES', false),
   meals: envBool('VITE_USE_DUMMY_MEALS', false),
   water: envBool('VITE_USE_DUMMY_WATER', false),
@@ -1919,6 +1919,29 @@ export async function deleteMealIngredient(id: number) {
   return request(`meal/ingredients/${id}`, { method: 'DELETE' });
 }
 
+export async function updateMealIngredient(id: number, body: any) {
+  if (DUMMY_FLAGS.meals) {
+    const item = DUMMY_MEAL_INGREDIENTS.find(i => i.id === id);
+    if (item) Object.assign(item, body);
+    return Promise.resolve(item);
+  }
+  return request(`meal/ingredients/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+/**
+ * Meal API Functions
+ * 
+ * Weekly Plan JSON Format:
+ * {
+ *   "2026-05-13": [
+ *     { "mealTemplateId": 1, "timeOfDay": "06:30" },
+ *     { "mealTemplateId": 3, "timeOfDay": "08:00" }
+ *   ]
+ * }
+ * - mealTemplateId (int): Reference to MealTemplate.id
+ * - timeOfDay (string, optional): Override time in HH:MM format. If omitted, uses template's default.
+ */
+
 export async function getMealTemplates() {
   if (DUMMY_FLAGS.meals) return Promise.resolve(DUMMY_MEAL_TEMPLATES);
   return request('meal/templates');
@@ -1942,6 +1965,15 @@ export async function deleteMealTemplate(id: number) {
   return request(`meal/templates/${id}`, { method: 'DELETE' });
 }
 
+export async function updateMealTemplate(id: number, body: any) {
+  if (DUMMY_FLAGS.meals) {
+    const item = DUMMY_MEAL_TEMPLATES.find(m => m.id === id);
+    if (item) Object.assign(item, body);
+    return Promise.resolve(item);
+  }
+  return request(`meal/templates/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
 export async function getWeeklyMealPlan() {
   if (DUMMY_FLAGS.meals) return Promise.resolve(DUMMY_WEEKLY_MEAL_PLAN);
   return request('meal/plan');
@@ -1953,6 +1985,16 @@ export async function upsertWeeklyMealPlan(planJson: string) {
     return Promise.resolve(DUMMY_WEEKLY_MEAL_PLAN);
   }
   return request('meal/plan', { method: 'PUT', body: JSON.stringify({ planJson }) });
+}
+
+export async function copyLastWeekMealPlan(sourceDate: string, targetDate?: string) {
+  if (DUMMY_FLAGS.meals) {
+    return Promise.resolve(DUMMY_WEEKLY_MEAL_PLAN);
+  }
+  return request('meal/plan/copy-last-week', {
+    method: 'POST',
+    body: JSON.stringify({ sourceDate, targetDate }),
+  });
 }
 
 const DUMMY_DAILY_MEAL_LOGS: Record<string, number[]> = {};

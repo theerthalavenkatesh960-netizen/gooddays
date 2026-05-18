@@ -24,6 +24,9 @@ function PillTabs({ tabs, active, onChange }: { tabs: string[]; active: string; 
   );
 }
 
+const formatMoney = (value: number) => `₹${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value || 0)}`;
+const formatNum = (value: number) => new Intl.NumberFormat('en-IN').format(value || 0);
+
 function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Vehicle) => void }) {
   const [showAdd, setShowAdd] = useState(false);
   const [litres, setLitres] = useState('');
@@ -61,7 +64,7 @@ function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Veh
         </div>
         <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <MapPin size={16} className="mx-auto mb-1" style={{ color: 'var(--accent-green)' }} />
-          <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{lastOdo.toLocaleString()}</p>
+              <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{formatNum(lastOdo)}</p>
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>km total</p>
         </div>
         <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -117,7 +120,7 @@ function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Veh
               {litres && amount && (
                 <div className="flex items-center gap-2 p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                   <TrendingUp size={14} style={{ color: 'var(--accent-gold)' }} />
-                  <span className="text-xs font-bold num" style={{ color: 'var(--accent-gold)' }}>₹{(parseFloat(amount)/parseFloat(litres)).toFixed(2)}/L</span>
+                  <span className="text-xs font-bold num" style={{ color: 'var(--accent-gold)' }}>{formatMoney(parseFloat(amount)/parseFloat(litres))}/L</span>
                 </div>
               )}
               <button onClick={handleSave} className="w-full h-10 rounded-xl text-sm font-semibold text-white press" style={{ backgroundColor: 'var(--accent)' }}>Save</button>
@@ -133,9 +136,9 @@ function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Veh
             <Fuel size={14} style={{ color: 'var(--accent)' }} />
             <div className="flex-1">
               <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{format(new Date(r.date), 'd MMM yyyy')}</p>
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{r.litres}L · {r.odometer.toLocaleString()} km{r.mileage ? ` · ${r.mileage} km/L` : ''}</p>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{r.litres}L · {formatNum(r.odometer)} km{r.mileage ? ` · ${r.mileage} km/L` : ''}</p>
             </div>
-            <span className="text-sm font-bold num" style={{ color: 'var(--accent-warm)' }}>₹{r.amount.toLocaleString()}</span>
+            <span className="text-sm font-bold num" style={{ color: 'var(--accent-warm)' }}>{formatMoney(r.amount)}</span>
             <button onClick={() => handleDeleteRefill(r.id)} className="w-7 h-7 rounded-lg flex items-center justify-center press" style={{ color: '#ef4444' }}>
               <Trash2 size={13} />
             </button>
@@ -216,7 +219,7 @@ function ServicesTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Ve
                 <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{format(new Date(s.date), 'd MMM yyyy')}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>₹{s.cost.toLocaleString()}</span>
+                <span className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{formatMoney(s.cost)}</span>
                 <button onClick={() => handleDelete(s.id)} className="w-7 h-7 rounded-lg flex items-center justify-center press" style={{ color: '#ef4444' }}><Trash2 size={13} /></button>
               </div>
             </div>
@@ -225,7 +228,7 @@ function ServicesTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Ve
                 <span key={item} className="text-[11px] px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>{item}</span>
               ))}
             </div>
-            {s.odometer && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.odometer.toLocaleString()} km</p>}
+            {s.odometer && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatNum(s.odometer)} km</p>}
           </div>
         ))}
       </div>
@@ -335,10 +338,32 @@ export default function Vehicles() {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [tab, setTab] = useState<VehicleTab>('Refills');
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
+  const [addForm, setAddForm] = useState({
+    name: '', make: '', model: '', year: new Date().getFullYear().toString(),
+    regNo: '', fuelType: 'Petrol', color: '#6C63FF', odometer: ''
+  });
 
   useEffect(() => {
     api.getVehicles().then((data: any) => setVehicles(Array.isArray(data) ? data : [])).finally(() => setLoading(false));
   }, []);
+
+  async function handleAddVehicle() {
+    if (!addForm.name.trim() || !addForm.make.trim() || !addForm.odometer) return;
+    const created = await api.createVehicle({
+      name: addForm.name,
+      make: addForm.make,
+      model: addForm.model,
+      year: parseInt(addForm.year),
+      regNo: addForm.regNo,
+      fuelType: addForm.fuelType,
+      color: addForm.color,
+      odometer: parseInt(addForm.odometer),
+    });
+    setVehicles(prev => [...prev, created]);
+    setAddForm({ name: '', make: '', model: '', year: new Date().getFullYear().toString(), regNo: '', fuelType: 'Petrol', color: '#6C63FF', odometer: '' });
+    setShowAddVehicle(false);
+  }
 
   function handleVehicleUpdate(updated: Vehicle) {
     setVehicles(prev => prev.map(v => v.id === updated.id ? updated : v));
@@ -383,7 +408,7 @@ export default function Vehicles() {
                   <div className="flex items-center gap-3 mt-2">
                     <div className="flex items-center gap-1">
                       <Gauge size={11} style={{ color: 'var(--text-muted)' }} />
-                      <span className="text-[11px] num" style={{ color: 'var(--text-muted)' }}>{v.odometer.toLocaleString()} km</span>
+                      <span className="text-[11px] num" style={{ color: 'var(--text-muted)' }}>{formatNum(v.odometer)} km</span>
                     </div>
                     <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{v.regNo}</span>
                   </div>
@@ -400,7 +425,99 @@ export default function Vehicles() {
               </div>
             </button>
           ))}
-          <button className="w-full h-12 rounded-2xl text-sm font-medium press flex items-center justify-center gap-2" style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
+
+          <AnimatePresence>
+            {showAddVehicle && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-3">
+                <div className="p-4 rounded-2xl space-y-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Add Vehicle</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-2">
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Nickname *</p>
+                      <input
+                        value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))}
+                        placeholder="e.g. My Swift" autoFocus
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Make *</p>
+                      <input
+                        value={addForm.make} onChange={e => setAddForm(p => ({ ...p, make: e.target.value }))}
+                        placeholder="e.g. Maruti"
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Model</p>
+                      <input
+                        value={addForm.model} onChange={e => setAddForm(p => ({ ...p, model: e.target.value }))}
+                        placeholder="e.g. Swift"
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Year</p>
+                      <input
+                        type="number" value={addForm.year} onChange={e => setAddForm(p => ({ ...p, year: e.target.value }))}
+                        placeholder="2022"
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm num"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Reg. No</p>
+                      <input
+                        value={addForm.regNo} onChange={e => setAddForm(p => ({ ...p, regNo: e.target.value }))}
+                        placeholder="KA-01 AB 1234"
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Fuel Type</p>
+                      <select
+                        value={addForm.fuelType} onChange={e => setAddForm(p => ({ ...p, fuelType: e.target.value }))}
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      >
+                        {['Petrol', 'Diesel', 'CNG', 'Electric', 'Hybrid'].map(f => <option key={f}>{f}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Odometer (km) *</p>
+                      <input
+                        type="number" value={addForm.odometer} onChange={e => setAddForm(p => ({ ...p, odometer: e.target.value }))}
+                        placeholder="15000"
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm num"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Color</p>
+                      <div className="flex items-center gap-2 h-10 px-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                        <input type="color" value={addForm.color} onChange={e => setAddForm(p => ({ ...p, color: e.target.value }))} className="w-8 h-7 rounded cursor-pointer border-0 bg-transparent p-0" />
+                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{addForm.color}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={() => setShowAddVehicle(false)} className="flex-1 h-10 rounded-xl text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Cancel</button>
+                    <button onClick={handleAddVehicle} className="flex-1 h-10 rounded-xl text-sm font-semibold text-white press" style={{ backgroundColor: 'var(--accent)' }}>Add Vehicle</button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <button
+            onClick={() => setShowAddVehicle(v => !v)}
+            className="w-full h-12 rounded-2xl text-sm font-medium press flex items-center justify-center gap-2"
+            style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}
+          >
             <Plus size={16} /> Add Vehicle
           </button>
         </div>
@@ -413,7 +530,7 @@ export default function Vehicles() {
                 <div className="flex items-center gap-3 mt-2">
                   <div className="flex items-center gap-1.5">
                     <Gauge size={14} style={{ color: selected.color }} />
-                    <span className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{selected.odometer.toLocaleString()} km</span>
+                    <span className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{formatNum(selected.odometer)} km</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Fuel size={14} style={{ color: 'var(--accent-green)' }} />
