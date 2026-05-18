@@ -30,8 +30,8 @@ export default function CreditCardComponent({
   const cardBackground = `linear-gradient(145deg, ${issuerColor}1A 0%, var(--surface) 45%, var(--surface-elevated) 100%)`;
 
   const containerClass = isLarge
-    ? 'h-80'
-    : 'h-52 md:h-56';
+    ? 'h-60'
+    : 'h-40 md:h-44';
 
   return (
     <motion.div
