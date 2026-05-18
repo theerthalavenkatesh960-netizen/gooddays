@@ -335,10 +335,32 @@ export default function Vehicles() {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [tab, setTab] = useState<VehicleTab>('Refills');
+  const [showAddVehicle, setShowAddVehicle] = useState(false);
+  const [addForm, setAddForm] = useState({
+    name: '', make: '', model: '', year: new Date().getFullYear().toString(),
+    regNo: '', fuelType: 'Petrol', color: '#6C63FF', odometer: ''
+  });
 
   useEffect(() => {
     api.getVehicles().then((data: any) => setVehicles(Array.isArray(data) ? data : [])).finally(() => setLoading(false));
   }, []);
+
+  async function handleAddVehicle() {
+    if (!addForm.name.trim() || !addForm.make.trim() || !addForm.odometer) return;
+    const created = await api.createVehicle({
+      name: addForm.name,
+      make: addForm.make,
+      model: addForm.model,
+      year: parseInt(addForm.year),
+      regNo: addForm.regNo,
+      fuelType: addForm.fuelType,
+      color: addForm.color,
+      odometer: parseInt(addForm.odometer),
+    });
+    setVehicles(prev => [...prev, created]);
+    setAddForm({ name: '', make: '', model: '', year: new Date().getFullYear().toString(), regNo: '', fuelType: 'Petrol', color: '#6C63FF', odometer: '' });
+    setShowAddVehicle(false);
+  }
 
   function handleVehicleUpdate(updated: Vehicle) {
     setVehicles(prev => prev.map(v => v.id === updated.id ? updated : v));
@@ -400,7 +422,99 @@ export default function Vehicles() {
               </div>
             </button>
           ))}
-          <button className="w-full h-12 rounded-2xl text-sm font-medium press flex items-center justify-center gap-2" style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}>
+
+          <AnimatePresence>
+            {showAddVehicle && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-3">
+                <div className="p-4 rounded-2xl space-y-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Add Vehicle</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="col-span-2">
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Nickname *</p>
+                      <input
+                        value={addForm.name} onChange={e => setAddForm(p => ({ ...p, name: e.target.value }))}
+                        placeholder="e.g. My Swift" autoFocus
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Make *</p>
+                      <input
+                        value={addForm.make} onChange={e => setAddForm(p => ({ ...p, make: e.target.value }))}
+                        placeholder="e.g. Maruti"
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Model</p>
+                      <input
+                        value={addForm.model} onChange={e => setAddForm(p => ({ ...p, model: e.target.value }))}
+                        placeholder="e.g. Swift"
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Year</p>
+                      <input
+                        type="number" value={addForm.year} onChange={e => setAddForm(p => ({ ...p, year: e.target.value }))}
+                        placeholder="2022"
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm num"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Reg. No</p>
+                      <input
+                        value={addForm.regNo} onChange={e => setAddForm(p => ({ ...p, regNo: e.target.value }))}
+                        placeholder="KA-01 AB 1234"
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Fuel Type</p>
+                      <select
+                        value={addForm.fuelType} onChange={e => setAddForm(p => ({ ...p, fuelType: e.target.value }))}
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      >
+                        {['Petrol', 'Diesel', 'CNG', 'Electric', 'Hybrid'].map(f => <option key={f}>{f}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Odometer (km) *</p>
+                      <input
+                        type="number" value={addForm.odometer} onChange={e => setAddForm(p => ({ ...p, odometer: e.target.value }))}
+                        placeholder="15000"
+                        className="w-full h-10 px-3 rounded-xl outline-none text-sm num"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Color</p>
+                      <div className="flex items-center gap-2 h-10 px-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                        <input type="color" value={addForm.color} onChange={e => setAddForm(p => ({ ...p, color: e.target.value }))} className="w-8 h-7 rounded cursor-pointer border-0 bg-transparent p-0" />
+                        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{addForm.color}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={() => setShowAddVehicle(false)} className="flex-1 h-10 rounded-xl text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Cancel</button>
+                    <button onClick={handleAddVehicle} className="flex-1 h-10 rounded-xl text-sm font-semibold text-white press" style={{ backgroundColor: 'var(--accent)' }}>Add Vehicle</button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <button
+            onClick={() => setShowAddVehicle(v => !v)}
+            className="w-full h-12 rounded-2xl text-sm font-medium press flex items-center justify-center gap-2"
+            style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}
+          >
             <Plus size={16} /> Add Vehicle
           </button>
         </div>

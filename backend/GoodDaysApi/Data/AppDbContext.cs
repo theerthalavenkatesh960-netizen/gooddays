@@ -69,6 +69,12 @@ public class AppDbContext : DbContext
     // Body metrics
     public DbSet<BodyWeightLog> BodyWeightLogs { get; set; } = null!;
 
+    // Vehicle tracker entities
+    public DbSet<Vehicle> Vehicles { get; set; } = null!;
+    public DbSet<VehicleRefill> VehicleRefills { get; set; } = null!;
+    public DbSet<VehicleService> VehicleServices { get; set; } = null!;
+    public DbSet<VehicleIssue> VehicleIssues { get; set; } = null!;
+
     // Daily routine entities
     public DbSet<DailyRoutine> DailyRoutines { get; set; } = null!;
     public DbSet<RoutineBlock> RoutineBlocks { get; set; } = null!;
@@ -298,5 +304,19 @@ public class AppDbContext : DbContext
             .HasOne(w => w.User).WithMany().HasForeignKey(w => w.UserId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<WeeklyReview>()
             .HasIndex(w => new { w.UserId, w.WeekStartDate }).IsUnique();
+
+        // Vehicle tracker table mappings
+        modelBuilder.Entity<Vehicle>().ToTable("vehicles");
+        modelBuilder.Entity<VehicleRefill>().ToTable("vehicle_refills");
+        modelBuilder.Entity<VehicleService>().ToTable("vehicle_services");
+        modelBuilder.Entity<VehicleIssue>().ToTable("vehicle_issues");
+
+        // Vehicle relationships
+        modelBuilder.Entity<VehicleRefill>()
+            .HasOne(r => r.Vehicle).WithMany(v => v.Refills).HasForeignKey(r => r.VehicleId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<VehicleService>()
+            .HasOne(s => s.Vehicle).WithMany(v => v.Services).HasForeignKey(s => s.VehicleId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<VehicleIssue>()
+            .HasOne(i => i.Vehicle).WithMany(v => v.Issues).HasForeignKey(i => i.VehicleId).OnDelete(DeleteBehavior.Cascade);
     }
 }
