@@ -39,68 +39,74 @@ export default function CardAnalytics({ analytics, card, onCategoryClick }: Card
     : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header Stats */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-4"
+        className="grid grid-cols-1 md:grid-cols-3 gap-2"
       >
         {/* Total Spending */}
         <motion.div
-          whileHover={{ y: -4 }}
-          className="p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 shadow-lg"
+          whileHover={{ y: -2 }}
+          className="p-3 rounded-xl"
+          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
         >
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-semibold text-blue-900">Total Spending</h4>
-            <TrendingUp size={20} className="text-blue-600" />
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Total Spending</h4>
+            <TrendingUp size={14} style={{ color: 'var(--accent)' }} />
           </div>
           <motion.p
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="text-3xl font-black text-blue-600 mb-2"
+            className="text-xs md:text-sm font-semibold num leading-tight"
+            style={{ color: 'var(--text-primary)' }}
           >
             {formatRupee(totalSpending)}
           </motion.p>
-          <p className="text-sm text-blue-700">{analytics.transactionCount} transactions</p>
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{analytics.transactionCount} transactions</p>
         </motion.div>
 
         {/* Average Transaction */}
         <motion.div
-          whileHover={{ y: -4 }}
-          className="p-6 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 shadow-lg"
+          whileHover={{ y: -2 }}
+          className="p-3 rounded-xl"
+          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
         >
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-semibold text-purple-900">Average</h4>
-            <BarChart3 size={20} className="text-purple-600" />
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Average</h4>
+            <BarChart3 size={14} style={{ color: 'var(--accent)' }} />
           </div>
           <motion.p
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="text-3xl font-black text-purple-600 mb-2"
+            className="text-xs md:text-sm font-semibold num leading-tight"
+            style={{ color: 'var(--text-primary)' }}
           >
             {formatRupee(totalSpending / (analytics.transactionCount || 1))}
           </motion.p>
-          <p className="text-sm text-purple-700">per transaction</p>
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>per transaction</p>
         </motion.div>
 
         {/* Highest Category */}
         <motion.div
-          whileHover={{ y: -4 }}
-          className="p-6 rounded-2xl bg-gradient-to-br from-pink-50 to-pink-100 border border-pink-200 shadow-lg"
+          whileHover={{ y: -2 }}
+          className="p-3 rounded-xl"
+          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
         >
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-semibold text-pink-900">Top Category</h4>
-            <PieChart size={20} className="text-pink-600" />
+          <div className="flex items-center justify-between mb-1">
+            <h4 className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Top Category</h4>
+            <PieChart size={14} style={{ color: 'var(--accent)' }} />
           </div>
           <motion.p
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="text-2xl font-black text-pink-600 mb-1"
+            className="text-xs md:text-sm font-semibold leading-tight truncate"
+            style={{ color: 'var(--text-primary)' }}
           >
             {analytics.byCategory[0]?.category || 'N/A'}
           </motion.p>
-          <p className="text-sm text-pink-700">
+          <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>
             {analytics.byCategory[0] ? formatRupee(analytics.byCategory[0].total) : '₹0'}
           </p>
         </motion.div>
@@ -111,15 +117,15 @@ export default function CardAnalytics({ analytics, card, onCategoryClick }: Card
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="p-8 rounded-2xl shadow-xl"
+        className="p-3 md:p-4 rounded-2xl"
         style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
       >
-        <h3 className="text-xl font-bold mb-8 flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
-          <BarChart3 size={24} style={{ color: 'var(--text-primary)' }} />
+        <h3 className="text-xs font-bold mb-3 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+          <BarChart3 size={13} style={{ color: 'var(--text-primary)' }} />
           Spending by Category
         </h3>
 
-        <div className="space-y-4">
+        <div className="space-y-2">
           {analytics.byCategory.map((category, idx) => {
             const percentage = (category.total / maxValue) * 100;
             const color = generateHSL(idx);
@@ -134,26 +140,26 @@ export default function CardAnalytics({ analytics, card, onCategoryClick }: Card
                 onClick={() => onCategoryClick?.(category.category)}
               >
                 {/* Label Row */}
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
                     <motion.div
-                      className="w-3 h-6 rounded-full"
+                      className="w-1.5 h-5 rounded-full"
                       style={{ backgroundColor: color }}
                       whileHover={{ scale: 1.2 }}
                     />
-                    <span className="font-medium text-gray-800">
+                    <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
                       {category.category}
                       {onCategoryClick ? '  ->' : ''}
                     </span>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-gray-900">{formatRupee(category.total)}</p>
-                    <p className="text-xs text-gray-500">{category.count} transactions</p>
+                    <p className="text-xs font-bold num" style={{ color: 'var(--accent)' }}>{formatRupee(category.total)}</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{category.count} transactions</p>
                   </div>
                 </div>
 
                 {/* Bar Chart */}
-                <div className="relative h-8 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                <div className="relative h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
                   {/* Background gradient effect */}
                   <motion.div
                     initial={{ width: 0, opacity: 0 }}
@@ -180,16 +186,8 @@ export default function CardAnalytics({ analytics, card, onCategoryClick }: Card
                     />
                   </motion.div>
 
-                  {/* Percentage text */}
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: idx * 0.05 + 0.4 }}
-                    className="absolute inset-0 flex items-center px-3 text-white font-bold text-sm"
-                  >
-                    {Math.round(percentage)}%
-                  </motion.div>
                 </div>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>{Math.round(percentage)}%</p>
               </motion.button>
             );
           })}
@@ -201,18 +199,18 @@ export default function CardAnalytics({ analytics, card, onCategoryClick }: Card
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="p-8 rounded-2xl shadow-xl"
+        className="p-3 md:p-4 rounded-2xl"
         style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
       >
-        <h3 className="text-xl font-bold mb-6 flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
-          <Calendar size={24} style={{ color: 'var(--text-primary)' }} />
+        <h3 className="text-xs font-bold mb-3 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+          <Calendar size={13} style={{ color: 'var(--text-primary)' }} />
           Period Insights
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {/* Distribution Pie-like Chart */}
-          <div className="flex flex-col items-center justify-center py-8">
-            <div className="relative w-40 h-40">
+          <div className="flex flex-col items-center justify-center py-2">
+            <div className="relative w-28 h-28">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                 <motion.circle
                   cx="50"
@@ -246,19 +244,19 @@ export default function CardAnalytics({ analytics, card, onCategoryClick }: Card
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <p className="text-gray-600 text-xs mb-1">Total</p>
-                  <p className="text-lg font-black text-gray-900">{formatRupee(totalSpending).split('.')[0]}</p>
+                  <p className="text-[10px] mb-0.5" style={{ color: 'var(--text-muted)' }}>Total</p>
+                  <p className="text-xs font-bold num" style={{ color: 'var(--text-primary)' }}>{formatRupee(totalSpending).split('.')[0]}</p>
                 </div>
               </div>
             </div>
-            <div className="mt-6 space-y-2 text-center">
+            <div className="mt-3 space-y-1 text-center">
               {analytics.byCategory.slice(0, 3).map((cat, idx) => (
                 <div key={cat.category} className="flex items-center justify-center gap-2">
                   <div
-                    className="w-3 h-3 rounded-full"
+                    className="w-2 h-2 rounded-full"
                     style={{ backgroundColor: generateHSL(idx) }}
                   />
-                  <span className="text-sm text-gray-700">
+                  <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
                     {cat.category} ({((cat.total / totalSpending) * 100).toFixed(1)}%)
                   </span>
                 </div>
@@ -267,23 +265,25 @@ export default function CardAnalytics({ analytics, card, onCategoryClick }: Card
           </div>
 
           {/* Stats Column */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
-              className="p-4 bg-blue-50 rounded-lg border border-blue-200"
+              className="p-2.5 rounded-lg"
+              style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
             >
-              <p className="text-sm text-blue-700 mb-1">Monthly Budget Utilization</p>
-              <p className="text-2xl font-black text-blue-600 mb-2">
+              <p className="text-[10px] mb-0.5" style={{ color: 'var(--text-muted)' }}>Monthly Budget Utilization</p>
+              <p className="text-xs font-bold num mb-1" style={{ color: 'var(--text-primary)' }}>
                 {monthlyPercentage.toFixed(1)}%
               </p>
-              <div className="h-2 bg-blue-200 rounded-full overflow-hidden">
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(monthlyPercentage, 100)}%` }}
                   transition={{ duration: 0.8 }}
-                  className="h-full bg-blue-600"
+                  className="h-full"
+                  style={{ backgroundColor: 'var(--accent)' }}
                 />
               </div>
             </motion.div>
@@ -292,26 +292,28 @@ export default function CardAnalytics({ analytics, card, onCategoryClick }: Card
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.5 }}
-              className="p-4 bg-green-50 rounded-lg border border-green-200"
+              className="p-2.5 rounded-lg"
+              style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
             >
-              <p className="text-sm text-green-700 mb-1">Recommended Monthly Spend</p>
-              <p className="text-2xl font-black text-green-600">
+              <p className="text-[10px] mb-0.5" style={{ color: 'var(--text-muted)' }}>Recommended Monthly Spend</p>
+              <p className="text-xs font-bold num" style={{ color: 'var(--text-primary)' }}>
                 {formatRupee((card.creditLimit || 10000) * 0.3)}
               </p>
-              <p className="text-xs text-green-700 mt-1">30% of credit limit</p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>30% of credit limit</p>
             </motion.div>
 
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.6 }}
-              className="p-4 bg-purple-50 rounded-lg border border-purple-200"
+              className="p-2.5 rounded-lg"
+              style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
             >
-              <p className="text-sm text-purple-700 mb-1">Remaining Available Credit</p>
-              <p className="text-2xl font-black text-purple-600">
+              <p className="text-[10px] mb-0.5" style={{ color: 'var(--text-muted)' }}>Remaining Available Credit</p>
+              <p className="text-xs font-bold num" style={{ color: 'var(--text-primary)' }}>
                 {formatRupee((card.creditLimit || 10000) - (card.currentBalance || 0))}
               </p>
-              <p className="text-xs text-purple-700 mt-1">
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
                 {(((card.creditLimit || 10000) - (card.currentBalance || 0)) / (card.creditLimit || 10000) * 100).toFixed(0)}% available
               </p>
             </motion.div>

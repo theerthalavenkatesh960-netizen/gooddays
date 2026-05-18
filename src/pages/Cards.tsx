@@ -502,28 +502,28 @@ export default function Cards() {
               exit="exit"
               className="space-y-4"
             >
-              <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <motion.div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                 {/* Combined Stats */}
                 <motion.div
-                  className="rounded-2xl p-4 md:p-5"
+                  className="rounded-2xl p-3 md:p-4"
                   style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
                 >
-                  <h3 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                    <PieChart size={16} />
+                  <h3 className="text-xs font-bold mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                    <PieChart size={13} />
                     Combined Overview
                   </h3>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <div>
                       <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Total Balance</p>
-                      <p className="text-lg md:text-xl font-black num" style={{ color: 'var(--accent)' }}>{formatMoney(totalBalance)}</p>
+                      <p className="text-xs font-semibold num" style={{ color: 'var(--accent)' }}>{formatMoney(totalBalance)}</p>
                     </div>
 
-                    <div className="border-t pt-3" style={{ borderColor: 'var(--border)' }}>
-                      <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Credit Utilization</p>
-                      <div className="flex items-center gap-3">
+                    <div className="border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+                      <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Credit Utilization</p>
+                      <div className="flex items-center gap-2">
                         <div className="flex-1">
-                          <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                          <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                             <motion.div
                               initial={{ width: 0 }}
                               animate={{ width: `${totalUtilization}%` }}
@@ -533,24 +533,24 @@ export default function Cards() {
                             />
                           </div>
                         </div>
-                        <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>{totalUtilization.toFixed(1)}%</span>
+                        <span className="text-[10px] font-semibold" style={{ color: 'var(--accent)' }}>{totalUtilization.toFixed(1)}%</span>
                       </div>
                     </div>
 
-                    <div className="border-t pt-3" style={{ borderColor: 'var(--border)' }}>
-                      <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Total Rewards</p>
-                      <p className="text-xl font-bold" style={{ color: 'var(--accent)' }}>{totalRewards} points</p>
+                    <div className="border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+                      <p className="text-[10px] mb-0.5" style={{ color: 'var(--text-muted)' }}>Total Rewards</p>
+                      <p className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>{totalRewards} points</p>
                     </div>
                   </div>
                 </motion.div>
 
                 {/* Card Comparison */}
                 <motion.div
-                  className="rounded-2xl p-4 md:p-5"
+                  className="rounded-2xl p-3 md:p-4"
                   style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
                 >
-                  <h3 className="text-sm font-bold mb-4 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-                    <BarChart3 size={16} />
+                  <h3 className="text-xs font-bold mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-primary)' }}>
+                    <BarChart3 size={13} />
                     Card Breakdown
                   </h3>
 
@@ -561,16 +561,16 @@ export default function Cards() {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: idx * 0.05 }}
-                        className="p-3 rounded-lg flex items-center justify-between"
+                        className="p-2 rounded-lg flex items-center justify-between"
                         style={{ backgroundColor: 'var(--surface-elevated)' }}
                       >
                         <div>
-                          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{card.name}</p>
-                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{card.issuer}</p>
+                          <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{card.name}</p>
+                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{card.issuer}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold num" style={{ color: 'var(--accent)' }}>{formatMoney(card.currentBalance || 0)}</p>
-                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{((card.utilization || 0) * 100).toFixed(0)}% used</p>
+                          <p className="text-xs font-bold num" style={{ color: 'var(--accent)' }}>{formatMoney(card.currentBalance || 0)}</p>
+                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{((card.utilization || 0) * 100).toFixed(0)}% used</p>
                         </div>
                       </motion.div>
                     ))}
@@ -580,10 +580,10 @@ export default function Cards() {
 
               {/* Combined Analytics */}
               <motion.div
-                className="rounded-2xl p-4 md:p-5"
+                className="rounded-2xl p-3 md:p-4"
                 style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
               >
-                <h3 className="text-sm font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Spending by Category (All Cards)</h3>
+                <h3 className="text-xs font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Spending by Category (All Cards)</h3>
                 <div className="space-y-2">
                   {cards.flatMap(c => c.analytics?.byCategory || [])
                     .reduce((acc, cat) => {
@@ -605,14 +605,14 @@ export default function Cards() {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.03 }}
                         onClick={() => navigate(`/finance/cards/category/${encodeURIComponent(cat.category)}`)}
-                        className="w-full text-left flex items-center gap-2 p-2.5 rounded-lg"
+                        className="w-full text-left flex items-center gap-2 p-2 rounded-lg"
                         style={{ backgroundColor: 'var(--surface-elevated)' }}
                       >
                         <div className="w-1.5 h-6 rounded-full flex-shrink-0" style={{
                           background: `hsl(${(i * 45) % 360}, 70%, 50%)`
                         }} />
                         <div className="flex-1">
-                          <p className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{cat.category}  - view</p>
+                          <p className="text-[10px] font-medium" style={{ color: 'var(--text-secondary)' }}>{cat.category}  - view</p>
                           <div className="h-1.5 rounded-full mt-1 overflow-hidden" style={{ backgroundColor: 'var(--bg)' }}>
                             <div
                               className="h-full rounded-full"
@@ -623,7 +623,7 @@ export default function Cards() {
                             />
                           </div>
                         </div>
-                        <p className="text-xs font-bold flex-shrink-0 num" style={{ color: 'var(--accent)' }}>{formatMoney(cat.total)}</p>
+                        <p className="text-[10px] font-bold flex-shrink-0 num" style={{ color: 'var(--accent)' }}>{formatMoney(cat.total)}</p>
                       </motion.button>
                     ))}
                 </div>
