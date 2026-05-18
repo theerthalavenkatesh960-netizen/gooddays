@@ -141,7 +141,7 @@ export default function Cards() {
       </motion.div>
 
       {/* Main Content */}
-      <div className="px-4 py-6 space-y-6">
+      <div className="px-4 py-5 md:py-6 space-y-5 md:space-y-6 max-w-6xl mx-auto">
         {/* Stats Cards - Overview */}
         {activeTab === 'overview' && (
           <motion.div
@@ -149,7 +149,7 @@ export default function Cards() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="grid grid-cols-2 sm:grid-cols-4 gap-2"
+            className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-3"
           >
             {/* Total Balance */}
             <motion.div className="p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -242,22 +242,21 @@ export default function Cards() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+              className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3 md:gap-4"
             >
               {cards.map((card, idx) => (
-                <motion.button
+                <motion.div
                   key={card.id}
                   whileHover={{ y: -4 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileTap={{ scale: 0.99 }}
                   onClick={() => {
                     setSelectedCardIndex(idx);
                     setActiveTab(`card${idx + 1}` as TabType);
                   }}
-                  className="text-left transition-all rounded-2xl overflow-hidden"
-                  style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+                    className="text-left transition-all rounded-2xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer"
                 >
                   <CreditCardComponent card={card} index={idx} />
-                </motion.button>
+                </motion.div>
               ))}
             </motion.div>
           )}

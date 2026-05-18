@@ -1,10 +1,5 @@
 import { motion } from 'framer-motion';
-import { AlertCircle, Gift, Clock } from 'lucide-react';
-import {
-  generateCardDesign,
-  calculateCategoryDiversity,
-  getCardPatternSVG
-} from '../../lib/cardDesigner';
+import { AlertCircle, Gift, Clock, CreditCard } from 'lucide-react';
 import {
   generateSpendingAlert,
   getDaysUntilStatementClose
@@ -21,29 +16,24 @@ interface EnhancedCreditCardComponentProps {
   onAction?: (action: string) => void;
 }
 
+const getIssuerColor = (issuer: string) => {
+  const colors: Record<string, string> = {
+    HDFC: '#2563eb',
+    ICICI: '#ea580c',
+    SBI: '#16a34a',
+    Axis: '#4f46e5',
+    Other: '#64748b'
+  };
+  return colors[issuer] || colors.Other;
+};
+
 export default function EnhancedCreditCardComponent({
   card,
   index,
   isLarge = false,
   onAction
 }: EnhancedCreditCardComponentProps) {
-  // Generate unique card design based on data
-  const categorySpending: Record<string, number> = card.analytics?.byCategory?.reduce(
-    (acc: Record<string, number>, c: any) => {
-      acc[c.category] = c.total;
-      return acc;
-    },
-    {}
-  ) || {};
-
-  const categoryDiversity = calculateCategoryDiversity(categorySpending);
-  const design = generateCardDesign(
-    card.issuer || 'Other',
-    card.analytics?.totalSpending || 0,
-    categoryDiversity,
-    card.id
-  );
-
+  const issuerColor = getIssuerColor(card.issuer || 'Other');
   const utilization = (card.currentBalance || 0) / (card.creditLimit || 1);
   const rewardValue = calculateRewardRupeeValue(
     card.rewardPointsBalance || 0,
@@ -61,7 +51,7 @@ export default function EnhancedCreditCardComponent({
     card.rewardPointsBalance || 0
   );
 
-  const containerClass = isLarge ? 'h-80' : 'h-52';
+  const containerClass = isLarge ? 'h-80 md:h-[22rem]' : 'h-56';
 
   return (
     <motion.div
@@ -118,41 +108,38 @@ export default function EnhancedCreditCardComponent({
 
       {/* Main Card */}
       <motion.div
-        whileHover={{ y: -8 }}
-        className={`group relative ${containerClass} w-full rounded-3xl overflow-hidden shadow-2xl cursor-pointer transition-all`}
+        whileHover={{ y: -4 }}
+        className={`group relative ${containerClass} w-full rounded-2xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer transition-all`}
         style={{
-          background: `linear-gradient(135deg, ${design.gradientStart} 0%, ${design.gradientEnd} 100%)`
+          backgroundColor: 'var(--surface)',
+          border: '1px solid var(--border)'
         }}
       >
-        {/* Pattern Background */}
-        <div 
-          className="absolute inset-0 opacity-30"
-          dangerouslySetInnerHTML={{
-            __html: getCardPatternSVG(design.pattern, `card-${card.id}`)
-          }}
-        />
-
-        {/* Animated Glow */}
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-          className="absolute -top-1/3 -right-1/3 w-96 h-96 rounded-full blur-3xl bg-white/10"
-        />
+        <div className="absolute left-0 top-0 h-full w-1.5" style={{ backgroundColor: issuerColor }} />
 
         {/* Content */}
-        <div className={`relative h-full flex flex-col justify-between p-6 ${isLarge ? 'p-8' : ''} text-white`}>
+        <div className={`relative h-full flex flex-col justify-between p-4 md:p-5 ${isLarge ? 'p-6 md:p-7' : ''}`}>
           {/* Header */}
           <div className="flex justify-between items-start">
             <div>
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.8 }}
-                className="text-white/70 text-xs font-semibold tracking-widest mb-1"
+                className="text-xs font-semibold tracking-widest mb-1"
+                style={{ color: 'var(--text-muted)' }}
               >
                 {card.issuer || 'CARD'}
               </motion.p>
-              <h3 className="text-xl font-black tracking-tight">{card.name}</h3>
+              <h3 className="text-lg md:text-xl font-black tracking-tight leading-tight" style={{ color: 'var(--text-primary)' }}>{card.name}</h3>
             </div>
+            <motion.div
+              whileHover={{ scale: 1.08 }}
+              transition={{ duration: 0.2 }}
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{ backgroundColor: 'var(--surface-elevated)' }}
+            >
+              <CreditCard size={18} style={{ color: issuerColor }} />
+            </motion.div>
           </div>
 
           {/* Status Row */}
@@ -160,22 +147,22 @@ export default function EnhancedCreditCardComponent({
             {/* Balance & Limit */}
             <div>
               <div className="flex justify-between items-baseline mb-2">
-                <p className="text-white/70 text-xs font-medium">Balance</p>
-                <p className="text-sm font-bold text-white/90">
+                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Balance</p>
+                <p className="text-sm font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
                   ₹{((card.currentBalance || 0) / 1000).toFixed(1)}K / ₹{((card.creditLimit || 0) / 100000).toFixed(1)}L
                 </p>
               </div>
-              <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+              <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(utilization * 100, 100)}%` }}
                   transition={{ duration: 0.8, delay: 0.2 }}
                   className={`h-full rounded-full ${
                     utilization > 0.95
-                      ? 'bg-gradient-to-r from-red-400 to-red-300'
+                      ? 'bg-red-400'
                       : utilization > 0.8
-                      ? 'bg-gradient-to-r from-yellow-400 to-yellow-300'
-                      : 'bg-gradient-to-r from-green-400 to-emerald-300'
+                      ? 'bg-yellow-400'
+                      : 'bg-green-400'
                   }`}
                 />
               </div>
@@ -187,12 +174,13 @@ export default function EnhancedCreditCardComponent({
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 onClick={() => onAction?.('rewards')}
-                className="p-2 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 cursor-pointer transition"
+                className="p-2 rounded-lg cursor-pointer transition"
+                style={{ backgroundColor: 'var(--surface-elevated)' }}
               >
-                <p className="text-white/60 text-xs mb-0.5">Rewards</p>
-                <p className="font-bold text-sm">
+                <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Rewards</p>
+                <p className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>
                   {card.rewardPointsBalance || 0}
-                  <span className="text-xs text-amber-300 block">
+                  <span className="text-xs block" style={{ color: 'var(--accent-gold)' }}>
                     ₹{rewardValue.rupeeValue}
                   </span>
                 </p>
@@ -202,23 +190,25 @@ export default function EnhancedCreditCardComponent({
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 onClick={() => onAction?.('payment')}
-                className="p-2 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/20 cursor-pointer transition"
+                className="p-2 rounded-lg cursor-pointer transition"
+                style={{ backgroundColor: 'var(--surface-elevated)' }}
               >
-                <p className="text-white/60 text-xs mb-0.5">Closes In</p>
-                <p className="font-bold text-sm">
+                <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Closes In</p>
+                <p className="font-bold text-sm leading-tight" style={{ color: 'var(--text-primary)' }}>
                   {daysUntilClose}
-                  <span className="text-xs text-blue-300 block">days</span>
+                  <span className="text-xs block" style={{ color: 'var(--accent)' }}>days</span>
                 </p>
               </motion.div>
 
               {/* Status */}
               <motion.div
                 whileHover={{ scale: 1.05 }}
-                className="p-2 rounded-lg bg-white/10 backdrop-blur-md border border-white/20"
+                className="p-2 rounded-lg"
+                style={{ backgroundColor: 'var(--surface-elevated)' }}
               >
-                <p className="text-white/60 text-xs mb-0.5">Status</p>
+                <p className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Status</p>
                 <p className={`font-bold text-sm ${
-                  card.status === 'active' ? 'text-green-300' : 'text-red-300'
+                  card.status === 'active' ? 'text-green-500' : 'text-red-500'
                 }`}>
                   {card.status === 'active' ? '✓ Active' : 'Inactive'}
                 </p>
@@ -230,9 +220,14 @@ export default function EnhancedCreditCardComponent({
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
-                className="p-2 rounded-lg bg-amber-500/20 border border-amber-400/50 flex items-center gap-2 text-xs text-amber-100"
+                className="p-2 rounded-lg flex items-center gap-2 text-xs"
+                style={{
+                  backgroundColor: 'var(--surface-elevated)',
+                  border: '1px solid var(--accent-gold)',
+                  color: 'var(--text-secondary)'
+                }}
               >
-                <Clock size={14} />
+                <Clock size={14} style={{ color: 'var(--accent-gold)' }} />
                 <span>EMI: ₹{emiInfo.monthlyPayment} ({emiInfo.remainingMonths} months left)</span>
               </motion.div>
             )}
@@ -240,26 +235,22 @@ export default function EnhancedCreditCardComponent({
 
           {/* Footer */}
           <div className="flex justify-between items-center pt-2">
-            <div className="text-xs text-white/60">
+            <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
               {card.last4Digits && `●●●● ${card.last4Digits}`}
             </div>
             <motion.div
               whileHover={{ scale: 1.1 }}
-              className="text-xs font-semibold px-2 py-1 rounded-lg bg-white/20 hover:bg-white/30 border border-white/30 transition cursor-pointer"
+              className="text-xs font-semibold px-2 py-1 rounded-lg transition cursor-pointer"
+              style={{
+                backgroundColor: 'var(--surface-elevated)',
+                color: 'var(--text-secondary)'
+              }}
               onClick={() => onAction?.('details')}
             >
               View
             </motion.div>
           </div>
         </div>
-
-        {/* Shine Effect */}
-        <motion.div
-          initial={{ opacity: 0, x: '-100%' }}
-          animate={{ opacity: [0, 0.6, 0], x: '200%' }}
-          transition={{ duration: 3, delay: 1, repeat: Infinity, repeatDelay: 2 }}
-          className="absolute inset-0 w-1/3 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12"
-        />
       </motion.div>
 
       {/* Card Benefits Badge */}
