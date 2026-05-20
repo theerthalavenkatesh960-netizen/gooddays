@@ -20,7 +20,20 @@ type Task = {
   createdAt: string;
   updatedAt: string;
 };
-type Expense = { id: number; userId: number; description: string; amount: number; category: string; date: string; createdAt: string };
+type Expense = {
+  id: number;
+  userId: number;
+  description: string;
+  amount: number;
+  category: string;
+  date: string;
+  createdAt: string;
+  gmailMessageId?: string;
+  externalReference?: string;
+  sourceType?: string;
+  isReviewed?: boolean;
+  reviewedAt?: string;
+};
 export type UserSettings = {
   theme: 'light' | 'dark' | 'blue' | 'green' | 'ocean' | 'futuristic';
   calorieGoal: number;
@@ -254,6 +267,39 @@ export async function updateExpense(id: number, description?: string, amount?: n
 
 export async function deleteExpense(id: number) {
   return request(`expenses/${id}`, { method: 'DELETE' });
+}
+
+// Gmail finance sync
+export async function getFinanceGmailStatus() {
+  return request('finance/gmail/status');
+}
+
+export async function getFinanceGmailConnectUrl() {
+  return request('finance/gmail/connect');
+}
+
+export async function triggerFinanceGmailSync() {
+  return request('finance/gmail/sync', { method: 'POST' });
+}
+
+export async function disconnectFinanceGmail() {
+  return request('finance/gmail/disconnect', { method: 'DELETE' });
+}
+
+export async function getFinanceGmailTransactions(reviewed?: boolean) {
+  const query = reviewed === undefined ? '' : `?reviewed=${reviewed}`;
+  return request(`finance/gmail/transactions${query}`);
+}
+
+export async function bulkReviewFinanceGmailTransactions(expenseIds: number[], isReviewed: boolean) {
+  return request('finance/gmail/review', { method: 'POST', body: JSON.stringify({ expenseIds, isReviewed }) });
+}
+
+export async function bulkSetCategoryFinanceGmailTransactions(expenseIds: number[], category: string, markReviewedOnCategoryChange = true) {
+  return request('finance/gmail/category', {
+    method: 'POST',
+    body: JSON.stringify({ expenseIds, category, markReviewedOnCategoryChange }),
+  });
 }
 
 // Daily tracking (sleep/workout/phone/sunlight/mood)

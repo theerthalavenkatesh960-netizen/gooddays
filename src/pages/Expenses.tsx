@@ -566,7 +566,12 @@ export default function Expenses() {
                             <Icon size={16} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-800 truncate">{expense.category || 'Other'}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-gray-800 truncate">{expense.category || 'Other'}</p>
+                              {(expense.sourceType || '').toLowerCase() === 'gmail' && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">Gmail</span>
+                              )}
+                            </div>
                             {expense.note && <p className="text-xs text-gray-500 truncate">{expense.note}</p>}
                           </div>
                           <p className="font-bold text-lg text-gray-800 flex-shrink-0">{formatRupee(parseFloat(expense.amount) || 0)}</p>

@@ -33,3 +33,28 @@ Endpoints:
 - GET  /api/auth/session (bearer token optional)
 - GET  /api/userprofiles/{id}
 - POST /api/userprofiles
+
+Gmail finance sync configuration:
+
+- `Google__ClientId` = Google OAuth client ID
+- `Google__ClientSecret` = Google OAuth client secret
+- `Google__RedirectUri` = API callback URL, e.g. `http://localhost:5000/api/finance/gmail/callback`
+- `Google__FrontendRedirectAfterCallback` = frontend URL to return to, e.g. `http://localhost:5173/finance`
+- `Google__OAuthStateSecret` = random secret for OAuth state signing
+- `Encryption__Key` = Base64-encoded 32-byte key used to encrypt Gmail access/refresh tokens
+
+Generate encryption key (PowerShell):
+
+`[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))`
+
+Gmail OAuth scope used by the API:
+
+- `https://www.googleapis.com/auth/gmail.readonly`
+
+New Gmail endpoints:
+
+- GET `/api/finance/gmail/connect`
+- GET `/api/finance/gmail/callback`
+- POST `/api/finance/gmail/sync`
+- DELETE `/api/finance/gmail/disconnect`
+- GET `/api/finance/gmail/status`

@@ -10,6 +10,8 @@ public class AppDbContext : DbContext
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<DailyTask> Tasks { get; set; } = null!;
     public DbSet<Expense> Expenses { get; set; } = null!;
+    public DbSet<ConnectedEmailAccount> ConnectedEmailAccounts { get; set; } = null!;
+    public DbSet<SyncedEmail> SyncedEmails { get; set; } = null!;
     public DbSet<GamificationEntry> GamificationEntries { get; set; } = null!;
     public DbSet<DailyTracking> DailyTrackings { get; set; } = null!;
     public DbSet<DailyNote> DailyNotes { get; set; } = null!;
@@ -89,6 +91,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>().ToTable("user_profiles");
         modelBuilder.Entity<DailyTask>().ToTable("tasks");
         modelBuilder.Entity<Expense>().ToTable("expenses");
+        modelBuilder.Entity<ConnectedEmailAccount>().ToTable("connected_email_accounts");
+        modelBuilder.Entity<SyncedEmail>().ToTable("synced_emails");
         modelBuilder.Entity<GamificationEntry>().ToTable("gamification_entries");
         modelBuilder.Entity<DailyTracking>().ToTable("daily_tracking");
         modelBuilder.Entity<DailyNote>().ToTable("daily_notes");
@@ -193,6 +197,38 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Expense>()
+            .HasIndex(e => new { e.UserId, e.GmailMessageId })
+            .HasDatabaseName("ix_expenses_user_gmail_message_id");
+
+        modelBuilder.Entity<Expense>()
+            .HasIndex(e => new { e.UserId, e.ExternalReference })
+            .HasDatabaseName("ix_expenses_user_external_reference");
+
+        modelBuilder.Entity<Expense>()
+            .HasIndex(e => new { e.UserId, e.SourceType, e.IsReviewed })
+            .HasDatabaseName("ix_expenses_user_source_reviewed");
+
+        modelBuilder.Entity<ConnectedEmailAccount>()
+            .HasOne(a => a.User)
+            .WithMany()
+            .HasForeignKey(a => a.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ConnectedEmailAccount>()
+            .HasIndex(a => new { a.UserId, a.Provider })
+            .IsUnique();
+
+        modelBuilder.Entity<SyncedEmail>()
+            .HasOne(s => s.User)
+            .WithMany()
+            .HasForeignKey(s => s.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SyncedEmail>()
+            .HasIndex(s => new { s.UserId, s.GmailMessageId })
+            .IsUnique();
 
         modelBuilder.Entity<GamificationEntry>()
             .HasOne(g => g.User)

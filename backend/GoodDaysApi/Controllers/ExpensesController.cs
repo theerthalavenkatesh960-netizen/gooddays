@@ -40,7 +40,9 @@ public class ExpensesController : ControllerBase
             Description = req.Description ?? req.Note ?? string.Empty,
             Amount = req.Amount,
             Category = req.Category,
-            Date = req.Date ?? DateTime.UtcNow
+            Date = req.Date ?? DateTime.UtcNow,
+            IsReviewed = req.IsReviewed ?? true,
+            ReviewedAt = req.IsReviewed == false ? null : DateTime.UtcNow
         };
         _db.Expenses.Add(expense);
         await _db.SaveChangesAsync();
@@ -64,7 +66,9 @@ public class ExpensesController : ControllerBase
                 Description = item.Expense.Description ?? item.Expense.Note ?? string.Empty,
                 Amount = item.Expense.Amount,
                 Category = item.Expense.Category,
-                Date = item.Expense.Date ?? DateTime.UtcNow
+                Date = item.Expense.Date ?? DateTime.UtcNow,
+                IsReviewed = item.Expense.IsReviewed ?? true,
+                ReviewedAt = item.Expense.IsReviewed == false ? null : DateTime.UtcNow
             };
             _db.Expenses.Add(expense);
             createdExpenses.Add(expense);
@@ -108,6 +112,11 @@ public class ExpensesController : ControllerBase
         expense.Amount = req.Amount ?? expense.Amount;
         expense.Category = req.Category ?? expense.Category;
         if (req.Date.HasValue) expense.Date = req.Date.Value;
+        if (req.IsReviewed.HasValue)
+        {
+            expense.IsReviewed = req.IsReviewed.Value;
+            expense.ReviewedAt = req.IsReviewed.Value ? DateTime.UtcNow : null;
+        }
         
         await _db.SaveChangesAsync();
         return Ok(expense);
@@ -125,6 +134,6 @@ public class ExpensesController : ControllerBase
     }
 }
 
-public record CreateExpenseRequest(int UserId, string? Description, string? Note, decimal Amount, string? Category, DateTime? Date);
-public record UpdateExpenseRequest(string? Description, string? Note, decimal? Amount, string? Category, DateTime? Date);
+public record CreateExpenseRequest(int UserId, string? Description, string? Note, decimal Amount, string? Category, DateTime? Date, bool? IsReviewed);
+public record UpdateExpenseRequest(string? Description, string? Note, decimal? Amount, string? Category, DateTime? Date, bool? IsReviewed);
 public record BulkExpenseItem(CreateExpenseRequest Expense, Guid? CardId);

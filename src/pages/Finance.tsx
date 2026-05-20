@@ -3,19 +3,21 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   DollarSign, TrendingUp, ChevronRight, ChevronLeft,
   Plus, Wallet, BarChart3, Car,
-  ArrowUpRight, ArrowDownRight, Trash2, Pencil
+  ArrowUpRight, ArrowDownRight, Trash2, Pencil, Mail, RefreshCw, Unplug
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
+import GmailReviewTab from '../components/financial/GmailReviewTab';
 
-type Tab = 'Transactions' | 'Buckets' | 'Investments' | 'Analytics';
+type Tab = 'Transactions' | 'Buckets' | 'Investments' | 'Gmail' | 'Analytics';
 
 const FINANCE_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Transactions', label: 'Transactions', icon: DollarSign },
   { id: 'Buckets', label: 'Buckets', icon: Wallet },
   { id: 'Investments', label: 'Investments', icon: TrendingUp },
+  { id: 'Gmail', label: 'Gmail Review', icon: Mail },
 ];
 
 const formatMoney = (value: number) => `₹${new Intl.NumberFormat('en-IN', {
@@ -48,6 +50,9 @@ function TransactionsTab() {
   const navigate = useNavigate();
   const [month, setMonth] = useState(new Date());
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [gmailStatus, setGmailStatus] = useState<any>(null);
+  const [syncingGmail, setSyncingGmail] = useState(false);
+  const [gmailOnly, setGmailOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [budgetProfile, setBudgetProfile] = useState<any>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -57,9 +62,11 @@ function TransactionsTab() {
   const loadTransactions = () => Promise.all([
     user ? api.getExpenses(user.id).catch(() => []) : Promise.resolve([]),
     (api as any).getFinanceBudgetProfile(month.getMonth() + 1, month.getFullYear()).catch(() => null),
-  ]).then(([expenseData, budget]) => {
+    user ? api.getFinanceGmailStatus().catch(() => null) : Promise.resolve(null),
+  ]).then(([expenseData, budget, gmail]) => {
     setExpenses(Array.isArray(expenseData) ? expenseData : []);
     setBudgetProfile(budget);
+    setGmailStatus(gmail);
   });
 
   useEffect(() => {
@@ -68,10 +75,12 @@ function TransactionsTab() {
     Promise.all([
       user ? api.getExpenses(user.id).catch(() => []) : Promise.resolve([]),
       (api as any).getFinanceBudgetProfile(month.getMonth() + 1, month.getFullYear()).catch(() => null),
-    ]).then(([expenseData, budget]) => {
+      user ? api.getFinanceGmailStatus().catch(() => null) : Promise.resolve(null),
+    ]).then(([expenseData, budget, gmail]) => {
       if (!isMounted) return;
       setExpenses(Array.isArray(expenseData) ? expenseData : []);
       setBudgetProfile(budget);
+      setGmailStatus(gmail);
     }).finally(() => {
       if (isMounted) setLoading(false);
     });
@@ -93,6 +102,7 @@ function TransactionsTab() {
     const d = new Date(e.date ?? e.createdAt ?? e.created_at);
     return d >= startOfMonth(month) && d <= endOfMonth(month);
   });
+  const visibleExpenses = gmailOnly ? monthExpenses.filter(e => (e.sourceType || '').toLowerCase() === 'gmail') : monthExpenses;
 
   const variableExpense = monthExpenses.reduce((s, e) => s + (e.amount ?? 0), 0);
   const fixedExpense = (budgetProfile?.fixedExpenses ?? []).reduce((s: number, f: any) => s + (f.effectiveAmount ?? f.amount ?? 0), 0);
@@ -102,7 +112,7 @@ function TransactionsTab() {
 
   // Group by date
   const grouped: Record<string, any[]> = {};
-  monthExpenses.forEach(e => {
+  visibleExpenses.forEach(e => {
     const key = format(new Date(e.date ?? e.createdAt ?? e.created_at), 'yyyy-MM-dd');
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(e);
@@ -155,6 +165,28 @@ function TransactionsTab() {
     setExpenses(prev => prev.filter(e => e.id !== id));
   };
 
+  const connectGmail = async () => {
+    const response = await api.getFinanceGmailConnectUrl();
+    if (response?.url) {
+      window.location.href = response.url;
+    }
+  };
+
+  const manualGmailSync = async () => {
+    setSyncingGmail(true);
+    try {
+      await api.triggerFinanceGmailSync();
+      await loadTransactions();
+    } finally {
+      setSyncingGmail(false);
+    }
+  };
+
+  const disconnectGmail = async () => {
+    await api.disconnectFinanceGmail();
+    await loadTransactions();
+  };
+
   return (
     <div className="px-4">
       {/* Month selector */}
@@ -184,6 +216,42 @@ function TransactionsTab() {
             style={{ backgroundColor: 'var(--accent)' }}
           >
             Edit budget
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl mb-4 p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Gmail Sync</p>
+            <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+              {gmailStatus?.connected ? `Connected: ${gmailStatus.email || 'Gmail account'}` : 'Not connected'}
+            </p>
+            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              Last sync: {gmailStatus?.lastSyncedUtc ? format(new Date(gmailStatus.lastSyncedUtc), 'dd MMM yyyy, hh:mm a') : 'Never'}
+            </p>
+          </div>
+          <Mail size={16} style={{ color: 'var(--accent)' }} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {!gmailStatus?.connected ? (
+            <button onClick={connectGmail} className="h-8 px-3 rounded-lg text-xs font-semibold text-white press" style={{ backgroundColor: 'var(--accent)' }}>
+              Connect Gmail
+            </button>
+          ) : (
+            <>
+              <button onClick={manualGmailSync} disabled={syncingGmail} className="h-8 px-3 rounded-lg text-xs font-semibold text-white press flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: 'var(--accent)' }}>
+                <RefreshCw size={12} className={syncingGmail ? 'animate-spin' : ''} />
+                {syncingGmail ? 'Syncing...' : 'Sync now'}
+              </button>
+              <button onClick={disconnectGmail} className="h-8 px-3 rounded-lg text-xs font-semibold press flex items-center gap-1.5" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                <Unplug size={12} />
+                Disconnect
+              </button>
+            </>
+          )}
+          <button onClick={() => setGmailOnly(v => !v)} className="h-8 px-3 rounded-lg text-xs font-semibold press" style={{ backgroundColor: gmailOnly ? 'var(--accent)' : 'var(--surface-elevated)', color: gmailOnly ? '#fff' : 'var(--text-secondary)' }}>
+            {gmailOnly ? 'Showing Gmail only' : 'Show Gmail only'}
           </button>
         </div>
       </div>
@@ -272,7 +340,7 @@ function TransactionsTab() {
             <div className="skeleton h-4 w-14 rounded" />
           </div>
         ))
-      ) : monthExpenses.length === 0 ? (
+      ) : visibleExpenses.length === 0 ? (
         <div className="py-12 text-center">
           <Wallet size={36} className="mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
           <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>No transactions</p>
@@ -296,7 +364,14 @@ function TransactionsTab() {
                       <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
                         {exp.note || exp.category}
                       </p>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{exp.category}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{exp.category}</p>
+                        {(exp.sourceType || '').toLowerCase() === 'gmail' && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
+                            Gmail
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <span className="text-sm font-bold num" style={{ color: 'var(--accent-warm)' }}>
                       -{formatMoney(exp.amount ?? 0)}
@@ -753,6 +828,7 @@ export default function Finance() {
           {tab === 'Transactions'  && <TransactionsTab />}
           {tab === 'Buckets'       && <BucketsTab />}
           {tab === 'Investments'   && <InvestmentsTab />}
+          {tab === 'Gmail'         && <GmailReviewTab />}
           {tab === 'Analytics'     && <AnalyticsTab />}
         </motion.div>
       </AnimatePresence>
