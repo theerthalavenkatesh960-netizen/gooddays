@@ -49,7 +49,7 @@ export type UserSettings = {
   };
 };
 
-const API_BASE = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
+const API_BASE = ((import.meta as any).env?.VITE_API_URL || '').replace(/\/$/, '');
 
 // ─── Dummy Data Configuration ───────────────────────────────────────────────
 // Per-feature flags. Set to false to use live API for that page/domain.
