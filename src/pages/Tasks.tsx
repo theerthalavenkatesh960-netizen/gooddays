@@ -296,64 +296,61 @@ const renderOccurrences = (task: any) => {
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl p-3 sm:p-5 shadow-xl mb-3 sm:mb-5"
       >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <button
+            onClick={() => { setEditingTask(null); setShowAddModal(true); }}
+            className="flex-shrink-0 px-3 py-1.5 bg-emerald-500 text-white rounded-lg font-semibold text-xs sm:text-sm flex items-center gap-1.5"
+          >
+            <Plus size={16} /> New Task
+          </button>
+
+          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar min-w-0">
             <button
-              onClick={() => { setEditingTask(null); setShowAddModal(true); }}
-              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-500 text-white rounded-lg font-semibold text-xs sm:text-sm flex items-center gap-1.5"
+              onClick={() => setFilterView('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
+                filterView === 'all'
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
             >
-              <Plus size={16} /> New Task
+              All
             </button>
-            <div className="text-xs sm:text-sm text-gray-500">Click to open task dialog</div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar whitespace-nowrap pb-1">
-          <button
-            onClick={() => setFilterView('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
-              filterView === 'all'
-                ? 'bg-emerald-500 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilterView('today')}
-            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
-              filterView === 'today'
-                ? 'bg-emerald-500 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Today
-          </button>
-          <button
-            onClick={() => setFilterView('overdue')}
-            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
-              filterView === 'overdue'
-                ? 'bg-red-500 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Overdue
-          </button>
-
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Filter size={16} className="text-gray-500" />
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg text-sm border border-gray-200 outline-none"
+            <button
+              onClick={() => setFilterView('today')}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
+                filterView === 'today'
+                  ? 'bg-emerald-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
             >
-              <option value="all">All Categories</option>
-              {CATEGORY_OPTIONS.map((cat) => (
-                <option key={cat.name} value={cat.name}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+              Today
+            </button>
+            <button
+              onClick={() => setFilterView('overdue')}
+              className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
+                filterView === 'overdue'
+                  ? 'bg-red-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Overdue
+            </button>
+
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <Filter size={14} className="text-gray-500 flex-shrink-0" />
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className="px-2 py-1.5 rounded-lg text-xs border border-gray-200 outline-none"
+              >
+                <option value="all">All Categories</option>
+                {CATEGORY_OPTIONS.map((cat) => (
+                  <option key={cat.name} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </motion.div>
