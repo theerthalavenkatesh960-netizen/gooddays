@@ -31,22 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkSession();
-  }, []);
-
-  const checkSession = () => {
-    try {
-      const session = api.getSession();
-      if (session && session.user) {
-        setSession(session);
-        setUser(session.user);
-      }
-    } catch (error) {
-      console.error('Failed to check session:', error);
-    } finally {
-      setLoading(false);
+    const localSession = api.getSession();
+    if (localSession && localSession.user) {
+      setSession(localSession);
+      setUser(localSession.user);
     }
-  };
+    setLoading(false);
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -59,13 +50,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Sign in failed:', error);
       throw error;
     }
-  };
-
-  const setSessionFromOAuth = (token: string, userData: User) => {
-    const payload: Session = { access_token: token, user: userData };
-    localStorage.setItem('gd_session', JSON.stringify(payload));
-    setSession(payload);
-    setUser(userData);
   };
 
   const signUp = async (email: string, password: string, name: string) => {
@@ -92,15 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Called by ClerkCallback after it exchanges the Clerk token for a GoodDays JWT
+  const setSessionFromOAuth = (token: string, user: User) => {
+    const newSession: Session = { access_token: token, user };
+    localStorage.setItem('gd_session', JSON.stringify(newSession));
+    setSession(newSession);
+    setUser(user);
+  };
+
+  // Clerk handles the OAuth redirect — this is never called directly
   const signInWithGoogle = async () => {
-    try {
-      // Redirect to OAuth endpoint
-      const baseUrl = (import.meta as any).env?.VITE_API_URL || '';
-      window.location.href = `${baseUrl}/api/auth/oauth/google`;
-    } catch (error) {
-      console.error('Google sign in failed:', error);
-      throw error;
-    }
+    // no-op: Google login is initiated via Clerk's authenticateWithRedirect in Login.tsx
   };
 
   return (
