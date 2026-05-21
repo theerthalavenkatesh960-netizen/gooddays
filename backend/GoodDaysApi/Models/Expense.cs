@@ -23,6 +23,21 @@ public class Expense
     [Column("category")]
     public string? Category { get; set; }
 
+    [Column("gmail_message_id")]
+    public string? GmailMessageId { get; set; }
+
+    [Column("external_reference")]
+    public string? ExternalReference { get; set; }
+
+    [Column("source_type")]
+    public string? SourceType { get; set; }
+
+    [Column("is_reviewed")]
+    public bool IsReviewed { get; set; } = true;
+
+    [Column("reviewed_at")]
+    public DateTime? ReviewedAt { get; set; }
+
     // optional date for the expense; falls back to CreatedAt when not set
     [Column("date")]
     public DateTime? Date { get; set; }

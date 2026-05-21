@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, DollarSign, Dumbbell, UtensilsCrossed, Fuel,
   CheckSquare, BookOpen, MessageSquare, Scale,
-  ChevronLeft, Check, Droplets, Plus
+  ChevronLeft, Check, Droplets
 } from 'lucide-react';
 import * as api from '../lib/api';
 import cardApi, { type CreditCard } from '../lib/cardApi';
@@ -153,7 +153,8 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
   );
 
   useEffect(() => {
-    if (!sub || !userId) return;
+    if (!sub || userId == null) return;
+    const currentUserId = userId;
 
     let cancelled = false;
     async function loadMeta() {
@@ -161,7 +162,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
       setError('');
       try {
         if (sub === 'expense') {
-          const userCards = await cardApi.getCards(userId);
+          const userCards = await cardApi.getCards(currentUserId);
           if (!cancelled) setCards(Array.isArray(userCards) ? userCards : []);
         }
 
@@ -171,14 +172,14 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
             api.getWorkoutPlanByDate(today),
           ]);
 
-          const all = Array.isArray(exerciseData)
+          const all: ExerciseOption[] = Array.isArray(exerciseData)
             ? exerciseData.map((e: any) => ({ id: Number(e.id), name: String(e.name || 'Exercise'), muscleGroup: e.muscleGroup ? String(e.muscleGroup) : undefined }))
             : [];
 
           const plannedIds = normalizePlannedExerciseIds((todayPlan as any)?.plannedExercises);
           const planned = plannedIds
             .map(id => all.find(ex => ex.id === id))
-            .filter((ex): ex is ExerciseOption => !!ex);
+            .filter(Boolean) as ExerciseOption[];
 
           if (!cancelled) {
             setAllExercises(all);
@@ -197,7 +198,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
             api.getDailyMealLog(today) as Promise<any>,
           ]);
 
-          const templates = Array.isArray(templateData)
+          const templates: MealTemplateOption[] = Array.isArray(templateData)
             ? templateData.map((m: any) => ({
                 id: Number(m.id),
                 name: String(m.name || 'Meal'),
@@ -217,7 +218,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
 
           const plannedTodayList = plannedIds
             .map(id => templates.find((m: MealTemplateOption) => m.id === id))
-            .filter((m): m is MealTemplateOption => !!m);
+            .filter(Boolean) as MealTemplateOption[];
 
           if (!cancelled) {
             setAllMealTemplates(templates);
@@ -479,7 +480,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
     (sub === 'water' && Number(waterMl) > 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ maxWidth: 390, margin: '0 auto', left: 0, right: 0 }}>
+    <div className="fixed inset-0 z-50 flex flex-col justify-end">
       <motion.div
         className="absolute inset-0"
         style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
@@ -491,7 +492,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
       />
 
       <motion.div
-        className="relative sheet max-h-[88dvh] overflow-y-auto scrollbar-none"
+        className="relative sheet w-full max-w-md mx-auto max-h-[86dvh] min-h-[62dvh] overflow-y-auto scrollbar-none rounded-t-3xl"
         variants={sheetVariants}
         initial="hidden"
         animate="visible"

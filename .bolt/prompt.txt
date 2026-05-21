@@ -1,48 +1,73 @@
-2MealPlannerSettings.tsx:149 Uncaught TypeError: ids.map is not a function
-    at MealPlannerSettings.tsx:149:16
-    at updateMemo (chunk-QT63QQJV.js?v=eaa51999:12210:27)
-    at Object.useMemo (chunk-QT63QQJV.js?v=eaa51999:12726:24)
-    at useMemo (chunk-RLJ2RCJQ.js?v=eaa51999:1094:29)
-    at MealPlannerSettings (MealPlannerSettings.tsx:147:25)
-    at renderWithHooks (chunk-QT63QQJV.js?v=eaa51999:11548:26)
-    at updateFunctionComponent (chunk-QT63QQJV.js?v=eaa51999:14582:28)
-    at beginWork (chunk-QT63QQJV.js?v=eaa51999:15924:22)
-    at HTMLUnknownElement.callCallback2 (chunk-QT63QQJV.js?v=eaa51999:3674:22)
-    at Object.invokeGuardedCallbackDev (chunk-QT63QQJV.js?v=eaa51999:3699:24)Understand this error
-chunk-QT63QQJV.js?v=eaa51999:14032 The above error occurred in the <MealPlannerSettings> component:
+Context:
+I have a React/TypeScript app using Clerk for Google OAuth and a custom JWT auth system. After Google OAuth completes, the user is created in Clerk and the backend, but the app stays on the login page instead of navigating to /.
+Files involved:
 
-    at MealPlannerSettings (http://localhost:5173/src/pages/MealPlannerSettings.tsx:56:20)
-    at div
-    at MotionDOMComponent (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=eaa51999:8733:40)
-    at PopChildMeasure (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=eaa51999:7879:23)
-    at PopChild (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=eaa51999:7905:21)
-    at PresenceChild (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=eaa51999:7953:24)
-    at AnimatePresence (http://localhost:5173/node_modules/.vite/deps/framer-motion.js?v=eaa51999:8030:26)
-    at main
-    at div
-    at Layout (http://localhost:5173/src/components/Layout.tsx:30:34)
-    at PrivateRoute (http://localhost:5173/src/App.tsx:46:25)
-    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=eaa51999:6355:26)
-    at Routes (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=eaa51999:7222:3)
-    at LoadingProvider (http://localhost:5173/src/contexts/LoadingContext.tsx:43:35)
-    at div
-    at ThemeProvider (http://localhost:5173/src/contexts/ThemeContext.tsx:22:33)
-    at AuthProvider (http://localhost:5173/src/contexts/AuthContextApi.tsx:21:32)
-    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=eaa51999:7152:13)
-    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=eaa51999:10363:3)
-    at App
+src/contexts/AuthContextApi.tsx — custom JWT AuthProvider, reads session via api.getSession() on mount
+src/lib/api.ts — contains getSession() which may be making a backend call instead of reading localStorage
+src/pages/ClerkCallback.tsx — after OAuth, writes gd_session to localStorage then does window.location.href = '/'
+src/pages/Login.tsx — has useEffect(() => { if (user) navigate('/') }, [user]) which redirects if user is truthy
 
-Consider adding an error boundary to your tree to customize error handling behavior.
-Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
-logCapturedError @ chunk-QT63QQJV.js?v=eaa51999:14032Understand this error
-chunk-QT63QQJV.js?v=eaa51999:19413 Uncaught TypeError: ids.map is not a function
-    at MealPlannerSettings.tsx:149:16
-    at updateMemo (chunk-QT63QQJV.js?v=eaa51999:12210:27)
-    at Object.useMemo (chunk-QT63QQJV.js?v=eaa51999:12726:24)
-    at useMemo (chunk-RLJ2RCJQ.js?v=eaa51999:1094:29)
-    at MealPlannerSettings (MealPlannerSettings.tsx:147:25)
-    at renderWithHooks (chunk-QT63QQJV.js?v=eaa51999:11548:26)
-    at updateFunctionComponent (chunk-QT63QQJV.js?v=eaa51999:14582:28)
-    at beginWork (chunk-QT63QQJV.js?v=eaa51999:15924:22)
-    at beginWork$1 (chunk-QT63QQJV.js?v=eaa51999:19753:22)
-    at performUnitOfWork (chunk-QT63QQJV.js?v=eaa51999:19198:20)Understand this error
+The bug:
+ClerkCallback writes the session to localStorage as gd_session with shape { access_token: string, user: { id, email, name } }, then forces a full page reload via window.location.href = '/'. On reload, AuthContextApi.checkSession() calls api.getSession(). If api.getSession() makes an async backend call that fails silently, or doesn't read from localStorage, user stays null, loading becomes false, and the Login page's useEffect does nothing because user is still null — so the user stays stuck on login.
+Required changes — implement all of these:
+
+src/lib/api.ts — Make getSession() a synchronous function that only reads from localStorage:
+
+tsexport const getSession = (): { access_token: string; user: { id: number; email: string; name?: string } } | null => {
+  try {
+    const raw = localStorage.getItem('gd_session');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+src/contexts/AuthContextApi.tsx — Add setSessionFromOAuth to the context interface and implementation:
+
+ts// Add to AuthContextType interface:
+setSessionFromOAuth: (token: string, user: User) => void;
+
+// Add inside AuthProvider:
+const setSessionFromOAuth = (token: string, userData: User) => {
+  const payload: Session = { access_token: token, user: userData };
+  localStorage.setItem('gd_session', JSON.stringify(payload));
+  setSession(payload);
+  setUser(userData);
+};
+
+// Include in AuthContext.Provider value prop
+
+src/contexts/AuthContextApi.tsx — Make checkSession synchronous since getSession no longer needs to be async:
+
+tsconst checkSession = () => {
+  try {
+    const session = api.getSession();
+    if (session?.user) {
+      setSession(session);
+      setUser(session.user);
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+
+src/pages/ClerkCallback.tsx — Replace the localStorage write + window.location.href block with setSessionFromOAuth + navigate:
+
+ts// Import setSessionFromOAuth from AuthContextApi
+import { useAuth } from '../contexts/AuthContextApi';
+const { setSessionFromOAuth } = useAuth();
+
+// Inside exchangeToken(), replace these lines:
+//   localStorage.setItem('gd_session', JSON.stringify(sessionPayload));
+//   window.location.href = '/';
+// With:
+setSessionFromOAuth(data.token, data.user);
+navigate('/', { replace: true });
+Constraints:
+
+Do not touch Clerk's ClerkSsoCallback.tsx — it works correctly
+Do not change the gd_session localStorage key or its shape { access_token, user }
+Do not add any new dependencies
+The Supabase AuthContext.tsx is a separate file — do not modify it
+Keep all existing error handling in ClerkCallback.tsx intact, only replace the success path

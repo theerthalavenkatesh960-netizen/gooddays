@@ -1,3 +1,12 @@
+/**
+ * Authentication Context
+ * 
+ * Provides app-level JWT session management and authentication methods.
+ * - Syncs session state from localStorage on app mount
+ * - Handles email/password auth via backend endpoints
+ * - Integrates with Clerk OAuth (state updated by ClerkCallback)
+ */
+
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import * as api from '../lib/api';
 
@@ -20,6 +29,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  setSessionFromOAuth: (token: string, user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,32 +40,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkSession();
-  }, []);
-
-  const checkSession = async () => {
-    try {
-      const session = await api.getSession();
-      if (session && session.user) {
-        setSession(session);
-        setUser(session.user);
-      }
-    } catch (error) {
-      console.error('Failed to check session:', error);
-    } finally {
-      setLoading(false);
+    const localSession = api.getSession();
+    if (localSession && localSession.user) {
+      setSession(localSession);
+      setUser(localSession.user);
     }
-  };
+    setLoading(false);
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
       const session = await api.signIn(email, password);
-      if (session && session.user) {
+      if (session?.user) {
         setSession(session);
         setUser(session.user);
       }
     } catch (error) {
-      console.error('Sign in failed:', error);
       throw error;
     }
   };
@@ -63,12 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, name: string) => {
     try {
       const session = await api.signUp(email, password, name);
-      if (session && session.user) {
+      if (session?.user) {
         setSession(session);
         setUser(session.user);
       }
     } catch (error) {
-      console.error('Sign up failed:', error);
       throw error;
     }
   };
@@ -79,24 +78,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setUser(null);
     } catch (error) {
-      console.error('Sign out failed:', error);
       throw error;
     }
   };
 
+  // Called by ClerkCallback after exchanging Clerk token for app JWT
+  const setSessionFromOAuth = (token: string, user: User) => {
+    const newSession: Session = { access_token: token, user };
+    localStorage.setItem('gd_session', JSON.stringify(newSession));
+    setSession(newSession);
+    setUser(user);
+  };
+
+  // OAuth is handled directly in Login/Signup via Clerk SDK
+  // This method exists for interface completeness
   const signInWithGoogle = async () => {
-    try {
-      // Redirect to OAuth endpoint
-      const baseUrl = (import.meta as any).env?.VITE_API_URL || '';
-      window.location.href = `${baseUrl}/api/auth/oauth/google`;
-    } catch (error) {
-      console.error('Google sign in failed:', error);
-      throw error;
-    }
+    throw new Error('Use Clerk OAuth in Login.tsx instead');
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, signInWithGoogle }}>
+    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, signInWithGoogle, setSessionFromOAuth }}>
       {children}
     </AuthContext.Provider>
   );

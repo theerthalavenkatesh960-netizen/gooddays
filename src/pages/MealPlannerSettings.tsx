@@ -5,6 +5,7 @@ import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
 import * as api from '../lib/api';
 import MacroVisualization from '../components/MacroVisualization';
 import MealCard from '../components/MealCard';
+import WeeklyCalendar from '../components/WeeklyCalendar';
 
 type MealTemplate = {
   id: number;
@@ -329,14 +330,12 @@ export default function MealPlannerSettings() {
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Meals & Nutrition</h1>
       </div>
 
-      <div className="flex gap-1 mb-4 p-1 rounded-2xl" style={{ backgroundColor: 'var(--surface)' }}>
-        <button onClick={() => setTab('weekly')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all press"
-          style={{ backgroundColor: tab === 'weekly' ? 'var(--accent-green)' : 'transparent', color: tab === 'weekly' ? '#fff' : 'var(--text-muted)' }}>
-          <Calendar size={15} /> Weekly Meals
+      <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ backgroundColor: 'var(--surface)' }}>
+        <button onClick={() => setTab('weekly')} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${tab === 'weekly' ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+          <Calendar size={14} /> Weekly Meals
         </button>
-        <button onClick={() => setTab('library')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all press"
-          style={{ backgroundColor: tab === 'library' ? 'var(--accent-green)' : 'transparent', color: tab === 'library' ? '#fff' : 'var(--text-muted)' }}>
-          <BookOpen size={15} /> Meal Library
+        <button onClick={() => setTab('library')} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${tab === 'library' ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+          <BookOpen size={14} /> Meal Library
         </button>
       </div>
 
@@ -348,80 +347,59 @@ export default function MealPlannerSettings() {
       )}
 
       {tab === 'weekly' && (
-        <div className="space-y-3">
-          <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{format(selectedDate, 'EEEE, MMM d')}</p>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Prev Week</button>
-                <button onClick={() => setSelectedDate(new Date())} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Today</button>
-                <button onClick={() => setSelectedDate(addDays(selectedDate, 7))} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Next Week</button>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto mb-4">
-              <div className="flex gap-1.5 pb-1.5">
-                {Array.from({ length: 7 }).map((_, i) => {
-                  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
-                  const d = addDays(weekStart, i);
-                  const active = isSameDay(d, selectedDate);
-                  const dateKey = toDateKey(d);
-                  const legacyKey = toLegacyDayKey(d);
-                  const dayCount = (mealPlan[dateKey]?.length || 0) || (mealPlan[legacyKey]?.length || 0);
-                  return (
-                    <button key={d.toISOString()} onClick={() => setSelectedDate(d)} className="min-w-[64px] px-2 py-2 rounded-lg text-center border"
-                      style={{ backgroundColor: active ? 'var(--accent-green)' : 'var(--surface-elevated)', color: active ? '#fff' : 'var(--text-secondary)', borderColor: active ? 'var(--accent-green)' : 'var(--border)' }}>
-                      <div className="text-[11px]">{format(d, 'EEE')}</div>
-                      <div className="font-semibold text-sm">{format(d, 'd')}</div>
-                      <div className="text-[10px] opacity-80">{dayCount}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <p className="text-sm font-bold capitalize" style={{ color: 'var(--text-primary)' }}>{selectedDayLabel}</p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''}
-                  {selectedDayCalories > 0 && <span style={{ color: 'var(--accent-gold)' }}> | {Math.round(selectedDayCalories)} kcal</span>}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={copyLastWeekPlan} className="px-2 py-1 rounded-lg text-xs font-semibold"
-                  style={{ backgroundColor: 'rgba(78, 205, 196, 0.15)', color: 'var(--accent-green)' }}>
-                  Copy Last Week
-                </button>
-                <button onClick={() => openMealPicker(selectedDayKey)} className="w-8 h-8 rounded-xl flex items-center justify-center press"
-                  style={{ backgroundColor: 'rgba(78, 205, 196, 0.15)', color: 'var(--accent-green)' }}>
-                  <Plus size={16} />
-                </button>
-              </div>
-            </div>
-
-            {selectedMeals.length > 0 ? (
-              <div className="space-y-3">
-                {selectedMeals.map(meal => (
-                  <MealCard
-                    key={meal.id}
-                    id={meal.id}
-                    name={meal.name}
-                    timing={meal.timing}
-                    timeOfDay={meal.timeOfDay}
-                    imageUrl={meal.imageUrl}
-                    ingredients={parseIngredients(meal.ingredientsJson)}
-                    onRemove={() => removeMealFromDay(selectedDayKey, meal.id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <button onClick={() => openMealPicker(selectedDayKey)} className="w-full py-4 rounded-xl flex items-center justify-center gap-2 text-sm press"
-                style={{ border: '1.5px dashed var(--border)', color: 'var(--text-muted)' }}>
-                <Plus size={14} /> Add meals for {selectedDayLabel}
-              </button>
-            )}
+        <div className="space-y-2.5">
+          <div className="mb-4">
+            <WeeklyCalendar 
+              selectedDate={selectedDate} 
+              onSelectDate={setSelectedDate}
+              renderDayExtra={(d) => {
+                const dateKey = toDateKey(d);
+                const legacyKey = toLegacyDayKey(d);
+                const dayCount = (mealPlan[dateKey]?.length || 0) || (mealPlan[legacyKey]?.length || 0);
+                return dayCount > 0 ? <div className="text-[10px] opacity-70">{dayCount}</div> : null;
+              }}
+            />
           </div>
+
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-base sm:text-lg font-semibold capitalize">{selectedDayLabel}</p>
+              <p className="text-xs text-gray-500">
+                {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''}
+                {selectedDayCalories > 0 && <span className="text-yellow-600"> · {Math.round(selectedDayCalories)} kcal</span>}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={copyLastWeekPlan} className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium">
+                Copy Last Week
+              </button>
+              <button onClick={() => openMealPicker(selectedDayKey)} className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg font-semibold text-xs flex items-center gap-1.5 press">
+                <Plus size={14} /> Add Meal
+              </button>
+            </div>
+          </div>
+
+          {selectedMeals.length > 0 ? (
+            <div className="space-y-3">
+              {selectedMeals.map(meal => (
+                <MealCard
+                  key={meal.id}
+                  id={meal.id}
+                  name={meal.name}
+                  timing={meal.timing}
+                  timeOfDay={meal.timeOfDay}
+                  imageUrl={meal.imageUrl}
+                  ingredients={parseIngredients(meal.ingredientsJson)}
+                  onRemove={() => removeMealFromDay(selectedDayKey, meal.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <button onClick={() => openMealPicker(selectedDayKey)} className="w-full py-4 rounded-xl flex items-center justify-center gap-2 text-sm press"
+              style={{ border: '1.5px dashed var(--border)', color: 'var(--text-muted)' }}>
+              <Plus size={14} /> Add meals for {selectedDayLabel}
+            </button>
+          )}
         </div>
       )}
 

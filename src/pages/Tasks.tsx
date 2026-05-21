@@ -5,6 +5,7 @@ import { format, isToday, isPast, parseISO, addDays, startOfWeek, isSameDay } fr
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 import Reminders from './Reminders';
+import WeeklyCalendar from '../components/WeeklyCalendar';
 
 // a richer set of categories with icons for wellness tracking
 const CATEGORY_OPTIONS = [
@@ -296,7 +297,7 @@ const renderOccurrences = (task: any) => {
         className="bg-white rounded-2xl p-3 sm:p-5 shadow-xl mb-3 sm:mb-5"
       >
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => { setEditingTask(null); setShowAddModal(true); }}
               className="px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-500 text-white rounded-lg font-semibold text-xs sm:text-sm flex items-center gap-1.5"
@@ -359,59 +360,25 @@ const renderOccurrences = (task: any) => {
 
       {/* Date selector & selected date header */}
       <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-base sm:text-lg font-semibold">{format(selectedDate, 'EEEE, MMM d')}</h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSelectedDate(addDays(selectedDate, -7))}
-              className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200"
-            >
-              ◀ Week
-            </button>
-            <button
-              onClick={() => setSelectedDate(new Date())}
-              className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200"
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setSelectedDate(addDays(selectedDate, 7))}
-              className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200"
-            >
-              Week ▶
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <div className="flex gap-1.5 pb-1.5">
-            {Array.from({ length: 7 }).map((_, i) => {
-              const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
-              const d = addDays(weekStart, i);
-              const isSelected = isSameDay(d, selectedDate);
-              return (
-                <button
-                  key={d.toISOString()}
-                  onClick={() => setSelectedDate(d)}
-                  className={`flex-1 min-w-0 px-2 py-2 rounded-lg text-center border ${isSelected ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
-                >
-                  <div className="text-[11px] sm:text-xs">{format(d, 'EEE')}</div>
-                  <div className="font-semibold text-sm sm:text-base">{format(d, 'd')}</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <WeeklyCalendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
       </div>
 
       <div className="space-y-2.5">
         {/* Add Task Modal */}
         {showAddModal && (
-          <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => { setShowAddModal(false); setEditingTask(null); }}>
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-md flex flex-col shadow-2xl"
-              style={{ maxHeight: 'min(90dvh, calc(100vh - 32px))' }}
+          <motion.div className="fixed inset-0 z-50 bg-black/50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => { setShowAddModal(false); setEditingTask(null); }}>
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+              className="absolute bottom-0 left-0 right-0 mx-auto bg-white rounded-t-3xl w-full max-w-md flex flex-col shadow-2xl"
+              style={{ maxHeight: '85dvh', paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
               onClick={(e) => e.stopPropagation()}>
+
+              <div className="flex justify-center pt-2 pb-1">
+                <div className="w-10 h-1 rounded-full bg-gray-300" />
+              </div>
 
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">

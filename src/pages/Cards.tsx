@@ -175,7 +175,11 @@ export default function Cards() {
   const handleSaveCard = async () => {
     if (!user || !cardForm.name.trim()) return;
 
-    const toNumber = (value: string) => (value.trim() === '' ? undefined : Number(value));
+    const toNumber = (value: string) => {
+      if (value.trim() === '') return undefined;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
 
     const payload = {
       name: cardForm.name.trim(),
@@ -655,7 +659,7 @@ export default function Cards() {
       {/* Add/Edit Card Modal */}
       {showCardForm && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
-          <div className="w-full max-w-lg rounded-2xl p-4 md:p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="w-full max-w-lg rounded-2xl p-4 md:p-5 overflow-y-auto" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', maxHeight: '85dvh' }}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {editingCardId ? 'Edit Card Details' : 'Add New Card'}

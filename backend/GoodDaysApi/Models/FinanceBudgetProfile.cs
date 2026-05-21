@@ -12,6 +12,9 @@ public class FinanceBudgetProfile
     [Column("id")]
     public Guid Id { get; set; } = Guid.NewGuid();
 
+    [Column("user_id")]
+    public int UserId { get; set; }
+
     [Column("monthly_income")]
     public decimal MonthlyIncome { get; set; }
 
@@ -21,6 +24,7 @@ public class FinanceBudgetProfile
     [Column("updated_at")]
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    public User? User { get; set; }
     public ICollection<FinanceFixedExpense> FixedExpenses { get; set; } = new List<FinanceFixedExpense>();
     public ICollection<MonthlyIncomeOverride> MonthlyIncomeOverrides { get; set; } = new List<MonthlyIncomeOverride>();
 }

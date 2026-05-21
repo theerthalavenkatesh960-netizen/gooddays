@@ -28,6 +28,9 @@ public class User
     [Column("google_id")]
     public string? GoogleId { get; set; }
 
+    [Column("clerk_id")]
+    public string? ClerkId { get; set; }
+
     [Column("level")]
     public int Level { get; set; } = 1;
 

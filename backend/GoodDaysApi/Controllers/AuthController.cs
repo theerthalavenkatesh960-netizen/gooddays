@@ -16,11 +16,15 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
+    private readonly GoodDaysApi.Services.IUserSeederService _seederService;
+    private readonly GoodDaysApi.Services.IClerkAuthService _clerkAuthService;
 
-    public AuthController(AppDbContext db, IConfiguration config)
+    public AuthController(AppDbContext db, IConfiguration config, GoodDaysApi.Services.IUserSeederService seederService, GoodDaysApi.Services.IClerkAuthService clerkAuthService)
     {
         _db = db;
         _config = config;
+        _seederService = seederService;
+        _clerkAuthService = clerkAuthService;
     }
 
     [HttpPost("signup")]
@@ -31,6 +35,17 @@ public class AuthController : ControllerBase
         var user = new User { Email = req.Email, Name = req.Name, PasswordHash = Hash(req.Password) };
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
+
+        // Seed user libraries (meals, workouts)
+        try
+        {
+            await _seederService.SeedUserLibrariesAsync(user.Id);
+        }
+        catch (Exception ex)
+        {
+            // Log but don't fail signup if seeding fails
+            Console.WriteLine($"Failed to seed libraries for user {user.Id}: {ex.Message}");
+        }
 
         var token = GenerateToken(user);
         return Ok(new { token, user = new { id = user.Id, email = user.Email, name = user.Name } });
@@ -43,6 +58,17 @@ public class AuthController : ControllerBase
         if (user == null) return Unauthorized("Invalid credentials");
         if (user.PasswordHash != Hash(req.Password)) return Unauthorized("Invalid credentials");
 
+        var token = GenerateToken(user);
+        return Ok(new { token, user = new { id = user.Id, email = user.Email, name = user.Name } });
+    }
+
+    [HttpPost("clerk")]
+    public async Task<IActionResult> SignInWithClerk([FromBody] ClerkSignInRequest req)
+    {
+        if (string.IsNullOrEmpty(req.ClerkId) || string.IsNullOrEmpty(req.Email))
+            return BadRequest("ClerkId and Email are required");
+
+        var user = await _clerkAuthService.GetOrCreateUserFromClerkAsync(req.ClerkId, req.Email, req.Name);
         var token = GenerateToken(user);
         return Ok(new { token, user = new { id = user.Id, email = user.Email, name = user.Name } });
     }
@@ -97,3 +123,4 @@ public class AuthController : ControllerBase
 
 public record SignUpRequest(string Email, string Password, string? Name);
 public record SignInRequest(string Email, string Password);
+public record ClerkSignInRequest(string ClerkId, string Email, string? Name);

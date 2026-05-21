@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   name text NOT NULL DEFAULT '',
   phone text,
   google_id text,
+  clerk_id text,
   level integer DEFAULT 1,
   points integer DEFAULT 0,
   theme text NOT NULL DEFAULT 'light',
@@ -84,9 +85,26 @@ CREATE TABLE IF NOT EXISTS expenses (
   description text NOT NULL,
   amount numeric NOT NULL,
   category text,
+  gmail_message_id varchar(200),
+  external_reference varchar(120),
+  source_type varchar(50),
+  is_reviewed boolean NOT NULL DEFAULT true,
+  reviewed_at timestamp without time zone NULL,
   date timestamptz NOT NULL DEFAULT now(),
   created_at timestamptz DEFAULT now()
 );
+
+-- Ensure Gmail sync columns exist when upgrading an already-existing expenses table.
+ALTER TABLE IF EXISTS expenses
+  ADD COLUMN IF NOT EXISTS gmail_message_id varchar(200),
+  ADD COLUMN IF NOT EXISTS external_reference varchar(120),
+  ADD COLUMN IF NOT EXISTS source_type varchar(50),
+  ADD COLUMN IF NOT EXISTS is_reviewed boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS reviewed_at timestamp without time zone NULL;
+
+-- Ensure Clerk auth column exists when upgrading already-existing user_profiles table.
+ALTER TABLE IF EXISTS user_profiles
+  ADD COLUMN IF NOT EXISTS clerk_id text;
 
 CREATE TABLE IF NOT EXISTS gamification_entries (
   id SERIAL PRIMARY KEY,
@@ -108,6 +126,7 @@ CREATE TABLE IF NOT EXISTS financial_goals (
 
 CREATE TABLE IF NOT EXISTS investment_buckets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
   name VARCHAR(100) NOT NULL,
   category VARCHAR(50) NOT NULL CHECK (category IN (
     'EMERGENCY_FUND', 'HEALTH', 'TRAVEL', 'MISCELLANEOUS', 'WEALTH', 'TRADING'
@@ -191,10 +210,27 @@ CREATE TABLE IF NOT EXISTS monthly_snapshots (
 
 CREATE TABLE IF NOT EXISTS finance_budget_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
   monthly_income DECIMAL(12,2) DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE investment_buckets
+  ADD COLUMN IF NOT EXISTS user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE;
+
+ALTER TABLE finance_budget_profiles
+  ADD COLUMN IF NOT EXISTS user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE;
+
+UPDATE investment_buckets
+SET user_id = (SELECT id FROM user_profiles ORDER BY id LIMIT 1)
+WHERE user_id IS NULL
+  AND EXISTS (SELECT 1 FROM user_profiles);
+
+UPDATE finance_budget_profiles
+SET user_id = (SELECT id FROM user_profiles ORDER BY id LIMIT 1)
+WHERE user_id IS NULL
+  AND EXISTS (SELECT 1 FROM user_profiles);
 
 CREATE TABLE IF NOT EXISTS finance_fixed_expenses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -419,11 +455,13 @@ CREATE INDEX IF NOT EXISTS idx_gamification_entries_user_id ON gamification_entr
 CREATE INDEX IF NOT EXISTS idx_monthly_income_overrides_profile_period ON finance_monthly_income_overrides(profile_id, month, year);
 CREATE INDEX IF NOT EXISTS idx_fixed_expense_overrides_expense_period ON finance_fixed_expense_overrides(fixed_expense_id, month, year);
 CREATE INDEX IF NOT EXISTS idx_investment_buckets_is_active ON investment_buckets(is_active);
+CREATE INDEX IF NOT EXISTS idx_investment_buckets_user_active ON investment_buckets(user_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_monthly_tasks_bucket_id ON monthly_tasks(bucket_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_tasks_completions_task_id ON monthly_task_completions(task_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_tasks_completions_month_year ON monthly_task_completions(month, year);
 CREATE INDEX IF NOT EXISTS idx_financial_rules_category ON financial_rules(category);
 CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_year_month ON monthly_snapshots(year DESC, month DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_finance_budget_profiles_user_id ON finance_budget_profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_finance_fixed_expenses_profile_sort ON finance_fixed_expenses(profile_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_credit_cards_user_id ON credit_cards(user_id);
 CREATE INDEX IF NOT EXISTS idx_credit_cards_user_issuer ON credit_cards(user_id, issuer);
@@ -714,5 +752,53 @@ CREATE INDEX IF NOT EXISTS idx_vehicles_user_id         ON vehicles(user_id);
 CREATE INDEX IF NOT EXISTS idx_vehicle_refills_vehicle  ON vehicle_refills(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_vehicle_services_vehicle ON vehicle_services(vehicle_id);
 CREATE INDEX IF NOT EXISTS idx_vehicle_issues_vehicle   ON vehicle_issues(vehicle_id);
+
+-- ===================================================================
+-- 008: Gmail Finance Sync
+-- ===================================================================
+
+CREATE TABLE IF NOT EXISTS connected_email_accounts (
+    id uuid PRIMARY KEY,
+    user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    email varchar(255) NOT NULL,
+    provider varchar(50) NOT NULL,
+    access_token_encrypted text NOT NULL,
+    refresh_token_encrypted text NOT NULL,
+    token_expiry_utc timestamp without time zone NOT NULL,
+    last_synced_utc timestamp without time zone NULL,
+    created_at timestamp without time zone NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_connected_email_accounts_user_provider
+    ON connected_email_accounts(user_id, provider);
+
+CREATE TABLE IF NOT EXISTS synced_emails (
+    id uuid PRIMARY KEY,
+    user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    gmail_message_id varchar(200) NOT NULL,
+    thread_id varchar(200) NULL,
+    internal_date timestamp without time zone NOT NULL,
+    processed_at timestamp without time zone NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_synced_emails_user_message
+    ON synced_emails(user_id, gmail_message_id);
+
+-- Indexes for expense Gmail columns
+CREATE INDEX IF NOT EXISTS ix_expenses_user_gmail_message_id
+    ON expenses(user_id, gmail_message_id);
+
+CREATE INDEX IF NOT EXISTS ix_expenses_user_external_reference
+    ON expenses(user_id, external_reference);
+
+CREATE INDEX IF NOT EXISTS ix_expenses_user_source_reviewed
+    ON expenses(user_id, source_type, is_reviewed);
+
+-- Initialize Gmail expenses as unreviewed for initial sync
+UPDATE expenses
+SET is_reviewed = false,
+    reviewed_at = NULL
+WHERE source_type = 'gmail'
+  AND gmail_message_id IS NOT NULL;
 
 COMMIT;

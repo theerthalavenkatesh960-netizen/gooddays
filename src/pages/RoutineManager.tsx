@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, ChevronDown, ChevronUp, X, Check, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { format, startOfWeek, addDays, getDay } from 'date-fns';
 import * as api from '../lib/api';
+import WeeklyCalendar from '../components/WeeklyCalendar';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -338,60 +340,63 @@ export default function RoutineManager() {
       </div>
 
       {/* ── Section 2: Weekly Schedule ── */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Weekly Schedule</h2>
-        <button onClick={saveSchedule} disabled={savingSchedule}
-          className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white press disabled:opacity-40"
-          style={{ backgroundColor: 'var(--accent)' }}>
-          {savingSchedule ? 'Saving…' : 'Save'}
-        </button>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl p-3 sm:p-5 shadow-xl mb-3 sm:mb-5"
+      >
+        <div className="flex items-center justify-end">
+          <button onClick={saveSchedule} disabled={savingSchedule}
+            className="px-3 py-1.5 rounded-lg text-xs sm:text-sm bg-emerald-500 text-white font-semibold disabled:opacity-40">
+            {savingSchedule ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </motion.div>
+
+      <div className="mb-4">
+        <WeeklyCalendar
+          selectedDate={addDays(startOfWeek(new Date(), { weekStartsOn: 0 }), pickerDay ?? new Date().getDay())}
+          onSelectDate={(date) => setPickerDay(getDay(date))}
+        />
       </div>
 
-      <div className="space-y-2">
-        {schedule.map(entry => {
-          const assigned = routines.find(r => r.id === entry.routineId);
-          return (
-            <div key={entry.dayOfWeek}>
-              <button onClick={() => setPickerDay(pickerDay === entry.dayOfWeek ? null : entry.dayOfWeek)}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl press"
-                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{DAY_NAMES[entry.dayOfWeek]}</p>
-                <div className="flex items-center gap-2">
-                  {assigned && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: assigned.color }} />}
-                  <p className="text-xs" style={{ color: assigned ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                    {assigned ? assigned.name : 'Rest Day'}
-                  </p>
-                </div>
-              </button>
+      {(() => {
+        const activeDay = pickerDay ?? new Date().getDay();
+        const activeEntry = schedule.find(e => e.dayOfWeek === activeDay) ?? { dayOfWeek: activeDay, routineId: null };
+        const activeAssigned = routines.find(r => r.id === activeEntry.routineId);
 
-              <AnimatePresence>
-                {pickerDay === entry.dayOfWeek && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden">
-                    <div className="mt-1 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
-                      <button onClick={() => assignRoutine(entry.dayOfWeek, null)}
-                        className="w-full flex items-center justify-between px-4 py-2.5 press"
-                        style={{ borderBottom: '1px solid var(--border)' }}>
-                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Rest Day</p>
-                        {entry.routineId === null && <Check size={14} style={{ color: 'var(--accent)' }} />}
-                      </button>
-                      {routines.map(r => (
-                        <button key={r.id} onClick={() => assignRoutine(entry.dayOfWeek, r.id)}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 press"
-                          style={{ borderBottom: '1px solid var(--border)' }}>
-                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
-                          <p className="flex-1 text-sm text-left" style={{ color: 'var(--text-primary)' }}>{r.name}</p>
-                          {entry.routineId === r.id && <Check size={14} style={{ color: 'var(--accent)' }} />}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+        return (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
+            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{DAY_NAMES[activeDay]}</p>
+              <div className="flex items-center gap-2">
+                {activeAssigned && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: activeAssigned.color }} />}
+                <p className="text-xs" style={{ color: activeAssigned ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                  {activeAssigned ? activeAssigned.name : 'Rest Day'}
+                </p>
+              </div>
             </div>
-          );
-        })}
-      </div>
+
+            <button onClick={() => assignRoutine(activeDay, null)} className="w-full flex items-center justify-between px-4 py-2.5 press" style={{ borderBottom: '1px solid var(--border)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Rest Day</p>
+              {activeEntry.routineId === null && <Check size={14} style={{ color: 'var(--accent)' }} />}
+            </button>
+
+            {routines.map(r => (
+              <button
+                key={r.id}
+                onClick={() => assignRoutine(activeDay, r.id)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 press"
+                style={{ borderBottom: '1px solid var(--border)' }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
+                <p className="flex-1 text-sm text-left" style={{ color: 'var(--text-primary)' }}>{r.name}</p>
+                {activeEntry.routineId === r.id && <Check size={14} style={{ color: 'var(--accent)' }} />}
+              </button>
+            ))}
+          </motion.div>
+        );
+      })()}
     </div>
   );
 }

@@ -1,8 +1,23 @@
-import { useState } from 'react';
+/**
+ * Signup Page
+ * 
+ * Supports two account creation methods:
+ * - Email/password via backend /api/auth/signup
+ * - Google OAuth via Clerk (redirects to /auth/sso-callback)
+ * 
+ * Handles:
+ * - Already logged-in users (redirect to dashboard)
+ * - Already signed-in Clerk sessions (skip OAuth, go to app callback)
+ * 
+ * Note: Google signup uses same OAuth flow as Login (unified entry point)
+ */
+
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
 import { useNavigate } from 'react-router-dom';
+import { useAuth as useClerkAuth, useSignIn } from '@clerk/clerk-react';
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -10,8 +25,17 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp, user } = useAuth();
+  const { isLoaded: isClerkLoaded, isSignedIn: isClerkSignedIn } = useClerkAuth();
+  const { isLoaded, signIn: clerkSignIn } = useSignIn();
   const navigate = useNavigate();
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +46,7 @@ export default function Signup() {
       await signUp(email, password, name);
       navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Failed to create account');
+      setError(err.message || 'Account creation failed');
     } finally {
       setLoading(false);
     }
@@ -30,10 +54,36 @@ export default function Signup() {
 
   const handleGoogleSignup = async () => {
     setError('');
+    setLoading(true);
+
+    // If already signed in to Clerk, skip OAuth and go directly to backend exchange
+    if (isClerkLoaded && isClerkSignedIn) {
+      navigate('/auth/callback', { replace: true });
+      return;
+    }
+
     try {
-      await signInWithGoogle();
+      if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready');
+      const redirectUrl = `${window.location.origin}/auth/sso-callback`;
+      const redirectUrlComplete = `${window.location.origin}/auth/callback`;
+
+      await clerkSignIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl,
+        redirectUrlComplete,
+      });
     } catch (err: any) {
-      setError(err.message || 'Failed to signup with Google');
+      const first = Array.isArray(err?.errors) ? err.errors[0] : null;
+      const code = first?.code || err?.code;
+
+      // If user already has an active Clerk session, redirect to app callback
+      if (code === 'already_signed_in') {
+        navigate('/auth/callback', { replace: true });
+        return;
+      }
+
+      setError(err.message || 'Failed to sign up with Google');
+      setLoading(false);
     }
   };
 
@@ -67,7 +117,7 @@ export default function Signup() {
               className="p-3 rounded-xl mb-4 text-sm"
               style={{ background: 'rgba(255,107,107,0.12)', color: 'var(--accent-warm)', border: '1px solid rgba(255,107,107,0.2)' }}
             >
-              {error}
+              <div>{error}</div>
             </motion.div>
           )}
 

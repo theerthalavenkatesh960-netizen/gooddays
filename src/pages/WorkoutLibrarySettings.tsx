@@ -256,7 +256,7 @@ export default function WorkoutLibrarySettings() {
                     <button
                       key={d.toISOString()}
                       onClick={() => setSelectedDate(d)}
-                      className="min-w-[64px] px-2 py-2 rounded-lg text-center border"
+                      className="flex-1 min-w-0 px-2 py-2 rounded-lg text-center border"
                       style={{
                         backgroundColor: active ? 'var(--accent)' : 'var(--surface-elevated)',
                         color: active ? '#fff' : 'var(--text-secondary)',

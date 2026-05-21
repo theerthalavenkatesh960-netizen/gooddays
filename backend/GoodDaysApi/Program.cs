@@ -1,4 +1,5 @@
 using GoodDaysApi.Data;
+using GoodDaysApi.Services.Gmail;
 using GoodDaysApi.Services.Financial;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -38,9 +39,26 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(connectionString)
        .UseSnakeCaseNamingConvention());
 
+builder.Services.Configure<GmailOptions>(builder.Configuration.GetSection("Google"));
+
 // Register Financial Services
 builder.Services.AddScoped<IFinancialService, FinancialService>();
 builder.Services.AddHostedService<MonthlyTaskGeneratorService>();
+
+// Register User Seeder Service
+builder.Services.AddScoped<GoodDaysApi.Services.IUserSeederService, GoodDaysApi.Services.UserSeederService>();
+
+// Register Clerk Auth Service
+builder.Services.AddScoped<GoodDaysApi.Services.IClerkAuthService, GoodDaysApi.Services.ClerkAuthService>();
+
+// Register Gmail finance sync services
+builder.Services.AddSingleton<ITokenEncryptionService, TokenEncryptionService>();
+builder.Services.AddScoped<GoodDaysApi.Services.Gmail.Repositories.IConnectedEmailAccountRepository, GoodDaysApi.Services.Gmail.Repositories.ConnectedEmailAccountRepository>();
+builder.Services.AddScoped<GoodDaysApi.Services.Gmail.Repositories.ISyncedEmailRepository, GoodDaysApi.Services.Gmail.Repositories.SyncedEmailRepository>();
+builder.Services.AddScoped<ITransactionExtractionService, TransactionExtractionService>();
+builder.Services.AddScoped<IGmailService, GmailService>();
+builder.Services.AddScoped<IGmailSyncService, GmailSyncService>();
+builder.Services.AddHostedService<GmailSyncBackgroundWorker>();
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "change_this_to_a_secure_random_key";
 var key = Encoding.ASCII.GetBytes(jwtKey);
