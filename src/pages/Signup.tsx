@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, User, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
 import { useNavigate } from 'react-router-dom';
-import { useSignUp } from '@clerk/clerk-react';
+import { useSignIn } from '@clerk/clerk-react';
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -12,7 +12,7 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp, user } = useAuth();
-  const { isLoaded, signUp: clerkSignUp } = useSignUp();
+  const { isLoaded, signIn: clerkSignIn } = useSignIn();
   const navigate = useNavigate();
 
   // Redirect to dashboard if already logged in
@@ -41,11 +41,11 @@ export default function Signup() {
     setError('');
     setLoading(true);
     try {
-      if (!isLoaded || !clerkSignUp) throw new Error('Clerk is not ready yet.');
+      if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready yet.');
       const redirectUrl = `${window.location.origin}/auth/sso-callback`;
       const redirectUrlComplete = `${window.location.origin}/auth/callback`;
 
-      await clerkSignUp.authenticateWithRedirect({
+      await clerkSignIn.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl,
         redirectUrlComplete,

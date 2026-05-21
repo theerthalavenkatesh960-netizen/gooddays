@@ -4,7 +4,6 @@ import { Mail, Lock, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
 import { useNavigate } from 'react-router-dom';
 import { useSignIn } from '@clerk/clerk-react';
-import { useSignUp } from '@clerk/clerk-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -13,8 +12,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
-  const { isLoaded: _signInLoaded } = useSignIn(); // keep hook (required by Clerk), but use signUp for OAuth
-  const { isLoaded, signUp: clerkSignUp } = useSignUp();
+  const { isLoaded, signIn: clerkSignIn } = useSignIn();
 
   // Redirect to dashboard if already logged in
   useEffect(() => {
@@ -45,8 +43,8 @@ export default function Login() {
     const redirectUrlComplete = `${window.location.origin}/auth/callback`;
 
     try {
-      if (!isLoaded || !clerkSignUp) throw new Error('Clerk is not ready yet.');
-      await clerkSignUp.authenticateWithRedirect({
+      if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready yet.');
+      await clerkSignIn.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl,
         redirectUrlComplete,
