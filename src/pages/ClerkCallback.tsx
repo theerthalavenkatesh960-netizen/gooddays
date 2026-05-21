@@ -11,7 +11,7 @@ export default function ClerkCallback() {
   const [error, setError] = useState('');
   const [isTimingOut, setIsTimingOut] = useState(false);
   const hasExchanged = useRef(false);
-  const apiBase = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5001').replace(/\/$/, '');
+  const apiBase = ((import.meta as any).env?.VITE_API_URL || 'https://localhost:5001').replace(/\/$/, '');
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
