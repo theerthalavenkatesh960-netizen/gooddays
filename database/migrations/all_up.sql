@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   name text NOT NULL DEFAULT '',
   phone text,
   google_id text,
+  clerk_id text,
   level integer DEFAULT 1,
   points integer DEFAULT 0,
   theme text NOT NULL DEFAULT 'light',
@@ -100,6 +101,10 @@ ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS source_type varchar(50),
   ADD COLUMN IF NOT EXISTS is_reviewed boolean NOT NULL DEFAULT true,
   ADD COLUMN IF NOT EXISTS reviewed_at timestamp without time zone NULL;
+
+-- Ensure Clerk auth column exists when upgrading already-existing user_profiles table.
+ALTER TABLE IF EXISTS user_profiles
+  ADD COLUMN IF NOT EXISTS clerk_id text;
 
 CREATE TABLE IF NOT EXISTS gamification_entries (
   id SERIAL PRIMARY KEY,
