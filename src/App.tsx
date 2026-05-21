@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ClerkProvider } from '@clerk/clerk-react';
 import { AuthProvider, useAuth } from './contexts/AuthContextApi';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LoadingProvider } from './contexts/LoadingContext';
@@ -33,6 +34,7 @@ import MealIngredientLibraryPage from './pages/MealIngredientLibraryPage';
 import MealCreateTemplatePage from './pages/MealCreateTemplatePage';
 import MealDayPickerPage from './pages/MealDayPickerPage';
 import RoutineExercisePickerPage from './pages/RoutineExercisePickerPage';
+import ClerkCallback from './pages/ClerkCallback';
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -60,14 +62,18 @@ function PrivateRoute({ children }: { children: ReactNode }) {
 }
 
 function App() {
+  const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || '';
+
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <ThemeProvider>
-          <LoadingProvider>
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+      <BrowserRouter>
+        <AuthProvider>
+          <ThemeProvider>
+            <LoadingProvider>
             <Routes>
               <Route path="/login"  element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/auth/callback" element={<ClerkCallback />} />
 
               <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
               <Route path="/body"     element={<PrivateRoute><Layout><Body /></Layout></PrivateRoute>} />
@@ -110,6 +116,7 @@ function App() {
         </ThemeProvider>
       </AuthProvider>
     </BrowserRouter>
+    </ClerkProvider>
   );
 }
 

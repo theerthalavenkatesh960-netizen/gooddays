@@ -48,6 +48,9 @@ builder.Services.AddHostedService<MonthlyTaskGeneratorService>();
 // Register User Seeder Service
 builder.Services.AddScoped<GoodDaysApi.Services.IUserSeederService, GoodDaysApi.Services.UserSeederService>();
 
+// Register Clerk Auth Service
+builder.Services.AddScoped<GoodDaysApi.Services.IClerkAuthService, GoodDaysApi.Services.ClerkAuthService>();
+
 // Register Gmail finance sync services
 builder.Services.AddSingleton<ITokenEncryptionService, TokenEncryptionService>();
 builder.Services.AddScoped<GoodDaysApi.Services.Gmail.Repositories.IConnectedEmailAccountRepository, GoodDaysApi.Services.Gmail.Repositories.ConnectedEmailAccountRepository>();
