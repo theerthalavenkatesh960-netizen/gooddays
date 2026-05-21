@@ -340,14 +340,20 @@ export default function RoutineManager() {
       </div>
 
       {/* ── Section 2: Weekly Schedule ── */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-base sm:text-lg font-semibold">Weekly Schedule</h2>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl p-3 sm:p-5 shadow-xl mb-3 sm:mb-5"
+      >
+        <div className="flex items-center justify-end">
           <button onClick={saveSchedule} disabled={savingSchedule}
-            className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-emerald-500 text-white font-semibold disabled:opacity-40">
+            className="px-3 py-1.5 rounded-lg text-xs sm:text-sm bg-emerald-500 text-white font-semibold disabled:opacity-40">
             {savingSchedule ? 'Saving…' : 'Save'}
           </button>
         </div>
+      </motion.div>
+
+      <div className="mb-4">
         <WeeklyCalendar
           selectedDate={addDays(startOfWeek(new Date(), { weekStartsOn: 0 }), pickerDay ?? new Date().getDay())}
           onSelectDate={(date) => setPickerDay(getDay(date))}
