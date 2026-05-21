@@ -75,7 +75,7 @@ function App() {
           </p>
           <pre className="text-xs rounded-lg p-3 overflow-auto" style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_xxx
-VITE_API_URL=http://localhost:5000
+VITE_API_URL=https://gooddays.onrender.com
           </pre>
         </div>
       </div>
