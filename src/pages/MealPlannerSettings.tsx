@@ -348,7 +348,7 @@ export default function MealPlannerSettings() {
 
       {tab === 'weekly' && (
         <div className="space-y-2.5">
-          <div className="mb-4">
+          <div className="mb-4 text-gray-900">
             <WeeklyCalendar 
               selectedDate={selectedDate} 
               onSelectDate={setSelectedDate}
@@ -361,6 +361,21 @@ export default function MealPlannerSettings() {
             />
           </div>
 
+          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar whitespace-nowrap pb-1">
+            <button
+              onClick={copyLastWeekPlan}
+              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 bg-gray-100 text-gray-700 hover:bg-gray-200"
+            >
+              Copy Last Week
+            </button>
+            <button
+              onClick={() => openMealPicker(selectedDayKey)}
+              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 bg-emerald-500 text-white flex items-center gap-1.5"
+            >
+              <Plus size={14} /> Add Meal
+            </button>
+          </div>
+
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-base sm:text-lg font-semibold capitalize">{selectedDayLabel}</p>
@@ -369,14 +384,7 @@ export default function MealPlannerSettings() {
                 {selectedDayCalories > 0 && <span className="text-yellow-600"> · {Math.round(selectedDayCalories)} kcal</span>}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={copyLastWeekPlan} className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium">
-                Copy Last Week
-              </button>
-              <button onClick={() => openMealPicker(selectedDayKey)} className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg font-semibold text-xs flex items-center gap-1.5 press">
-                <Plus size={14} /> Add Meal
-              </button>
-            </div>
+            <div />
           </div>
 
           {selectedMeals.length > 0 ? (

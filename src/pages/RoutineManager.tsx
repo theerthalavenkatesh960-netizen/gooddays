@@ -340,24 +340,27 @@ export default function RoutineManager() {
       </div>
 
       {/* ── Section 2: Weekly Schedule ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-3 sm:p-5 shadow-xl mb-3 sm:mb-5"
-      >
-        <div className="flex items-center justify-end">
-          <button onClick={saveSchedule} disabled={savingSchedule}
-            className="px-3 py-1.5 rounded-lg text-xs sm:text-sm bg-emerald-500 text-white font-semibold disabled:opacity-40">
-            {savingSchedule ? 'Saving…' : 'Save'}
-          </button>
-        </div>
-      </motion.div>
-
-      <div className="mb-4">
+      <div className="mb-4 text-gray-900">
         <WeeklyCalendar
           selectedDate={addDays(startOfWeek(new Date(), { weekStartsOn: 0 }), pickerDay ?? new Date().getDay())}
           onSelectDate={(date) => setPickerDay(getDay(date))}
         />
+      </div>
+
+      <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar whitespace-nowrap pb-1">
+        <button
+          onClick={() => setCreatingRoutine(true)}
+          className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 bg-gray-100 text-gray-700 hover:bg-gray-200"
+        >
+          Add
+        </button>
+        <button
+          onClick={saveSchedule}
+          disabled={savingSchedule}
+          className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 bg-emerald-500 text-white disabled:opacity-40"
+        >
+          {savingSchedule ? 'Saving…' : 'Save'}
+        </button>
       </div>
 
       {(() => {

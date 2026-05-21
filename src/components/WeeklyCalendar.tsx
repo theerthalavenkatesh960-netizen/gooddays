@@ -12,25 +12,25 @@ export default function WeeklyCalendar({ selectedDate, onSelectDate, renderDayEx
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+        <h3 className="text-base sm:text-lg font-semibold">
           {format(selectedDate, 'EEEE, MMM d')}
         </h3>
         <div className="flex gap-2">
           <button
             onClick={() => onSelectDate(addDays(selectedDate, -7))}
-            className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700"
+            className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200"
           >
             Week ◀
           </button>
           <button
             onClick={() => onSelectDate(new Date())}
-            className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700"
+            className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200"
           >
             Today
           </button>
           <button
             onClick={() => onSelectDate(addDays(selectedDate, 7))}
-            className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700"
+            className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200"
           >
             Week ▶
           </button>
