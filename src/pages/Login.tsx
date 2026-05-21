@@ -4,6 +4,7 @@ import { Mail, Lock, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
 import { useNavigate } from 'react-router-dom';
 import { useSignIn } from '@clerk/clerk-react';
+import { useSignUp } from '@clerk/clerk-react';
 
 function formatClerkError(err: any): string {
   try {
@@ -26,6 +27,7 @@ export default function Login() {
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
   const { isLoaded, signIn: clerkSignIn } = useSignIn();
+  const { isLoaded: isSignUpLoaded, signUp: clerkSignUp } = useSignUp();
 
   // Redirect to dashboard if already logged in
   useEffect(() => {
@@ -53,20 +55,47 @@ export default function Login() {
     setError('');
     setDebugError('');
     setLoading(true);
+    const redirectUrl = `${window.location.origin}/auth/callback`;
+    const redirectUrlComplete = `${window.location.origin}/`;
+
     try {
-      if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready yet.');
-      const redirectUrl = `${window.location.origin}/auth/callback`;
-      const redirectUrlComplete = `${window.location.origin}/`;
+      if (!isLoaded || !clerkSignIn) throw new Error('Clerk sign-in is not ready yet.');
 
       await clerkSignIn.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl,
         redirectUrlComplete,
       });
-    } catch (err: any) {
-      setError(err?.message || 'Failed to login with Google');
-      setDebugError(formatClerkError(err));
-      setLoading(false);
+      return;
+    } catch (signInErr: any) {
+      const first = Array.isArray(signInErr?.errors) ? signInErr.errors[0] : null;
+      const code = first?.code || signInErr?.code;
+
+      const shouldFallbackToSignUp =
+        code === 'identifier_not_found' ||
+        code === 'strategy_for_user_invalid' ||
+        code === 'not_allowed_access';
+
+      if (!shouldFallbackToSignUp) {
+        setError(signInErr?.message || 'Failed to login with Google');
+        setDebugError(formatClerkError(signInErr));
+        setLoading(false);
+        return;
+      }
+
+      try {
+        if (!isSignUpLoaded || !clerkSignUp) throw new Error('Clerk sign-up is not ready yet.');
+
+        await clerkSignUp.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          redirectUrl,
+          redirectUrlComplete,
+        });
+      } catch (signUpErr: any) {
+        setError(signUpErr?.message || 'Failed to continue with Google');
+        setDebugError(formatClerkError(signUpErr));
+        setLoading(false);
+      }
     }
   };
 
