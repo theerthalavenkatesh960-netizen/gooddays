@@ -20,6 +20,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  setSessionFromOAuth: (token: string, user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,9 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkSession();
   }, []);
 
-  const checkSession = async () => {
+  const checkSession = () => {
     try {
-      const session = await api.getSession();
+      const session = api.getSession();
       if (session && session.user) {
         setSession(session);
         setUser(session.user);
@@ -58,6 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Sign in failed:', error);
       throw error;
     }
+  };
+
+  const setSessionFromOAuth = (token: string, userData: User) => {
+    const payload: Session = { access_token: token, user: userData };
+    localStorage.setItem('gd_session', JSON.stringify(payload));
+    setSession(payload);
+    setUser(userData);
   };
 
   const signUp = async (email: string, password: string, name: string) => {
@@ -96,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, signInWithGoogle }}>
+    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, signInWithGoogle, setSessionFromOAuth }}>
       {children}
     </AuthContext.Provider>
   );

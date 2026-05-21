@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, useUser } from '@clerk/clerk-react';
+import { useAuth as useClerkAuth, useUser } from '@clerk/clerk-react';
+import { useAuth as useAppAuth } from '../contexts/AuthContextApi';
 
 export default function ClerkCallback() {
   const navigate = useNavigate();
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded, isSignedIn } = useClerkAuth();
   const { user } = useUser();
+  const { setSessionFromOAuth } = useAppAuth();
   const [error, setError] = useState('');
   const [isTimingOut, setIsTimingOut] = useState(false);
   const hasExchanged = useRef(false);
@@ -52,14 +54,8 @@ export default function ClerkCallback() {
         }
 
         const data = await response.json();
-        const sessionPayload = {
-          access_token: data.token,
-          user: data.user,
-        };
-        localStorage.setItem('gd_session', JSON.stringify(sessionPayload));
-
-        // Force a full reload so AuthProvider re-reads the newly written session.
-        window.location.href = '/';
+        setSessionFromOAuth(data.token, data.user);
+        navigate('/', { replace: true });
       } catch (err: any) {
         setError(err.message || 'Authentication failed');
         setTimeout(() => navigate('/login'), 2000);
@@ -67,7 +63,7 @@ export default function ClerkCallback() {
     };
 
     exchangeToken();
-  }, [isLoaded, isSignedIn, user, navigate, apiBase, isTimingOut]);
+  }, [isLoaded, isSignedIn, user, navigate, apiBase, isTimingOut, setSessionFromOAuth]);
 
   if (error) {
     return (
