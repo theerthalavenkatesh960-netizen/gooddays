@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, User, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
 import { useNavigate } from 'react-router-dom';
-import { useSignIn } from '@clerk/clerk-react';
+import { useAuth as useClerkAuth, useSignIn } from '@clerk/clerk-react';
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -12,6 +12,7 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp, user } = useAuth();
+  const { isLoaded: isClerkLoaded, isSignedIn: isClerkSignedIn } = useClerkAuth();
   const { isLoaded, signIn: clerkSignIn } = useSignIn();
   const navigate = useNavigate();
 
@@ -40,6 +41,12 @@ export default function Signup() {
   const handleGoogleSignup = async () => {
     setError('');
     setLoading(true);
+
+    if (isClerkLoaded && isClerkSignedIn) {
+      navigate('/auth/callback', { replace: true });
+      return;
+    }
+
     try {
       if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready yet.');
       const redirectUrl = `${window.location.origin}/auth/sso-callback`;
@@ -51,6 +58,14 @@ export default function Signup() {
         redirectUrlComplete,
       });
     } catch (err: any) {
+      const first = Array.isArray(err?.errors) ? err.errors[0] : null;
+      const code = first?.code || err?.code;
+
+      if (code === 'already_signed_in') {
+        navigate('/auth/callback', { replace: true });
+        return;
+      }
+
       setError(err.message || 'Failed to signup with Google');
       setLoading(false);
     }

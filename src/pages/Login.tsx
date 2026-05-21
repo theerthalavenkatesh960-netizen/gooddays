@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
 import { useNavigate } from 'react-router-dom';
-import { useSignIn } from '@clerk/clerk-react';
+import { useAuth as useClerkAuth, useSignIn } from '@clerk/clerk-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -12,6 +12,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
+  const { isLoaded: isClerkLoaded, isSignedIn: isClerkSignedIn } = useClerkAuth();
   const { isLoaded, signIn: clerkSignIn } = useSignIn();
 
   // Redirect to dashboard if already logged in
@@ -39,6 +40,12 @@ export default function Login() {
   const handleGoogleLogin = async () => {
     setError('');
     setLoading(true);
+
+    if (isClerkLoaded && isClerkSignedIn) {
+      navigate('/auth/callback', { replace: true });
+      return;
+    }
+
     const redirectUrl = `${window.location.origin}/auth/sso-callback`;
     const redirectUrlComplete = `${window.location.origin}/auth/callback`;
 
@@ -50,6 +57,14 @@ export default function Login() {
         redirectUrlComplete,
       });
     } catch (err: any) {
+      const first = Array.isArray(err?.errors) ? err.errors[0] : null;
+      const code = first?.code || err?.code;
+
+      if (code === 'already_signed_in') {
+        navigate('/auth/callback', { replace: true });
+        return;
+      }
+
       setError(err?.message || 'Failed to continue with Google');
       setLoading(false);
     }
