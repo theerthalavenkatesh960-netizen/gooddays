@@ -93,6 +93,14 @@ CREATE TABLE IF NOT EXISTS expenses (
   created_at timestamptz DEFAULT now()
 );
 
+-- Ensure Gmail sync columns exist when upgrading an already-existing expenses table.
+ALTER TABLE IF EXISTS expenses
+  ADD COLUMN IF NOT EXISTS gmail_message_id varchar(200),
+  ADD COLUMN IF NOT EXISTS external_reference varchar(120),
+  ADD COLUMN IF NOT EXISTS source_type varchar(50),
+  ADD COLUMN IF NOT EXISTS is_reviewed boolean NOT NULL DEFAULT true,
+  ADD COLUMN IF NOT EXISTS reviewed_at timestamp without time zone NULL;
+
 CREATE TABLE IF NOT EXISTS gamification_entries (
   id SERIAL PRIMARY KEY,
   user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
