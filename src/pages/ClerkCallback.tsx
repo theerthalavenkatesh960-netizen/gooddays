@@ -1,3 +1,15 @@
+/**
+ * Clerk OAuth Callback Handler
+ * 
+ * Completes the OAuth flow:
+ * 1. Waits for Clerk session to be established
+ * 2. Exchanges Clerk token for backend JWT via /api/auth/clerk
+ * 3. Updates app auth context with session state
+ * 4. Redirects to dashboard
+ * 
+ * Flow: Clerk SSO → ClerkCallback → Backend JWT → Navigation
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth as useClerkAuth, useUser } from '@clerk/clerk-react';
@@ -13,31 +25,33 @@ export default function ClerkCallback() {
   const hasExchanged = useRef(false);
   const apiBase = ((import.meta as any).env?.VITE_API_URL || 'https://localhost:5001').replace(/\/$/, '');
 
+  // Safety timeout: If Clerk takes >10s to load, show error and let user retry
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       if (!isLoaded && !hasExchanged.current) {
         setIsTimingOut(true);
-        setError('Authentication is taking too long. Please try Google sign-in again.');
+        setError('Authentication is taking too long. Please try signing in again.');
       }
     }, 10000);
 
     return () => window.clearTimeout(timeout);
   }, [isLoaded]);
 
+  // Exchange Clerk token for backend JWT once Clerk OAuth is complete
   useEffect(() => {
     if (!isLoaded || hasExchanged.current || isTimingOut) return;
 
     const exchangeToken = async () => {
       try {
         if (!isSignedIn || !user) {
-          setError('No session found. Please sign in again.');
+          setError('No active session. Please sign in again.');
           setTimeout(() => navigate('/login'), 2000);
           return;
         }
 
         hasExchanged.current = true;
 
-        // Call backend endpoint to create/link user with Clerk
+        // POST Clerk user data to backend to create/link user and get JWT
         const response = await fetch(`${apiBase}/api/auth/clerk`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -50,19 +64,20 @@ export default function ClerkCallback() {
 
         if (!response.ok) {
           const data = await response.json();
-          throw new Error(data.message || 'Backend authentication failed');
+          throw new Error(data.message || 'Failed to create or link account');
         }
 
         const data = await response.json();
+        // Set session state directly—no page reload needed
         setSessionFromOAuth(data.token, data.user);
         navigate('/', { replace: true });
       } catch (err: any) {
-        setError(err.message || 'Authentication failed');
+        setError(err.message || 'Sign in failed. Please try again.');
         setTimeout(() => navigate('/login'), 2000);
       }
     };
 
-    exchangeToken();
+    exchangeToken(); // eslint-disable-line no-floating-promises
   }, [isLoaded, isSignedIn, user, navigate, apiBase, isTimingOut, setSessionFromOAuth]);
 
   if (error) {

@@ -329,12 +329,12 @@ export default function MealPlannerSettings() {
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Meals & Nutrition</h1>
       </div>
 
-      <div className="flex gap-1 mb-4 p-1 rounded-2xl" style={{ backgroundColor: 'var(--surface)' }}>
-        <button onClick={() => setTab('weekly')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all press"
+      <div className="flex gap-1 mb-3 sm:mb-5 p-1 rounded-xl w-fit" style={{ backgroundColor: 'var(--surface)' }}>
+        <button onClick={() => setTab('weekly')} className="flex-1 flex items-center justify-center gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all press"
           style={{ backgroundColor: tab === 'weekly' ? 'var(--accent)' : 'transparent', color: tab === 'weekly' ? '#fff' : 'var(--text-muted)' }}>
           <Calendar size={15} /> Weekly Meals
         </button>
-        <button onClick={() => setTab('library')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all press"
+        <button onClick={() => setTab('library')} className="flex-1 flex items-center justify-center gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all press"
           style={{ backgroundColor: tab === 'library' ? 'var(--accent)' : 'transparent', color: tab === 'library' ? '#fff' : 'var(--text-muted)' }}>
           <BookOpen size={15} /> Meal Library
         </button>
@@ -349,17 +349,17 @@ export default function MealPlannerSettings() {
 
       {tab === 'weekly' && (
         <div className="space-y-3">
-          <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{format(selectedDate, 'EEEE, MMM d')}</p>
+          <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base sm:text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{format(selectedDate, 'EEEE, MMM d')}</h2>
               <div className="flex items-center gap-2">
-                <button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Prev Week</button>
-                <button onClick={() => setSelectedDate(new Date())} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Today</button>
-                <button onClick={() => setSelectedDate(addDays(selectedDate, 7))} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Next Week</button>
+                <button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200">◀ Week</button>
+                <button onClick={() => setSelectedDate(new Date())} className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200">Today</button>
+                <button onClick={() => setSelectedDate(addDays(selectedDate, 7))} className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200">Week ▶</button>
               </div>
             </div>
 
-            <div className="overflow-x-auto mb-4">
+            <div className="overflow-x-auto">
               <div className="flex gap-1.5 pb-1.5">
                 {Array.from({ length: 7 }).map((_, i) => {
                   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
@@ -369,10 +369,13 @@ export default function MealPlannerSettings() {
                   const legacyKey = toLegacyDayKey(d);
                   const dayCount = (mealPlan[dateKey]?.length || 0) || (mealPlan[legacyKey]?.length || 0);
                   return (
-                    <button key={d.toISOString()} onClick={() => setSelectedDate(d)} className="flex-1 min-w-0 px-2 py-2 rounded-lg text-center border"
-                      style={{ backgroundColor: active ? 'var(--accent)' : 'var(--surface-elevated)', color: active ? '#fff' : 'var(--text-secondary)', borderColor: active ? 'var(--accent)' : 'var(--border)' }}>
-                      <div className="text-[11px]">{format(d, 'EEE')}</div>
-                      <div className="font-semibold text-sm">{format(d, 'd')}</div>
+                    <button
+                      key={d.toISOString()}
+                      onClick={() => setSelectedDate(d)}
+                      className={`flex-1 min-w-0 px-2 py-2 rounded-lg text-center border ${active ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                    >
+                      <div className="text-[11px] sm:text-xs">{format(d, 'EEE')}</div>
+                      <div className="font-semibold text-sm sm:text-base">{format(d, 'd')}</div>
                       <div className="text-[10px] opacity-80">{dayCount}</div>
                     </button>
                   );

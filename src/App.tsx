@@ -64,7 +64,6 @@ function PrivateRoute({ children }: { children: ReactNode }) {
 
 function App() {
   const CLERK_PUBLISHABLE_KEY = ((import.meta as any).env?.VITE_CLERK_PUBLISHABLE_KEY || '');
-  console.log('[GoodDays env] Clerk key present:', Boolean(CLERK_PUBLISHABLE_KEY), 'length:', CLERK_PUBLISHABLE_KEY.length);
 
   if (!CLERK_PUBLISHABLE_KEY) {
     return (

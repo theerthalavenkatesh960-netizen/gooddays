@@ -1,3 +1,15 @@
+/**
+ * Login Page
+ * 
+ * Supports two authentication methods:
+ * - Email/password via backend /api/auth/signin
+ * - Google OAuth via Clerk (redirects to /auth/sso-callback)
+ * 
+ * Handles:
+ * - Already logged-in users (redirect to dashboard)
+ * - Already signed-in Clerk sessions (skip OAuth, go to app callback)
+ */
+
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Chrome } from 'lucide-react';
@@ -31,7 +43,7 @@ export default function Login() {
       await signIn(email, password);
       navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Failed to login');
+      setError(err.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
@@ -41,6 +53,7 @@ export default function Login() {
     setError('');
     setLoading(true);
 
+    // If already signed in to Clerk, skip OAuth and go directly to backend exchange
     if (isClerkLoaded && isClerkSignedIn) {
       navigate('/auth/callback', { replace: true });
       return;
@@ -50,7 +63,7 @@ export default function Login() {
     const redirectUrlComplete = `${window.location.origin}/auth/callback`;
 
     try {
-      if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready yet.');
+      if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready');
       await clerkSignIn.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl,
@@ -60,12 +73,13 @@ export default function Login() {
       const first = Array.isArray(err?.errors) ? err.errors[0] : null;
       const code = first?.code || err?.code;
 
+      // If user already has an active Clerk session, redirect to app callback
       if (code === 'already_signed_in') {
         navigate('/auth/callback', { replace: true });
         return;
       }
 
-      setError(err?.message || 'Failed to continue with Google');
+      setError(err?.message || 'Failed to sign in with Google');
       setLoading(false);
     }
   };

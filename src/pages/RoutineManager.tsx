@@ -347,51 +347,64 @@ export default function RoutineManager() {
         </button>
       </div>
 
-      <div className="space-y-2">
-        {schedule.map(entry => {
-          const assigned = routines.find(r => r.id === entry.routineId);
-          return (
-            <div key={entry.dayOfWeek}>
-              <button onClick={() => setPickerDay(pickerDay === entry.dayOfWeek ? null : entry.dayOfWeek)}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-xl press"
-                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{DAY_NAMES[entry.dayOfWeek]}</p>
-                <div className="flex items-center gap-2">
-                  {assigned && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: assigned.color }} />}
-                  <p className="text-xs" style={{ color: assigned ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                    {assigned ? assigned.name : 'Rest Day'}
-                  </p>
-                </div>
-              </button>
-
-              <AnimatePresence>
-                {pickerDay === entry.dayOfWeek && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden">
-                    <div className="mt-1 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
-                      <button onClick={() => assignRoutine(entry.dayOfWeek, null)}
-                        className="w-full flex items-center justify-between px-4 py-2.5 press"
-                        style={{ borderBottom: '1px solid var(--border)' }}>
-                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Rest Day</p>
-                        {entry.routineId === null && <Check size={14} style={{ color: 'var(--accent)' }} />}
-                      </button>
-                      {routines.map(r => (
-                        <button key={r.id} onClick={() => assignRoutine(entry.dayOfWeek, r.id)}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 press"
-                          style={{ borderBottom: '1px solid var(--border)' }}>
-                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
-                          <p className="flex-1 text-sm text-left" style={{ color: 'var(--text-primary)' }}>{r.name}</p>
-                          {entry.routineId === r.id && <Check size={14} style={{ color: 'var(--accent)' }} />}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          );
-        })}
+      <div className="mb-4">
+        <div className="overflow-x-auto">
+          <div className="flex gap-1.5 pb-1.5">
+            {schedule.map(entry => {
+              const isSelected = (pickerDay ?? new Date().getDay()) === entry.dayOfWeek;
+              const dayLabel = DAY_NAMES[entry.dayOfWeek].slice(0, 3);
+              return (
+                <button
+                  key={entry.dayOfWeek}
+                  onClick={() => setPickerDay(entry.dayOfWeek)}
+                  className={`flex-1 min-w-0 px-2 py-2 rounded-lg text-center border ${isSelected ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
+                >
+                  <div className="text-[11px] sm:text-xs">{dayLabel}</div>
+                  <div className="font-semibold text-sm sm:text-base">{entry.dayOfWeek + 1}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
+
+      {(() => {
+        const activeDay = pickerDay ?? new Date().getDay();
+        const activeEntry = schedule.find(e => e.dayOfWeek === activeDay) ?? { dayOfWeek: activeDay, routineId: null };
+        const activeAssigned = routines.find(r => r.id === activeEntry.routineId);
+
+        return (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
+            <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{DAY_NAMES[activeDay]}</p>
+              <div className="flex items-center gap-2">
+                {activeAssigned && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: activeAssigned.color }} />}
+                <p className="text-xs" style={{ color: activeAssigned ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                  {activeAssigned ? activeAssigned.name : 'Rest Day'}
+                </p>
+              </div>
+            </div>
+
+            <button onClick={() => assignRoutine(activeDay, null)} className="w-full flex items-center justify-between px-4 py-2.5 press" style={{ borderBottom: '1px solid var(--border)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Rest Day</p>
+              {activeEntry.routineId === null && <Check size={14} style={{ color: 'var(--accent)' }} />}
+            </button>
+
+            {routines.map(r => (
+              <button
+                key={r.id}
+                onClick={() => assignRoutine(activeDay, r.id)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 press"
+                style={{ borderBottom: '1px solid var(--border)' }}
+              >
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: r.color }} />
+                <p className="flex-1 text-sm text-left" style={{ color: 'var(--text-primary)' }}>{r.name}</p>
+                {activeEntry.routineId === r.id && <Check size={14} style={{ color: 'var(--accent)' }} />}
+              </button>
+            ))}
+          </motion.div>
+        );
+      })()}
     </div>
   );
 }

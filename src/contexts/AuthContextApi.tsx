@@ -1,3 +1,12 @@
+/**
+ * Authentication Context
+ * 
+ * Provides app-level JWT session management and authentication methods.
+ * - Syncs session state from localStorage on app mount
+ * - Handles email/password auth via backend endpoints
+ * - Integrates with Clerk OAuth (state updated by ClerkCallback)
+ */
+
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import * as api from '../lib/api';
 
@@ -42,12 +51,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       const session = await api.signIn(email, password);
-      if (session && session.user) {
+      if (session?.user) {
         setSession(session);
         setUser(session.user);
       }
     } catch (error) {
-      console.error('Sign in failed:', error);
       throw error;
     }
   };
@@ -55,12 +63,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, name: string) => {
     try {
       const session = await api.signUp(email, password, name);
-      if (session && session.user) {
+      if (session?.user) {
         setSession(session);
         setUser(session.user);
       }
     } catch (error) {
-      console.error('Sign up failed:', error);
       throw error;
     }
   };
@@ -71,12 +78,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setUser(null);
     } catch (error) {
-      console.error('Sign out failed:', error);
       throw error;
     }
   };
 
-  // Called by ClerkCallback after it exchanges the Clerk token for a GoodDays JWT
+  // Called by ClerkCallback after exchanging Clerk token for app JWT
   const setSessionFromOAuth = (token: string, user: User) => {
     const newSession: Session = { access_token: token, user };
     localStorage.setItem('gd_session', JSON.stringify(newSession));
@@ -84,9 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(user);
   };
 
-  // Clerk handles the OAuth redirect — this is never called directly
+  // OAuth is handled directly in Login/Signup via Clerk SDK
+  // This method exists for interface completeness
   const signInWithGoogle = async () => {
-    // no-op: Google login is initiated via Clerk's authenticateWithRedirect in Login.tsx
+    throw new Error('Use Clerk OAuth in Login.tsx instead');
   };
 
   return (

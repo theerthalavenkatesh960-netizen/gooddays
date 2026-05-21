@@ -1,3 +1,17 @@
+/**
+ * Signup Page
+ * 
+ * Supports two account creation methods:
+ * - Email/password via backend /api/auth/signup
+ * - Google OAuth via Clerk (redirects to /auth/sso-callback)
+ * 
+ * Handles:
+ * - Already logged-in users (redirect to dashboard)
+ * - Already signed-in Clerk sessions (skip OAuth, go to app callback)
+ * 
+ * Note: Google signup uses same OAuth flow as Login (unified entry point)
+ */
+
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, Chrome } from 'lucide-react';
@@ -32,7 +46,7 @@ export default function Signup() {
       await signUp(email, password, name);
       navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Failed to create account');
+      setError(err.message || 'Account creation failed');
     } finally {
       setLoading(false);
     }
@@ -42,13 +56,14 @@ export default function Signup() {
     setError('');
     setLoading(true);
 
+    // If already signed in to Clerk, skip OAuth and go directly to backend exchange
     if (isClerkLoaded && isClerkSignedIn) {
       navigate('/auth/callback', { replace: true });
       return;
     }
 
     try {
-      if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready yet.');
+      if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready');
       const redirectUrl = `${window.location.origin}/auth/sso-callback`;
       const redirectUrlComplete = `${window.location.origin}/auth/callback`;
 
@@ -61,12 +76,13 @@ export default function Signup() {
       const first = Array.isArray(err?.errors) ? err.errors[0] : null;
       const code = first?.code || err?.code;
 
+      // If user already has an active Clerk session, redirect to app callback
       if (code === 'already_signed_in') {
         navigate('/auth/callback', { replace: true });
         return;
       }
 
-      setError(err.message || 'Failed to signup with Google');
+      setError(err.message || 'Failed to sign up with Google');
       setLoading(false);
     }
   };
