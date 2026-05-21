@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, ChevronDown, ChevronUp, X, Check, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { format, startOfWeek, addDays } from 'date-fns';
 import * as api from '../lib/api';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -338,29 +339,27 @@ export default function RoutineManager() {
       </div>
 
       {/* ── Section 2: Weekly Schedule ── */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Weekly Schedule</h2>
-        <button onClick={saveSchedule} disabled={savingSchedule}
-          className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white press disabled:opacity-40"
-          style={{ backgroundColor: 'var(--accent)' }}>
-          {savingSchedule ? 'Saving…' : 'Save'}
-        </button>
-      </div>
-
       <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-base sm:text-lg font-semibold">Weekly Schedule</h2>
+          <button onClick={saveSchedule} disabled={savingSchedule}
+            className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-emerald-500 text-white font-semibold disabled:opacity-40">
+            {savingSchedule ? 'Saving…' : 'Save'}
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <div className="flex gap-1.5 pb-1.5">
             {schedule.map(entry => {
               const isSelected = (pickerDay ?? new Date().getDay()) === entry.dayOfWeek;
-              const dayLabel = DAY_NAMES[entry.dayOfWeek].slice(0, 3);
+              const d = addDays(startOfWeek(new Date(), { weekStartsOn: 0 }), entry.dayOfWeek);
               return (
                 <button
                   key={entry.dayOfWeek}
                   onClick={() => setPickerDay(entry.dayOfWeek)}
                   className={`flex-1 min-w-0 px-2 py-2 rounded-lg text-center border ${isSelected ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
                 >
-                  <div className="text-[11px] sm:text-xs">{dayLabel}</div>
-                  <div className="font-semibold text-sm sm:text-base">{entry.dayOfWeek + 1}</div>
+                  <div className="text-[11px] sm:text-xs">{format(d, 'EEE')}</div>
+                  <div className="font-semibold text-sm sm:text-base">{format(d, 'd')}</div>
                 </button>
               );
             })}

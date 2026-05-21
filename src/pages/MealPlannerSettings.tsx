@@ -348,10 +348,10 @@ export default function MealPlannerSettings() {
       )}
 
       {tab === 'weekly' && (
-        <div className="space-y-3">
-          <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base sm:text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>{format(selectedDate, 'EEEE, MMM d')}</h2>
+        <div className="space-y-2.5">
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-base sm:text-lg font-semibold">{format(selectedDate, 'EEEE, MMM d')}</h2>
               <div className="flex items-center gap-2">
                 <button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200">◀ Week</button>
                 <button onClick={() => setSelectedDate(new Date())} className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200">Today</button>
@@ -376,55 +376,53 @@ export default function MealPlannerSettings() {
                     >
                       <div className="text-[11px] sm:text-xs">{format(d, 'EEE')}</div>
                       <div className="font-semibold text-sm sm:text-base">{format(d, 'd')}</div>
-                      <div className="text-[10px] opacity-80">{dayCount}</div>
+                      {dayCount > 0 && <div className="text-[10px] opacity-70">{dayCount}</div>}
                     </button>
                   );
                 })}
               </div>
             </div>
-
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <p className="text-sm font-bold capitalize" style={{ color: 'var(--text-primary)' }}>{selectedDayLabel}</p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''}
-                  {selectedDayCalories > 0 && <span style={{ color: 'var(--accent-gold)' }}> | {Math.round(selectedDayCalories)} kcal</span>}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={copyLastWeekPlan} className="px-2 py-1 rounded-lg text-xs font-semibold"
-                  style={{ backgroundColor: 'rgba(78, 205, 196, 0.15)', color: 'var(--accent-green)' }}>
-                  Copy Last Week
-                </button>
-                <button onClick={() => openMealPicker(selectedDayKey)} className="w-8 h-8 rounded-xl flex items-center justify-center press"
-                  style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
-                  <Plus size={16} />
-                </button>
-              </div>
-            </div>
-
-            {selectedMeals.length > 0 ? (
-              <div className="space-y-3">
-                {selectedMeals.map(meal => (
-                  <MealCard
-                    key={meal.id}
-                    id={meal.id}
-                    name={meal.name}
-                    timing={meal.timing}
-                    timeOfDay={meal.timeOfDay}
-                    imageUrl={meal.imageUrl}
-                    ingredients={parseIngredients(meal.ingredientsJson)}
-                    onRemove={() => removeMealFromDay(selectedDayKey, meal.id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <button onClick={() => openMealPicker(selectedDayKey)} className="w-full py-4 rounded-xl flex items-center justify-center gap-2 text-sm press"
-                style={{ border: '1.5px dashed var(--border)', color: 'var(--text-muted)' }}>
-                <Plus size={14} /> Add meals for {selectedDayLabel}
-              </button>
-            )}
           </div>
+
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-base sm:text-lg font-semibold capitalize">{selectedDayLabel}</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''}
+                {selectedDayCalories > 0 && <span style={{ color: 'var(--accent-gold)' }}> · {Math.round(selectedDayCalories)} kcal</span>}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={copyLastWeekPlan} className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium">
+                Copy Last Week
+              </button>
+              <button onClick={() => openMealPicker(selectedDayKey)} className="px-3 py-1.5 bg-emerald-500 text-white rounded-lg font-semibold text-xs flex items-center gap-1.5 press">
+                <Plus size={14} /> Add Meal
+              </button>
+            </div>
+          </div>
+
+          {selectedMeals.length > 0 ? (
+            <div className="space-y-3">
+              {selectedMeals.map(meal => (
+                <MealCard
+                  key={meal.id}
+                  id={meal.id}
+                  name={meal.name}
+                  timing={meal.timing}
+                  timeOfDay={meal.timeOfDay}
+                  imageUrl={meal.imageUrl}
+                  ingredients={parseIngredients(meal.ingredientsJson)}
+                  onRemove={() => removeMealFromDay(selectedDayKey, meal.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <button onClick={() => openMealPicker(selectedDayKey)} className="w-full py-4 rounded-xl flex items-center justify-center gap-2 text-sm press"
+              style={{ border: '1.5px dashed var(--border)', color: 'var(--text-muted)' }}>
+              <Plus size={14} /> Add meals for {selectedDayLabel}
+            </button>
+          )}
         </div>
       )}
 
