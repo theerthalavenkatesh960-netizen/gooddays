@@ -6,28 +6,15 @@ import { useNavigate } from 'react-router-dom';
 import { useSignIn } from '@clerk/clerk-react';
 import { useSignUp } from '@clerk/clerk-react';
 
-function formatClerkError(err: any): string {
-  try {
-    const first = Array.isArray(err?.errors) ? err.errors[0] : null;
-    const code = first?.code || err?.code || 'unknown_error';
-    const message = first?.longMessage || first?.message || err?.message || 'Unknown Clerk error';
-    const status = err?.status ? `status=${err.status}` : 'status=n/a';
-    return `[Clerk debug] ${status} code=${code} message=${message}`;
-  } catch {
-    return '[Clerk debug] Unable to parse Clerk error payload';
-  }
-}
-
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [debugError, setDebugError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
-  const { isLoaded, signIn: clerkSignIn } = useSignIn();
-  const { isLoaded: isSignUpLoaded, signUp: clerkSignUp } = useSignUp();
+  const { isLoaded: _signInLoaded } = useSignIn(); // keep hook (required by Clerk), but use signUp for OAuth
+  const { isLoaded, signUp: clerkSignUp } = useSignUp();
 
   // Redirect to dashboard if already logged in
   useEffect(() => {
@@ -53,49 +40,20 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     setError('');
-    setDebugError('');
     setLoading(true);
     const redirectUrl = `${window.location.origin}/auth/sso-callback`;
     const redirectUrlComplete = `${window.location.origin}/auth/callback`;
 
     try {
-      if (!isLoaded || !clerkSignIn) throw new Error('Clerk sign-in is not ready yet.');
-
-      await clerkSignIn.authenticateWithRedirect({
+      if (!isLoaded || !clerkSignUp) throw new Error('Clerk is not ready yet.');
+      await clerkSignUp.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl,
         redirectUrlComplete,
       });
-      return;
-    } catch (signInErr: any) {
-      const first = Array.isArray(signInErr?.errors) ? signInErr.errors[0] : null;
-      const code = first?.code || signInErr?.code;
-
-      const shouldFallbackToSignUp =
-        code === 'identifier_not_found' ||
-        code === 'strategy_for_user_invalid' ||
-        code === 'not_allowed_access';
-
-      if (!shouldFallbackToSignUp) {
-        setError(signInErr?.message || 'Failed to login with Google');
-        setDebugError(formatClerkError(signInErr));
-        setLoading(false);
-        return;
-      }
-
-      try {
-        if (!isSignUpLoaded || !clerkSignUp) throw new Error('Clerk sign-up is not ready yet.');
-
-        await clerkSignUp.authenticateWithRedirect({
-          strategy: 'oauth_google',
-          redirectUrl,
-          redirectUrlComplete,
-        });
-      } catch (signUpErr: any) {
-        setError(signUpErr?.message || 'Failed to continue with Google');
-        setDebugError(formatClerkError(signUpErr));
-        setLoading(false);
-      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to continue with Google');
+      setLoading(false);
     }
   };
 
@@ -130,11 +88,6 @@ export default function Login() {
               style={{ background: 'rgba(255,107,107,0.12)', color: 'var(--accent-warm)', border: '1px solid rgba(255,107,107,0.2)' }}
             >
               <div>{error}</div>
-              {debugError && (
-                <pre className="mt-2 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>
-                  {debugError}
-                </pre>
-              )}
             </motion.div>
           )}
 

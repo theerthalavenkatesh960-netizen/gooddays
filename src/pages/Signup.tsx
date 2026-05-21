@@ -5,24 +5,11 @@ import { useAuth } from '../contexts/AuthContextApi';
 import { useNavigate } from 'react-router-dom';
 import { useSignUp } from '@clerk/clerk-react';
 
-function formatClerkError(err: any): string {
-  try {
-    const first = Array.isArray(err?.errors) ? err.errors[0] : null;
-    const code = first?.code || err?.code || 'unknown_error';
-    const message = first?.longMessage || first?.message || err?.message || 'Unknown Clerk error';
-    const status = err?.status ? `status=${err.status}` : 'status=n/a';
-    return `[Clerk debug] ${status} code=${code} message=${message}`;
-  } catch {
-    return '[Clerk debug] Unable to parse Clerk error payload';
-  }
-}
-
 export default function Signup() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [debugError, setDebugError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp, user } = useAuth();
   const { isLoaded, signUp: clerkSignUp } = useSignUp();
@@ -52,7 +39,6 @@ export default function Signup() {
 
   const handleGoogleSignup = async () => {
     setError('');
-    setDebugError('');
     setLoading(true);
     try {
       if (!isLoaded || !clerkSignUp) throw new Error('Clerk is not ready yet.');
@@ -66,7 +52,6 @@ export default function Signup() {
       });
     } catch (err: any) {
       setError(err.message || 'Failed to signup with Google');
-      setDebugError(formatClerkError(err));
       setLoading(false);
     }
   };
@@ -102,11 +87,6 @@ export default function Signup() {
               style={{ background: 'rgba(255,107,107,0.12)', color: 'var(--accent-warm)', border: '1px solid rgba(255,107,107,0.2)' }}
             >
               <div>{error}</div>
-              {debugError && (
-                <pre className="mt-2 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>
-                  {debugError}
-                </pre>
-              )}
             </motion.div>
           )}
 
