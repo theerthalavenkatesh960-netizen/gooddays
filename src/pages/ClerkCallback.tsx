@@ -7,11 +7,23 @@ export default function ClerkCallback() {
   const { isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
   const [error, setError] = useState('');
+  const [isTimingOut, setIsTimingOut] = useState(false);
   const hasExchanged = useRef(false);
   const apiBase = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
   useEffect(() => {
-    if (!isLoaded || hasExchanged.current) return;
+    const timeout = window.setTimeout(() => {
+      if (!isLoaded && !hasExchanged.current) {
+        setIsTimingOut(true);
+        setError('Authentication is taking too long. Please try Google sign-in again.');
+      }
+    }, 10000);
+
+    return () => window.clearTimeout(timeout);
+  }, [isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded || hasExchanged.current || isTimingOut) return;
 
     const exchangeToken = async () => {
       try {
@@ -55,7 +67,7 @@ export default function ClerkCallback() {
     };
 
     exchangeToken();
-  }, [isLoaded, isSignedIn, user, navigate, apiBase]);
+  }, [isLoaded, isSignedIn, user, navigate, apiBase, isTimingOut]);
 
   if (error) {
     return (

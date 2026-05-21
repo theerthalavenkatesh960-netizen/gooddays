@@ -35,6 +35,7 @@ import MealCreateTemplatePage from './pages/MealCreateTemplatePage';
 import MealDayPickerPage from './pages/MealDayPickerPage';
 import RoutineExercisePickerPage from './pages/RoutineExercisePickerPage';
 import ClerkCallback from './pages/ClerkCallback';
+import ClerkSsoCallback from './pages/ClerkSsoCallback';
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -91,6 +92,7 @@ VITE_API_URL=http://localhost:5000
             <Routes>
               <Route path="/login"  element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/auth/sso-callback" element={<ClerkSsoCallback />} />
               <Route path="/auth/callback" element={<ClerkCallback />} />
 
               <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />

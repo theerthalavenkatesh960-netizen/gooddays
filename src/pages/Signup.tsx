@@ -56,8 +56,8 @@ export default function Signup() {
     setLoading(true);
     try {
       if (!isLoaded || !clerkSignUp) throw new Error('Clerk is not ready yet.');
-      const redirectUrl = `${window.location.origin}/auth/callback`;
-      const redirectUrlComplete = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/auth/sso-callback`;
+      const redirectUrlComplete = `${window.location.origin}/auth/callback`;
 
       await clerkSignUp.authenticateWithRedirect({
         strategy: 'oauth_google',

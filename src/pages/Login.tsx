@@ -55,8 +55,8 @@ export default function Login() {
     setError('');
     setDebugError('');
     setLoading(true);
-    const redirectUrl = `${window.location.origin}/auth/callback`;
-    const redirectUrlComplete = `${window.location.origin}/`;
+    const redirectUrl = `${window.location.origin}/auth/sso-callback`;
+    const redirectUrlComplete = `${window.location.origin}/auth/callback`;
 
     try {
       if (!isLoaded || !clerkSignIn) throw new Error('Clerk sign-in is not ready yet.');
