@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, User, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
 import { useNavigate } from 'react-router-dom';
+import { useSignIn } from '@clerk/clerk-react';
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -10,7 +11,8 @@ export default function Signup() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp } = useAuth();
+  const { isLoaded, signIn: clerkSignIn } = useSignIn();
   const navigate = useNavigate();
 
   const handleEmailSignup = async (e: React.FormEvent) => {
@@ -30,10 +32,18 @@ export default function Signup() {
 
   const handleGoogleSignup = async () => {
     setError('');
+    setLoading(true);
     try {
-      await signInWithGoogle();
+      if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready yet.');
+
+      await clerkSignIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: '/auth/callback',
+        redirectUrlComplete: '/',
+      });
     } catch (err: any) {
       setError(err.message || 'Failed to signup with Google');
+      setLoading(false);
     }
   };
 

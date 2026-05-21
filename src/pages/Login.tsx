@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
 import { useNavigate } from 'react-router-dom';
-import { useSignUp, useClerk } from '@clerk/clerk-react';
 import { useSignIn } from '@clerk/clerk-react';
 
 export default function Login() {
@@ -11,11 +10,9 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
-  const { signUp } = useSignUp();
-  const { session } = useClerk();
-  const clerkSignIn = useSignIn();
+  const { isLoaded, signIn: clerkSignIn } = useSignIn();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,61 +31,18 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     setError('');
+    setLoading(true);
     try {
-      await signInWithGoogle();
+      if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready yet.');
+
+      await clerkSignIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: '/auth/callback',
+        redirectUrlComplete: '/',
+      });
     } catch (err: any) {
-      setError(err.message || 'Failed to login with Google');
-      const handleClerkGoogleLogin = async () => {
-        setError('');
-        setLoading(true);
-        try {
-          if (!session) {
-            setError('Session not found. Please try again.');
-            return;
-          }
-
-          const token = await session.getToken();
-          const user = session.user;
-
-          // Call backend endpoint to create/link user with Clerk
-          const response = await fetch('/api/auth/clerk', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              clerkId: user.id,
-              email: user.emailAddresses[0]?.emailAddress,
-              name: user.firstName || user.fullName || 'User',
-            }),
-          });
-
-          if (!response.ok) throw new Error('Backend authentication failed');
-
-          const data = await response.json();
-          localStorage.setItem('token', data.token);
-          navigate('/');
-        } catch (err: any) {
-          setError(err.message || 'Failed to login with Clerk');
-          const handleClerkGoogleLogin = async () => {
-            setError('');
-            setLoading(true);
-            try {
-              if (!clerkSignIn) throw new Error('Clerk not initialized');
-      
-              // Trigger Clerk's Google OAuth flow
-              await clerkSignIn.authenticateWithRedirect({
-                strategy: 'oauth_google',
-                redirectUrl: '/auth/callback',
-                redirectUrlComplete: '/',
-              });
-            } catch (err: any) {
-              setError(err.message || 'Failed to login with Google');
-              setLoading(false);
-            }
-          };
-        } finally {
-          setLoading(false);
-        }
-      };
+      setError(err?.message || 'Failed to login with Google');
+      setLoading(false);
     }
   };
 

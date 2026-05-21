@@ -6,6 +6,7 @@ export default function ClerkCallback() {
   const navigate = useNavigate();
   const { session } = useClerk();
   const [error, setError] = useState('');
+  const apiBase = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
   useEffect(() => {
     const exchangeToken = async () => {
@@ -23,7 +24,7 @@ export default function ClerkCallback() {
         }
 
         // Call backend endpoint to create/link user with Clerk
-        const response = await fetch('/api/auth/clerk', {
+        const response = await fetch(`${apiBase}/api/auth/clerk`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

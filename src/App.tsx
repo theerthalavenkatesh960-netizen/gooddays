@@ -64,6 +64,23 @@ function PrivateRoute({ children }: { children: ReactNode }) {
 function App() {
   const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || '';
 
+  if (!CLERK_PUBLISHABLE_KEY) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg)' }}>
+        <div className="max-w-xl w-full rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h1 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Missing Clerk Publishable Key</h1>
+          <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
+            Add VITE_CLERK_PUBLISHABLE_KEY to your .env.local and restart the Vite dev server.
+          </p>
+          <pre className="text-xs rounded-lg p-3 overflow-auto" style={{ background: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_xxx
+VITE_API_URL=http://localhost:5000
+          </pre>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
       <BrowserRouter>
