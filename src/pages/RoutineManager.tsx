@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, ChevronDown, ChevronUp, X, Check, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { format, startOfWeek, addDays } from 'date-fns';
+import { format, startOfWeek, addDays, getDay } from 'date-fns';
 import * as api from '../lib/api';
+import WeeklyCalendar from '../components/WeeklyCalendar';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -347,24 +348,10 @@ export default function RoutineManager() {
             {savingSchedule ? 'Saving…' : 'Save'}
           </button>
         </div>
-        <div className="overflow-x-auto">
-          <div className="flex gap-1.5 pb-1.5">
-            {schedule.map(entry => {
-              const isSelected = (pickerDay ?? new Date().getDay()) === entry.dayOfWeek;
-              const d = addDays(startOfWeek(new Date(), { weekStartsOn: 0 }), entry.dayOfWeek);
-              return (
-                <button
-                  key={entry.dayOfWeek}
-                  onClick={() => setPickerDay(entry.dayOfWeek)}
-                  className={`flex-1 min-w-0 px-2 py-2 rounded-lg text-center border ${isSelected ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
-                >
-                  <div className="text-[11px] sm:text-xs">{format(d, 'EEE')}</div>
-                  <div className="font-semibold text-sm sm:text-base">{format(d, 'd')}</div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <WeeklyCalendar
+          selectedDate={addDays(startOfWeek(new Date(), { weekStartsOn: 0 }), pickerDay ?? new Date().getDay())}
+          onSelectDate={(date) => setPickerDay(getDay(date))}
+        />
       </div>
 
       {(() => {

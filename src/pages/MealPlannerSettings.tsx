@@ -5,6 +5,7 @@ import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
 import * as api from '../lib/api';
 import MacroVisualization from '../components/MacroVisualization';
 import MealCard from '../components/MealCard';
+import WeeklyCalendar from '../components/WeeklyCalendar';
 
 type MealTemplate = {
   id: number;
@@ -348,38 +349,16 @@ export default function MealPlannerSettings() {
       {tab === 'weekly' && (
         <div className="space-y-2.5">
           <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-base sm:text-lg font-semibold">{format(selectedDate, 'EEEE, MMM d')}</h2>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200">◀ Week</button>
-                <button onClick={() => setSelectedDate(new Date())} className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200">Today</button>
-                <button onClick={() => setSelectedDate(addDays(selectedDate, 7))} className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200">Week ▶</button>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <div className="flex gap-1.5 pb-1.5">
-                {Array.from({ length: 7 }).map((_, i) => {
-                  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
-                  const d = addDays(weekStart, i);
-                  const active = isSameDay(d, selectedDate);
-                  const dateKey = toDateKey(d);
-                  const legacyKey = toLegacyDayKey(d);
-                  const dayCount = (mealPlan[dateKey]?.length || 0) || (mealPlan[legacyKey]?.length || 0);
-                  return (
-                    <button
-                      key={d.toISOString()}
-                      onClick={() => setSelectedDate(d)}
-                      className={`flex-1 min-w-0 px-2 py-2 rounded-lg text-center border ${active ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
-                    >
-                      <div className="text-[11px] sm:text-xs">{format(d, 'EEE')}</div>
-                      <div className="font-semibold text-sm sm:text-base">{format(d, 'd')}</div>
-                      {dayCount > 0 && <div className="text-[10px] opacity-70">{dayCount}</div>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <WeeklyCalendar 
+              selectedDate={selectedDate} 
+              onSelectDate={setSelectedDate}
+              renderDayExtra={(d) => {
+                const dateKey = toDateKey(d);
+                const legacyKey = toLegacyDayKey(d);
+                const dayCount = (mealPlan[dateKey]?.length || 0) || (mealPlan[legacyKey]?.length || 0);
+                return dayCount > 0 ? <div className="text-[10px] opacity-70">{dayCount}</div> : null;
+              }}
+            />
           </div>
 
           <div className="flex items-center justify-between mb-3">
