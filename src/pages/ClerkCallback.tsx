@@ -40,10 +40,14 @@ export default function ClerkCallback() {
         }
 
         const data = await response.json();
-        localStorage.setItem('token', data.token);
-        
-        // Redirect to dashboard
-        navigate('/');
+        const sessionPayload = {
+          access_token: data.token,
+          user: data.user,
+        };
+        localStorage.setItem('gd_session', JSON.stringify(sessionPayload));
+
+        // Force a full reload so AuthProvider re-reads the newly written session.
+        window.location.href = '/';
       } catch (err: any) {
         setError(err.message || 'Authentication failed');
         setTimeout(() => navigate('/login'), 2000);
