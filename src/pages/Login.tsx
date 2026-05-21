@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
@@ -23,9 +23,16 @@ export default function Login() {
   const [error, setError] = useState('');
   const [debugError, setDebugError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
   const navigate = useNavigate();
   const { isLoaded, signIn: clerkSignIn } = useSignIn();
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
@@ -24,9 +24,16 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [debugError, setDebugError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signUp } = useAuth();
+  const { signUp, user } = useAuth();
   const { isLoaded, signUp: clerkSignUp } = useSignUp();
   const navigate = useNavigate();
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,16 +53,6 @@ export default function Signup() {
   const handleGoogleSignup = async () => {
     setError('');
     setDebugError('');
-
-    const continueWithGoogle = window.confirm(
-      'Continue with Google?\n\nClick OK to continue and sign in/sign up with Google.\nClick Cancel to go to the Login page.'
-    );
-
-    if (!continueWithGoogle) {
-      navigate('/login');
-      return;
-    }
-
     setLoading(true);
     try {
       if (!isLoaded || !clerkSignUp) throw new Error('Clerk is not ready yet.');
