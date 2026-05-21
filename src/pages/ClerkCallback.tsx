@@ -1,27 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useClerk } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 
 export default function ClerkCallback() {
   const navigate = useNavigate();
-  const { session } = useClerk();
+  const { isLoaded, isSignedIn } = useAuth();
+  const { user } = useUser();
   const [error, setError] = useState('');
+  const hasExchanged = useRef(false);
   const apiBase = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
 
   useEffect(() => {
+    if (!isLoaded || hasExchanged.current) return;
+
     const exchangeToken = async () => {
       try {
-        if (!session) {
+        if (!isSignedIn || !user) {
           setError('No session found. Please sign in again.');
           setTimeout(() => navigate('/login'), 2000);
           return;
         }
 
-        const user = session.user;
-        if (!user) {
-          setError('User info not found.');
-          return;
-        }
+        hasExchanged.current = true;
 
         // Call backend endpoint to create/link user with Clerk
         const response = await fetch(`${apiBase}/api/auth/clerk`, {
@@ -55,7 +55,7 @@ export default function ClerkCallback() {
     };
 
     exchangeToken();
-  }, [session, navigate]);
+  }, [isLoaded, isSignedIn, user, navigate, apiBase]);
 
   if (error) {
     return (

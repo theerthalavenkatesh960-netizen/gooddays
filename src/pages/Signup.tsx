@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, User, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
 import { useNavigate } from 'react-router-dom';
-import { useSignIn } from '@clerk/clerk-react';
+import { useSignUp } from '@clerk/clerk-react';
 
 export default function Signup() {
   const [name, setName] = useState('');
@@ -12,7 +12,7 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
-  const { isLoaded, signIn: clerkSignIn } = useSignIn();
+  const { isLoaded, signUp: clerkSignUp } = useSignUp();
   const navigate = useNavigate();
 
   const handleEmailSignup = async (e: React.FormEvent) => {
@@ -34,9 +34,9 @@ export default function Signup() {
     setError('');
     setLoading(true);
     try {
-      if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready yet.');
+      if (!isLoaded || !clerkSignUp) throw new Error('Clerk is not ready yet.');
 
-      await clerkSignIn.authenticateWithRedirect({
+      await clerkSignUp.authenticateWithRedirect({
         strategy: 'oauth_google',
         redirectUrl: '/auth/callback',
         redirectUrlComplete: '/',
