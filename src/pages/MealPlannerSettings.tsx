@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Calendar, BookOpen, UtensilsCrossed, Loader2, Filter, Search, Layers, ChefHat } from 'lucide-react';
 import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
@@ -329,23 +330,27 @@ export default function MealPlannerSettings() {
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Meals & Nutrition</h1>
       </div>
 
-      <div className="flex gap-1 mb-3 sm:mb-5 p-1 rounded-xl w-fit" style={{ backgroundColor: 'var(--surface)' }}>
-        <button onClick={() => setTab('weekly')} className="flex-1 flex items-center justify-center gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all press"
-          style={{ backgroundColor: tab === 'weekly' ? 'var(--accent)' : 'transparent', color: tab === 'weekly' ? '#fff' : 'var(--text-muted)' }}>
-          <Calendar size={15} /> Weekly Meals
-        </button>
-        <button onClick={() => setTab('library')} className="flex-1 flex items-center justify-center gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all press"
-          style={{ backgroundColor: tab === 'library' ? 'var(--accent)' : 'transparent', color: tab === 'library' ? '#fff' : 'var(--text-muted)' }}>
-          <BookOpen size={15} /> Meal Library
-        </button>
-      </div>
-
-      {status && (
-        <div className="mb-3 px-3 py-2 rounded-xl text-xs font-semibold"
-          style={{ backgroundColor: status.toLowerCase().includes('fail') || status.toLowerCase().includes('error') ? 'rgba(255,107,107,0.1)' : 'rgba(78, 205, 196, 0.1)', color: status.toLowerCase().includes('fail') || status.toLowerCase().includes('error') ? 'var(--accent-warm)' : 'var(--accent-green)' }}>
-          {status}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl p-3 sm:p-5 shadow-xl mb-3 sm:mb-5"
+      >
+        <div className="flex gap-1 mb-3 sm:mb-5 bg-gray-100 p-1 rounded-xl w-fit">
+          <button onClick={() => setTab('weekly')} className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${tab === 'weekly' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}>
+            <Calendar size={14} /> Weekly Meals
+          </button>
+          <button onClick={() => setTab('library')} className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${tab === 'library' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}>
+            <BookOpen size={14} /> Meal Library
+          </button>
         </div>
-      )}
+
+        {status && (
+          <div className="px-3 py-2 rounded-xl text-xs font-semibold"
+            style={{ backgroundColor: status.toLowerCase().includes('fail') || status.toLowerCase().includes('error') ? 'rgba(255,107,107,0.1)' : 'rgba(78, 205, 196, 0.1)', color: status.toLowerCase().includes('fail') || status.toLowerCase().includes('error') ? 'var(--accent-warm)' : 'var(--accent-green)' }}>
+            {status}
+          </div>
+        )}
+      </motion.div>
 
       {tab === 'weekly' && (
         <div className="space-y-2.5">
@@ -387,9 +392,9 @@ export default function MealPlannerSettings() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-base sm:text-lg font-semibold capitalize">{selectedDayLabel}</p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-xs text-gray-500">
                 {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''}
-                {selectedDayCalories > 0 && <span style={{ color: 'var(--accent-gold)' }}> · {Math.round(selectedDayCalories)} kcal</span>}
+                {selectedDayCalories > 0 && <span className="text-yellow-600"> · {Math.round(selectedDayCalories)} kcal</span>}
               </p>
             </div>
             <div className="flex items-center gap-2">
