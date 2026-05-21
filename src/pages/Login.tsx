@@ -5,10 +5,23 @@ import { useAuth } from '../contexts/AuthContextApi';
 import { useNavigate } from 'react-router-dom';
 import { useSignIn } from '@clerk/clerk-react';
 
+function formatClerkError(err: any): string {
+  try {
+    const first = Array.isArray(err?.errors) ? err.errors[0] : null;
+    const code = first?.code || err?.code || 'unknown_error';
+    const message = first?.longMessage || first?.message || err?.message || 'Unknown Clerk error';
+    const status = err?.status ? `status=${err.status}` : 'status=n/a';
+    return `[Clerk debug] ${status} code=${code} message=${message}`;
+  } catch {
+    return '[Clerk debug] Unable to parse Clerk error payload';
+  }
+}
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [debugError, setDebugError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
@@ -31,17 +44,21 @@ export default function Login() {
 
   const handleGoogleLogin = async () => {
     setError('');
+    setDebugError('');
     setLoading(true);
     try {
       if (!isLoaded || !clerkSignIn) throw new Error('Clerk is not ready yet.');
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+      const redirectUrlComplete = `${window.location.origin}/`;
 
       await clerkSignIn.authenticateWithRedirect({
         strategy: 'oauth_google',
-        redirectUrl: '/auth/callback',
-        redirectUrlComplete: '/',
+        redirectUrl,
+        redirectUrlComplete,
       });
     } catch (err: any) {
       setError(err?.message || 'Failed to login with Google');
+      setDebugError(formatClerkError(err));
       setLoading(false);
     }
   };
@@ -76,7 +93,12 @@ export default function Login() {
               className="p-3 rounded-xl mb-4 text-sm"
               style={{ background: 'rgba(255,107,107,0.12)', color: 'var(--accent-warm)', border: '1px solid rgba(255,107,107,0.2)' }}
             >
-              {error}
+              <div>{error}</div>
+              {debugError && (
+                <pre className="mt-2 text-[11px] whitespace-pre-wrap" style={{ color: 'var(--text-secondary)' }}>
+                  {debugError}
+                </pre>
+              )}
             </motion.div>
           )}
 
