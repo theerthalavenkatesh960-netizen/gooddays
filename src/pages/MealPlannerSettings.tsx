@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Calendar, BookOpen, UtensilsCrossed, Loader2, Filter, Search, Layers, ChefHat } from 'lucide-react';
 import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
@@ -330,27 +329,21 @@ export default function MealPlannerSettings() {
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Meals & Nutrition</h1>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-3 sm:p-5 shadow-xl mb-3 sm:mb-5"
-      >
-        <div className="flex gap-1 mb-3 sm:mb-5 bg-gray-100 p-1 rounded-xl w-fit">
-          <button onClick={() => setTab('weekly')} className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${tab === 'weekly' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}>
-            <Calendar size={14} /> Weekly Meals
-          </button>
-          <button onClick={() => setTab('library')} className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${tab === 'library' ? 'bg-white text-emerald-700 shadow-md' : 'text-gray-500 hover:text-gray-800'}`}>
-            <BookOpen size={14} /> Meal Library
-          </button>
-        </div>
+      <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ backgroundColor: 'var(--surface)' }}>
+        <button onClick={() => setTab('weekly')} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${tab === 'weekly' ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+          <Calendar size={14} /> Weekly Meals
+        </button>
+        <button onClick={() => setTab('library')} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${tab === 'library' ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+          <BookOpen size={14} /> Meal Library
+        </button>
+      </div>
 
-        {status && (
-          <div className="px-3 py-2 rounded-xl text-xs font-semibold"
-            style={{ backgroundColor: status.toLowerCase().includes('fail') || status.toLowerCase().includes('error') ? 'rgba(255,107,107,0.1)' : 'rgba(78, 205, 196, 0.1)', color: status.toLowerCase().includes('fail') || status.toLowerCase().includes('error') ? 'var(--accent-warm)' : 'var(--accent-green)' }}>
-            {status}
-          </div>
-        )}
-      </motion.div>
+      {status && (
+        <div className="mb-3 px-3 py-2 rounded-xl text-xs font-semibold"
+          style={{ backgroundColor: status.toLowerCase().includes('fail') || status.toLowerCase().includes('error') ? 'rgba(255,107,107,0.1)' : 'rgba(78, 205, 196, 0.1)', color: status.toLowerCase().includes('fail') || status.toLowerCase().includes('error') ? 'var(--accent-warm)' : 'var(--accent-green)' }}>
+          {status}
+        </div>
+      )}
 
       {tab === 'weekly' && (
         <div className="space-y-2.5">

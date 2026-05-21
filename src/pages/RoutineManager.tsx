@@ -287,62 +287,56 @@ export default function RoutineManager() {
       </div>
 
       {/* ── Section 1: Routines ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl p-3 sm:p-5 shadow-xl mb-3 sm:mb-5"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <button onClick={() => setCreatingRoutine(c => !c)}
-              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-500 text-white rounded-lg font-semibold text-xs sm:text-sm flex items-center gap-1.5">
-              <Plus size={16} /> New Routine
-            </button>
-          </div>
-        </div>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Routines</h2>
+        <button onClick={() => setCreatingRoutine(c => !c)}
+          className="p-2 rounded-xl press" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--accent)' }}>
+          <Plus size={16} />
+        </button>
+      </div>
 
-        <AnimatePresence>
-          {creatingRoutine && (
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-              className="rounded-xl p-4 mb-3 space-y-3" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
-              <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
-                placeholder="Routine name (e.g. Weekday Hustle)" autoFocus
-                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-                style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
-              <div>
-                <p className="text-xs font-semibold mb-2 text-gray-500">Color</p>
-                <div className="flex gap-2 flex-wrap">
-                  {COLORS.map(c => (
-                    <button key={c} onClick={() => setNewColor(c)}
-                      className="w-7 h-7 rounded-full press flex items-center justify-center"
-                      style={{ backgroundColor: c }}>
-                      {newColor === c && <Check size={12} color="#fff" />}
-                    </button>
-                  ))}
-                </div>
+      {/* New routine form */}
+      <AnimatePresence>
+        {creatingRoutine && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="rounded-2xl p-4 mb-3 space-y-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
+              placeholder="Routine name (e.g. Weekday Hustle)" autoFocus
+              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+            <div>
+              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Color</p>
+              <div className="flex gap-2 flex-wrap">
+                {COLORS.map(c => (
+                  <button key={c} onClick={() => setNewColor(c)}
+                    className="w-7 h-7 rounded-full press flex items-center justify-center"
+                    style={{ backgroundColor: c }}>
+                    {newColor === c && <Check size={12} color="#fff" />}
+                  </button>
+                ))}
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => setCreatingRoutine(false)} className="px-4 py-2 rounded-xl text-xs font-semibold press"
-                  style={{ backgroundColor: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                  Cancel
-                </button>
-                <button onClick={createRoutine} disabled={!newName.trim()}
-                  className="flex-1 py-2 rounded-xl text-xs font-semibold text-white press disabled:opacity-40"
-                  style={{ backgroundColor: 'var(--accent)' }}>
-                  Create
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setCreatingRoutine(false)} className="px-4 py-2 rounded-xl text-xs font-semibold press"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                Cancel
+              </button>
+              <button onClick={createRoutine} disabled={!newName.trim()}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold text-white press disabled:opacity-40"
+                style={{ backgroundColor: 'var(--accent)' }}>
+                Create
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        <div className="space-y-3">
-          {routines.length === 0 && !creatingRoutine && (
-            <p className="text-sm text-center py-6 text-gray-400">No routines yet. Tap New Routine to create one.</p>
-          )}
-          {routines.map(r => <RoutineCard key={r.id} routine={r} onRefresh={load} />)}
-        </div>
-      </motion.div>
+      <div className="space-y-3 mb-6">
+        {routines.length === 0 && !creatingRoutine && (
+          <p className="text-sm text-center py-6" style={{ color: 'var(--text-muted)' }}>No routines yet. Tap + to create one.</p>
+        )}
+        {routines.map(r => <RoutineCard key={r.id} routine={r} onRefresh={load} />)}
+      </div>
 
       {/* ── Section 2: Weekly Schedule ── */}
       <div className="mb-4">
