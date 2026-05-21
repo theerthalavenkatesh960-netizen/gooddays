@@ -52,6 +52,9 @@ export default function MealTemplateDetails() {
   const [meal, setMeal] = useState<MealTemplate | null>(null);
   const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState('');
+  const [ingredientOptions, setIngredientOptions] = useState<Array<{ id: number; name: string; caloriesKcal: number; proteinG: number; carbsG: number; fatsG: number; baseQty?: number; baseUnit?: string }>>([]);
+  const [editableIngredients, setEditableIngredients] = useState<IngSnap[]>([]);
+  const [selectedIngredientId, setSelectedIngredientId] = useState<number>(0);
   const [form, setForm] = useState({
     name: '',
     timing: 'breakfast',
@@ -65,6 +68,24 @@ export default function MealTemplateDetails() {
     load();
   }, [id]);
 
+  useEffect(() => {
+    async function loadIngredients() {
+      try {
+        const data = await api.getMealIngredients();
+        const list = Array.isArray(data) ? data : [];
+        setIngredientOptions(list);
+      } catch {
+        setIngredientOptions([]);
+      }
+    }
+    loadIngredients();
+  }, []);
+
+  useEffect(() => {
+    if (!editing) return;
+    setForm((prev) => ({ ...prev, ingredientsJson: JSON.stringify(editableIngredients) }));
+  }, [editableIngredients, editing]);
+
   async function load() {
     const mealId = Number(id);
     if (!mealId) return;
@@ -74,6 +95,7 @@ export default function MealTemplateDetails() {
     const found = list.find(m => m.id === mealId) || null;
     setMeal(found);
     if (found) {
+      const parsedIngredients = parseIngredients(found.ingredientsJson || '[]');
       setForm({
         name: found.name || '',
         timing: found.timing || 'breakfast',
@@ -82,6 +104,8 @@ export default function MealTemplateDetails() {
         recipe: found.recipe || '',
         imageUrl: found.imageUrl || '',
       });
+      setEditableIngredients(parsedIngredients);
+      setSelectedIngredientId(0);
     }
   }
 
@@ -104,6 +128,7 @@ export default function MealTemplateDetails() {
         imageUrl: form.imageUrl.trim() || null,
       });
       setMeal(updated);
+      setEditableIngredients(parseIngredients(updated.ingredientsJson || '[]'));
       setEditing(false);
       setStatus('Meal updated');
       setTimeout(() => setStatus(''), 1200);
@@ -119,6 +144,38 @@ export default function MealTemplateDetails() {
     carbs: ingredients.reduce((s, i) => s + i.carbsG, 0),
     fats: ingredients.reduce((s, i) => s + i.fatsG, 0),
   }), [ingredients]);
+
+  const addIngredient = () => {
+    if (!selectedIngredientId) return;
+    const chosen = ingredientOptions.find((i) => i.id === selectedIngredientId);
+    if (!chosen) return;
+    if (editableIngredients.some((i) => i.id === chosen.id)) return;
+
+    setEditableIngredients((prev) => [
+      ...prev,
+      {
+        id: chosen.id,
+        name: chosen.name,
+        qty: Number(chosen.baseQty || 100),
+        baseQty: Number(chosen.baseQty || 100),
+        baseUnit: chosen.baseUnit || 'g',
+        caloriesKcal: Number(chosen.caloriesKcal || 0),
+        proteinG: Number(chosen.proteinG || 0),
+        carbsG: Number(chosen.carbsG || 0),
+        fatsG: Number(chosen.fatsG || 0),
+      },
+    ]);
+    setSelectedIngredientId(0);
+  };
+
+  const updateIngredientQty = (idToUpdate: number, nextQty: number) => {
+    const safeQty = Math.max(0.1, Number(nextQty) || 1);
+    setEditableIngredients((prev) => prev.map((i) => (i.id === idToUpdate ? { ...i, qty: safeQty } : i)));
+  };
+
+  const removeIngredient = (idToRemove: number) => {
+    setEditableIngredients((prev) => prev.filter((i) => i.id !== idToRemove));
+  };
 
   if (!meal) {
     return (
@@ -209,13 +266,63 @@ export default function MealTemplateDetails() {
       <div className="rounded-2xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <p className="text-xs uppercase font-semibold mb-3" style={{ color: 'var(--text-muted)' }}>Ingredients</p>
         {editing ? (
-          <textarea
-            value={form.ingredientsJson}
-            onChange={e => setForm(p => ({ ...p, ingredientsJson: e.target.value }))}
-            rows={8}
-            className="w-full px-3 py-2 rounded-xl text-xs outline-none font-mono"
-            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-          />
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <select
+                value={selectedIngredientId || ''}
+                onChange={(e) => setSelectedIngredientId(Number(e.target.value || 0))}
+                className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+              >
+                <option value="">Select ingredient to add</option>
+                {ingredientOptions
+                  .filter((opt) => !editableIngredients.some((ing) => ing.id === opt.id))
+                  .map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.name}</option>
+                  ))}
+              </select>
+              <button
+                type="button"
+                onClick={addIngredient}
+                className="px-3 py-2 rounded-lg text-xs font-semibold text-white"
+                style={{ backgroundColor: 'var(--accent)' }}
+              >
+                Add
+              </button>
+            </div>
+
+            {editableIngredients.length === 0 ? (
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No ingredients added yet.</p>
+            ) : (
+              editableIngredients.map((ing) => (
+                <div key={`${ing.id}-${ing.name}`} className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{ing.name}</p>
+                    <button
+                      type="button"
+                      onClick={() => removeIngredient(ing.id)}
+                      className="px-2 py-1 rounded-lg text-xs"
+                      style={{ backgroundColor: 'var(--surface)', color: 'var(--accent-warm)' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      value={ing.qty}
+                      onChange={(e) => updateIngredientQty(ing.id, Number(e.target.value))}
+                      className="w-28 px-2.5 py-1.5 rounded-lg text-sm outline-none"
+                      style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
+                    />
+                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{ing.baseUnit}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         ) : ingredients.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No ingredients listed.</p>
         ) : (

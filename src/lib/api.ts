@@ -141,6 +141,12 @@ export function getSession(): Session {
   try { return JSON.parse(raw); } catch { return null; }
 }
 
+function getSessionUserId(): number | null {
+  const session = getSession();
+  const id = session?.user?.id;
+  return Number.isFinite(id) ? Number(id) : null;
+}
+
 export async function getProfile(id: number) {
   return request(`userprofiles/${id}`);
 }
@@ -1378,7 +1384,9 @@ function withBudgetOverrides(profile: FinanceBudgetProfile, month?: number, year
 export async function getFinanceBudgetProfile(month?: number, year?: number) {
   if (DUMMY_FLAGS.finance) return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
 
+  const userId = getSessionUserId();
   const params = new URLSearchParams();
+  if (userId) params.set('userId', String(userId));
   if (typeof month === 'number' && typeof year === 'number') {
     params.set('month', String(month));
     params.set('year', String(year));
@@ -1392,7 +1400,8 @@ export async function updateFinanceMonthlyIncome(monthlyIncome: number) {
     DUMMY_FINANCE_BUDGET = { ...DUMMY_FINANCE_BUDGET, monthlyIncome };
     return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET));
   }
-  return request('financialbudget', { method: 'PUT', body: JSON.stringify({ monthlyIncome }) });
+  const userId = getSessionUserId();
+  return request(`financialbudget${userId ? `?userId=${userId}` : ''}`, { method: 'PUT', body: JSON.stringify({ monthlyIncome }) });
 }
 
 export async function addFinanceFixedExpense(name: string, amount: number) {
@@ -1404,7 +1413,8 @@ export async function addFinanceFixedExpense(name: string, amount: number) {
     };
     return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET));
   }
-  return request('financialbudget/fixed-expenses', {
+  const userId = getSessionUserId();
+  return request(`financialbudget/fixed-expenses${userId ? `?userId=${userId}` : ''}`, {
     method: 'POST',
     body: JSON.stringify({ name, amount }),
   });
@@ -1419,7 +1429,8 @@ export async function deleteFinanceFixedExpense(id: string) {
     DUMMY_FIXED_EXPENSE_OVERRIDES = DUMMY_FIXED_EXPENSE_OVERRIDES.filter((x) => x.fixedExpenseId !== id);
     return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET));
   }
-  return request(`financialbudget/fixed-expenses/${id}`, { method: 'DELETE' });
+  const userId = getSessionUserId();
+  return request(`financialbudget/fixed-expenses/${id}${userId ? `?userId=${userId}` : ''}`, { method: 'DELETE' });
 }
 
 export async function upsertFinanceMonthlyIncomeOverride(month: number, year: number, amount: number) {
@@ -1432,7 +1443,8 @@ export async function upsertFinanceMonthlyIncomeOverride(month: number, year: nu
     }
     return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
   }
-  return request('financialbudget/monthly-income-override', {
+  const userId = getSessionUserId();
+  return request(`financialbudget/monthly-income-override${userId ? `?userId=${userId}` : ''}`, {
     method: 'PUT',
     body: JSON.stringify({ month, year, amount }),
   });
@@ -1443,7 +1455,8 @@ export async function deleteFinanceMonthlyIncomeOverride(month: number, year: nu
     DUMMY_MONTHLY_INCOME_OVERRIDES = DUMMY_MONTHLY_INCOME_OVERRIDES.filter((x) => !(x.month === month && x.year === year));
     return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
   }
-  return request(`financialbudget/monthly-income-override?month=${month}&year=${year}`, {
+  const userId = getSessionUserId();
+  return request(`financialbudget/monthly-income-override?month=${month}&year=${year}${userId ? `&userId=${userId}` : ''}`, {
     method: 'DELETE',
   });
 }
@@ -1460,7 +1473,8 @@ export async function upsertFinanceFixedExpenseOverride(fixedExpenseId: string, 
     }
     return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
   }
-  return request(`financialbudget/fixed-expenses/${fixedExpenseId}/override`, {
+  const userId = getSessionUserId();
+  return request(`financialbudget/fixed-expenses/${fixedExpenseId}/override${userId ? `?userId=${userId}` : ''}`, {
     method: 'PUT',
     body: JSON.stringify({ month, year, amount }),
   });
@@ -1473,7 +1487,8 @@ export async function deleteFinanceFixedExpenseOverride(fixedExpenseId: string, 
     );
     return Promise.resolve(withBudgetOverrides(DUMMY_FINANCE_BUDGET, month, year));
   }
-  return request(`financialbudget/fixed-expenses/${fixedExpenseId}/override?month=${month}&year=${year}`, {
+  const userId = getSessionUserId();
+  return request(`financialbudget/fixed-expenses/${fixedExpenseId}/override?month=${month}&year=${year}${userId ? `&userId=${userId}` : ''}`, {
     method: 'DELETE',
   });
 }
@@ -1481,14 +1496,14 @@ export async function deleteFinanceFixedExpenseOverride(fixedExpenseId: string, 
 // ─── Finance: Buckets API ──────────────────────────────────────────────────────
 
 export interface BucketContribution {
-  id: number;
+  id: string | number;
   date: string;
   amount: number;
   note?: string;
 }
 
 export interface Bucket {
-  id: number;
+  id: string | number;
   name: string;
   icon: string;
   target: number;
@@ -1498,6 +1513,28 @@ export interface Bucket {
   periodMonths: number;
   investedIn: string;
   contributions: BucketContribution[];
+}
+
+function normalizeBucket(raw: any): Bucket {
+  return {
+    id: raw.id,
+    name: raw.name || 'Bucket',
+    icon: raw.icon || '🪣',
+    target: Number(raw.target ?? raw.targetAmount ?? 0),
+    current: Number(raw.current ?? raw.currentAmount ?? 0),
+    color: raw.color || raw.colorHex || '#4ECDC4',
+    frequency: (raw.frequency || 'monthly') as Bucket['frequency'],
+    periodMonths: Number(raw.periodMonths || 0),
+    investedIn: raw.investedIn || '',
+    contributions: Array.isArray(raw.contributions)
+      ? raw.contributions.map((c: any) => ({
+          id: c.id,
+          date: c.date || c.contributionDate || new Date().toISOString().split('T')[0],
+          amount: Number(c.amount || 0),
+          note: c.note || '',
+        }))
+      : [],
+  };
 }
 
 let DUMMY_BUCKETS: Bucket[] = [
@@ -1539,60 +1576,98 @@ let DUMMY_BUCKETS: Bucket[] = [
 
 export async function getBuckets() {
   if (DUMMY_FLAGS.finance) return Promise.resolve(DUMMY_BUCKETS);
-  return request('financialbuckets');
+  const userId = getSessionUserId();
+  const rows = await request(`financialbuckets${userId ? `?userId=${userId}` : ''}`);
+  return Array.isArray(rows) ? rows.map(normalizeBucket) : [];
 }
 
-export async function getBucketById(id: number) {
+export async function getBucketById(id: string | number) {
   if (DUMMY_FLAGS.finance) return Promise.resolve(DUMMY_BUCKETS.find(b => b.id === id) ?? null);
-  return request(`financialbuckets/${id}`);
+  const userId = getSessionUserId();
+  const row = await request(`financialbuckets/${id}${userId ? `?userId=${userId}` : ''}`);
+  return row ? normalizeBucket(row) : null;
 }
 
 export async function createBucket(body: any) {
   if (DUMMY_FLAGS.finance) {
-    const b: Bucket = { id: Math.max(...DUMMY_BUCKETS.map(b => b.id), 0) + 1, contributions: [], ...body };
+    const nextId = Math.max(...DUMMY_BUCKETS.map(b => Number(b.id) || 0), 0) + 1;
+    const b: Bucket = { id: nextId, contributions: [], ...body };
     DUMMY_BUCKETS.push(b);
     return Promise.resolve(b);
   }
-  return request('financialbuckets', { method: 'POST', body: JSON.stringify(body) });
+  const userId = getSessionUserId();
+  const payload = {
+    name: body.name,
+    category: body.category || 'MISCELLANEOUS',
+    monthlyTarget: Number(body.monthlyTarget ?? body.target ?? 0),
+    targetAmount: Number(body.targetAmount ?? body.target ?? 0),
+    currentAmount: Number(body.currentAmount ?? body.current ?? 0),
+    frequency: body.frequency || 'monthly',
+    periodMonths: Number(body.periodMonths || 0),
+    investedIn: body.investedIn || null,
+    colorHex: body.colorHex || body.color || null,
+    icon: body.icon || null,
+    sortOrder: Number(body.sortOrder || 0),
+  };
+  const created = await request(`financialbuckets${userId ? `?userId=${userId}` : ''}`, { method: 'POST', body: JSON.stringify(payload) });
+  return normalizeBucket(created);
 }
 
-export async function updateBucket(id: number, body: any) {
+export async function updateBucket(id: string | number, body: any) {
   if (DUMMY_FLAGS.finance) {
     const b = DUMMY_BUCKETS.find(b => b.id === id);
     if (b) Object.assign(b, body);
     return Promise.resolve(b);
   }
-  return request(`financialbuckets/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+  const userId = getSessionUserId();
+  const payload = {
+    name: body.name,
+    category: body.category,
+    monthlyTarget: body.monthlyTarget ?? body.target,
+    targetAmount: body.targetAmount ?? body.target,
+    currentAmount: body.currentAmount ?? body.current,
+    frequency: body.frequency,
+    periodMonths: body.periodMonths,
+    investedIn: body.investedIn,
+    colorHex: body.colorHex ?? body.color,
+    icon: body.icon,
+    sortOrder: body.sortOrder,
+  };
+  const updated = await request(`financialbuckets/${id}${userId ? `?userId=${userId}` : ''}`, { method: 'PUT', body: JSON.stringify(payload) });
+  return updated ? normalizeBucket(updated) : null;
 }
 
-export async function deleteBucket(id: number) {
+export async function deleteBucket(id: string | number) {
   if (DUMMY_FLAGS.finance) {
     const idx = DUMMY_BUCKETS.findIndex(b => b.id === id);
     if (idx >= 0) DUMMY_BUCKETS.splice(idx, 1);
     return Promise.resolve({ success: true });
   }
-  return request(`financialbuckets/${id}`, { method: 'DELETE' });
+  const userId = getSessionUserId();
+  return request(`financialbuckets/${id}${userId ? `?userId=${userId}` : ''}`, { method: 'DELETE' });
 }
 
-export async function addToBucket(id: number, amount: number) {
+export async function addToBucket(id: string | number, amount: number) {
   return addContribution(id, amount);
 }
 
-export async function addContribution(bucketId: number, amount: number, note?: string) {
+export async function addContribution(bucketId: string | number, amount: number, note?: string) {
   if (DUMMY_FLAGS.finance) {
     const b = DUMMY_BUCKETS.find(b => b.id === bucketId);
     if (!b) return null;
-    const allIds = DUMMY_BUCKETS.flatMap(bk => bk.contributions.map(c => c.id));
+    const allIds = DUMMY_BUCKETS.flatMap(bk => bk.contributions.map(c => Number(c.id) || 0));
     const newId = allIds.length ? Math.max(...allIds) + 1 : 1;
     const contrib: BucketContribution = { id: newId, date: new Date().toISOString().split('T')[0], amount, note: note || '' };
     b.contributions.push(contrib);
     b.current = b.contributions.reduce((s, c) => s + c.amount, 0);
     return Promise.resolve({ bucket: b, contribution: contrib });
   }
-  return request(`financialbuckets/${bucketId}/contributions`, { method: 'POST', body: JSON.stringify({ amount, note }) });
+  const userId = getSessionUserId();
+  const updated = await request(`financialbuckets/${bucketId}/contributions${userId ? `?userId=${userId}` : ''}`, { method: 'POST', body: JSON.stringify({ amount, note }) });
+  return updated ? normalizeBucket(updated) : null;
 }
 
-export async function deleteContribution(bucketId: number, contributionId: number) {
+export async function deleteContribution(bucketId: string | number, contributionId: string | number) {
   if (DUMMY_FLAGS.finance) {
     const b = DUMMY_BUCKETS.find(b => b.id === bucketId);
     if (!b) return null;
@@ -1600,7 +1675,9 @@ export async function deleteContribution(bucketId: number, contributionId: numbe
     b.current = b.contributions.reduce((s, c) => s + c.amount, 0);
     return Promise.resolve({ bucket: b });
   }
-  return request(`financialbuckets/${bucketId}/contributions/${contributionId}`, { method: 'DELETE' });
+  const userId = getSessionUserId();
+  const updated = await request(`financialbuckets/${bucketId}/contributions/${contributionId}${userId ? `?userId=${userId}` : ''}`, { method: 'DELETE' });
+  return updated ? normalizeBucket(updated) : null;
 }
 
 export async function withdrawFromBucket(id: number, amount: number) {
@@ -1623,7 +1700,20 @@ let DUMMY_INVESTMENTS = [
 
 export async function getInvestments() {
   if (DUMMY_FLAGS.finance) return Promise.resolve(DUMMY_INVESTMENTS);
-  return request('investments');
+  const buckets = await getBuckets();
+  return (buckets || []).map((b: any) => {
+    const invested = Number(b.target || 0);
+    const current = Number(b.current || 0);
+    const change = invested > 0 ? Number((((current - invested) / invested) * 100).toFixed(1)) : 0;
+    return {
+      id: b.id,
+      name: b.name,
+      type: b.investedIn || 'Investment',
+      invested,
+      current,
+      change,
+    };
+  });
 }
 
 export async function createInvestment(body: any) {
@@ -1632,10 +1722,30 @@ export async function createInvestment(body: any) {
     DUMMY_INVESTMENTS.push(inv);
     return Promise.resolve(inv);
   }
-  return request('investments', { method: 'POST', body: JSON.stringify(body) });
+  const created = await createBucket({
+    name: body.name,
+    category: 'WEALTH',
+    target: Number(body.invested || 0),
+    current: Number(body.current || 0),
+    frequency: 'monthly',
+    periodMonths: 12,
+    investedIn: body.type || 'Investment',
+    icon: '📈',
+    color: '#4ECDC4',
+  });
+  const invested = Number(body.invested || 0);
+  const current = Number(body.current || 0);
+  return {
+    id: created.id,
+    name: created.name,
+    type: body.type || 'Investment',
+    invested,
+    current,
+    change: invested > 0 ? Number((((current - invested) / invested) * 100).toFixed(1)) : 0,
+  };
 }
 
-export async function updateInvestment(id: number, body: any) {
+export async function updateInvestment(id: string | number, body: any) {
   if (DUMMY_FLAGS.finance) {
     const inv = DUMMY_INVESTMENTS.find(i => i.id === id);
     if (inv) {
@@ -1645,16 +1755,32 @@ export async function updateInvestment(id: number, body: any) {
     }
     return Promise.resolve(inv);
   }
-  return request(`investments/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+  await updateBucket(id, {
+    name: body.name,
+    category: 'WEALTH',
+    target: Number(body.invested || 0),
+    current: Number(body.current || 0),
+    investedIn: body.type || 'Investment',
+  });
+  const invested = Number(body.invested || 0);
+  const current = Number(body.current || 0);
+  return {
+    id,
+    name: body.name,
+    type: body.type || 'Investment',
+    invested,
+    current,
+    change: invested > 0 ? Number((((current - invested) / invested) * 100).toFixed(1)) : 0,
+  };
 }
 
-export async function deleteInvestment(id: number) {
+export async function deleteInvestment(id: string | number) {
   if (DUMMY_FLAGS.finance) {
     const idx = DUMMY_INVESTMENTS.findIndex(i => i.id === id);
     if (idx >= 0) DUMMY_INVESTMENTS.splice(idx, 1);
     return Promise.resolve({ success: true });
   }
-  return request(`investments/${id}`, { method: 'DELETE' });
+  return deleteBucket(id);
 }
 
 // ─── Vehicles API ──────────────────────────────────────────────────────────────

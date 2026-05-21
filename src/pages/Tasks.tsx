@@ -296,7 +296,7 @@ const renderOccurrences = (task: any) => {
         className="bg-white rounded-2xl p-3 sm:p-5 shadow-xl mb-3 sm:mb-5"
       >
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => { setEditingTask(null); setShowAddModal(true); }}
               className="px-3 py-1.5 sm:px-4 sm:py-2 bg-emerald-500 text-white rounded-lg font-semibold text-xs sm:text-sm flex items-center gap-1.5"
@@ -407,11 +407,19 @@ const renderOccurrences = (task: any) => {
       <div className="space-y-2.5">
         {/* Add Task Modal */}
         {showAddModal && (
-          <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => { setShowAddModal(false); setEditingTask(null); }}>
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-md flex flex-col shadow-2xl"
-              style={{ maxHeight: 'min(90dvh, calc(100vh - 32px))' }}
+          <motion.div className="fixed inset-0 z-50 bg-black/50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} onClick={() => { setShowAddModal(false); setEditingTask(null); }}>
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+              className="absolute bottom-0 left-0 right-0 mx-auto bg-white rounded-t-3xl w-full max-w-md flex flex-col shadow-2xl"
+              style={{ maxHeight: '85dvh', paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
               onClick={(e) => e.stopPropagation()}>
+
+              <div className="flex justify-center pt-2 pb-1">
+                <div className="w-10 h-1 rounded-full bg-gray-300" />
+              </div>
 
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">

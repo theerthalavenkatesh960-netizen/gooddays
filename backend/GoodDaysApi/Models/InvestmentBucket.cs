@@ -12,6 +12,9 @@ public class InvestmentBucket
     [Column("id")]
     public Guid Id { get; set; } = Guid.NewGuid();
 
+    [Column("user_id")]
+    public int UserId { get; set; }
+
     [Required]
     [Column("name")]
     [MaxLength(100)]
@@ -59,6 +62,7 @@ public class InvestmentBucket
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    public User? User { get; set; }
     public ICollection<MonthlyTask> Tasks { get; set; } = new List<MonthlyTask>();
     public ICollection<BucketContribution> Contributions { get; set; } = new List<BucketContribution>();
 }

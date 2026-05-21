@@ -252,6 +252,25 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<BucketContribution>()
             .HasIndex(c => new { c.BucketId, c.ContributionDate });
 
+        modelBuilder.Entity<InvestmentBucket>()
+            .HasOne(b => b.User)
+            .WithMany()
+            .HasForeignKey(b => b.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<InvestmentBucket>()
+            .HasIndex(b => new { b.UserId, b.IsActive });
+
+        modelBuilder.Entity<FinanceBudgetProfile>()
+            .HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<FinanceBudgetProfile>()
+            .HasIndex(p => p.UserId)
+            .IsUnique();
+
         modelBuilder.Entity<FinanceFixedExpense>()
             .HasOne(e => e.Profile)
             .WithMany(p => p.FixedExpenses)

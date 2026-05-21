@@ -113,6 +113,7 @@ CREATE TABLE IF NOT EXISTS financial_goals (
 
 CREATE TABLE IF NOT EXISTS investment_buckets (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
   name VARCHAR(100) NOT NULL,
   category VARCHAR(50) NOT NULL CHECK (category IN (
     'EMERGENCY_FUND', 'HEALTH', 'TRAVEL', 'MISCELLANEOUS', 'WEALTH', 'TRADING'
@@ -196,10 +197,27 @@ CREATE TABLE IF NOT EXISTS monthly_snapshots (
 
 CREATE TABLE IF NOT EXISTS finance_budget_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
   monthly_income DECIMAL(12,2) DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE investment_buckets
+  ADD COLUMN IF NOT EXISTS user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE;
+
+ALTER TABLE finance_budget_profiles
+  ADD COLUMN IF NOT EXISTS user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE;
+
+UPDATE investment_buckets
+SET user_id = (SELECT id FROM user_profiles ORDER BY id LIMIT 1)
+WHERE user_id IS NULL
+  AND EXISTS (SELECT 1 FROM user_profiles);
+
+UPDATE finance_budget_profiles
+SET user_id = (SELECT id FROM user_profiles ORDER BY id LIMIT 1)
+WHERE user_id IS NULL
+  AND EXISTS (SELECT 1 FROM user_profiles);
 
 CREATE TABLE IF NOT EXISTS finance_fixed_expenses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -424,11 +442,13 @@ CREATE INDEX IF NOT EXISTS idx_gamification_entries_user_id ON gamification_entr
 CREATE INDEX IF NOT EXISTS idx_monthly_income_overrides_profile_period ON finance_monthly_income_overrides(profile_id, month, year);
 CREATE INDEX IF NOT EXISTS idx_fixed_expense_overrides_expense_period ON finance_fixed_expense_overrides(fixed_expense_id, month, year);
 CREATE INDEX IF NOT EXISTS idx_investment_buckets_is_active ON investment_buckets(is_active);
+CREATE INDEX IF NOT EXISTS idx_investment_buckets_user_active ON investment_buckets(user_id, is_active);
 CREATE INDEX IF NOT EXISTS idx_monthly_tasks_bucket_id ON monthly_tasks(bucket_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_tasks_completions_task_id ON monthly_task_completions(task_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_tasks_completions_month_year ON monthly_task_completions(month, year);
 CREATE INDEX IF NOT EXISTS idx_financial_rules_category ON financial_rules(category);
 CREATE INDEX IF NOT EXISTS idx_monthly_snapshots_year_month ON monthly_snapshots(year DESC, month DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_finance_budget_profiles_user_id ON finance_budget_profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_finance_fixed_expenses_profile_sort ON finance_fixed_expenses(profile_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_credit_cards_user_id ON credit_cards(user_id);
 CREATE INDEX IF NOT EXISTS idx_credit_cards_user_issuer ON credit_cards(user_id, issuer);

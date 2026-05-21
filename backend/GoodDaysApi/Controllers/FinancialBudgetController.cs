@@ -18,12 +18,15 @@ public class FinancialBudgetController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetBudgetProfile([FromQuery] int? month, [FromQuery] int? year)
+    public async Task<IActionResult> GetBudgetProfile([FromQuery] int? month, [FromQuery] int? year, [FromQuery] int? userId = null)
     {
         if (!IsMonthYearValid(month, year, out var monthValue, out var yearValue))
             return BadRequest("When provided, month and year must both be valid values.");
 
-        var profile = await EnsureProfileAsync();
+        var resolvedUserId = ResolveUserId(userId);
+        if (resolvedUserId == null) return BadRequest("userId is required.");
+
+        var profile = await EnsureProfileAsync(resolvedUserId.Value);
         await _db.Entry(profile).Collection(p => p.FixedExpenses).LoadAsync();
 
         var incomeOverride = await GetIncomeOverrideAsync(profile.Id, monthValue, yearValue);
@@ -33,9 +36,12 @@ public class FinancialBudgetController : ControllerBase
     }
 
     [HttpPut]
-    public async Task<IActionResult> UpdateIncome([FromBody] UpdateBudgetIncomeRequest request)
+    public async Task<IActionResult> UpdateIncome([FromBody] UpdateBudgetIncomeRequest request, [FromQuery] int? userId = null)
     {
-        var profile = await EnsureProfileAsync();
+        var resolvedUserId = ResolveUserId(userId);
+        if (resolvedUserId == null) return BadRequest("userId is required.");
+
+        var profile = await EnsureProfileAsync(resolvedUserId.Value);
         profile.MonthlyIncome = request.MonthlyIncome;
         profile.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -45,14 +51,17 @@ public class FinancialBudgetController : ControllerBase
     }
 
     [HttpPut("monthly-income-override")]
-    public async Task<IActionResult> UpsertMonthlyIncomeOverride([FromBody] UpsertMonthlyIncomeOverrideRequest request)
+    public async Task<IActionResult> UpsertMonthlyIncomeOverride([FromBody] UpsertMonthlyIncomeOverrideRequest request, [FromQuery] int? userId = null)
     {
         if (!IsMonthYearValid(request.Month, request.Year))
             return BadRequest("Invalid month/year.");
         if (request.Amount < 0)
             return BadRequest("Amount must be >= 0.");
 
-        var profile = await EnsureProfileAsync();
+        var resolvedUserId = ResolveUserId(userId);
+        if (resolvedUserId == null) return BadRequest("userId is required.");
+
+        var profile = await EnsureProfileAsync(resolvedUserId.Value);
         var existing = await _db.MonthlyIncomeOverrides
             .FirstOrDefaultAsync(o => o.ProfileId == profile.Id && o.Month == request.Month && o.Year == request.Year);
 
@@ -82,12 +91,15 @@ public class FinancialBudgetController : ControllerBase
     }
 
     [HttpDelete("monthly-income-override")]
-    public async Task<IActionResult> DeleteMonthlyIncomeOverride([FromQuery] int month, [FromQuery] int year)
+    public async Task<IActionResult> DeleteMonthlyIncomeOverride([FromQuery] int month, [FromQuery] int year, [FromQuery] int? userId = null)
     {
         if (!IsMonthYearValid(month, year))
             return BadRequest("Invalid month/year.");
 
-        var profile = await EnsureProfileAsync();
+        var resolvedUserId = ResolveUserId(userId);
+        if (resolvedUserId == null) return BadRequest("userId is required.");
+
+        var profile = await EnsureProfileAsync(resolvedUserId.Value);
         var existing = await _db.MonthlyIncomeOverrides
             .FirstOrDefaultAsync(o => o.ProfileId == profile.Id && o.Month == month && o.Year == year);
 
@@ -103,12 +115,15 @@ public class FinancialBudgetController : ControllerBase
     }
 
     [HttpPost("fixed-expenses")]
-    public async Task<IActionResult> AddFixedExpense([FromBody] CreateFixedExpenseRequest request)
+    public async Task<IActionResult> AddFixedExpense([FromBody] CreateFixedExpenseRequest request, [FromQuery] int? userId = null)
     {
         if (string.IsNullOrWhiteSpace(request.Name) || request.Amount <= 0)
             return BadRequest("Name and amount are required");
 
-        var profile = await EnsureProfileAsync();
+        var resolvedUserId = ResolveUserId(userId);
+        if (resolvedUserId == null) return BadRequest("userId is required.");
+
+        var profile = await EnsureProfileAsync(resolvedUserId.Value);
         var sortOrder = await _db.FinanceFixedExpenses
             .Where(e => e.ProfileId == profile.Id)
             .Select(e => (int?)e.SortOrder)
@@ -131,12 +146,17 @@ public class FinancialBudgetController : ControllerBase
     }
 
     [HttpDelete("fixed-expenses/{id}")]
-    public async Task<IActionResult> DeleteFixedExpense(Guid id)
+    public async Task<IActionResult> DeleteFixedExpense(Guid id, [FromQuery] int? userId = null)
     {
-        var expense = await _db.FinanceFixedExpenses.FirstOrDefaultAsync(e => e.Id == id);
+        var resolvedUserId = ResolveUserId(userId);
+        if (resolvedUserId == null) return BadRequest("userId is required.");
+
+        var expense = await _db.FinanceFixedExpenses
+            .Include(e => e.Profile)
+            .FirstOrDefaultAsync(e => e.Id == id && e.Profile != null && e.Profile.UserId == resolvedUserId.Value);
         if (expense == null) return NotFound();
 
-        var profile = await EnsureProfileAsync();
+        var profile = await EnsureProfileAsync(resolvedUserId.Value);
         _db.FinanceFixedExpenses.Remove(expense);
         profile.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -146,14 +166,17 @@ public class FinancialBudgetController : ControllerBase
     }
 
     [HttpPut("fixed-expenses/{id}/override")]
-    public async Task<IActionResult> UpsertFixedExpenseOverride(Guid id, [FromBody] UpsertFixedExpenseOverrideRequest request)
+    public async Task<IActionResult> UpsertFixedExpenseOverride(Guid id, [FromBody] UpsertFixedExpenseOverrideRequest request, [FromQuery] int? userId = null)
     {
         if (!IsMonthYearValid(request.Month, request.Year))
             return BadRequest("Invalid month/year.");
         if (request.Amount < 0)
             return BadRequest("Amount must be >= 0.");
 
-        var profile = await EnsureProfileAsync();
+        var resolvedUserId = ResolveUserId(userId);
+        if (resolvedUserId == null) return BadRequest("userId is required.");
+
+        var profile = await EnsureProfileAsync(resolvedUserId.Value);
         await _db.Entry(profile).Collection(p => p.FixedExpenses).LoadAsync();
 
         var expense = profile.FixedExpenses.FirstOrDefault(e => e.Id == id);
@@ -188,12 +211,15 @@ public class FinancialBudgetController : ControllerBase
     }
 
     [HttpDelete("fixed-expenses/{id}/override")]
-    public async Task<IActionResult> DeleteFixedExpenseOverride(Guid id, [FromQuery] int month, [FromQuery] int year)
+    public async Task<IActionResult> DeleteFixedExpenseOverride(Guid id, [FromQuery] int month, [FromQuery] int year, [FromQuery] int? userId = null)
     {
         if (!IsMonthYearValid(month, year))
             return BadRequest("Invalid month/year.");
 
-        var profile = await EnsureProfileAsync();
+        var resolvedUserId = ResolveUserId(userId);
+        if (resolvedUserId == null) return BadRequest("userId is required.");
+
+        var profile = await EnsureProfileAsync(resolvedUserId.Value);
         await _db.Entry(profile).Collection(p => p.FixedExpenses).LoadAsync();
 
         var expense = profile.FixedExpenses.FirstOrDefault(e => e.Id == id);
@@ -213,19 +239,32 @@ public class FinancialBudgetController : ControllerBase
         return Ok(ToDto(profile, month, year, incomeOverride, fixedOverrideMap));
     }
 
-    private async Task<FinanceBudgetProfile> EnsureProfileAsync()
+    private async Task<FinanceBudgetProfile> EnsureProfileAsync(int userId)
     {
         var profile = await _db.FinanceBudgetProfiles
             .Include(p => p.FixedExpenses)
+            .Where(p => p.UserId == userId)
             .OrderBy(p => p.CreatedAt)
             .FirstOrDefaultAsync();
 
         if (profile != null) return profile;
 
-        profile = new FinanceBudgetProfile { MonthlyIncome = 0 };
+        profile = new FinanceBudgetProfile { MonthlyIncome = 0, UserId = userId };
         _db.FinanceBudgetProfiles.Add(profile);
         await _db.SaveChangesAsync();
         return profile;
+    }
+
+    private int? ResolveUserId(int? explicitUserId)
+    {
+        if (explicitUserId.HasValue) return explicitUserId;
+
+        var userIdClaim =
+            User.FindFirst("userId")?.Value
+            ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+
+        return int.TryParse(userIdClaim, out var parsed) ? parsed : null;
     }
 
     private async Task<MonthlyIncomeOverride?> GetIncomeOverrideAsync(Guid profileId, int? month, int? year)

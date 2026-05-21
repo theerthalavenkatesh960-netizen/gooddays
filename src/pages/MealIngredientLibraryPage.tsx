@@ -212,12 +212,12 @@ export default function MealIngredientLibraryPage() {
                       <button onClick={() => remove(i.id)} className="p-1 rounded-lg" style={{ color: 'var(--accent-warm)' }}><Trash2 size={14} /></button>
                     </div>
                   </div>
-                  <p className="text-[10px] mb-1.5" style={{ color: 'var(--text-muted)' }}>per {Number(i.baseQty || 100)} {i.baseUnit || 'g'}</p>
-                  <div className="flex items-center gap-3 text-[10px]">
-                    <span style={{ color: 'var(--accent-gold)' }}>{i.caloriesKcal} kcal</span>
-                    <span style={{ color: '#FF6B6B' }}>{i.proteinG}g P</span>
-                    <span style={{ color: '#FFD93D' }}>{i.carbsG}g C</span>
-                    <span style={{ color: '#4ECDC4' }}>{i.fatsG}g F</span>
+                  <p className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>per {Number(i.baseQty || 100)} {i.baseUnit || 'g'}</p>
+                  <div className="flex items-center gap-3 text-xs font-semibold">
+                    <span style={{ color: '#B7791F' }}>{i.caloriesKcal} kcal</span>
+                    <span style={{ color: '#DC2626' }}>{i.proteinG}g P</span>
+                    <span style={{ color: '#D97706' }}>{i.carbsG}g C</span>
+                    <span style={{ color: '#0F766E' }}>{i.fatsG}g F</span>
                   </div>
                 </>
               )}

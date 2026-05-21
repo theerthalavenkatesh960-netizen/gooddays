@@ -16,14 +16,14 @@ public class FinancialService : IFinancialService
     }
 
     // ========== BUCKETS ==========
-    public async Task<List<FinancialBucketDto>> GetAllBucketsAsync()
+    public async Task<List<FinancialBucketDto>> GetAllBucketsAsync(int userId = 0)
     {
         var now = DateTime.UtcNow;
         var currentMonth = now.Month;
         var currentYear = now.Year;
 
         var buckets = await _db.InvestmentBuckets
-            .Where(b => b.IsActive)
+            .Where(b => b.IsActive && (userId <= 0 || b.UserId == userId))
             .Include(b => b.Tasks.Where(t => t.IsActive))
             .Include(b => b.Contributions)
             .OrderBy(b => b.SortOrder)
@@ -78,7 +78,7 @@ public class FinancialService : IFinancialService
         return result;
     }
 
-    public async Task<FinancialBucketDto?> GetBucketByIdAsync(Guid id)
+    public async Task<FinancialBucketDto?> GetBucketByIdAsync(Guid id, int userId = 0)
     {
         var now = DateTime.UtcNow;
         var currentMonth = now.Month;
@@ -87,7 +87,7 @@ public class FinancialService : IFinancialService
         var bucket = await _db.InvestmentBuckets
             .Include(b => b.Tasks.Where(t => t.IsActive))
             .Include(b => b.Contributions)
-            .FirstOrDefaultAsync(b => b.Id == id && b.IsActive);
+            .FirstOrDefaultAsync(b => b.Id == id && b.IsActive && (userId <= 0 || b.UserId == userId));
 
         if (bucket == null) return null;
 
@@ -150,10 +150,11 @@ public class FinancialService : IFinancialService
         };
     }
 
-    public async Task<FinancialBucketDto> CreateBucketAsync(CreateFinancialBucketRequest request)
+    public async Task<FinancialBucketDto> CreateBucketAsync(CreateFinancialBucketRequest request, int userId)
     {
         var bucket = new InvestmentBucket
         {
+            UserId = userId,
             Name = request.Name,
             Category = request.Category,
             MonthlyTarget = request.MonthlyTarget,
@@ -191,9 +192,9 @@ public class FinancialService : IFinancialService
         };
     }
 
-    public async Task<FinancialBucketDto?> UpdateBucketAsync(Guid id, UpdateFinancialBucketRequest request)
+    public async Task<FinancialBucketDto?> UpdateBucketAsync(Guid id, UpdateFinancialBucketRequest request, int userId)
     {
-        var bucket = await _db.InvestmentBuckets.FirstOrDefaultAsync(b => b.Id == id);
+        var bucket = await _db.InvestmentBuckets.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
         if (bucket == null) return null;
 
         if (request.Name != null) bucket.Name = request.Name;
@@ -210,12 +211,12 @@ public class FinancialService : IFinancialService
 
         await _db.SaveChangesAsync();
 
-        return await GetBucketByIdAsync(id);
+        return await GetBucketByIdAsync(id, userId);
     }
 
-    public async Task<bool> DeleteBucketAsync(Guid id)
+    public async Task<bool> DeleteBucketAsync(Guid id, int userId)
     {
-        var bucket = await _db.InvestmentBuckets.FirstOrDefaultAsync(b => b.Id == id);
+        var bucket = await _db.InvestmentBuckets.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
         if (bucket == null) return false;
 
         bucket.IsActive = false;
@@ -223,9 +224,9 @@ public class FinancialService : IFinancialService
         return true;
     }
 
-    public async Task<FinancialBucketDto?> AddBucketContributionAsync(Guid bucketId, CreateBucketContributionRequest request)
+    public async Task<FinancialBucketDto?> AddBucketContributionAsync(Guid bucketId, CreateBucketContributionRequest request, int userId)
     {
-        var bucket = await _db.InvestmentBuckets.FirstOrDefaultAsync(b => b.Id == bucketId && b.IsActive);
+        var bucket = await _db.InvestmentBuckets.FirstOrDefaultAsync(b => b.Id == bucketId && b.IsActive && b.UserId == userId);
         if (bucket == null) return null;
 
         var contribution = new BucketContribution
@@ -244,11 +245,14 @@ public class FinancialService : IFinancialService
             .SumAsync(c => c.Amount);
         await _db.SaveChangesAsync();
 
-        return await GetBucketByIdAsync(bucketId);
+        return await GetBucketByIdAsync(bucketId, userId);
     }
 
-    public async Task<FinancialBucketDto?> DeleteBucketContributionAsync(Guid bucketId, Guid contributionId)
+    public async Task<FinancialBucketDto?> DeleteBucketContributionAsync(Guid bucketId, Guid contributionId, int userId)
     {
+        var ownsBucket = await _db.InvestmentBuckets.AnyAsync(b => b.Id == bucketId && b.UserId == userId && b.IsActive);
+        if (!ownsBucket) return null;
+
         var contribution = await _db.BucketContributions
             .FirstOrDefaultAsync(c => c.Id == contributionId && c.BucketId == bucketId);
         if (contribution == null) return null;
@@ -264,7 +268,7 @@ public class FinancialService : IFinancialService
             .SumAsync(c => c.Amount);
         await _db.SaveChangesAsync();
 
-        return await GetBucketByIdAsync(bucketId);
+        return await GetBucketByIdAsync(bucketId, userId);
     }
 
     // ========== TASKS ==========

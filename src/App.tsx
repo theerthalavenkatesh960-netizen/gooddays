@@ -15,10 +15,12 @@ import CardCategoryTransactions from './pages/CardCategoryTransactions';
 import FinanceBudgetSettings from './pages/FinanceBudgetSettings';
 import BucketDetail from './pages/BucketDetail';
 import Life from './pages/Life';
+import Tasks from './pages/Tasks';
 import Goals from './pages/Goals';
 import GoalDetail from './pages/GoalDetail';
 import GoalCreate from './pages/GoalCreate';
 import Settings from './pages/Settings';
+import DashboardMomentumSettings from './pages/DashboardMomentumSettings';
 import JournalEditor from './pages/JournalEditor';
 import Vehicles from './pages/Vehicles';
 import WorkoutLibrarySettings from './pages/WorkoutLibrarySettings';
@@ -83,6 +85,7 @@ function App() {
               <Route path="/goals/:id" element={<PrivateRoute><Layout><GoalDetail /></Layout></PrivateRoute>} />
               <Route path="/goals/:id/edit" element={<PrivateRoute><Layout><GoalCreate /></Layout></PrivateRoute>} />
               <Route path="/settings" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
+              <Route path="/settings/dashboard-momentum" element={<PrivateRoute><Layout><DashboardMomentumSettings /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library" element={<PrivateRoute><Layout><WorkoutLibrarySettings /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library/new-exercise" element={<PrivateRoute><Layout><WorkoutAddExercisePage /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library/exercise/:id" element={<PrivateRoute><Layout><WorkoutExerciseDetails /></Layout></PrivateRoute>} />
@@ -100,7 +103,7 @@ function App() {
 
               {/* Legacy redirects */}
               <Route path="/workout"  element={<Navigate to="/body" />} />
-              <Route path="/tasks"    element={<Navigate to="/life" />} />
+              <Route path="/tasks" element={<PrivateRoute><Layout><Tasks /></Layout></PrivateRoute>} />
               <Route path="/calendar" element={<Navigate to="/life" />} />
             </Routes>
           </LoadingProvider>

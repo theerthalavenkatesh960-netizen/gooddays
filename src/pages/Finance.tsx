@@ -460,7 +460,7 @@ function BucketsTab() {
         })}
 
         {showAdd && (
-          <div className="p-4 rounded-2xl space-y-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
+          <div className="p-4 rounded-2xl space-y-2 max-h-[70dvh] overflow-y-auto" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>New Bucket</p>
             <div className="flex gap-2">
               <input value={newBucket.icon} onChange={e => setNewBucket(p => ({ ...p, icon: e.target.value }))} className="w-14 h-10 rounded-xl outline-none text-center text-xl" style={{ backgroundColor: 'var(--surface-elevated)' }} />
@@ -509,7 +509,7 @@ function InvestmentsTab() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newHolding, setNewHolding] = useState({ name: '', type: 'MF', invested: '', current: '' });
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
   const [editHolding, setEditHolding] = useState({ name: '', type: 'MF', invested: '', current: '' });
 
   useEffect(() => {
@@ -526,7 +526,7 @@ function InvestmentsTab() {
     setShowAdd(false);
   }
 
-  async function handleDelete(id: number) {
+  async function handleDelete(id: string | number) {
     await api.deleteInvestment(id);
     setHoldings(p => p.filter(h => h.id !== id));
   }
@@ -600,7 +600,7 @@ function InvestmentsTab() {
       </div>
 
       {showAdd && (
-        <div className="p-4 rounded-2xl mb-3 space-y-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
+        <div className="p-4 rounded-2xl mb-3 space-y-2 max-h-[70dvh] overflow-y-auto" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Add Holding</p>
           <input value={newHolding.name} onChange={e => setNewHolding(p => ({ ...p, name: e.target.value }))} placeholder="Name (e.g. Nifty BeES)" className="w-full h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
           <select value={newHolding.type} onChange={e => setNewHolding(p => ({ ...p, type: e.target.value }))} className="w-full h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>

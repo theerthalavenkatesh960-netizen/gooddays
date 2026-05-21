@@ -11,15 +11,6 @@ import { useTheme } from '../contexts/ThemeContext';
 import * as api from '../lib/api';
 
 type Theme = 'light' | 'dark' | 'blue' | 'green' | 'ocean' | 'futuristic';
-type DashboardPreset = 'balanced' | 'discipline' | 'health-first' | 'wealth-first' | 'custom';
-
-const DASHBOARD_PRESETS: Array<{ id: DashboardPreset; label: string; weights: api.UserSettings['dashboardWeights'] }> = [
-  { id: 'balanced', label: 'Balanced', weights: { tasks: 35, routine: 20, body: 15, workout: 15, finance: 10, journal: 5 } },
-  { id: 'discipline', label: 'Discipline', weights: { tasks: 45, routine: 25, body: 10, workout: 10, finance: 5, journal: 5 } },
-  { id: 'health-first', label: 'Health First', weights: { tasks: 20, routine: 20, body: 25, workout: 20, finance: 5, journal: 10 } },
-  { id: 'wealth-first', label: 'Wealth First', weights: { tasks: 25, routine: 10, body: 10, workout: 10, finance: 35, journal: 10 } },
-  { id: 'custom', label: 'Custom', weights: { tasks: 35, routine: 20, body: 15, workout: 15, finance: 10, journal: 5 } },
-];
 
 const THEMES: { id: Theme; label: string; accent: string; bg: string }[] = [
   { id: 'dark',        label: 'Dark',        accent: '#6C63FF', bg: '#0A0A0F' },
@@ -70,10 +61,6 @@ export default function Settings() {
   const { theme, setTheme } = useTheme();
   const [calorieGoal, setCalorieGoal] = useState('2400');
   const [trackingOptions, setTrackingOptions] = useState<string[]>(['sleep_hours','workout_minutes','phone_minutes']);
-  const [dashboardPreset, setDashboardPreset] = useState<DashboardPreset>('balanced');
-  const [dashboardWeights, setDashboardWeights] = useState<api.UserSettings['dashboardWeights']>({
-    tasks: 35, routine: 20, body: 15, workout: 15, finance: 10, journal: 5,
-  });
 
   useEffect(() => {
     async function loadSettings() {
@@ -81,8 +68,6 @@ export default function Settings() {
         const settings = await api.getUserSettings();
         if (settings?.trackingOptions) setTrackingOptions(settings.trackingOptions);
         if (Number.isFinite(settings?.calorieGoal)) setCalorieGoal(String(settings.calorieGoal));
-        if (settings?.dashboardPreset) setDashboardPreset(settings.dashboardPreset);
-        if (settings?.dashboardWeights) setDashboardWeights(settings.dashboardWeights);
       } catch {
         // Keep existing defaults when API settings are unavailable.
       }
@@ -110,33 +95,6 @@ export default function Settings() {
       setCalorieGoal(String(updated.calorieGoal));
     } catch {
       // Keep UI value; next settings refresh will reconcile state.
-    }
-  };
-
-  const applyDashboardPreset = async (preset: DashboardPreset) => {
-    const selected = DASHBOARD_PRESETS.find(p => p.id === preset);
-    if (!selected) return;
-    setDashboardPreset(preset);
-    if (preset !== 'custom') setDashboardWeights(selected.weights);
-    try {
-      await api.updateUserSettings({
-        dashboardPreset: preset,
-        dashboardWeights: preset === 'custom' ? dashboardWeights : selected.weights,
-      });
-    } catch {
-      // Keep optimistic UI; refresh will reconcile state.
-    }
-  };
-
-  const updateDashboardWeight = async (key: keyof api.UserSettings['dashboardWeights'], nextValue: number) => {
-    const bounded = Math.max(0, Math.min(100, Math.round(nextValue)));
-    const next = { ...dashboardWeights, [key]: bounded };
-    setDashboardWeights(next);
-    setDashboardPreset('custom');
-    try {
-      await api.updateUserSettings({ dashboardPreset: 'custom', dashboardWeights: next });
-    } catch {
-      // Keep optimistic UI; refresh will reconcile state.
     }
   };
 
@@ -213,82 +171,16 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Daily Tracking */}
-      <div className="mb-5">
-        <p className="section-label px-4 mb-2">Daily Tracking Metrics</p>
-        <div className="px-4">
-          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="grid grid-cols-3 gap-2">
-              {TRACK_OPTS.map(opt => {
-                const Icon = opt.icon;
-                const on = trackingOptions.includes(opt.id);
-                return (
-                  <button
-                    key={opt.id}
-                    onClick={() => toggleTrackOpt(opt.id)}
-                    className="flex flex-col items-center gap-2 p-3 rounded-xl press"
-                    style={{
-                      backgroundColor: on ? opt.color + '22' : 'var(--surface-elevated)',
-                      border: `1px solid ${on ? opt.color + '66' : 'var(--border)'}`,
-                    }}
-                  >
-                    <Icon size={18} style={{ color: on ? opt.color : 'var(--text-muted)' }} />
-                    <span className="text-[11px] font-medium" style={{ color: on ? opt.color : 'var(--text-muted)' }}>
-                      {opt.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Dashboard */}
-      <div className="mb-5">
-        <p className="section-label px-4 mb-2">Dashboard Momentum</p>
-        <div className="px-4">
-          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Scoring preset</p>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              {DASHBOARD_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => applyDashboardPreset(preset.id)}
-                  className="h-9 rounded-xl text-xs font-semibold press"
-                  style={{
-                    backgroundColor: dashboardPreset === preset.id ? 'var(--accent)' : 'var(--surface-elevated)',
-                    color: dashboardPreset === preset.id ? '#fff' : 'var(--text-secondary)',
-                  }}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-
-            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Weight tuning ({dashboardPreset === 'custom' ? 'custom' : 'preset'})</p>
-            <div className="space-y-2">
-              {(Object.keys(dashboardWeights) as Array<keyof api.UserSettings['dashboardWeights']>).map((key) => (
-                <div key={key} className="rounded-xl p-2.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-semibold capitalize" style={{ color: 'var(--text-secondary)' }}>{key}</span>
-                    <span className="text-[11px] font-bold num" style={{ color: 'var(--text-primary)' }}>{dashboardWeights[key]}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={dashboardWeights[key]}
-                    onChange={(e) => updateDashboardWeight(key, Number(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      <SectionCard title="Dashboard">
+        <SettingRow
+          icon={Target}
+          label="Dashboard Momentum"
+          value="Open"
+          onPress={() => navigate('/settings/dashboard-momentum')}
+          color="var(--accent)"
+        />
+      </SectionCard>
 
       {/* Nutrition */}
       <SectionCard title="Nutrition">

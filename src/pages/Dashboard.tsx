@@ -991,7 +991,7 @@ function TasksTab({ user }: { user: any }) {
         </div>
 
         <button onClick={() => { setEditingTask(null); setShowAddSheet(true); }}
-          className="ml-auto flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold press text-white"
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold press text-white"
           style={{ backgroundColor: 'var(--accent)' }}>
           <Plus size={13} /> New
         </button>

@@ -45,6 +45,9 @@ builder.Services.Configure<GmailOptions>(builder.Configuration.GetSection("Googl
 builder.Services.AddScoped<IFinancialService, FinancialService>();
 builder.Services.AddHostedService<MonthlyTaskGeneratorService>();
 
+// Register User Seeder Service
+builder.Services.AddScoped<GoodDaysApi.Services.IUserSeederService, GoodDaysApi.Services.UserSeederService>();
+
 // Register Gmail finance sync services
 builder.Services.AddSingleton<ITokenEncryptionService, TokenEncryptionService>();
 builder.Services.AddScoped<GoodDaysApi.Services.Gmail.Repositories.IConnectedEmailAccountRepository, GoodDaysApi.Services.Gmail.Repositories.ConnectedEmailAccountRepository>();
