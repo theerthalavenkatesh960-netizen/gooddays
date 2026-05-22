@@ -82,21 +82,8 @@ export default function WorkoutLibrarySettings() {
   const [search, setSearch] = useState('');
   const [filterMuscle, setFilterMuscle] = useState<string | null>(null);
   const [showExerciseFilters, setShowExerciseFilters] = useState(false);
-  const lastProcessedPickToken = useRef<number>(0);
-  const routineInitializedRef = useRef(false);
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const persistSequenceRef = useRef(0);
-  // Refs for always-fresh values so async callbacks never use stale closures
+  const lastAppliedPickRef = useRef<string>('');
   const splitRef = useRef<SplitPreset | null>(null);
-  const routineRef = useRef<RoutineMap>({});
-  const isMountedRef = useRef(true);
-  // When picker return already triggered an immediate save, skip the debounce
-  const skipNextAutoSaveRef = useRef(false);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
-  }, []);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -104,12 +91,11 @@ export default function WorkoutLibrarySettings() {
     setLoading(true);
     try {
       const [exData, activeSplit] = await Promise.all([api.getExercises(), api.getActiveSplit()]);
-      if (!isMountedRef.current) return;
       setExercises(Array.isArray(exData) ? exData : []);
       const found = activeSplit as SplitPreset | null;
       if (found) {
-        setSplit(found);
         splitRef.current = found;
+        setSplit(found);
         let parsed: RoutineMap = {};
         if (typeof found.dayConfigs === 'string') {
           try { parsed = normalizeRoutineMap(JSON.parse(found.dayConfigs) || {}); } catch { parsed = {}; }
@@ -117,46 +103,68 @@ export default function WorkoutLibrarySettings() {
           parsed = normalizeRoutineMap(found.dayConfigs as any);
         }
         setRoutine(parsed);
-        routineRef.current = parsed;
       }
     } catch (e: any) {
-      if (isMountedRef.current) setStatus(e?.message || 'Failed to load');
+      setStatus(e?.message || 'Failed to load');
     } finally {
-      if (isMountedRef.current) setLoading(false);
+      setLoading(false);
     }
   }
 
-  async function saveRoutine() {
-    setSaving(true);
-    try {
-      await persistRoutine(routineRef.current);
-      if (isMountedRef.current) {
-        setStatus('Routine saved');
-        setTimeout(() => { if (isMountedRef.current) setStatus(''); }, 1500);
-      }
-    } catch (e: any) {
-      if (isMountedRef.current) {
-        setStatus(e?.message || 'Failed to save');
-        setTimeout(() => { if (isMountedRef.current) setStatus(''); }, 2000);
-      }
-    } finally {
-      if (isMountedRef.current) setSaving(false);
-    }
+  function flash(msg: string) {
+    setStatus(msg);
+    setTimeout(() => setStatus(''), 2000);
   }
 
   async function persistRoutine(nextRoutine: RoutineMap) {
     const dayConfigs = JSON.stringify(normalizeRoutineMap(nextRoutine));
-    const currentSplit = splitRef.current;
-    if (currentSplit) {
-      const updated = await api.updateSplit(currentSplit.id, { name: currentSplit.name || 'Weekly Routine', dayConfigs, isActive: true });
+    if (splitRef.current) {
+      const updated = await api.updateSplit(splitRef.current.id, { name: splitRef.current.name || 'Weekly Routine', dayConfigs, isActive: true });
       splitRef.current = updated;
-      if (isMountedRef.current) setSplit(updated);
-      return;
+      setSplit(updated);
+    } else {
+      const created = await api.createSplit({ name: 'Weekly Routine', dayConfigs, isActive: true });
+      splitRef.current = created;
+      setSplit(created);
     }
+  }
 
-    const created = await api.createSplit({ name: 'Weekly Routine', dayConfigs, isActive: true });
-    splitRef.current = created;
-    if (isMountedRef.current) setSplit(created);
+  async function addToDay(day: string, exerciseId: number, sets: number, reps: number) {
+    const existing = routine[day] || [];
+    if (existing.some(e => e.exerciseId === exerciseId)) return;
+    const next = { ...routine, [day]: [...existing, { exerciseId, sets, reps }] };
+    try {
+      setSaving(true);
+      await persistRoutine(next);
+      setRoutine(next);
+      flash('Saved');
+    } catch (e: any) {
+      flash(e?.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeFromDay(day: string, exerciseId: number) {
+    const next = { ...routine, [day]: (routine[day] || []).filter(e => e.exerciseId !== exerciseId) };
+    try {
+      await persistRoutine(next);
+      setRoutine(next);
+    } catch (e: any) {
+      flash(e?.message || 'Failed to save');
+    }
+  }
+
+  async function saveRoutine() {
+    try {
+      setSaving(true);
+      await persistRoutine(routine);
+      flash('Routine saved');
+    } catch (e: any) {
+      flash(e?.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function deleteExercise(exercise: Exercise) {
@@ -164,12 +172,12 @@ export default function WorkoutLibrarySettings() {
       await api.deleteExercise(exercise.id);
       const next = { ...routine };
       for (const day of DAYS) next[day] = (next[day] || []).filter(e => e.exerciseId !== exercise.id);
+      await persistRoutine(next);
       setRoutine(next);
       const data = await api.getExercises();
       setExercises(Array.isArray(data) ? data : []);
     } catch (e: any) {
-      setStatus(e?.message || 'Failed to delete');
-      setTimeout(() => setStatus(''), 2000);
+      flash(e?.message || 'Failed to delete');
     }
   }
 
@@ -181,63 +189,22 @@ export default function WorkoutLibrarySettings() {
     return format(date, 'EEEE').toLowerCase();
   }
 
-  function addToRoutine(day: string, exerciseId: number, sets: number, reps: number) {
-    setRoutine(prev => {
-      const existing = prev[day] || [];
-      if (existing.some(e => e.exerciseId === exerciseId)) return prev;
-      const next = { ...prev, [day]: [...existing, { exerciseId, sets, reps }] };
-      routineRef.current = next;
-      return next;
-    });
-  }
-
-  function removeFromRoutine(day: string, exerciseId: number) {
-    setRoutine(prev => {
-      const next = { ...prev, [day]: (prev[day] || []).filter(e => e.exerciseId !== exerciseId) };
-      routineRef.current = next;
-      return next;
-    });
-  }
-
   useEffect(() => {
+    const state: any = location.state || {};
+    if (state.tab) setTab(state.tab);
     if (loading) return;
-
-    // Skip first routine set that comes from initial load.
-    if (!routineInitializedRef.current) {
-      routineInitializedRef.current = true;
-      return;
-    }
-
-    // Picker return already triggered an immediate save — skip debounce for this change.
-    if (skipNextAutoSaveRef.current) {
-      skipNextAutoSaveRef.current = false;
-      return;
-    }
-
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = setTimeout(() => {
-      const seq = ++persistSequenceRef.current;
-      void (async () => {
-        try {
-          if (isMountedRef.current) setSaving(true);
-          await persistRoutine(routineRef.current);
-          if (seq === persistSequenceRef.current) {
-            if (isMountedRef.current) setStatus('Routine auto-saved');
-            setTimeout(() => { if (isMountedRef.current) setStatus(''); }, 1200);
-          }
-        } catch (e: any) {
-          if (seq === persistSequenceRef.current) {
-            if (isMountedRef.current) setStatus(e?.message || 'Failed to auto-save routine');
-            setTimeout(() => { if (isMountedRef.current) setStatus(''); }, 2000);
-          }
-        } finally {
-          if (seq === persistSequenceRef.current && isMountedRef.current) setSaving(false);
-        }
-      })();
-    }, 400);
-    // NOTE: intentionally no cleanup — we want the save to complete even if component unmounts
-    // (e.g. user navigates away before debounce fires)
-  }, [routine, loading]);
+    const pick = state.routinePick;
+    if (!pick?.day || !pick?.exerciseId) return;
+    const signature = `${pick.day}-${pick.exerciseId}-${state.reloadAt || 0}`;
+    if (lastAppliedPickRef.current === signature) return;
+    lastAppliedPickRef.current = signature;
+    void addToDay(
+      String(pick.day).toLowerCase(),
+      Number(pick.exerciseId),
+      Math.max(1, Number(pick.sets) || 3),
+      Math.max(1, Number(pick.reps) || 10),
+    );
+  }, [location.state, loading]);
 
   const filteredExercises = useMemo(() => {
     let result = exercises;
@@ -250,52 +217,6 @@ export default function WorkoutLibrarySettings() {
     }
     return result;
   }, [exercises, filterMuscle, search]);
-
-  useEffect(() => {
-    const state: any = location.state || {};
-    const pick = state.routinePick;
-    const pickToken = Number(state.reloadAt || 0);
-    if (state.tab) setTab(state.tab);
-    if (loading) return;
-    if (!pick?.day || !pick?.exerciseId) return;
-
-    // Apply each picker navigation once, even if the same exercise is selected again later.
-    if (pickToken && pickToken === lastProcessedPickToken.current) return;
-    if (pickToken) lastProcessedPickToken.current = pickToken;
-
-    const day = String(pick.day).toLowerCase();
-    const exerciseId = Number(pick.exerciseId);
-    const sets = Math.max(1, Number(pick.sets) || 3);
-    const reps = Math.max(1, Number(pick.reps) || 10);
-
-    const existing = routineRef.current[day] || [];
-    if (existing.some(e => e.exerciseId === exerciseId)) return;
-
-    const next = { ...routineRef.current, [day]: [...existing, { exerciseId, sets, reps }] };
-    routineRef.current = next;
-    setRoutine(next);
-
-    // Save immediately — don't wait for debounce, to avoid loss if user navigates away quickly
-    skipNextAutoSaveRef.current = true;
-    const seq = ++persistSequenceRef.current;
-    void (async () => {
-      try {
-        if (isMountedRef.current) setSaving(true);
-        await persistRoutine(next);
-        if (seq === persistSequenceRef.current) {
-          if (isMountedRef.current) setStatus('Routine saved');
-          setTimeout(() => { if (isMountedRef.current) setStatus(''); }, 1200);
-        }
-      } catch (e: any) {
-        if (seq === persistSequenceRef.current && isMountedRef.current) {
-          setStatus(e?.message || 'Failed to save routine');
-          setTimeout(() => { if (isMountedRef.current) setStatus(''); }, 2000);
-        }
-      } finally {
-        if (seq === persistSequenceRef.current && isMountedRef.current) setSaving(false);
-      }
-    })();
-  }, [location.state, loading]);
 
   const selectedDay = dayKey(selectedDate);
   const selectedDayEntries = routine[selectedDay] || [];
@@ -441,7 +362,7 @@ export default function WorkoutLibrarySettings() {
                       </div>
                     </button>
                     <div className="px-2.5 pb-2.5">
-                      <button onClick={() => removeFromRoutine(selectedDay, entry.exerciseId)} className="w-full py-1 rounded-lg text-[10px] font-medium press flex items-center justify-center gap-1" style={{ color: 'var(--accent-warm)', backgroundColor: 'var(--surface)' }}>
+                      <button onClick={() => removeFromDay(selectedDay, entry.exerciseId)} className="w-full py-1 rounded-lg text-[10px] font-medium press flex items-center justify-center gap-1" style={{ color: 'var(--accent-warm)', backgroundColor: 'var(--surface)' }}>
                         <X size={10} /> Remove
                       </button>
                     </div>
