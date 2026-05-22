@@ -11,13 +11,12 @@ import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 import GmailReviewTab from '../components/financial/GmailReviewTab';
 
-type Tab = 'Transactions' | 'Buckets' | 'Investments' | 'Gmail' | 'Analytics';
+type Tab = 'Transactions' | 'Buckets' | 'Investments';
 
 const FINANCE_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Transactions', label: 'Transactions', icon: DollarSign },
   { id: 'Buckets', label: 'Buckets', icon: Wallet },
   { id: 'Investments', label: 'Investments', icon: TrendingUp },
-  { id: 'Gmail', label: 'Gmail Review', icon: Mail },
 ];
 
 const formatMoney = (value: number) => `₹${new Intl.NumberFormat('en-IN', {
@@ -811,6 +810,16 @@ export default function Finance() {
         </div>
       </div>
 
+      <div className="px-4 mb-4 rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+            <Mail size={14} style={{ color: 'var(--accent)' }} />
+            Gmail Review
+          </span>
+        </div>
+        <GmailReviewTab />
+      </div>
+
       <PillTabs
         active={tab}
         onChange={t => setTab(t as Tab)}
@@ -828,7 +837,6 @@ export default function Finance() {
           {tab === 'Transactions'  && <TransactionsTab />}
           {tab === 'Buckets'       && <BucketsTab />}
           {tab === 'Investments'   && <InvestmentsTab />}
-          {tab === 'Gmail'         && <GmailReviewTab />}
           {tab === 'Analytics'     && <AnalyticsTab />}
         </motion.div>
       </AnimatePresence>

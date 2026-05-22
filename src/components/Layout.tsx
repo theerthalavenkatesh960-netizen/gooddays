@@ -9,7 +9,7 @@ const NAV_TABS = [
   { path: '/',        label: 'Today',   icon: Sun },
   { path: '/body',    label: 'Body',    icon: Dumbbell },
   { path: '/finance', label: 'Finance', icon: DollarSign },
-  { path: '/life',    label: 'Life',    icon: Sparkles },
+  { path: '/settings',label: 'Settings',icon: Sparkles },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
