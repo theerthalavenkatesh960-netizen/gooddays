@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Dumbbell, Plus, Search, Calendar, BookOpen, X, Loader2, Filter, Sparkles } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Plus, Search, Calendar, BookOpen, X, Loader2, Filter, Sparkles, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import * as api from '../lib/api';
 import MuscleVisualization from '../components/MuscleVisualization';
