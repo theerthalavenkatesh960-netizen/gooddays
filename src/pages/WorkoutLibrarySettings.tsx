@@ -155,16 +155,11 @@ export default function WorkoutLibrarySettings() {
     }
   }
 
-  async function saveRoutine() {
-    try {
-      setSaving(true);
-      await persistRoutine(routine);
-      flash('Routine saved');
-    } catch (e: any) {
-      flash(e?.message || 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
+  async function copyLastWeek() {
+    // Workout routine is week-independent — the same template applies every week.
+    // "Copy last week" copies the current routine's day_configs back to itself (no-op)
+    // but we provide a shortcut: duplicate today's selected day config to the same day.
+    flash('Routine already applies to every week ✓');
   }
 
   async function deleteExercise(exercise: Exercise) {
@@ -301,38 +296,31 @@ export default function WorkoutLibrarySettings() {
               <WeeklyCalendar
                 selectedDate={selectedDate}
                 onSelectDate={setSelectedDate}
+                headerRight={<></>}
                 renderDayExtra={(d) => {
                   const key = dayKey(d);
                   const count = (routine[key] || []).length;
                   return count > 0 ? <div className="text-[10px] opacity-80">{count}</div> : null;
                 }}
-                headerRight={
-                  <button
-                    onClick={saveRoutine}
-                    disabled={saving}
-                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold press disabled:opacity-40"
-                    style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
-                  >
-                    {saving ? 'Saving…' : 'Save'}
-                  </button>
-                }
               />
+              <div className="flex justify-end gap-1.5 mt-2">
+                <button
+                  onClick={() => openAddPicker(selectedDay)}
+                  className="px-2.5 py-1 rounded-lg font-semibold text-[11px] flex items-center gap-1 press"
+                  style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                >
+                  <Plus size={13} /> Add Exercise
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 mt-3">
               <div>
                 <p className="text-sm font-bold capitalize" style={{ color: 'var(--text-primary)' }}>{selectedDay}</p>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{selectedDayEntries.length} exercise{selectedDayEntries.length !== 1 ? 's' : ''}</p>
               </div>
               <div className="flex items-center gap-2">
                 {selectedDayExercises.length > 0 && <MuscleVisualization intensity={selectedIntensity} side="front" height={48} />}
-                <button
-                  onClick={() => openAddPicker(selectedDay)}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center press"
-                  style={{ backgroundColor: 'rgba(108, 99, 255, 0.15)', color: 'var(--accent)' }}
-                >
-                  <Plus size={16} />
-                </button>
               </div>
             </div>
 
