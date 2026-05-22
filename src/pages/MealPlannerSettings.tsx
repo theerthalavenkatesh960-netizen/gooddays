@@ -129,7 +129,7 @@ function normalizeDayMealAssignments(value: any): MealAssignment[] {
         }
         return null;
       })
-      .filter((a): a is MealAssignment => !!a);
+      .filter((a): a is MealAssignment => !!a && Number.isFinite(a.mealTemplateId) && a.mealTemplateId > 0);
   }
   if (value && typeof value === 'object' && Array.isArray(value.mealIds)) {
     return normalizeDayMealAssignments(value.mealIds);
@@ -225,8 +225,14 @@ export default function MealPlannerSettings() {
 
   async function savePlan(plan: MealPlanMap) {
     try {
-      await api.upsertWeeklyMealPlan(JSON.stringify(plan));
-      setMealPlan(plan);
+      // Remove stale/invalid template IDs to avoid backend "invalid template id: 0" rejects.
+      const sanitized: MealPlanMap = {};
+      for (const key of Object.keys(plan)) {
+        sanitized[key] = (plan[key] || []).filter((a) => Number.isFinite(a.mealTemplateId) && a.mealTemplateId > 0);
+      }
+
+      await api.upsertWeeklyMealPlan(JSON.stringify(sanitized));
+      setMealPlan(sanitized);
     } catch (e: any) {
       flash(e?.message || 'Failed to save plan');
     }
@@ -245,6 +251,16 @@ export default function MealPlannerSettings() {
   }
 
   async function addMealToDay(dayKey: string, mealTemplateId: number, timeOfDay?: string) {
+    if (!Number.isFinite(mealTemplateId) || mealTemplateId <= 0) {
+      flash('Invalid meal template selected');
+      return;
+    }
+
+    if (!meals.some(m => m.id === mealTemplateId)) {
+      flash('Meal template not found');
+      return;
+    }
+
     const existing = mealPlan[dayKey] || [];
     if (existing.some(a => a.mealTemplateId === mealTemplateId)) {
       flash('Meal already exists for this day');
@@ -261,11 +277,12 @@ export default function MealPlannerSettings() {
     const state: any = location.state || {};
     const pick = state.mealPick;
     if (loading) return;
-    if (!pick?.dayKey || !pick?.mealTemplateId) return;
-    const signature = `${pick.dayKey}-${pick.mealTemplateId}-${pick.timeOfDay || ''}`;
+    const pickedId = Number(pick?.mealTemplateId);
+    if (!pick?.dayKey || !Number.isFinite(pickedId) || pickedId <= 0) return;
+    const signature = `${pick.dayKey}-${pickedId}-${pick.timeOfDay || ''}`;
     if (lastAppliedPickRef.current === signature) return;
     lastAppliedPickRef.current = signature;
-    addMealToDay(pick.dayKey, Number(pick.mealTemplateId), pick.timeOfDay);
+    addMealToDay(pick.dayKey, pickedId, pick.timeOfDay);
   }, [location.state, loading]);
 
   function openMealPicker(dayKey: string) {
@@ -331,10 +348,18 @@ export default function MealPlannerSettings() {
       </div>
 
       <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ backgroundColor: 'var(--surface)' }}>
-        <button onClick={() => setTab('weekly')} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${tab === 'weekly' ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+        <button
+          onClick={() => setTab('weekly')}
+          className="flex-1 flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all"
+          style={{ backgroundColor: tab === 'weekly' ? 'var(--accent)' : 'transparent', color: tab === 'weekly' ? '#fff' : 'var(--text-muted)' }}
+        >
           <Calendar size={14} /> Weekly Meals
         </button>
-        <button onClick={() => setTab('library')} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${tab === 'library' ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+        <button
+          onClick={() => setTab('library')}
+          className="flex-1 flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all"
+          style={{ backgroundColor: tab === 'library' ? 'var(--accent)' : 'transparent', color: tab === 'library' ? '#fff' : 'var(--text-muted)' }}
+        >
           <BookOpen size={14} /> Meal Library
         </button>
       </div>

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Dumbbell, Plus, Trash2, Save, Search, Calendar, BookOpen, X, Loader2, Filter } from 'lucide-react';
-import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
+import { format } from 'date-fns';
 import * as api from '../lib/api';
 import MuscleVisualization from '../components/MuscleVisualization';
+import WeeklyCalendar from '../components/WeeklyCalendar';
 
 type Exercise = {
   id: number;
@@ -224,52 +225,32 @@ export default function WorkoutLibrarySettings() {
             <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
               Weekly Plan
             </p>
-            <button
-              onClick={saveRoutine}
-              disabled={saving}
-              className="h-8 px-3 rounded-lg text-xs font-semibold text-white flex items-center gap-1"
-              style={{ backgroundColor: 'var(--accent-green)', opacity: saving ? 0.7 : 1 }}
-            >
-              {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-              Save
-            </button>
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              Assign routines per day
+            </span>
           </div>
 
           <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{format(selectedDate, 'EEEE, MMM d')}</p>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>◀ Week</button>
-                <button onClick={() => setSelectedDate(new Date())} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Today</button>
-                <button onClick={() => setSelectedDate(addDays(selectedDate, 7))} className="px-2 py-1 rounded-lg text-xs" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Week ▶</button>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto mb-4">
-              <div className="flex gap-1.5 pb-1.5">
-                {Array.from({ length: 7 }).map((_, i) => {
-                  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
-                  const d = addDays(weekStart, i);
-                  const active = isSameDay(d, selectedDate);
+            <div className="mb-4">
+              <WeeklyCalendar
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                renderDayExtra={(d) => {
                   const key = dayKey(d);
-                  return (
-                    <button
-                      key={d.toISOString()}
-                      onClick={() => setSelectedDate(d)}
-                      className="flex-1 min-w-0 px-2 py-2 rounded-lg text-center border"
-                      style={{
-                        backgroundColor: active ? 'var(--accent)' : 'var(--surface-elevated)',
-                        color: active ? '#fff' : 'var(--text-secondary)',
-                        borderColor: active ? 'var(--accent)' : 'var(--border)',
-                      }}
-                    >
-                      <div className="text-[11px]">{format(d, 'EEE')}</div>
-                      <div className="font-semibold text-sm">{format(d, 'd')}</div>
-                      <div className="text-[10px] opacity-80">{(routine[key] || []).length}</div>
-                    </button>
-                  );
-                })}
-              </div>
+                  const count = (routine[key] || []).length;
+                  return count > 0 ? <div className="text-[10px] opacity-80">{count}</div> : null;
+                }}
+                headerRight={
+                  <button
+                    onClick={saveRoutine}
+                    disabled={saving}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold press disabled:opacity-40"
+                    style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                  >
+                    {saving ? 'Saving…' : 'Save'}
+                  </button>
+                }
+              />
             </div>
 
             <div className="flex items-center justify-between mb-3">

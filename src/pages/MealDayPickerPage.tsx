@@ -35,6 +35,7 @@ export default function MealDayPickerPage() {
   const [search, setSearch] = useState('');
   const [timing, setTiming] = useState<'all' | 'breakfast' | 'lunch' | 'dinner' | 'pre-workout' | 'post-workout' | 'snack'>('all');
   const [pickTime, setPickTime] = useState('');
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
     if (loaded) return;
@@ -55,6 +56,12 @@ export default function MealDayPickerPage() {
   }, [meals, search, timing]);
 
   function pickMeal(meal: MealTemplate) {
+    const pickedId = Number((meal as any).id ?? (meal as any).mealTemplateId ?? (meal as any).templateId);
+    if (!Number.isFinite(pickedId) || pickedId <= 0) {
+      setStatus('Invalid meal template selected');
+      return;
+    }
+
     if (!dayKey) {
       navigate('/settings/meals', { state: { tab: 'weekly' } });
       return;
@@ -65,7 +72,7 @@ export default function MealDayPickerPage() {
         tab: 'weekly',
         mealPick: {
           dayKey,
-          mealTemplateId: meal.id,
+          mealTemplateId: pickedId,
           timeOfDay: pickTime.trim() || meal.timeOfDay || undefined,
         },
         reloadAt: Date.now(),
@@ -81,6 +88,13 @@ export default function MealDayPickerPage() {
         </button>
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Pick Meal for {dayKey || 'Day'}</h1>
       </div>
+
+      {status && (
+        <div className="mb-3 px-3 py-2 rounded-xl text-xs font-semibold"
+          style={{ backgroundColor: 'rgba(255,107,107,0.1)', color: 'var(--accent-warm)' }}>
+          {status}
+        </div>
+      )}
 
       <div className="rounded-2xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
