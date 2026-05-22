@@ -3,7 +3,7 @@ import {
   ChevronLeft, ChevronRight, User, Moon, Palette, Download,
   Upload, LogOut, Bell, Shield, Target, Dumbbell,
   Check, Sun, Droplets, BookOpen, Brain, BarChart2, Sparkles,
-  Fuel
+  Fuel, Wallet
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContextApi';
@@ -225,6 +225,7 @@ export default function Settings() {
 
       {/* ─────────────────────────── ANALYTICS SECTION ─────────────────────────── */}
       <SectionCard title="Finance">
+        <SettingRow icon={Wallet} label="Cards" onPress={() => navigate('/finance/cards')} color="#5DADE2" />
         <SettingRow icon={BarChart2} label="Monthly Analytics" onPress={() => navigate('/settings/analytics')} color="#10B981" />
       </SectionCard>
 

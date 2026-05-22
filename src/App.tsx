@@ -39,6 +39,7 @@ import ClerkSsoCallback from './pages/ClerkSsoCallback';
 import SettingsLife from './pages/SettingsLife';
 import SettingsVehicles from './pages/SettingsVehicles';
 import SettingsAnalytics from './pages/SettingsAnalytics';
+import FinanceGmailReview from './pages/FinanceGmailReview';
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -107,6 +108,7 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/finance/settings" element={<PrivateRoute><Layout><FinanceBudgetSettings /></Layout></PrivateRoute>} />
               <Route path="/finance/bucket/:id" element={<PrivateRoute><Layout><BucketDetail /></Layout></PrivateRoute>} />
               <Route path="/finance/vehicles" element={<PrivateRoute><Layout><Vehicles /></Layout></PrivateRoute>} />
+              <Route path="/finance/gmail-review" element={<PrivateRoute><Layout><FinanceGmailReview /></Layout></PrivateRoute>} />
               <Route path="/life"     element={<PrivateRoute><Layout><Life /></Layout></PrivateRoute>} />
               <Route path="/goals" element={<PrivateRoute><Layout><Goals /></Layout></PrivateRoute>} />
               <Route path="/goals/new" element={<PrivateRoute><Layout><GoalCreate /></Layout></PrivateRoute>} />

@@ -1,6 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Sun, Dumbbell, DollarSign, Sparkles, Plus } from 'lucide-react';
+import { Sun, Dumbbell, DollarSign, Settings, Plus } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContextApi';
 import LogSheet from './LogSheet';
@@ -9,7 +9,7 @@ const NAV_TABS = [
   { path: '/',        label: 'Today',   icon: Sun },
   { path: '/body',    label: 'Body',    icon: Dumbbell },
   { path: '/finance', label: 'Finance', icon: DollarSign },
-  { path: '/settings',label: 'Settings',icon: Sparkles },
+  { path: '/settings',label: 'Settings',icon: Settings },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
