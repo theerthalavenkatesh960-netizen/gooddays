@@ -54,6 +54,18 @@ function toLegacyDayKey(date: Date) {
   return format(date, 'EEEE').toLowerCase();
 }
 
+function normalizePlanKey(rawKey: string): string {
+  const key = String(rawKey || '').trim();
+  if (!key) return key;
+
+  const maybeDate = new Date(key);
+  if (!Number.isNaN(maybeDate.getTime())) {
+    return format(maybeDate, 'yyyy-MM-dd');
+  }
+
+  return key.toLowerCase();
+}
+
 function parseTimeOfDayToMinutes(timeText?: string): number {
   if (!timeText?.trim()) return Number.MAX_SAFE_INTEGER;
   const t = timeText.trim().toLowerCase();
@@ -116,10 +128,30 @@ function normalizeDayMealAssignments(value: any): MealAssignment[] {
     return value
       .map((item) => {
         // Handle new format: { mealTemplateId: int, timeOfDay: string }
-        if (item && typeof item === 'object' && 'mealTemplateId' in item) {
+        if (item && typeof item === 'object') {
+          const mealTemplateIdRaw =
+            (item as any).mealTemplateId ??
+            (item as any).MealTemplateId ??
+            (item as any).meal_template_id;
+
+          const timeOfDayRaw =
+            (item as any).timeOfDay ??
+            (item as any).TimeOfDay ??
+            (item as any).time_of_day;
+
+          if (mealTemplateIdRaw !== undefined && mealTemplateIdRaw !== null) {
+            const id = Number(mealTemplateIdRaw);
+            if (Number.isFinite(id)) {
+              return {
+                mealTemplateId: id,
+                timeOfDay: timeOfDayRaw ? String(timeOfDayRaw).trim() : undefined,
+              } as MealAssignment;
+            }
+          }
+
           return {
-            mealTemplateId: Number(item.mealTemplateId),
-            timeOfDay: item.timeOfDay ? String(item.timeOfDay).trim() : undefined,
+            mealTemplateId: Number.NaN,
+            timeOfDay: undefined,
           } as MealAssignment;
         }
         // Fallback: handle old format (plain ID)
@@ -141,7 +173,9 @@ function normalizeMealPlan(raw: any): MealPlanMap {
   if (!raw || typeof raw !== 'object') return {};
   const next: MealPlanMap = {};
   for (const key of Object.keys(raw)) {
-    next[key] = normalizeDayMealAssignments(raw[key]);
+    const normalizedKey = normalizePlanKey(key);
+    const assignments = normalizeDayMealAssignments(raw[key]);
+    next[normalizedKey] = [...(next[normalizedKey] || []), ...assignments];
   }
   return next;
 }

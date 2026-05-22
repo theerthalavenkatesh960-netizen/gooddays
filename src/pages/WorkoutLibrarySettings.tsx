@@ -33,6 +33,41 @@ const MUSCLE_MAP: Record<string, string> = {
   'Core': 'abs',
 };
 
+function normalizeRoutineKey(raw: string): string {
+  return String(raw || '').trim().toLowerCase();
+}
+
+function normalizeRoutineEntries(value: any): RoutineEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const exerciseId = Number((entry as any).exerciseId ?? (entry as any).ExerciseId);
+      const sets = Number((entry as any).sets ?? (entry as any).Sets ?? 3);
+      const reps = Number((entry as any).reps ?? (entry as any).Reps ?? 10);
+      if (!Number.isFinite(exerciseId) || exerciseId <= 0) return null;
+      return {
+        exerciseId,
+        sets: Math.max(1, Number.isFinite(sets) ? sets : 3),
+        reps: Math.max(1, Number.isFinite(reps) ? reps : 10),
+      } as RoutineEntry;
+    })
+    .filter((entry): entry is RoutineEntry => !!entry);
+}
+
+function normalizeRoutineMap(raw: any): RoutineMap {
+  if (!raw || typeof raw !== 'object') return {};
+  const next: RoutineMap = {};
+  for (const key of Object.keys(raw)) {
+    const normalizedKey = normalizeRoutineKey(key);
+    next[normalizedKey] = [
+      ...(next[normalizedKey] || []),
+      ...normalizeRoutineEntries((raw as any)[key]),
+    ];
+  }
+  return next;
+}
+
 export default function WorkoutLibrarySettings() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -60,9 +95,9 @@ export default function WorkoutLibrarySettings() {
       if (found) {
         setSplit(found);
         if (typeof found.dayConfigs === 'string') {
-          try { setRoutine(JSON.parse(found.dayConfigs) || {}); } catch { setRoutine({}); }
+          try { setRoutine(normalizeRoutineMap(JSON.parse(found.dayConfigs) || {})); } catch { setRoutine({}); }
         } else if (found.dayConfigs && typeof found.dayConfigs === 'object') {
-          setRoutine(found.dayConfigs as any);
+          setRoutine(normalizeRoutineMap(found.dayConfigs as any));
         } else {
           setRoutine({});
         }
@@ -77,14 +112,7 @@ export default function WorkoutLibrarySettings() {
   async function saveRoutine() {
     setSaving(true);
     try {
-      const dayConfigs = JSON.stringify(routine);
-      if (split) {
-        const updated = await api.updateSplit(split.id, { ...split, dayConfigs });
-        setSplit(updated);
-      } else {
-        const created = await api.createSplit({ name: 'Weekly Routine', dayConfigs, isActive: true });
-        setSplit(created);
-      }
+      await persistRoutine(routine);
       setStatus('Routine saved');
       setTimeout(() => setStatus(''), 1500);
     } catch (e: any) {
@@ -93,6 +121,18 @@ export default function WorkoutLibrarySettings() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function persistRoutine(nextRoutine: RoutineMap) {
+    const dayConfigs = JSON.stringify(normalizeRoutineMap(nextRoutine));
+    if (split) {
+      const updated = await api.updateSplit(split.id, { name: split.name || 'Weekly Routine', dayConfigs, isActive: true });
+      setSplit(updated);
+      return;
+    }
+
+    const created = await api.createSplit({ name: 'Weekly Routine', dayConfigs, isActive: true });
+    setSplit(created);
   }
 
   async function deleteExercise(exercise: Exercise) {
@@ -121,12 +161,24 @@ export default function WorkoutLibrarySettings() {
     setRoutine(prev => {
       const existing = prev[day] || [];
       if (existing.some(e => e.exerciseId === exerciseId)) return prev;
-      return { ...prev, [day]: [...existing, { exerciseId, sets, reps }] };
+      const next = { ...prev, [day]: [...existing, { exerciseId, sets, reps }] };
+      void persistRoutine(next).catch(() => {
+        setStatus('Failed to auto-save routine');
+        setTimeout(() => setStatus(''), 2000);
+      });
+      return next;
     });
   }
 
   function removeFromRoutine(day: string, exerciseId: number) {
-    setRoutine(prev => ({ ...prev, [day]: (prev[day] || []).filter(e => e.exerciseId !== exerciseId) }));
+    setRoutine(prev => {
+      const next = { ...prev, [day]: (prev[day] || []).filter(e => e.exerciseId !== exerciseId) };
+      void persistRoutine(next).catch(() => {
+        setStatus('Failed to auto-save routine');
+        setTimeout(() => setStatus(''), 2000);
+      });
+      return next;
+    });
   }
 
   const filteredExercises = useMemo(() => {

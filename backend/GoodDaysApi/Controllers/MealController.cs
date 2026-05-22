@@ -183,16 +183,24 @@ public class MealController : ControllerBase
 
         var existingMeals = await _db.MealTemplates
             .Where(m => m.UserId == userId && allMealIds.Contains(m.Id))
-            .Select(m => m.Id)
+            .Select(m => new { m.Id, m.Timing, m.TimeOfDay })
             .ToListAsync();
 
         // Canonicalize to one format and silently drop stale/invalid IDs.
-        var validIdSet = existingMeals.ToHashSet();
+        var mealLookup = existingMeals.ToDictionary(m => m.Id, m => m);
         var sanitized = new Dictionary<string, List<MealAssignment>>(StringComparer.OrdinalIgnoreCase);
         foreach (var kvp in planData)
         {
             sanitized[kvp.Key] = (kvp.Value ?? new List<MealAssignment>())
-                .Where(m => m.MealTemplateId > 0 && validIdSet.Contains(m.MealTemplateId))
+                .Where(m => m.MealTemplateId > 0 && mealLookup.ContainsKey(m.MealTemplateId))
+                .Select(m =>
+                {
+                    var template = mealLookup[m.MealTemplateId];
+                    var effectiveTime = string.IsNullOrWhiteSpace(m.TimeOfDay)
+                        ? ResolveDefaultTimeOfDay(template.Timing, template.TimeOfDay)
+                        : m.TimeOfDay;
+                    return new MealAssignment(m.MealTemplateId, effectiveTime);
+                })
                 .ToList();
         }
 
@@ -419,5 +427,23 @@ public class MealController : ControllerBase
         }
 
         return result;
+    }
+
+    private static string ResolveDefaultTimeOfDay(string? timing, string? existingTemplateTimeOfDay)
+    {
+        if (!string.IsNullOrWhiteSpace(existingTemplateTimeOfDay))
+            return existingTemplateTimeOfDay.Trim();
+
+        var key = (timing ?? string.Empty).Trim().ToLowerInvariant();
+        return key switch
+        {
+            "breakfast" or "bf" => "08:00",
+            "lunch" => "13:00",
+            "dinner" => "20:00",
+            "pre-workout" or "preworkout" => "16:00",
+            "post-workout" or "postworkout" => "18:00",
+            "snack" => "17:00",
+            _ => "12:00",
+        };
     }
 }
