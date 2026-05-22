@@ -9,15 +9,14 @@ import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from
 import { useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
-import GmailReviewTab from '../components/financial/GmailReviewTab';
 
-type Tab = 'Transactions' | 'Buckets' | 'Investments' | 'Gmail' | 'Analytics';
+
+type Tab = 'Transactions' | 'Buckets' | 'Investments';
 
 const FINANCE_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Transactions', label: 'Transactions', icon: DollarSign },
   { id: 'Buckets', label: 'Buckets', icon: Wallet },
   { id: 'Investments', label: 'Investments', icon: TrendingUp },
-  { id: 'Gmail', label: 'Gmail Review', icon: Mail },
 ];
 
 const formatMoney = (value: number) => `₹${new Intl.NumberFormat('en-IN', {
@@ -243,6 +242,10 @@ function TransactionsTab() {
               <button onClick={manualGmailSync} disabled={syncingGmail} className="h-8 px-3 rounded-lg text-xs font-semibold text-white press flex items-center gap-1.5 disabled:opacity-60" style={{ backgroundColor: 'var(--accent)' }}>
                 <RefreshCw size={12} className={syncingGmail ? 'animate-spin' : ''} />
                 {syncingGmail ? 'Syncing...' : 'Sync now'}
+              </button>
+              <button onClick={() => navigate('/finance/gmail-review')} className="h-8 px-3 rounded-lg text-xs font-semibold press flex items-center gap-1.5" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                <Mail size={12} />
+                Gmail Review
               </button>
               <button onClick={disconnectGmail} className="h-8 px-3 rounded-lg text-xs font-semibold press flex items-center gap-1.5" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
                 <Unplug size={12} />
@@ -780,16 +783,7 @@ export default function Finance() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 mb-2">
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Finance</h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/finance/cards')}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
-            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
-          >
-            <Wallet size={14} style={{ color: 'var(--text-secondary)' }} />
-            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Cards</span>
-          </button>
-          <button
+        <button
             onClick={() => setTab('Analytics')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
             style={{
@@ -800,15 +794,6 @@ export default function Finance() {
             <BarChart3 size={14} style={{ color: tab === 'Analytics' ? '#fff' : 'var(--text-secondary)' }} />
             <span className="text-xs font-medium" style={{ color: tab === 'Analytics' ? '#fff' : 'var(--text-secondary)' }}>Analytics</span>
           </button>
-          <button
-            onClick={() => navigate('/finance/vehicles')}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl press"
-            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
-          >
-            <Car size={14} style={{ color: 'var(--text-secondary)' }} />
-            <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Vehicles</span>
-          </button>
-        </div>
       </div>
 
       <PillTabs
@@ -828,7 +813,6 @@ export default function Finance() {
           {tab === 'Transactions'  && <TransactionsTab />}
           {tab === 'Buckets'       && <BucketsTab />}
           {tab === 'Investments'   && <InvestmentsTab />}
-          {tab === 'Gmail'         && <GmailReviewTab />}
           {tab === 'Analytics'     && <AnalyticsTab />}
         </motion.div>
       </AnimatePresence>

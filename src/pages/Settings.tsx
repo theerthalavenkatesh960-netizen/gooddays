@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, User, Moon, Palette, Download,
   Upload, LogOut, Bell, Shield, Target, Dumbbell,
-  Check, Sun, Droplets, BookOpen
+  Check, Sun, Droplets, BookOpen, Brain, BarChart2, Sparkles,
+  Fuel, Wallet
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContextApi';
@@ -206,6 +206,27 @@ export default function Settings() {
       {/* Workout */}
       <SectionCard title="Workout">
         <SettingRow icon={Dumbbell} label="Workout Library & Weekly Routine" onPress={() => navigate('/settings/workout-library')} color="var(--accent)" />
+      </SectionCard>
+
+      {/* AI Planner */}
+      <SectionCard title="AI Planner">
+        <SettingRow icon={Brain} label="Provider & Health Profile" onPress={() => navigate('/settings/ai-planner')} color="var(--accent-green)" />
+      </SectionCard>
+
+      {/* ─────────────────────────── LIFE SECTION ─────────────────────────── */}
+      <SectionCard title="Life">
+        <SettingRow icon={Target} label="Goals, Journal & Review" onPress={() => navigate('/settings/life')} color="#6C63FF" />
+      </SectionCard>
+
+      {/* ─────────────────────────── VEHICLES SECTION ─────────────────────────── */}
+      <SectionCard title="Vehicles">
+        <SettingRow icon={Fuel} label="Vehicle Management" onPress={() => navigate('/settings/vehicles')} color="#FF6B6B" />
+      </SectionCard>
+
+      {/* ─────────────────────────── ANALYTICS SECTION ─────────────────────────── */}
+      <SectionCard title="Finance">
+        <SettingRow icon={Wallet} label="Cards" onPress={() => navigate('/finance/cards')} color="#5DADE2" />
+        <SettingRow icon={BarChart2} label="Monthly Analytics" onPress={() => navigate('/settings/analytics')} color="#10B981" />
       </SectionCard>
 
       {/* Data */}

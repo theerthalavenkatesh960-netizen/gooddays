@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Calendar, BookOpen, UtensilsCrossed, Loader2, Filter, Search, Layers, ChefHat } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Calendar, BookOpen, UtensilsCrossed, Loader2, Filter, Search, Layers, ChefHat, Sparkles } from 'lucide-react';
 import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
 import * as api from '../lib/api';
 import MacroVisualization from '../components/MacroVisualization';
@@ -194,6 +194,11 @@ export default function MealPlannerSettings() {
   const [showMealFilters, setShowMealFilters] = useState(false);
   const [mealSearch, setMealSearch] = useState('');
   const [mealTimingFilter, setMealTimingFilter] = useState<'all' | 'breakfast' | 'lunch' | 'dinner' | 'pre-workout' | 'post-workout' | 'snack'>('all');
+  const [showAiGenerateModal, setShowAiGenerateModal] = useState(false);
+  const [aiGenerateMode, setAiGenerateMode] = useState<'profile' | 'custom'>('profile');
+  const [customBudget, setCustomBudget] = useState('');
+  const [customDiet, setCustomDiet] = useState('');
+  const [generatingAi, setGeneratingAi] = useState(false);
 
   const selectedDayKey = toDateKey(selectedDate);
   const selectedDayLabel = format(selectedDate, 'EEEE').toLowerCase();
@@ -328,6 +333,34 @@ export default function MealPlannerSettings() {
     await savePlan({ ...mealPlan, [dayKey]: (mealPlan[dayKey] || []).filter(a => a.mealTemplateId !== mealId) });
   }
 
+  async function generateMealsWithAi() {
+    try {
+      setGeneratingAi(true);
+      const result = await api.generateAiMealPlan({
+        startDate: selectedDayKey,
+        mode: aiGenerateMode,
+        budgetPerWeek: aiGenerateMode === 'custom' && customBudget ? Number(customBudget) : undefined,
+        dietPreference: aiGenerateMode === 'custom' && customDiet.trim() ? customDiet.trim() : undefined,
+      });
+
+      const generatedPlan = normalizeMealPlan(result?.plan || {});
+      const generatedKeys = Object.keys(generatedPlan);
+      if (generatedKeys.length === 0) {
+        flash('AI did not return a plan');
+        return;
+      }
+
+      const merged = { ...mealPlan, ...generatedPlan };
+      await savePlan(merged);
+      setShowAiGenerateModal(false);
+      flash('AI meal plan generated and applied');
+    } catch (e: any) {
+      flash(e?.message || 'Failed to generate AI meal plan');
+    } finally {
+      setGeneratingAi(false);
+    }
+  }
+
   const selectedMeals = useMemo(() => {
     const assignments = mealPlan[selectedDayKey] || [];
     const fallbackAssignments = (assignments.length > 0) ? assignments : (mealPlan[toLegacyDayKey(selectedDate)] || []);
@@ -445,6 +478,11 @@ export default function MealPlannerSettings() {
               }
             />
             <div className="flex justify-end gap-1.5 mt-2">
+              <button onClick={() => setShowAiGenerateModal(true)}
+                className="px-2 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 press"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>
+                <Sparkles size={13} /> Generate with AI
+              </button>
               <button onClick={copyLastWeekPlan}
                 className="px-2 py-1 rounded-lg text-[11px] press"
                 style={{ backgroundColor: 'var(--surface)', color: 'var(--text-secondary)' }}>
@@ -568,6 +606,71 @@ export default function MealPlannerSettings() {
             )}
           </div>
         </>
+      )}
+
+      {showAiGenerateModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+          <div className="w-full max-w-md rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Generate Meals with AI</p>
+            <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Choose profile defaults or use custom constraints for this generation.</p>
+
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <button
+                onClick={() => setAiGenerateMode('profile')}
+                className="py-2 rounded-xl text-sm font-semibold press"
+                style={{ backgroundColor: aiGenerateMode === 'profile' ? 'var(--accent)' : 'var(--surface-elevated)', color: aiGenerateMode === 'profile' ? '#fff' : 'var(--text-secondary)' }}
+              >
+                Use Profile
+              </button>
+              <button
+                onClick={() => setAiGenerateMode('custom')}
+                className="py-2 rounded-xl text-sm font-semibold press"
+                style={{ backgroundColor: aiGenerateMode === 'custom' ? 'var(--accent)' : 'var(--surface-elevated)', color: aiGenerateMode === 'custom' ? '#fff' : 'var(--text-secondary)' }}
+              >
+                Custom
+              </button>
+            </div>
+
+            {aiGenerateMode === 'custom' && (
+              <div className="space-y-2 mb-3">
+                <input
+                  value={customBudget}
+                  onChange={(e) => setCustomBudget(e.target.value)}
+                  type="number"
+                  placeholder="Budget per week"
+                  className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                />
+                <input
+                  value={customDiet}
+                  onChange={(e) => setCustomDiet(e.target.value)}
+                  placeholder="Diet preference (high protein, veg, etc.)"
+                  className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowAiGenerateModal(false)}
+                disabled={generatingAi}
+                className="px-3 py-1.5 rounded-lg text-sm press"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={generateMealsWithAi}
+                disabled={generatingAi}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold press disabled:opacity-60"
+                style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+              >
+                {generatingAi ? 'Generating...' : 'Generate'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

@@ -1,73 +1,135 @@
-Context:
-I have a React/TypeScript app using Clerk for Google OAuth and a custom JWT auth system. After Google OAuth completes, the user is created in Clerk and the backend, but the app stays on the login page instead of navigating to /.
-Files involved:
+Implementation Prompt
+Also append these tables to all_up.sql and add DROP TABLE statements (in reverse order) to all_down.sql.
 
-src/contexts/AuthContextApi.tsx — custom JWT AuthProvider, reads session via api.getSession() on mount
-src/lib/api.ts — contains getSession() which may be making a backend call instead of reading localStorage
-src/pages/ClerkCallback.tsx — after OAuth, writes gd_session to localStorage then does window.location.href = '/'
-src/pages/Login.tsx — has useEffect(() => { if (user) navigate('/') }, [user]) which redirects if user is truthy
+Backend: Models to Create
+Create these in backend/GoodDaysApi/Models/:
 
-The bug:
-ClerkCallback writes the session to localStorage as gd_session with shape { access_token: string, user: { id, email, name } }, then forces a full page reload via window.location.href = '/'. On reload, AuthContextApi.checkSession() calls api.getSession(). If api.getSession() makes an async backend call that fails silently, or doesn't read from localStorage, user stays null, loading becomes false, and the Login page's useEffect does nothing because user is still null — so the user stays stuck on login.
-Required changes — implement all of these:
+IngredientMarketPrice.cs: Id, IngredientId, MarketSource, PriceInr, Unit, QuantityPerUnit, IsAvailable, LastUpdatedAt, CreatedAt. Navigation: MealIngredient Ingredient
+PremadeMeal.cs: Id, Name, Description, Timing, PriceInr, PreparationTimeMinutes, Servings, CaloriesKcal, ProteinG, CarbsG, FatsG, ImageUrl, IsActive, CreatedAt, UpdatedAt. Navigation: ICollection<PremadeMealIngredient> Ingredients
+PremadeMealIngredient.cs: Id, PremadeMealId, IngredientId, QuantityInGrams, IsPrimaryIngredient, CreatedAt. Navigation: PremadeMeal Meal, MealIngredient Ingredient
+UserFulfillmentPreference.cs: Id, UserId, TimeAvailabilityMinutesPerDay, BudgetStrictness, PreferPremadePercentage, IngredientAvailabilityRadiusKm, UpdatedAt
+UserMealFulfillmentLog.cs: Id, UserId, MealDate (DateOnly), MealTiming, MealTemplateId (nullable), PremadeMealId (nullable), FulfillmentType (enum: "cooked"|"bought"|"skipped"), CostIncurredInr, WasCompleted, Rating (nullable int), CreatedAt
+IngredientCostCache.cs: Id, MealTemplateId, TotalCostInr, MarketSource, CalculatedAt, ExpiresAt
+Register all models in AppDbContext.cs as DbSets. Map to snake_case table names using HasColumnName/ToTable conventions already used in the codebase.
 
-src/lib/api.ts — Make getSession() a synchronous function that only reads from localStorage:
+Backend: DTOs to Create
+Create in backend/GoodDaysApi/DTOs/:
 
-tsexport const getSession = (): { access_token: string; user: { id: number; email: string; name?: string } } | null => {
-  try {
-    const raw = localStorage.getItem('gd_session');
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-};
+Pricing/
 
-src/contexts/AuthContextApi.tsx — Add setSessionFromOAuth to the context interface and implementation:
+IngredientPriceSeedItem.cs: { int IngredientId, string MarketSource, decimal PriceInr, string Unit, decimal QuantityPerUnit }
+IngredientPriceSeedRequest.cs: { List<IngredientPriceSeedItem> Updates }
+IngredientPriceResponse.cs: { int Id, string MarketSource, decimal PriceInr, string Unit, bool IsAvailable, DateTime LastUpdatedAt }
+IngredientPricesResponse.cs: { int Id, string Name, List<IngredientPriceResponse> Prices, IngredientPriceResponse LowestPrice }
+RecipeCostBreakdownItem.cs: { string IngredientName, decimal QuantityInGrams, decimal PricePerKgInr, decimal CostInr, string MarketSource }
+RecipeCostResponse.cs: { int MealTemplateId, string MealName, decimal TotalCostInr, List<RecipeCostBreakdownItem> CostBreakdown }
+PremadeMeals/
 
-ts// Add to AuthContextType interface:
-setSessionFromOAuth: (token: string, user: User) => void;
+PremadeMealCreateRequest.cs: { string Name, string Description, string Timing, decimal PriceInr, int PreparationTimeMinutes, int Servings, int CaloriesKcal, decimal ProteinG, decimal CarbsG, decimal FatsG, string ImageUrl, List<PremadeMealIngredientRequest> Ingredients }
+PremadeMealIngredientRequest.cs: { int IngredientId, decimal QuantityInGrams, bool IsPrimaryIngredient }
+PremadeMealResponse.cs: (full details + ingredients list)
+Recommendations/
 
-// Add inside AuthProvider:
-const setSessionFromOAuth = (token: string, userData: User) => {
-  const payload: Session = { access_token: token, user: userData };
-  localStorage.setItem('gd_session', JSON.stringify(payload));
-  setSession(payload);
-  setUser(userData);
-};
+FulfillmentPreferenceRequest.cs / FulfillmentPreferenceResponse.cs matching user_fulfillment_preferences fields
+FulfillmentOptionsRequest.cs: { DateOnly MealDate, string MealTiming, bool IncludeRecipes, bool IncludePremade }
+FulfillmentOptionResult.cs: { string Type (cook|buy), int? MealTemplateId, int? PremadeMealId, string MealName, decimal CostInr, int PreparationTimeMinutes, double RecommendationScore, FulfillmentScoreFactors ScoreFactors, string Rationale }
+FulfillmentScoreFactors.cs: { double CostScore, double TimeScore, double AdherenceScore, double IngredientAvailabilityScore, double BudgetAlignmentScore }
+FulfillmentOptionsResponse.cs: { DateOnly Date, string Timing, List<FulfillmentOptionResult> Recommendations, string TopRecommendation }
+WeeklyFulfillmentRequest.cs: { DateOnly StartDate, int WeekDays, bool SuggestMealsByPreference }
+FulfillmentLogRequest.cs: { DateOnly MealDate, string MealTiming, string FulfillmentType, int? PremadeMealId, int? MealTemplateId, decimal? CostIncurredInr, int? Rating }
+AdherenceReportResponse.cs: { AdherenceRetrospective Retrospective, CostAnalysis CostAnalysis } with nested classes for stats
+Backend: Controllers to Create
+PricingController.cs (route: api/pricing)
+GET /api/pricing/ingredients/{id} → fetch all market prices for that ingredient, compute lowest, return IngredientPricesResponse
+POST /api/pricing/ingredients/seed → bulk upsert prices (INSERT ... ON CONFLICT DO UPDATE); return {Updated, Created, Skipped} counts; require user auth (any authenticated user can seed for now; admin check later)
+GET /api/pricing/recipe-cost/{mealTemplateId} → parse mealTemplate.IngredientsJson (Json array with id, qty, baseQty fields), look up prices per ingredient_id from ingredient_market_prices, compute cost = (price_inr / quantity_per_unit) * (quantity_in_grams / 1000), check cache first (expires_at > now), if miss compute and store in ingredient_cost_cache with expires_at = now + 24h
+PremadeMealsController.cs (route: api/premade-meals)
+GET /api/premade-meals → list all where IsActive = true; support query params timing and priceMaxInr
+GET /api/premade-meals/{id} → fetch with ingredients navigation
+POST /api/premade-meals → create PremadeMeal + PremadeMealIngredient rows in transaction
+PUT /api/premade-meals/{id} → update meal fields + replace ingredient rows
+DELETE /api/premade-meals/{id} → soft delete (set is_active = false)
+RecommendationsController.cs (route: api/recommendations)
+GET /api/user/fulfillment-preferences → return user's row, auto-create with defaults if not exists
+PUT /api/user/fulfillment-preferences → upsert fulfillment preferences
+POST /api/recommendations/fulfillment-options → core scoring logic (see scoring below)
+POST /api/recommendations/weekly-fulfillment-plan → call fulfillment-options logic per day per timing over weekDays
+POST /api/user/meal-fulfillment/log → insert UserMealFulfillmentLog row
+GET /api/user/meal-fulfillment/adherence-report?daysBack=30 → aggregate counts, rates, top meals, cost analysis
+Recommendation Scoring Logic (implement in private helper):
 
-// Include in AuthContext.Provider value prop
+For each candidate (cook = recipe, buy = premade meal):
 
-src/contexts/AuthContextApi.tsx — Make checkSession synchronous since getSession no longer needs to be async:
+CostScore = 1.0 - (candidateCostInr / maxCostAmongCandidates) → normalized 0-1
+TimeScore: if cook, timeScore = (userPreference.TimeAvailabilityMinutesPerDay >= template preparationTime) ? 1.0 : 0.3; if buy, timeScore = 1.0
+AdherenceScore: query last 30 days fulfillment_log for similar timing+type combos; rate = completed/total or 0.5 default
+IngredientAvailabilityScore: check if all ingredient_ids in template have at least 1 price row with is_available=true; score = availableCount / totalIngredients
+BudgetAlignmentScore: if budget_strictness == "strict" → costInr <= (budgetPerWeek/7) ? 1.0 : 0.2; else 0.8 constant
+FinalScore = (0.30 * costScore) + (0.25 * timeScore) + (0.20 * adherenceScore) + (0.15 * availabilityScore) + (0.10 * budgetScore)
 
-tsconst checkSession = () => {
-  try {
-    const session = api.getSession();
-    if (session?.user) {
-      setSession(session);
-      setUser(session.user);
-    }
-  } finally {
-    setLoading(false);
-  }
-};
+Frontend: API Types & Functions
+Add to src/lib/api.ts:
 
-src/pages/ClerkCallback.tsx — Replace the localStorage write + window.location.href block with setSessionFromOAuth + navigate:
+Types:
 
-ts// Import setSessionFromOAuth from AuthContextApi
-import { useAuth } from '../contexts/AuthContextApi';
-const { setSessionFromOAuth } = useAuth();
+IngredientPriceEntry, IngredientPricesResponse, RecipeCostResponse
+PremadeMeal, PremadeMealCreateRequest
+FulfillmentPreference, FulfillmentOptionsRequest, FulfillmentOptionResult, FulfillmentOptionsResponse
+FulfillmentLogRequest, AdherenceReport
+Functions:
 
-// Inside exchangeToken(), replace these lines:
-//   localStorage.setItem('gd_session', JSON.stringify(sessionPayload));
-//   window.location.href = '/';
-// With:
-setSessionFromOAuth(data.token, data.user);
-navigate('/', { replace: true });
-Constraints:
+getIngredientPrices(ingredientId: number)
+seedIngredientPrices(updates: IngredientPriceSeedItem[])
+getRecipeCost(mealTemplateId: number, marketSource?: string)
+getPremadeMeals(timing?: string, priceMaxInr?: number)
+getPremadeMeal(id: number)
+createPremadeMeal(data: PremadeMealCreateRequest)
+updatePremadeMeal(id: number, data: PremadeMealCreateRequest)
+deletePremadeMeal(id: number)
+getFulfillmentPreferences()
+updateFulfillmentPreferences(data: FulfillmentPreference)
+getFulfillmentOptions(data: FulfillmentOptionsRequest)
+getWeeklyFulfillmentPlan(data: { startDate: string, weekDays: number })
+logMealFulfillment(data: FulfillmentLogRequest)
+getAdherenceReport(daysBack?: number)
+Frontend: New Pages
+src/pages/PremadeMealCatalog.tsx
+List view of all active premade meals (grid cards with image, name, timing, price in ₹, calories)
+Filter bar: by timing, max price
+"Order / Add to plan" button per card (placeholder for now)
+Admin section: "+ Add Meal" button → inline form or modal for creating new SKU
+src/pages/FulfillmentRecommendations.tsx
+Date picker (default today)
+Timing tabs: Breakfast / Lunch / Dinner / Snack
+Per timing: shows top buy-vs-cook options as cards with score, cost (₹), rationale text
+"Log Meal" button → opens modal with cooked/bought/skipped choice + cost + rating fields → calls logMealFulfillment
+Weekly view toggle: calls weekly-fulfillment-plan endpoint, shows 7-day table/calendar
+src/pages/FulfillmentSettings.tsx (or extend existing Settings)
+Time availability per day (slider or number input, in minutes)
+Budget strictness (dropdown: strict / flexible / no_constraint)
+Prefer premade % (slider 0-100)
+Save calls updateFulfillmentPreferences
+Routing
+In src/App.tsx, add under PrivateRoute:
 
-Do not touch Clerk's ClerkSsoCallback.tsx — it works correctly
-Do not change the gd_session localStorage key or its shape { access_token, user }
-Do not add any new dependencies
-The Supabase AuthContext.tsx is a separate file — do not modify it
-Keep all existing error handling in ClerkCallback.tsx intact, only replace the success path
+/premade-meals → PremadeMealCatalog
+/recommendations/fulfillment → FulfillmentRecommendations
+/settings/fulfillment → FulfillmentSettings
+In src/pages/Settings.tsx, add new settings rows:
+
+"Premade Meal Catalog" → /premade-meals
+"Fulfillment Recommendations" → /recommendations/fulfillment
+"Fulfillment Preferences" → /settings/fulfillment
+Build Validation
+After implementation, run:
+
+cd backend/GoodDaysApi && dotnet build → must succeed with 0 errors
+cd (root) && npm run build → must succeed
+Fix any compile errors before finishing.
+
+Important Constraints
+Do NOT use verbatim C# strings ($@"...") with template braces — use StringBuilder.AppendLine() instead
+Follow snake_case for DB column names; map with HasColumnName() in DbContext or override OnModelCreating
+All controllers must call GetUserId() for auth validation; return 401 if user not found
+Use IHttpClientFactory pattern only if making HTTP calls; the recommendation engine is pure in-memory logic
+Do not remove or modify existing working functionality in MealController, AiPlannerController, or other controllers

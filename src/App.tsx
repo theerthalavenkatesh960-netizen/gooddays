@@ -15,7 +15,6 @@ import Cards from './pages/Cards';
 import CardCategoryTransactions from './pages/CardCategoryTransactions';
 import FinanceBudgetSettings from './pages/FinanceBudgetSettings';
 import BucketDetail from './pages/BucketDetail';
-import Life from './pages/Life';
 import Tasks from './pages/Tasks';
 import Goals from './pages/Goals';
 import GoalDetail from './pages/GoalDetail';
@@ -34,8 +33,13 @@ import MealIngredientLibraryPage from './pages/MealIngredientLibraryPage';
 import MealCreateTemplatePage from './pages/MealCreateTemplatePage';
 import MealDayPickerPage from './pages/MealDayPickerPage';
 import RoutineExercisePickerPage from './pages/RoutineExercisePickerPage';
+import AiPlannerSettings from './pages/AiPlannerSettings';
 import ClerkCallback from './pages/ClerkCallback';
 import ClerkSsoCallback from './pages/ClerkSsoCallback';
+import SettingsLife from './pages/SettingsLife';
+import SettingsVehicles from './pages/SettingsVehicles';
+import SettingsAnalytics from './pages/SettingsAnalytics';
+import FinanceGmailReview from './pages/FinanceGmailReview';
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -104,12 +108,16 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/finance/settings" element={<PrivateRoute><Layout><FinanceBudgetSettings /></Layout></PrivateRoute>} />
               <Route path="/finance/bucket/:id" element={<PrivateRoute><Layout><BucketDetail /></Layout></PrivateRoute>} />
               <Route path="/finance/vehicles" element={<PrivateRoute><Layout><Vehicles /></Layout></PrivateRoute>} />
+              <Route path="/finance/gmail-review" element={<PrivateRoute><Layout><FinanceGmailReview /></Layout></PrivateRoute>} />
               <Route path="/life"     element={<PrivateRoute><Layout><Life /></Layout></PrivateRoute>} />
               <Route path="/goals" element={<PrivateRoute><Layout><Goals /></Layout></PrivateRoute>} />
               <Route path="/goals/new" element={<PrivateRoute><Layout><GoalCreate /></Layout></PrivateRoute>} />
               <Route path="/goals/:id" element={<PrivateRoute><Layout><GoalDetail /></Layout></PrivateRoute>} />
               <Route path="/goals/:id/edit" element={<PrivateRoute><Layout><GoalCreate /></Layout></PrivateRoute>} />
               <Route path="/settings" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
+              <Route path="/settings/life" element={<PrivateRoute><Layout><SettingsLife /></Layout></PrivateRoute>} />
+              <Route path="/settings/vehicles" element={<PrivateRoute><Layout><SettingsVehicles /></Layout></PrivateRoute>} />
+              <Route path="/settings/analytics" element={<PrivateRoute><Layout><SettingsAnalytics /></Layout></PrivateRoute>} />
               <Route path="/settings/dashboard-momentum" element={<PrivateRoute><Layout><DashboardMomentumSettings /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library" element={<PrivateRoute><Layout><WorkoutLibrarySettings /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library/new-exercise" element={<PrivateRoute><Layout><WorkoutAddExercisePage /></Layout></PrivateRoute>} />
@@ -121,6 +129,7 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/settings/meals/template/:id" element={<PrivateRoute><Layout><MealTemplateDetails /></Layout></PrivateRoute>} />
               <Route path="/settings/meals/pick" element={<PrivateRoute><Layout><MealDayPickerPage /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library/pick" element={<PrivateRoute><Layout><RoutineExercisePickerPage /></Layout></PrivateRoute>} />
+              <Route path="/settings/ai-planner" element={<PrivateRoute><Layout><AiPlannerSettings /></Layout></PrivateRoute>} />
 
               {/* Journal editor — full screen, no nav */}
               <Route path="/journal/new"      element={<PrivateRoute><JournalEditor /></PrivateRoute>} />
@@ -129,7 +138,7 @@ VITE_API_URL=https://gooddays.onrender.com
               {/* Legacy redirects */}
               <Route path="/workout"  element={<Navigate to="/body" />} />
               <Route path="/tasks" element={<PrivateRoute><Layout><Tasks /></Layout></PrivateRoute>} />
-              <Route path="/calendar" element={<Navigate to="/life" />} />
+              <Route path="/calendar" element={<Navigate to="/settings" />} />
             </Routes>
           </LoadingProvider>
         </ThemeProvider>

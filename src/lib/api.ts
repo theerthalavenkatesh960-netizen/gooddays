@@ -49,6 +49,26 @@ export type UserSettings = {
   };
 };
 
+export type AiProvider = 'local-llama' | 'claude';
+
+export type AiPlannerSettings = {
+  provider: AiProvider;
+  localEndpoint: string;
+  localModel?: string;
+  claudeApiKey?: string;
+  claudeModel?: string;
+};
+
+export type HealthProfile = {
+  heightCm?: number;
+  weightKg?: number;
+  targetWeightKg?: number;
+  dailyCaloriesTarget?: number;
+  dietPreference?: string;
+  budgetPerWeek?: number;
+  activityLevel?: string;
+};
+
 const API_BASE = ((import.meta as any).env?.VITE_API_URL || '').replace(/\/$/, '');
 
 // ─── Dummy Data Configuration ───────────────────────────────────────────────
@@ -185,6 +205,41 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
     });
   }
   return request('userprofiles/me/settings', { method: 'PUT', body: JSON.stringify(patch) });
+}
+
+export async function getAiPlannerSettings(): Promise<AiPlannerSettings> {
+  return request('ai-planner/settings');
+}
+
+export async function updateAiPlannerSettings(patch: Partial<AiPlannerSettings>): Promise<AiPlannerSettings> {
+  return request('ai-planner/settings', { method: 'PUT', body: JSON.stringify(patch) });
+}
+
+export async function getHealthProfile(): Promise<HealthProfile> {
+  return request('ai-planner/profile');
+}
+
+export async function updateHealthProfile(patch: Partial<HealthProfile>): Promise<HealthProfile> {
+  return request('ai-planner/profile', { method: 'PUT', body: JSON.stringify(patch) });
+}
+
+export async function generateAiMealPlan(body: {
+  startDate: string;
+  mode: 'profile' | 'custom';
+  budgetPerWeek?: number;
+  dietPreference?: string;
+}) {
+  return request('ai-planner/generate/meals', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function generateAiWorkoutPlan(body: {
+  mode: 'profile' | 'custom';
+  daysPerWeek?: number;
+  minutesPerSession?: number;
+  setsDefault?: number;
+  repsDefault?: number;
+}) {
+  return request('ai-planner/generate/workouts', { method: 'POST', body: JSON.stringify(body) });
 }
 
 // Tasks
