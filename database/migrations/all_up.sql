@@ -34,6 +34,30 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   updated_at timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS user_ai_settings (
+  id SERIAL PRIMARY KEY,
+  user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  provider text NOT NULL DEFAULT 'local-llama',
+  local_endpoint text NOT NULL DEFAULT 'http://localhost:11434',
+  local_model text NOT NULL DEFAULT 'llama3.1:8b',
+  claude_api_key text,
+  claude_model text NOT NULL DEFAULT 'claude-3-5-sonnet-latest',
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS user_health_profiles (
+  id SERIAL PRIMARY KEY,
+  user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  height_cm decimal(5,1),
+  weight_kg decimal(5,2),
+  target_weight_kg decimal(5,2),
+  daily_calories_target integer,
+  diet_preference text,
+  budget_per_week decimal(10,2),
+  activity_level text,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS tasks (
   id SERIAL PRIMARY KEY,
   user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,

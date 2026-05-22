@@ -71,6 +71,10 @@ public class AppDbContext : DbContext
     // Body metrics
     public DbSet<BodyWeightLog> BodyWeightLogs { get; set; } = null!;
 
+    // AI planner entities
+    public DbSet<UserAiSetting> UserAiSettings { get; set; } = null!;
+    public DbSet<UserHealthProfile> UserHealthProfiles { get; set; } = null!;
+
     // Vehicle tracker entities
     public DbSet<Vehicle> Vehicles { get; set; } = null!;
     public DbSet<VehicleRefill> VehicleRefills { get; set; } = null!;
@@ -148,6 +152,30 @@ public class AppDbContext : DbContext
 
         // Quick log table mappings
         modelBuilder.Entity<QuickLogEntry>().ToTable("quick_log_entries");
+
+        // AI planner table mappings
+        modelBuilder.Entity<UserAiSetting>().ToTable("user_ai_settings");
+        modelBuilder.Entity<UserHealthProfile>().ToTable("user_health_profiles");
+
+        modelBuilder.Entity<UserAiSetting>()
+            .HasOne(s => s.User)
+            .WithMany()
+            .HasForeignKey(s => s.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserAiSetting>()
+            .HasIndex(s => s.UserId)
+            .IsUnique();
+
+        modelBuilder.Entity<UserHealthProfile>()
+            .HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserHealthProfile>()
+            .HasIndex(p => p.UserId)
+            .IsUnique();
 
         // Daily routine table mappings
         modelBuilder.Entity<DailyRoutine>().ToTable("daily_routines");

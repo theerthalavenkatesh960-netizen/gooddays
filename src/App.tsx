@@ -34,6 +34,7 @@ import MealIngredientLibraryPage from './pages/MealIngredientLibraryPage';
 import MealCreateTemplatePage from './pages/MealCreateTemplatePage';
 import MealDayPickerPage from './pages/MealDayPickerPage';
 import RoutineExercisePickerPage from './pages/RoutineExercisePickerPage';
+import AiPlannerSettings from './pages/AiPlannerSettings';
 import ClerkCallback from './pages/ClerkCallback';
 import ClerkSsoCallback from './pages/ClerkSsoCallback';
 
@@ -121,6 +122,7 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/settings/meals/template/:id" element={<PrivateRoute><Layout><MealTemplateDetails /></Layout></PrivateRoute>} />
               <Route path="/settings/meals/pick" element={<PrivateRoute><Layout><MealDayPickerPage /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library/pick" element={<PrivateRoute><Layout><RoutineExercisePickerPage /></Layout></PrivateRoute>} />
+              <Route path="/settings/ai-planner" element={<PrivateRoute><Layout><AiPlannerSettings /></Layout></PrivateRoute>} />
 
               {/* Journal editor — full screen, no nav */}
               <Route path="/journal/new"      element={<PrivateRoute><JournalEditor /></PrivateRoute>} />

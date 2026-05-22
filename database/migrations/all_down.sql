@@ -8,6 +8,15 @@
 BEGIN;
 
 -- ===================================================================
+-- 009 ROLLBACK: AI Planner
+-- ===================================================================
+
+DROP INDEX IF EXISTS idx_user_health_profiles_user_id;
+DROP INDEX IF EXISTS idx_user_ai_settings_user_id;
+DROP TABLE IF EXISTS user_health_profiles;
+DROP TABLE IF EXISTS user_ai_settings;
+
+-- ===================================================================
 -- 008 ROLLBACK: Gmail Finance Sync
 -- ===================================================================
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Dumbbell, Plus, Trash2, Save, Search, Calendar, BookOpen, X, Loader2, Filter } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Plus, Search, Calendar, BookOpen, X, Loader2, Filter, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import * as api from '../lib/api';
 import MuscleVisualization from '../components/MuscleVisualization';
@@ -82,6 +82,13 @@ export default function WorkoutLibrarySettings() {
   const [search, setSearch] = useState('');
   const [filterMuscle, setFilterMuscle] = useState<string | null>(null);
   const [showExerciseFilters, setShowExerciseFilters] = useState(false);
+  const [showAiGenerateModal, setShowAiGenerateModal] = useState(false);
+  const [aiGenerateMode, setAiGenerateMode] = useState<'profile' | 'custom'>('profile');
+  const [customDaysPerWeek, setCustomDaysPerWeek] = useState('5');
+  const [customMinutesPerSession, setCustomMinutesPerSession] = useState('45');
+  const [customSets, setCustomSets] = useState('3');
+  const [customReps, setCustomReps] = useState('10');
+  const [generatingAi, setGeneratingAi] = useState(false);
   const lastAppliedPickRef = useRef<string>('');
   const splitRef = useRef<SplitPreset | null>(null);
 
@@ -160,6 +167,35 @@ export default function WorkoutLibrarySettings() {
     // "Copy last week" copies the current routine's day_configs back to itself (no-op)
     // but we provide a shortcut: duplicate today's selected day config to the same day.
     flash('Routine already applies to every week ✓');
+  }
+
+  async function generateWorkoutWithAi() {
+    try {
+      setGeneratingAi(true);
+      const result = await api.generateAiWorkoutPlan({
+        mode: aiGenerateMode,
+        daysPerWeek: aiGenerateMode === 'custom' ? Number(customDaysPerWeek || 5) : undefined,
+        minutesPerSession: aiGenerateMode === 'custom' ? Number(customMinutesPerSession || 45) : undefined,
+        setsDefault: aiGenerateMode === 'custom' ? Number(customSets || 3) : undefined,
+        repsDefault: aiGenerateMode === 'custom' ? Number(customReps || 10) : undefined,
+      });
+
+      const next = normalizeRoutineMap(result?.routine || {});
+      const hasAny = Object.values(next).some(v => Array.isArray(v) && v.length > 0);
+      if (!hasAny) {
+        flash('AI did not return a routine');
+        return;
+      }
+
+      await persistRoutine(next);
+      setRoutine(next);
+      setShowAiGenerateModal(false);
+      flash('AI workout routine generated and applied');
+    } catch (e: any) {
+      flash(e?.message || 'Failed to generate AI workout routine');
+    } finally {
+      setGeneratingAi(false);
+    }
   }
 
   async function deleteExercise(exercise: Exercise) {
@@ -287,13 +323,22 @@ export default function WorkoutLibrarySettings() {
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}
               headerRight={
-                <button
-                  onClick={() => openAddPicker(selectedDay)}
-                  className="px-2.5 py-1 rounded-lg font-semibold text-[11px] flex items-center gap-1 press"
-                  style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
-                >
-                  <Plus size={13} /> Add Exercise
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setShowAiGenerateModal(true)}
+                    className="px-2 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 press"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}
+                  >
+                    <Sparkles size={13} /> Generate with AI
+                  </button>
+                  <button
+                    onClick={() => openAddPicker(selectedDay)}
+                    className="px-2.5 py-1 rounded-lg font-semibold text-[11px] flex items-center gap-1 press"
+                    style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                  >
+                    <Plus size={13} /> Add Exercise
+                  </button>
+                </div>
               }
               renderDayExtra={(d) => {
                 const key = dayKey(d);
@@ -401,6 +446,88 @@ export default function WorkoutLibrarySettings() {
                     style={{ color: 'var(--text-primary)' }}
                   />
                 </div>
+
+                {showAiGenerateModal && (
+                  <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+                    <div className="w-full max-w-md rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                      <p className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Generate Workouts with AI</p>
+                      <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Use saved profile defaults or custom rules for this generation.</p>
+
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        <button
+                          onClick={() => setAiGenerateMode('profile')}
+                          className="py-2 rounded-xl text-sm font-semibold press"
+                          style={{ backgroundColor: aiGenerateMode === 'profile' ? 'var(--accent)' : 'var(--surface-elevated)', color: aiGenerateMode === 'profile' ? '#fff' : 'var(--text-secondary)' }}
+                        >
+                          Use Profile
+                        </button>
+                        <button
+                          onClick={() => setAiGenerateMode('custom')}
+                          className="py-2 rounded-xl text-sm font-semibold press"
+                          style={{ backgroundColor: aiGenerateMode === 'custom' ? 'var(--accent)' : 'var(--surface-elevated)', color: aiGenerateMode === 'custom' ? '#fff' : 'var(--text-secondary)' }}
+                        >
+                          Custom
+                        </button>
+                      </div>
+
+                      {aiGenerateMode === 'custom' && (
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          <input
+                            value={customDaysPerWeek}
+                            onChange={(e) => setCustomDaysPerWeek(e.target.value)}
+                            type="number"
+                            placeholder="Days/week"
+                            className="px-3 py-2 rounded-xl text-sm outline-none"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                          />
+                          <input
+                            value={customMinutesPerSession}
+                            onChange={(e) => setCustomMinutesPerSession(e.target.value)}
+                            type="number"
+                            placeholder="Minutes/session"
+                            className="px-3 py-2 rounded-xl text-sm outline-none"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                          />
+                          <input
+                            value={customSets}
+                            onChange={(e) => setCustomSets(e.target.value)}
+                            type="number"
+                            placeholder="Default sets"
+                            className="px-3 py-2 rounded-xl text-sm outline-none"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                          />
+                          <input
+                            value={customReps}
+                            onChange={(e) => setCustomReps(e.target.value)}
+                            type="number"
+                            placeholder="Default reps"
+                            className="px-3 py-2 rounded-xl text-sm outline-none"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                          />
+                        </div>
+                      )}
+
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => setShowAiGenerateModal(false)}
+                          disabled={generatingAi}
+                          className="px-3 py-1.5 rounded-lg text-sm press"
+                          style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={generateWorkoutWithAi}
+                          disabled={generatingAi}
+                          className="px-3 py-1.5 rounded-lg text-sm font-semibold press disabled:opacity-60"
+                          style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                        >
+                          {generatingAi ? 'Generating...' : 'Generate'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-1.5">
                   <button
                     onClick={() => setFilterMuscle(null)}

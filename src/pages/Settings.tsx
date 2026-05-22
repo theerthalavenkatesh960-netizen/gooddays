@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   ChevronLeft, ChevronRight, User, Moon, Palette, Download,
   Upload, LogOut, Bell, Shield, Target, Dumbbell,
-  Check, Sun, Droplets, BookOpen
+  Check, Sun, Droplets, BookOpen, Brain
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContextApi';
@@ -206,6 +206,11 @@ export default function Settings() {
       {/* Workout */}
       <SectionCard title="Workout">
         <SettingRow icon={Dumbbell} label="Workout Library & Weekly Routine" onPress={() => navigate('/settings/workout-library')} color="var(--accent)" />
+      </SectionCard>
+
+      {/* AI Planner */}
+      <SectionCard title="AI Planner">
+        <SettingRow icon={Brain} label="Provider & Health Profile" onPress={() => navigate('/settings/ai-planner')} color="var(--accent-green)" />
       </SectionCard>
 
       {/* Data */}
