@@ -346,8 +346,8 @@ export default function RoutineManager() {
           onSelectDate={(date) => setPickerDay(getDay(date))}
           headerRight={
             <button onClick={saveSchedule} disabled={savingSchedule}
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold disabled:opacity-40"
-              style={{ backgroundColor: 'var(--accent-green)', color: '#fff' }}>
+              className="px-2.5 py-1 rounded-lg text-[11px] font-semibold press disabled:opacity-40"
+              style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
               {savingSchedule ? 'Saving…' : 'Save'}
             </button>
           }

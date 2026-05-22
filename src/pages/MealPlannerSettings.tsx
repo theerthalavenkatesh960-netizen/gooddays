@@ -359,15 +359,15 @@ export default function MealPlannerSettings() {
                 return dayCount > 0 ? <div className="text-[10px] opacity-70">{dayCount}</div> : null;
               }}
               headerRight={
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button onClick={copyLastWeekPlan}
-                    className="px-2.5 py-1 rounded-lg text-xs sm:text-sm font-medium"
-                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                    className="px-2 py-1 rounded-lg text-[11px] press"
+                    style={{ backgroundColor: 'var(--surface)', color: 'var(--text-secondary)' }}>
                     Copy Last Week
                   </button>
                   <button onClick={() => openMealPicker(selectedDayKey)}
-                    className="px-3 py-1.5 rounded-lg font-semibold text-xs flex items-center gap-1.5 press"
-                    style={{ backgroundColor: 'var(--accent-green)', color: '#fff' }}>
+                    className="px-2.5 py-1 rounded-lg font-semibold text-[11px] flex items-center gap-1.5 press"
+                    style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
                     <Plus size={14} /> Add Meal
                   </button>
                 </div>
