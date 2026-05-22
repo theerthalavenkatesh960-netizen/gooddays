@@ -3,10 +3,10 @@
  * Handles all card-related API calls
  */
 
-import { DUMMY_FLAGS } from './api';
+import { USE_DUMMY_FINANCE } from './dummyConfig';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || '';
-const USE_DUMMY_FINANCE = DUMMY_FLAGS.finance;
+const USE_DUMMY = USE_DUMMY_FINANCE;
 
 function getAuthHeader(): Record<string, string> {
   const session = localStorage.getItem('gd_session');
@@ -223,7 +223,7 @@ export const cardApi = {
    * Get all cards for a user
    */
   getCards: async (userId: number): Promise<CreditCard[]> => {
-    if (USE_DUMMY_FINANCE) {
+    if (USE_DUMMY) {
       return Promise.resolve(getDummyCardsForUser(userId));
     }
     return request(`cards/user/${userId}`);
@@ -233,7 +233,7 @@ export const cardApi = {
    * Get a specific card
    */
   getCard: async (cardId: string): Promise<CreditCard> => {
-    if (USE_DUMMY_FINANCE) {
+    if (USE_DUMMY) {
       const found = DUMMY_CARDS.find(c => c.id === cardId) || DUMMY_CARDS[0];
       return Promise.resolve({ ...found });
     }
@@ -256,7 +256,7 @@ export const cardApi = {
     currentBalance?: number;
     status?: string;
   }): Promise<CreditCard> => {
-    if (USE_DUMMY_FINANCE) {
+    if (USE_DUMMY) {
       const created: CreditCard = {
         id: crypto.randomUUID(),
         userId: data.userId,
@@ -300,7 +300,7 @@ export const cardApi = {
       status?: string;
     }
   ): Promise<CreditCard> => {
-    if (USE_DUMMY_FINANCE) {
+    if (USE_DUMMY) {
       const idx = DUMMY_CARDS.findIndex(c => c.id === cardId);
       const base = idx >= 0 ? DUMMY_CARDS[idx] : DUMMY_CARDS[0];
       const updated: CreditCard = {
@@ -327,7 +327,7 @@ export const cardApi = {
    * Delete a card
    */
   deleteCard: async (cardId: string): Promise<void> => {
-    if (USE_DUMMY_FINANCE) {
+    if (USE_DUMMY) {
       DUMMY_CARDS = DUMMY_CARDS.filter(c => c.id !== cardId);
       return Promise.resolve();
     }
@@ -344,7 +344,7 @@ export const cardApi = {
     startDate?: Date,
     endDate?: Date
   ): Promise<any[]> => {
-    if (USE_DUMMY_FINANCE) {
+    if (USE_DUMMY) {
       let items = getDummyExpenses(cardId);
       if (startDate) {
         items = items.filter((e) => new Date(e.date) >= startDate);
@@ -370,7 +370,7 @@ export const cardApi = {
     startDate?: Date,
     endDate?: Date
   ): Promise<CardAnalytics> => {
-    if (USE_DUMMY_FINANCE) {
+    if (USE_DUMMY) {
       return Promise.resolve(getDummyAnalytics(cardId, startDate, endDate));
     }
     const params = new URLSearchParams();
@@ -395,7 +395,7 @@ export const cardApi = {
     };
     cardId?: string;
   }>): Promise<{ count: number; cardIdMap: Record<string, number> }> => {
-    if (USE_DUMMY_FINANCE) {
+    if (USE_DUMMY) {
       const cardIdMap: Record<string, number> = {};
       for (const item of items) {
         if (item.cardId) {

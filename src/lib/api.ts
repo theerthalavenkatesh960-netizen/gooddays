@@ -1,3 +1,8 @@
+// ─── Centralized Dummy Data Configuration ──────────────────────────────────
+// Import all dummy flags from centralized config file
+import { USE_DUMMY_DATA, USE_DUMMY_DAILY_ROUTINE_DATA } from './dummyConfig';
+// ───────────────────────────────────────────────────────────────────────────
+
 type User = { id: number; email: string; name?: string };
 type Session = { access_token: string; user: User } | null;
 type Task = {
@@ -31,12 +36,6 @@ export type UserSettings = {
 };
 
 const API_BASE = ((import.meta as any).env?.VITE_API_URL || 'http://localhost:5000').replace(/\/$/, '');
-
-// ─── Dummy Data Flag (Toggle between dummy and real API) ────────────────────
-export const USE_DUMMY_DATA = true; // Set to false to use real API endpoints
-// Daily routine can be toggled independently from global API dummy mode.
-export const USE_DUMMY_DAILY_ROUTINE_DATA = true;
-// ───────────────────────────────────────────────────────────────────────────
 
 function getAuthHeader(): Record<string, string> {
   const session = getSession();
