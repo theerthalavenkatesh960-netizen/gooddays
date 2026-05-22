@@ -1,4 +1,4 @@
-import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
+import { format, startOfWeek, addDays, isSameDay, isToday } from 'date-fns';
 
 interface WeeklyCalendarProps {
   selectedDate: Date;
@@ -10,50 +10,59 @@ export default function WeeklyCalendar({ selectedDate, onSelectDate, renderDayEx
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-base sm:text-lg font-semibold">
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
           {format(selectedDate, 'EEEE, MMM d')}
         </h3>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           <button
             onClick={() => onSelectDate(addDays(selectedDate, -7))}
-            className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200"
+            className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+            style={{ backgroundColor: 'var(--surface-raised)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
           >
-            Week ◀
+            ◀
           </button>
           <button
             onClick={() => onSelectDate(new Date())}
-            className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200"
+            className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+            style={{ backgroundColor: 'var(--surface-raised)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
           >
             Today
           </button>
           <button
             onClick={() => onSelectDate(addDays(selectedDate, 7))}
-            className="px-2.5 py-1 rounded-lg text-xs sm:text-sm bg-gray-100 hover:bg-gray-200"
+            className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+            style={{ backgroundColor: 'var(--surface-raised)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
           >
-            Week ▶
+            ▶
           </button>
         </div>
       </div>
 
-      <div className="flex gap-1.5 pb-1.5">
+      <div className="grid grid-cols-7 gap-1">
         {Array.from({ length: 7 }).map((_, i) => {
           const d = addDays(weekStart, i);
           const isActive = isSameDay(d, selectedDate);
+          const todayMark = isToday(d);
 
           return (
             <button
               key={format(d, 'yyyy-MM-dd')}
               onClick={() => onSelectDate(d)}
-              className={`px-2 py-2 rounded-lg text-center border transition-colors ${
-                isActive
-                  ? 'bg-emerald-500 text-white border-emerald-600'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-              }`}
+              className="flex flex-col items-center py-2 px-1 rounded-xl text-center transition-all"
+              style={isActive ? {
+                backgroundColor: 'var(--accent)',
+                color: '#fff',
+                border: '1.5px solid var(--accent)',
+              } : {
+                backgroundColor: 'var(--surface)',
+                color: todayMark ? 'var(--accent)' : 'var(--text-primary)',
+                border: todayMark ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+              }}
             >
-              <div className="text-[11px] sm:text-xs">{format(d, 'EEE')}</div>
-              <div className="font-semibold text-sm sm:text-base">{format(d, 'd')}</div>
+              <span className="text-[10px] font-medium uppercase tracking-wide opacity-70">{format(d, 'EEE')}</span>
+              <span className="font-bold text-base leading-tight">{format(d, 'd')}</span>
               {renderDayExtra && renderDayExtra(d)}
             </button>
           );

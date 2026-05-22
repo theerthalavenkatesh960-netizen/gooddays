@@ -10,8 +10,9 @@ public class AppDbContext : DbContext
     public DbSet<User> Users { get; set; } = null!;
     public DbSet<DailyTask> Tasks { get; set; } = null!;
     public DbSet<Expense> Expenses { get; set; } = null!;
-    public DbSet<ConnectedEmailAccount> ConnectedEmailAccounts { get; set; } = null!;
-    public DbSet<SyncedEmail> SyncedEmails { get; set; } = null!;
+    public DbSet<SelfCareLog> SelfCareLogs { get; set; } = null!;
+    public DbSet<SelfCareTemplate> SelfCareTemplates { get; set; } = null!;
+    public DbSet<StudySession> StudySessions { get; set; } = null!;
     public DbSet<GamificationEntry> GamificationEntries { get; set; } = null!;
     public DbSet<DailyTracking> DailyTrackings { get; set; } = null!;
     public DbSet<DailyNote> DailyNotes { get; set; } = null!;
@@ -19,17 +20,10 @@ public class AppDbContext : DbContext
     // Financial Life Tracker entities
     public DbSet<FinancialGoal> FinancialGoals { get; set; } = null!;
     public DbSet<InvestmentBucket> InvestmentBuckets { get; set; } = null!;
-    public DbSet<BucketContribution> BucketContributions { get; set; } = null!;
-    public DbSet<FinanceBudgetProfile> FinanceBudgetProfiles { get; set; } = null!;
-    public DbSet<FinanceFixedExpense> FinanceFixedExpenses { get; set; } = null!;
-    public DbSet<MonthlyIncomeOverride> MonthlyIncomeOverrides { get; set; } = null!;
-    public DbSet<MonthlyFixedExpenseOverride> MonthlyFixedExpenseOverrides { get; set; } = null!;
     public DbSet<MonthlyTask> MonthlyTasks { get; set; } = null!;
     public DbSet<MonthlyTaskCompletion> MonthlyTaskCompletions { get; set; } = null!;
     public DbSet<FinancialRule> FinancialRules { get; set; } = null!;
     public DbSet<MonthlySnapshot> MonthlySnapshots { get; set; } = null!;
-    public DbSet<CreditCard> CreditCards { get; set; } = null!;
-    public DbSet<CardExpense> CardExpenses { get; set; } = null!;
 
     // Workout tracker entities
     public DbSet<Exercise> Exercises { get; set; } = null!;
@@ -68,15 +62,6 @@ public class AppDbContext : DbContext
     // Quick log entities
     public DbSet<QuickLogEntry> QuickLogEntries { get; set; } = null!;
 
-    // Body metrics
-    public DbSet<BodyWeightLog> BodyWeightLogs { get; set; } = null!;
-
-    // Vehicle tracker entities
-    public DbSet<Vehicle> Vehicles { get; set; } = null!;
-    public DbSet<VehicleRefill> VehicleRefills { get; set; } = null!;
-    public DbSet<VehicleService> VehicleServices { get; set; } = null!;
-    public DbSet<VehicleIssue> VehicleIssues { get; set; } = null!;
-
     // Daily routine entities
     public DbSet<DailyRoutine> DailyRoutines { get; set; } = null!;
     public DbSet<RoutineBlock> RoutineBlocks { get; set; } = null!;
@@ -91,8 +76,9 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>().ToTable("user_profiles");
         modelBuilder.Entity<DailyTask>().ToTable("tasks");
         modelBuilder.Entity<Expense>().ToTable("expenses");
-        modelBuilder.Entity<ConnectedEmailAccount>().ToTable("connected_email_accounts");
-        modelBuilder.Entity<SyncedEmail>().ToTable("synced_emails");
+        modelBuilder.Entity<SelfCareLog>().ToTable("self_care_logs");
+        modelBuilder.Entity<SelfCareTemplate>().ToTable("self_care_template");
+        modelBuilder.Entity<StudySession>().ToTable("study_sessions");
         modelBuilder.Entity<GamificationEntry>().ToTable("gamification_entries");
         modelBuilder.Entity<DailyTracking>().ToTable("daily_tracking");
         modelBuilder.Entity<DailyNote>().ToTable("daily_notes");
@@ -100,11 +86,6 @@ public class AppDbContext : DbContext
         // Financial Life Tracker table mappings
         modelBuilder.Entity<FinancialGoal>().ToTable("financial_goals");
         modelBuilder.Entity<InvestmentBucket>().ToTable("investment_buckets");
-        modelBuilder.Entity<BucketContribution>().ToTable("bucket_contributions");
-        modelBuilder.Entity<FinanceBudgetProfile>().ToTable("finance_budget_profiles");
-        modelBuilder.Entity<FinanceFixedExpense>().ToTable("finance_fixed_expenses");
-        modelBuilder.Entity<MonthlyIncomeOverride>().ToTable("finance_monthly_income_overrides");
-        modelBuilder.Entity<MonthlyFixedExpenseOverride>().ToTable("finance_fixed_expense_overrides");
         modelBuilder.Entity<MonthlyTask>().ToTable("monthly_tasks");
         modelBuilder.Entity<MonthlyTaskCompletion>().ToTable("monthly_task_completions");
         modelBuilder.Entity<FinancialRule>().ToTable("financial_rules");
@@ -192,43 +173,29 @@ public class AppDbContext : DbContext
             .HasForeignKey(d => d.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<SelfCareTemplate>()
+            .HasOne(t => t.User)
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<SelfCareLog>()
+            .HasOne(s => s.User)
+            .WithMany()
+            .HasForeignKey(s => s.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         modelBuilder.Entity<Expense>()
             .HasOne(e => e.User)
             .WithMany()
             .HasForeignKey(e => e.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<Expense>()
-            .HasIndex(e => new { e.UserId, e.GmailMessageId })
-            .HasDatabaseName("ix_expenses_user_gmail_message_id");
-
-        modelBuilder.Entity<Expense>()
-            .HasIndex(e => new { e.UserId, e.ExternalReference })
-            .HasDatabaseName("ix_expenses_user_external_reference");
-
-        modelBuilder.Entity<Expense>()
-            .HasIndex(e => new { e.UserId, e.SourceType, e.IsReviewed })
-            .HasDatabaseName("ix_expenses_user_source_reviewed");
-
-        modelBuilder.Entity<ConnectedEmailAccount>()
-            .HasOne(a => a.User)
-            .WithMany()
-            .HasForeignKey(a => a.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<ConnectedEmailAccount>()
-            .HasIndex(a => new { a.UserId, a.Provider })
-            .IsUnique();
-
-        modelBuilder.Entity<SyncedEmail>()
+        modelBuilder.Entity<StudySession>()
             .HasOne(s => s.User)
             .WithMany()
             .HasForeignKey(s => s.UserId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<SyncedEmail>()
-            .HasIndex(s => new { s.UserId, s.GmailMessageId })
-            .IsUnique();
 
         modelBuilder.Entity<GamificationEntry>()
             .HasOne(g => g.User)
@@ -242,63 +209,6 @@ public class AppDbContext : DbContext
             .WithMany(b => b.Tasks)
             .HasForeignKey(t => t.BucketId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<BucketContribution>()
-            .HasOne(c => c.Bucket)
-            .WithMany(b => b.Contributions)
-            .HasForeignKey(c => c.BucketId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<BucketContribution>()
-            .HasIndex(c => new { c.BucketId, c.ContributionDate });
-
-        modelBuilder.Entity<InvestmentBucket>()
-            .HasOne(b => b.User)
-            .WithMany()
-            .HasForeignKey(b => b.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<InvestmentBucket>()
-            .HasIndex(b => new { b.UserId, b.IsActive });
-
-        modelBuilder.Entity<FinanceBudgetProfile>()
-            .HasOne(p => p.User)
-            .WithMany()
-            .HasForeignKey(p => p.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<FinanceBudgetProfile>()
-            .HasIndex(p => p.UserId)
-            .IsUnique();
-
-        modelBuilder.Entity<FinanceFixedExpense>()
-            .HasOne(e => e.Profile)
-            .WithMany(p => p.FixedExpenses)
-            .HasForeignKey(e => e.ProfileId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<FinanceFixedExpense>()
-            .HasIndex(e => new { e.ProfileId, e.SortOrder });
-
-        modelBuilder.Entity<MonthlyIncomeOverride>()
-            .HasOne(o => o.Profile)
-            .WithMany(p => p.MonthlyIncomeOverrides)
-            .HasForeignKey(o => o.ProfileId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<MonthlyIncomeOverride>()
-            .HasIndex(o => new { o.ProfileId, o.Month, o.Year })
-            .IsUnique();
-
-        modelBuilder.Entity<MonthlyFixedExpenseOverride>()
-            .HasOne(o => o.FixedExpense)
-            .WithMany(e => e.MonthlyOverrides)
-            .HasForeignKey(o => o.FixedExpenseId)
-            .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<MonthlyFixedExpenseOverride>()
-            .HasIndex(o => new { o.FixedExpenseId, o.Month, o.Year })
-            .IsUnique();
 
         modelBuilder.Entity<MonthlyTaskCompletion>()
             .HasOne(c => c.Task)
@@ -359,19 +269,5 @@ public class AppDbContext : DbContext
             .HasOne(w => w.User).WithMany().HasForeignKey(w => w.UserId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<WeeklyReview>()
             .HasIndex(w => new { w.UserId, w.WeekStartDate }).IsUnique();
-
-        // Vehicle tracker table mappings
-        modelBuilder.Entity<Vehicle>().ToTable("vehicles");
-        modelBuilder.Entity<VehicleRefill>().ToTable("vehicle_refills");
-        modelBuilder.Entity<VehicleService>().ToTable("vehicle_services");
-        modelBuilder.Entity<VehicleIssue>().ToTable("vehicle_issues");
-
-        // Vehicle relationships
-        modelBuilder.Entity<VehicleRefill>()
-            .HasOne(r => r.Vehicle).WithMany(v => v.Refills).HasForeignKey(r => r.VehicleId).OnDelete(DeleteBehavior.Cascade);
-        modelBuilder.Entity<VehicleService>()
-            .HasOne(s => s.Vehicle).WithMany(v => v.Services).HasForeignKey(s => s.VehicleId).OnDelete(DeleteBehavior.Cascade);
-        modelBuilder.Entity<VehicleIssue>()
-            .HasOne(i => i.Vehicle).WithMany(v => v.Issues).HasForeignKey(i => i.VehicleId).OnDelete(DeleteBehavior.Cascade);
     }
 }

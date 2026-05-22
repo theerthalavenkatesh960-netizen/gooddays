@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Calendar, BookOpen, UtensilsCrossed, Loader2, Filter, Search, Layers, ChefHat } from 'lucide-react';
-import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
+import { addDays, format } from 'date-fns';
 import * as api from '../lib/api';
 import MacroVisualization from '../components/MacroVisualization';
 import MealCard from '../components/MealCard';
@@ -331,10 +331,18 @@ export default function MealPlannerSettings() {
       </div>
 
       <div className="flex gap-1 mb-4 p-1 rounded-xl" style={{ backgroundColor: 'var(--surface)' }}>
-        <button onClick={() => setTab('weekly')} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${tab === 'weekly' ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+        <button
+          onClick={() => setTab('weekly')}
+          className="flex-1 flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all"
+          style={tab === 'weekly' ? { backgroundColor: 'var(--accent)', color: '#fff' } : { color: 'var(--text-muted)' }}
+        >
           <Calendar size={14} /> Weekly Meals
         </button>
-        <button onClick={() => setTab('library')} className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all ${tab === 'library' ? 'bg-emerald-500 text-white' : 'text-gray-500 hover:text-gray-800'}`}>
+        <button
+          onClick={() => setTab('library')}
+          className="flex-1 flex items-center justify-center gap-1.5 px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all"
+          style={tab === 'library' ? { backgroundColor: 'var(--accent)', color: '#fff' } : { color: 'var(--text-muted)' }}
+        >
           <BookOpen size={14} /> Meal Library
         </button>
       </div>
@@ -348,7 +356,7 @@ export default function MealPlannerSettings() {
 
       {tab === 'weekly' && (
         <div className="space-y-2.5">
-          <div className="mb-4 text-gray-900">
+          <div className="mb-4">
             <WeeklyCalendar 
               selectedDate={selectedDate} 
               onSelectDate={setSelectedDate}
@@ -364,13 +372,15 @@ export default function MealPlannerSettings() {
           <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar whitespace-nowrap pb-1">
             <button
               onClick={copyLastWeekPlan}
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 bg-gray-100 text-gray-700 hover:bg-gray-200"
+              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 press"
+              style={{ backgroundColor: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
             >
               Copy Last Week
             </button>
             <button
               onClick={() => openMealPicker(selectedDayKey)}
-              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 bg-emerald-500 text-white flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 flex items-center gap-1.5 press"
+              style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
             >
               <Plus size={14} /> Add Meal
             </button>
@@ -378,10 +388,10 @@ export default function MealPlannerSettings() {
 
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-base sm:text-lg font-semibold capitalize">{selectedDayLabel}</p>
-              <p className="text-xs text-gray-500">
+              <p className="text-base sm:text-lg font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>{selectedDayLabel}</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''}
-                {selectedDayCalories > 0 && <span className="text-yellow-600"> · {Math.round(selectedDayCalories)} kcal</span>}
+                {selectedDayCalories > 0 && <span style={{ color: 'var(--accent-gold)' }}> · {Math.round(selectedDayCalories)} kcal</span>}
               </p>
             </div>
             <div />
