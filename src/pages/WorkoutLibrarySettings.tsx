@@ -86,6 +86,17 @@ export default function WorkoutLibrarySettings() {
   const routineInitializedRef = useRef(false);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const persistSequenceRef = useRef(0);
+  // Refs for always-fresh values so async callbacks never use stale closures
+  const splitRef = useRef<SplitPreset | null>(null);
+  const routineRef = useRef<RoutineMap>({});
+  const isMountedRef = useRef(true);
+  // When picker return already triggered an immediate save, skip the debounce
+  const skipNextAutoSaveRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -93,49 +104,59 @@ export default function WorkoutLibrarySettings() {
     setLoading(true);
     try {
       const [exData, activeSplit] = await Promise.all([api.getExercises(), api.getActiveSplit()]);
+      if (!isMountedRef.current) return;
       setExercises(Array.isArray(exData) ? exData : []);
       const found = activeSplit as SplitPreset | null;
       if (found) {
         setSplit(found);
+        splitRef.current = found;
+        let parsed: RoutineMap = {};
         if (typeof found.dayConfigs === 'string') {
-          try { setRoutine(normalizeRoutineMap(JSON.parse(found.dayConfigs) || {})); } catch { setRoutine({}); }
+          try { parsed = normalizeRoutineMap(JSON.parse(found.dayConfigs) || {}); } catch { parsed = {}; }
         } else if (found.dayConfigs && typeof found.dayConfigs === 'object') {
-          setRoutine(normalizeRoutineMap(found.dayConfigs as any));
-        } else {
-          setRoutine({});
+          parsed = normalizeRoutineMap(found.dayConfigs as any);
         }
+        setRoutine(parsed);
+        routineRef.current = parsed;
       }
     } catch (e: any) {
-      setStatus(e?.message || 'Failed to load');
+      if (isMountedRef.current) setStatus(e?.message || 'Failed to load');
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
     }
   }
 
   async function saveRoutine() {
     setSaving(true);
     try {
-      await persistRoutine(routine);
-      setStatus('Routine saved');
-      setTimeout(() => setStatus(''), 1500);
+      await persistRoutine(routineRef.current);
+      if (isMountedRef.current) {
+        setStatus('Routine saved');
+        setTimeout(() => { if (isMountedRef.current) setStatus(''); }, 1500);
+      }
     } catch (e: any) {
-      setStatus(e?.message || 'Failed to save');
-      setTimeout(() => setStatus(''), 2000);
+      if (isMountedRef.current) {
+        setStatus(e?.message || 'Failed to save');
+        setTimeout(() => { if (isMountedRef.current) setStatus(''); }, 2000);
+      }
     } finally {
-      setSaving(false);
+      if (isMountedRef.current) setSaving(false);
     }
   }
 
   async function persistRoutine(nextRoutine: RoutineMap) {
     const dayConfigs = JSON.stringify(normalizeRoutineMap(nextRoutine));
-    if (split) {
-      const updated = await api.updateSplit(split.id, { name: split.name || 'Weekly Routine', dayConfigs, isActive: true });
-      setSplit(updated);
+    const currentSplit = splitRef.current;
+    if (currentSplit) {
+      const updated = await api.updateSplit(currentSplit.id, { name: currentSplit.name || 'Weekly Routine', dayConfigs, isActive: true });
+      splitRef.current = updated;
+      if (isMountedRef.current) setSplit(updated);
       return;
     }
 
     const created = await api.createSplit({ name: 'Weekly Routine', dayConfigs, isActive: true });
-    setSplit(created);
+    splitRef.current = created;
+    if (isMountedRef.current) setSplit(created);
   }
 
   async function deleteExercise(exercise: Exercise) {
@@ -164,13 +185,17 @@ export default function WorkoutLibrarySettings() {
     setRoutine(prev => {
       const existing = prev[day] || [];
       if (existing.some(e => e.exerciseId === exerciseId)) return prev;
-      return { ...prev, [day]: [...existing, { exerciseId, sets, reps }] };
+      const next = { ...prev, [day]: [...existing, { exerciseId, sets, reps }] };
+      routineRef.current = next;
+      return next;
     });
   }
 
   function removeFromRoutine(day: string, exerciseId: number) {
     setRoutine(prev => {
-      return { ...prev, [day]: (prev[day] || []).filter(e => e.exerciseId !== exerciseId) };
+      const next = { ...prev, [day]: (prev[day] || []).filter(e => e.exerciseId !== exerciseId) };
+      routineRef.current = next;
+      return next;
     });
   }
 
@@ -183,34 +208,35 @@ export default function WorkoutLibrarySettings() {
       return;
     }
 
+    // Picker return already triggered an immediate save — skip debounce for this change.
+    if (skipNextAutoSaveRef.current) {
+      skipNextAutoSaveRef.current = false;
+      return;
+    }
+
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     autoSaveTimerRef.current = setTimeout(() => {
       const seq = ++persistSequenceRef.current;
       void (async () => {
         try {
-          setSaving(true);
-          await persistRoutine(routine);
+          if (isMountedRef.current) setSaving(true);
+          await persistRoutine(routineRef.current);
           if (seq === persistSequenceRef.current) {
-            setStatus('Routine auto-saved');
-            setTimeout(() => setStatus(''), 1200);
+            if (isMountedRef.current) setStatus('Routine auto-saved');
+            setTimeout(() => { if (isMountedRef.current) setStatus(''); }, 1200);
           }
         } catch (e: any) {
           if (seq === persistSequenceRef.current) {
-            setStatus(e?.message || 'Failed to auto-save routine');
-            setTimeout(() => setStatus(''), 2000);
+            if (isMountedRef.current) setStatus(e?.message || 'Failed to auto-save routine');
+            setTimeout(() => { if (isMountedRef.current) setStatus(''); }, 2000);
           }
         } finally {
-          if (seq === persistSequenceRef.current) setSaving(false);
+          if (seq === persistSequenceRef.current && isMountedRef.current) setSaving(false);
         }
       })();
-    }, 250);
-
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearTimeout(autoSaveTimerRef.current);
-        autoSaveTimerRef.current = null;
-      }
-    };
+    }, 400);
+    // NOTE: intentionally no cleanup — we want the save to complete even if component unmounts
+    // (e.g. user navigates away before debounce fires)
   }, [routine, loading]);
 
   const filteredExercises = useMemo(() => {
@@ -237,7 +263,38 @@ export default function WorkoutLibrarySettings() {
     if (pickToken && pickToken === lastProcessedPickToken.current) return;
     if (pickToken) lastProcessedPickToken.current = pickToken;
 
-    addToRoutine(pick.day, Number(pick.exerciseId), Math.max(1, Number(pick.sets) || 3), Math.max(1, Number(pick.reps) || 10));
+    const day = String(pick.day).toLowerCase();
+    const exerciseId = Number(pick.exerciseId);
+    const sets = Math.max(1, Number(pick.sets) || 3);
+    const reps = Math.max(1, Number(pick.reps) || 10);
+
+    const existing = routineRef.current[day] || [];
+    if (existing.some(e => e.exerciseId === exerciseId)) return;
+
+    const next = { ...routineRef.current, [day]: [...existing, { exerciseId, sets, reps }] };
+    routineRef.current = next;
+    setRoutine(next);
+
+    // Save immediately — don't wait for debounce, to avoid loss if user navigates away quickly
+    skipNextAutoSaveRef.current = true;
+    const seq = ++persistSequenceRef.current;
+    void (async () => {
+      try {
+        if (isMountedRef.current) setSaving(true);
+        await persistRoutine(next);
+        if (seq === persistSequenceRef.current) {
+          if (isMountedRef.current) setStatus('Routine saved');
+          setTimeout(() => { if (isMountedRef.current) setStatus(''); }, 1200);
+        }
+      } catch (e: any) {
+        if (seq === persistSequenceRef.current && isMountedRef.current) {
+          setStatus(e?.message || 'Failed to save routine');
+          setTimeout(() => { if (isMountedRef.current) setStatus(''); }, 2000);
+        }
+      } finally {
+        if (seq === persistSequenceRef.current && isMountedRef.current) setSaving(false);
+      }
+    })();
   }, [location.state, loading]);
 
   const selectedDay = dayKey(selectedDate);
