@@ -227,8 +227,9 @@ export default function MealPlannerSettings() {
     try {
       // Remove stale/invalid template IDs to avoid backend "invalid template id: 0" rejects.
       const sanitized: MealPlanMap = {};
+      const validTemplateIds = new Set(meals.map(m => m.id));
       for (const key of Object.keys(plan)) {
-        sanitized[key] = (plan[key] || []).filter((a) => Number.isFinite(a.mealTemplateId) && a.mealTemplateId > 0);
+        sanitized[key] = (plan[key] || []).filter((a) => Number.isFinite(a.mealTemplateId) && a.mealTemplateId > 0 && validTemplateIds.has(a.mealTemplateId));
       }
 
       await api.upsertWeeklyMealPlan(JSON.stringify(sanitized));

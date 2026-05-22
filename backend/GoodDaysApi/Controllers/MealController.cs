@@ -162,28 +162,16 @@ public class MealController : ControllerBase
 
         var planJson = body.PlanJson;
 
-        // Validate that plan_json can be parsed and all referenced meals exist
+        // Validate that plan_json can be parsed and all referenced meals exist.
+        // Supports mixed legacy/new formats in the same payload.
         Dictionary<string, List<MealAssignment>> planData;
         try
         {
-            planData = JsonSerializer.Deserialize<Dictionary<string, List<MealAssignment>>>(planJson) 
-                ?? new Dictionary<string, List<MealAssignment>>();
+            planData = ParsePlanJsonFlexible(planJson);
         }
         catch
         {
-            // Fallback: support legacy format { "date": [1,2,3] }
-            try
-            {
-                var oldData = JsonSerializer.Deserialize<Dictionary<string, List<int>>>(planJson);
-                planData = oldData?.ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => (kvp.Value ?? new List<int>()).Select(id => new MealAssignment(id, null)).ToList()
-                ) ?? new Dictionary<string, List<MealAssignment>>();
-            }
-            catch
-            {
-                return BadRequest("Invalid plan JSON format. Each date should map to an array of meal objects with mealTemplateId and optional timeOfDay.");
-            }
+            return BadRequest("Invalid plan JSON format. Each date should map to an array of meal objects with mealTemplateId and optional timeOfDay.");
         }
 
         // Extract all unique meal template IDs and validate they exist for this user
@@ -193,23 +181,20 @@ public class MealController : ControllerBase
             .Distinct()
             .ToList();
 
-        var nonPositiveIds = planData.Values
-            .SelectMany(meals => meals.Select(m => m.MealTemplateId))
-            .Where(id => id <= 0)
-            .Distinct()
-            .ToList();
-
-        if (nonPositiveIds.Any())
-            return BadRequest($"Invalid meal template IDs: {string.Join(", ", nonPositiveIds)}");
-
         var existingMeals = await _db.MealTemplates
             .Where(m => m.UserId == userId && allMealIds.Contains(m.Id))
             .Select(m => m.Id)
             .ToListAsync();
 
-        var invalidIds = allMealIds.Except(existingMeals).ToList();
-        if (invalidIds.Any())
-            return BadRequest($"Invalid meal template IDs: {string.Join(", ", invalidIds)}");
+        // Canonicalize to one format and silently drop stale/invalid IDs.
+        var validIdSet = existingMeals.ToHashSet();
+        var sanitized = new Dictionary<string, List<MealAssignment>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in planData)
+        {
+            sanitized[kvp.Key] = (kvp.Value ?? new List<MealAssignment>())
+                .Where(m => m.MealTemplateId > 0 && validIdSet.Contains(m.MealTemplateId))
+                .ToList();
+        }
 
         var plan = await _db.WeeklyMealPlans.FirstOrDefaultAsync(p => p.UserId == userId);
         if (plan is null)
@@ -217,7 +202,7 @@ public class MealController : ControllerBase
             plan = new WeeklyMealPlan { UserId = userId };
             _db.WeeklyMealPlans.Add(plan);
         }
-        plan.PlanJson = planJson;
+        plan.PlanJson = JsonSerializer.Serialize(sanitized);
         plan.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return Ok(plan);
@@ -244,31 +229,11 @@ public class MealController : ControllerBase
         Dictionary<string, List<MealAssignment>> data;
         try
         {
-            data = JsonSerializer.Deserialize<Dictionary<string, List<MealAssignment>>>(plan.PlanJson) 
-                ?? new Dictionary<string, List<MealAssignment>>();
+            data = ParsePlanJsonFlexible(plan.PlanJson);
         }
         catch
         {
-            // Fallback: if old format (List<int>) is detected, try to migrate
-            try
-            {
-                var oldData = JsonSerializer.Deserialize<Dictionary<string, List<int>>>(plan.PlanJson);
-                if (oldData != null)
-                {
-                    data = oldData.ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => kvp.Value.Select(id => new MealAssignment(id, null)).ToList()
-                    );
-                }
-                else
-                {
-                    data = new Dictionary<string, List<MealAssignment>>();
-                }
-            }
-            catch
-            {
-                data = new Dictionary<string, List<MealAssignment>>();
-            }
+            data = new Dictionary<string, List<MealAssignment>>();
         }
 
         var sourceWeekStart = sourceDate.AddDays(-(int)sourceDate.DayOfWeek);
@@ -290,7 +255,7 @@ public class MealController : ControllerBase
         }
 
         if (!sourceWeekHasMeals)
-            return BadRequest("Last week has no meals to copy.");
+            return Ok(plan);
 
         for (var i = 0; i < 7; i++)
         {
@@ -401,4 +366,58 @@ public class MealController : ControllerBase
     }
 
     public record MealAssignment(int MealTemplateId, string? TimeOfDay);
+
+    private static Dictionary<string, List<MealAssignment>> ParsePlanJsonFlexible(string json)
+    {
+        var result = new Dictionary<string, List<MealAssignment>>(StringComparer.OrdinalIgnoreCase);
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            return result;
+
+        foreach (var day in doc.RootElement.EnumerateObject())
+        {
+            if (day.Value.ValueKind != JsonValueKind.Array)
+            {
+                result[day.Name] = new List<MealAssignment>();
+                continue;
+            }
+
+            var assignments = new List<MealAssignment>();
+            foreach (var item in day.Value.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.Number)
+                {
+                    if (item.TryGetInt32(out var id))
+                        assignments.Add(new MealAssignment(id, null));
+                    continue;
+                }
+
+                if (item.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                int mealTemplateId = 0;
+                string? timeOfDay = null;
+
+                foreach (var prop in item.EnumerateObject())
+                {
+                    var name = prop.Name.ToLowerInvariant();
+                    if ((name == "mealtemplateid" || name == "meal_template_id") && prop.Value.ValueKind == JsonValueKind.Number)
+                    {
+                        if (prop.Value.TryGetInt32(out var id)) mealTemplateId = id;
+                    }
+                    else if ((name == "timeofday" || name == "time_of_day") && prop.Value.ValueKind == JsonValueKind.String)
+                    {
+                        timeOfDay = prop.Value.GetString();
+                    }
+                }
+
+                if (mealTemplateId != 0)
+                    assignments.Add(new MealAssignment(mealTemplateId, timeOfDay));
+            }
+
+            result[day.Name] = assignments;
+        }
+
+        return result;
+    }
 }

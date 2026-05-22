@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Dumbbell, Plus, Trash2, Save, Search, Calendar, BookOpen, X, Loader2, Filter } from 'lucide-react';
 import { format } from 'date-fns';
@@ -47,7 +47,7 @@ export default function WorkoutLibrarySettings() {
   const [search, setSearch] = useState('');
   const [filterMuscle, setFilterMuscle] = useState<string | null>(null);
   const [showExerciseFilters, setShowExerciseFilters] = useState(false);
-  const [lastPickSignature, setLastPickSignature] = useState('');
+  const lastProcessedPickToken = useRef<number>(0);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -144,13 +144,17 @@ export default function WorkoutLibrarySettings() {
   useEffect(() => {
     const state: any = location.state || {};
     const pick = state.routinePick;
+    const pickToken = Number(state.reloadAt || 0);
     if (state.tab) setTab(state.tab);
+    if (loading) return;
     if (!pick?.day || !pick?.exerciseId) return;
-    const signature = `${pick.day}-${pick.exerciseId}-${pick.sets}-${pick.reps}`;
-    if (signature === lastPickSignature) return;
-    setLastPickSignature(signature);
+
+    // Apply each picker navigation once, even if the same exercise is selected again later.
+    if (pickToken && pickToken === lastProcessedPickToken.current) return;
+    if (pickToken) lastProcessedPickToken.current = pickToken;
+
     addToRoutine(pick.day, Number(pick.exerciseId), Math.max(1, Number(pick.sets) || 3), Math.max(1, Number(pick.reps) || 10));
-  }, [location.state]);
+  }, [location.state, loading]);
 
   const selectedDay = dayKey(selectedDate);
   const selectedDayEntries = routine[selectedDay] || [];
