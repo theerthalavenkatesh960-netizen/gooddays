@@ -279,31 +279,14 @@ export default function WorkoutLibrarySettings() {
         </div>
       )}
 
-      {/* ── WEEKLY ROUTINE TAB ── */}
       {tab === 'routine' && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              Weekly Plan
-            </p>
-            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-              Assign routines per day
-            </span>
-          </div>
-
-          <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="mb-4">
-              <WeeklyCalendar
-                selectedDate={selectedDate}
-                onSelectDate={setSelectedDate}
-                headerRight={<></>}
-                renderDayExtra={(d) => {
-                  const key = dayKey(d);
-                  const count = (routine[key] || []).length;
-                  return count > 0 ? <div className="text-[10px] opacity-80">{count}</div> : null;
-                }}
-              />
-              <div className="flex justify-end gap-1.5 mt-2">
+          {/* Calendar strip card */}
+          <div className="mb-2">
+            <WeeklyCalendar
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
+              headerRight={
                 <button
                   onClick={() => openAddPicker(selectedDay)}
                   className="px-2.5 py-1 rounded-lg font-semibold text-[11px] flex items-center gap-1 press"
@@ -311,21 +294,27 @@ export default function WorkoutLibrarySettings() {
                 >
                   <Plus size={13} /> Add Exercise
                 </button>
-              </div>
-            </div>
+              }
+              renderDayExtra={(d) => {
+                const key = dayKey(d);
+                const count = (routine[key] || []).length;
+                return <div className="text-[10px] opacity-80" style={{ minHeight: 14 }}>{count > 0 ? count : ''}</div>;
+              }}
+            />
+          </div>
 
-            <div className="flex items-center justify-between mb-3 mt-3">
-              <div>
-                <p className="text-sm font-bold capitalize" style={{ color: 'var(--text-primary)' }}>{selectedDay}</p>
-                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{selectedDayEntries.length} exercise{selectedDayEntries.length !== 1 ? 's' : ''}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {selectedDayExercises.length > 0 && <MuscleVisualization intensity={selectedIntensity} side="front" height={48} />}
-              </div>
+          {/* Selected day info */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold capitalize" style={{ color: 'var(--text-primary)' }}>{selectedDay}</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{selectedDayEntries.length} exercise{selectedDayEntries.length !== 1 ? 's' : ''}</p>
             </div>
+            {selectedDayExercises.length > 0 && <MuscleVisualization intensity={selectedIntensity} side="front" height={48} />}
+          </div>
 
-            {selectedDayExercises.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2">
+          {/* Exercise list */}
+          {selectedDayExercises.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2">
                 {selectedDayExercises.map(({ entry, ex }) => (
                   <div key={`${selectedDay}-${entry.exerciseId}`} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
                     <button
@@ -366,7 +355,6 @@ export default function WorkoutLibrarySettings() {
                 <Plus size={14} /> Add exercises for {selectedDay}
               </button>
             )}
-          </div>
         </div>
       )}
 
