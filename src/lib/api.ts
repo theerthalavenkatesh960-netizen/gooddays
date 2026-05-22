@@ -2156,7 +2156,14 @@ export async function upsertWeeklyMealPlan(planJson: string) {
     DUMMY_WEEKLY_MEAL_PLAN.planJson = planJson;
     return Promise.resolve(DUMMY_WEEKLY_MEAL_PLAN);
   }
-  return request('meal/plan', { method: 'PUT', body: JSON.stringify({ planJson }) });
+  return request('meal/plan', {
+    method: 'PUT',
+    body: JSON.stringify({
+      planJson,
+      PlanJson: planJson,
+      plan_json: planJson,
+    }),
+  });
 }
 
 export async function copyLastWeekMealPlan(sourceDate: string, targetDate?: string) {
@@ -2165,7 +2172,12 @@ export async function copyLastWeekMealPlan(sourceDate: string, targetDate?: stri
   }
   return request('meal/plan/copy-last-week', {
     method: 'POST',
-    body: JSON.stringify({ sourceDate, targetDate }),
+    body: JSON.stringify({
+      sourceDate,
+      targetDate,
+      SourceDate: sourceDate,
+      TargetDate: targetDate,
+    }),
   });
 }
 

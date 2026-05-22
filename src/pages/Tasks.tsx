@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, CheckCircle2, RotateCcw, Trash2, Filter, Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Dumbbell, Bell } from 'lucide-react';
+import { Plus, CheckCircle2, RotateCcw, Trash2, Filter, PencilLine, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Dumbbell, Bell } from 'lucide-react';
 import { format, isToday, isPast, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
@@ -593,7 +593,7 @@ const renderOccurrences = (task: any) => {
                       onClick={() => openEditModal(task)}
                       className="p-1 sm:p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg"
                     >
-                      <Edit size={14} />
+                      <PencilLine size={14} />
                     </motion.button>
                   )}
                   <motion.button

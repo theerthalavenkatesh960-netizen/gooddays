@@ -1,4 +1,5 @@
 using GoodDaysApi.Data;
+using GoodDaysApi.DTOs.Workout;
 using GoodDaysApi.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -42,23 +43,34 @@ public class WorkoutController : ControllerBase
     }
 
     [HttpPost("splits")]
-    public async Task<IActionResult> CreateSplit([FromBody] WorkoutSplitPreset body)
+    public async Task<IActionResult> CreateSplit([FromBody] WorkoutSplitUpsertRequest body)
     {
-        body.UserId = GetUserId();
-        body.CreatedAt = DateTime.UtcNow;
-        _db.WorkoutSplitPresets.Add(body);
+        if (string.IsNullOrWhiteSpace(body.Name)) return BadRequest("Split name is required.");
+
+        var entity = new WorkoutSplitPreset
+        {
+            UserId = GetUserId(),
+            Name = body.Name.Trim(),
+            DayConfigs = string.IsNullOrWhiteSpace(body.DayConfigs) ? "{}" : body.DayConfigs,
+            IsActive = body.IsActive,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        _db.WorkoutSplitPresets.Add(entity);
         await _db.SaveChangesAsync();
-        return Ok(body);
+        return Ok(entity);
     }
 
     [HttpPut("splits/{id}")]
-    public async Task<IActionResult> UpdateSplit(int id, [FromBody] WorkoutSplitPreset body)
+    public async Task<IActionResult> UpdateSplit(int id, [FromBody] WorkoutSplitUpsertRequest body)
     {
         var userId = GetUserId();
         var split = await _db.WorkoutSplitPresets.FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId);
         if (split is null) return NotFound();
-        split.Name = body.Name;
-        split.DayConfigs = body.DayConfigs;
+        if (string.IsNullOrWhiteSpace(body.Name)) return BadRequest("Split name is required.");
+
+        split.Name = body.Name.Trim();
+        split.DayConfigs = string.IsNullOrWhiteSpace(body.DayConfigs) ? "{}" : body.DayConfigs;
         split.IsActive = body.IsActive;
 
         // Ensure only one split is active
@@ -137,25 +149,33 @@ public class WorkoutController : ControllerBase
     }
 
     [HttpPost("plans")]
-    public async Task<IActionResult> CreatePlan([FromBody] WorkoutDayPlan body)
+    public async Task<IActionResult> CreatePlan([FromBody] WorkoutDayPlanUpsertRequest body)
     {
-        body.UserId = GetUserId();
-        body.Date = DateTime.SpecifyKind(body.Date, DateTimeKind.Utc);
-        body.CreatedAt = DateTime.UtcNow;
-        _db.WorkoutDayPlans.Add(body);
+        var entity = new WorkoutDayPlan
+        {
+            UserId = GetUserId(),
+            Date = DateTime.SpecifyKind(body.Date, DateTimeKind.Utc),
+            DayLabel = body.DayLabel,
+            PlannedExercises = string.IsNullOrWhiteSpace(body.PlannedExercises) ? "[]" : body.PlannedExercises,
+            IsCompleted = body.IsCompleted,
+            Notes = body.Notes,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        _db.WorkoutDayPlans.Add(entity);
         await _db.SaveChangesAsync();
-        return Ok(body);
+        return Ok(entity);
     }
 
     [HttpPut("plans/{id}")]
-    public async Task<IActionResult> UpdatePlan(int id, [FromBody] WorkoutDayPlan body)
+    public async Task<IActionResult> UpdatePlan(int id, [FromBody] WorkoutDayPlanUpsertRequest body)
     {
         var userId = GetUserId();
         var plan = await _db.WorkoutDayPlans.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
         if (plan is null) return NotFound();
         plan.Date = DateTime.SpecifyKind(body.Date, DateTimeKind.Utc);
         plan.DayLabel = body.DayLabel;
-        plan.PlannedExercises = body.PlannedExercises;
+        plan.PlannedExercises = string.IsNullOrWhiteSpace(body.PlannedExercises) ? "[]" : body.PlannedExercises;
         plan.IsCompleted = body.IsCompleted;
         plan.Notes = body.Notes;
         await _db.SaveChangesAsync();
@@ -186,45 +206,56 @@ public class WorkoutController : ControllerBase
     }
 
     [HttpPost("plans/{planId}/sets")]
-    public async Task<IActionResult> LogSet(int planId, [FromBody] WorkoutSet body)
+    public async Task<IActionResult> LogSet(int planId, [FromBody] WorkoutSetCreateRequest body)
     {
         var userId = GetUserId();
         var plan = await _db.WorkoutDayPlans.FirstOrDefaultAsync(p => p.Id == planId && p.UserId == userId);
         if (plan is null) return NotFound();
 
-        body.WorkoutDayPlanId = planId;
-        body.LoggedAt = DateTime.UtcNow;
-        _db.WorkoutSets.Add(body);
+        var entity = new WorkoutSet
+        {
+            WorkoutDayPlanId = planId,
+            ExerciseId = body.ExerciseId,
+            SetNumber = body.SetNumber,
+            Reps = body.Reps,
+            WeightKg = body.WeightKg,
+            DurationSeconds = body.DurationSeconds,
+            IsCompleted = body.IsCompleted,
+            Notes = body.Notes,
+            LoggedAt = DateTime.UtcNow,
+        };
+
+        _db.WorkoutSets.Add(entity);
         await _db.SaveChangesAsync();
 
         // Update personal record if this is a heavier lift
-        if (body.WeightKg.HasValue && body.Reps.HasValue && body.IsCompleted)
+        if (entity.WeightKg.HasValue && entity.Reps.HasValue && entity.IsCompleted)
         {
-            var pr = await _db.PersonalRecords.FirstOrDefaultAsync(pr => pr.UserId == userId && pr.ExerciseId == body.ExerciseId);
+            var pr = await _db.PersonalRecords.FirstOrDefaultAsync(pr => pr.UserId == userId && pr.ExerciseId == entity.ExerciseId);
             if (pr is null)
             {
                 _db.PersonalRecords.Add(new PersonalRecord
                 {
-                    UserId = userId, ExerciseId = body.ExerciseId,
-                    MaxWeightKg = body.WeightKg.Value, Reps = body.Reps.Value,
+                    UserId = userId, ExerciseId = entity.ExerciseId,
+                    MaxWeightKg = entity.WeightKg.Value, Reps = entity.Reps.Value,
                     AchievedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
                 });
             }
-            else if (body.WeightKg.Value > pr.MaxWeightKg)
+            else if (entity.WeightKg.Value > pr.MaxWeightKg)
             {
-                pr.MaxWeightKg = body.WeightKg.Value;
-                pr.Reps = body.Reps.Value;
+                pr.MaxWeightKg = entity.WeightKg.Value;
+                pr.Reps = entity.Reps.Value;
                 pr.AchievedAt = DateTime.UtcNow;
                 pr.UpdatedAt = DateTime.UtcNow;
             }
             await _db.SaveChangesAsync();
         }
 
-        return Ok(body);
+        return Ok(entity);
     }
 
     [HttpPut("sets/{id}")]
-    public async Task<IActionResult> UpdateSet(int id, [FromBody] WorkoutSet body)
+    public async Task<IActionResult> UpdateSet(int id, [FromBody] WorkoutSetUpdateRequest body)
     {
         var userId = GetUserId();
         var set = await _db.WorkoutSets
@@ -269,16 +300,25 @@ public class WorkoutController : ControllerBase
     // ─── Images ──────────────────────────────────────────────────────────
 
     [HttpPost("plans/{planId}/images")]
-    public async Task<IActionResult> AddImage(int planId, [FromBody] WorkoutDayImage body)
+    public async Task<IActionResult> AddImage(int planId, [FromBody] WorkoutDayImageCreateRequest body)
     {
         var userId = GetUserId();
         var plan = await _db.WorkoutDayPlans.FirstOrDefaultAsync(p => p.Id == planId && p.UserId == userId);
         if (plan is null) return NotFound();
-        body.WorkoutDayPlanId = planId;
-        body.UploadedAt = DateTime.UtcNow;
-        _db.WorkoutDayImages.Add(body);
+
+        if (string.IsNullOrWhiteSpace(body.ImageUrl)) return BadRequest("ImageUrl is required.");
+
+        var entity = new WorkoutDayImage
+        {
+            WorkoutDayPlanId = planId,
+            ImageUrl = body.ImageUrl.Trim(),
+            Caption = body.Caption,
+            UploadedAt = DateTime.UtcNow,
+        };
+
+        _db.WorkoutDayImages.Add(entity);
         await _db.SaveChangesAsync();
-        return Ok(body);
+        return Ok(entity);
     }
 
     [HttpDelete("images/{id}")]

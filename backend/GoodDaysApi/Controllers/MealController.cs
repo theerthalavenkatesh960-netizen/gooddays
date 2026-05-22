@@ -1,4 +1,5 @@
 using GoodDaysApi.Data;
+using GoodDaysApi.DTOs.Meal;
 using GoodDaysApi.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -31,27 +32,39 @@ public class MealController : ControllerBase
     }
 
     [HttpPost("ingredients")]
-    public async Task<IActionResult> CreateIngredient([FromBody] MealIngredient body)
+    public async Task<IActionResult> CreateIngredient([FromBody] MealIngredientUpsertRequest body)
     {
-        body.UserId = GetUserId();
-        body.CreatedAt = DateTime.UtcNow;
-        _db.MealIngredients.Add(body);
+        if (string.IsNullOrWhiteSpace(body.Name)) return BadRequest("Ingredient name is required.");
+
+        var entity = new MealIngredient
+        {
+            UserId = GetUserId(),
+            Name = body.Name.Trim(),
+            CaloriesKcal = Math.Max(0, body.CaloriesKcal),
+            ProteinG = Math.Max(0, body.ProteinG),
+            CarbsG = Math.Max(0, body.CarbsG),
+            FatsG = Math.Max(0, body.FatsG),
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        _db.MealIngredients.Add(entity);
         await _db.SaveChangesAsync();
-        return Ok(body);
+        return Ok(entity);
     }
 
     [HttpPut("ingredients/{id}")]
-    public async Task<IActionResult> UpdateIngredient(int id, [FromBody] MealIngredient body)
+    public async Task<IActionResult> UpdateIngredient(int id, [FromBody] MealIngredientUpsertRequest body)
     {
         var userId = GetUserId();
         var item = await _db.MealIngredients.FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId);
         if (item is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(body.Name)) return BadRequest("Ingredient name is required.");
 
-        item.Name = body.Name;
-        item.CaloriesKcal = body.CaloriesKcal;
-        item.ProteinG = body.ProteinG;
-        item.CarbsG = body.CarbsG;
-        item.FatsG = body.FatsG;
+        item.Name = body.Name.Trim();
+        item.CaloriesKcal = Math.Max(0, body.CaloriesKcal);
+        item.ProteinG = Math.Max(0, body.ProteinG);
+        item.CarbsG = Math.Max(0, body.CarbsG);
+        item.FatsG = Math.Max(0, body.FatsG);
 
         await _db.SaveChangesAsync();
         return Ok(item);
@@ -78,28 +91,41 @@ public class MealController : ControllerBase
     }
 
     [HttpPost("templates")]
-    public async Task<IActionResult> CreateTemplate([FromBody] MealTemplate body)
+    public async Task<IActionResult> CreateTemplate([FromBody] MealTemplateUpsertRequest body)
     {
-        body.UserId = GetUserId();
-        body.CreatedAt = DateTime.UtcNow;
-        _db.MealTemplates.Add(body);
+        if (string.IsNullOrWhiteSpace(body.Name)) return BadRequest("Template name is required.");
+
+        var entity = new MealTemplate
+        {
+            UserId = GetUserId(),
+            Name = body.Name.Trim(),
+            Timing = string.IsNullOrWhiteSpace(body.Timing) ? "breakfast" : body.Timing.Trim(),
+            TimeOfDay = string.IsNullOrWhiteSpace(body.TimeOfDay) ? null : body.TimeOfDay.Trim(),
+            IngredientsJson = string.IsNullOrWhiteSpace(body.IngredientsJson) ? "[]" : body.IngredientsJson,
+            Recipe = body.Recipe?.Trim() ?? string.Empty,
+            ImageUrl = string.IsNullOrWhiteSpace(body.ImageUrl) ? null : body.ImageUrl.Trim(),
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        _db.MealTemplates.Add(entity);
         await _db.SaveChangesAsync();
-        return Ok(body);
+        return Ok(entity);
     }
 
     [HttpPut("templates/{id}")]
-    public async Task<IActionResult> UpdateTemplate(int id, [FromBody] MealTemplate body)
+    public async Task<IActionResult> UpdateTemplate(int id, [FromBody] MealTemplateUpsertRequest body)
     {
         var userId = GetUserId();
         var item = await _db.MealTemplates.FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
         if (item is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(body.Name)) return BadRequest("Template name is required.");
 
-        item.Name = body.Name;
-        item.Timing = body.Timing;
-        item.TimeOfDay = body.TimeOfDay;
-        item.IngredientsJson = body.IngredientsJson;
-        item.Recipe = body.Recipe;
-        item.ImageUrl = body.ImageUrl;
+        item.Name = body.Name.Trim();
+        item.Timing = string.IsNullOrWhiteSpace(body.Timing) ? "breakfast" : body.Timing.Trim();
+        item.TimeOfDay = string.IsNullOrWhiteSpace(body.TimeOfDay) ? null : body.TimeOfDay.Trim();
+        item.IngredientsJson = string.IsNullOrWhiteSpace(body.IngredientsJson) ? "[]" : body.IngredientsJson;
+        item.Recipe = body.Recipe?.Trim() ?? string.Empty;
+        item.ImageUrl = string.IsNullOrWhiteSpace(body.ImageUrl) ? null : body.ImageUrl.Trim();
 
         await _db.SaveChangesAsync();
         return Ok(item);
@@ -127,27 +153,54 @@ public class MealController : ControllerBase
     }
 
     [HttpPut("plan")]
-    public async Task<IActionResult> UpsertPlan([FromBody] UpsertPlanRequest body)
+    public async Task<IActionResult> UpsertPlan([FromBody] UpsertPlanRequestDto body)
     {
         var userId = GetUserId();
-        
+
+        if (string.IsNullOrWhiteSpace(body.PlanJson))
+            return BadRequest("planJson is required.");
+
+        var planJson = body.PlanJson;
+
         // Validate that plan_json can be parsed and all referenced meals exist
         Dictionary<string, List<MealAssignment>> planData;
         try
         {
-            planData = JsonSerializer.Deserialize<Dictionary<string, List<MealAssignment>>>(body.PlanJson) 
+            planData = JsonSerializer.Deserialize<Dictionary<string, List<MealAssignment>>>(planJson) 
                 ?? new Dictionary<string, List<MealAssignment>>();
         }
         catch
         {
-            return BadRequest("Invalid plan JSON format. Each date should map to an array of meal objects with mealTemplateId and timeOfDay.");
+            // Fallback: support legacy format { "date": [1,2,3] }
+            try
+            {
+                var oldData = JsonSerializer.Deserialize<Dictionary<string, List<int>>>(planJson);
+                planData = oldData?.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => (kvp.Value ?? new List<int>()).Select(id => new MealAssignment(id, null)).ToList()
+                ) ?? new Dictionary<string, List<MealAssignment>>();
+            }
+            catch
+            {
+                return BadRequest("Invalid plan JSON format. Each date should map to an array of meal objects with mealTemplateId and optional timeOfDay.");
+            }
         }
 
         // Extract all unique meal template IDs and validate they exist for this user
         var allMealIds = planData.Values
             .SelectMany(meals => meals.Select(m => m.MealTemplateId))
+            .Where(id => id > 0)
             .Distinct()
             .ToList();
+
+        var nonPositiveIds = planData.Values
+            .SelectMany(meals => meals.Select(m => m.MealTemplateId))
+            .Where(id => id <= 0)
+            .Distinct()
+            .ToList();
+
+        if (nonPositiveIds.Any())
+            return BadRequest($"Invalid meal template IDs: {string.Join(", ", nonPositiveIds)}");
 
         var existingMeals = await _db.MealTemplates
             .Where(m => m.UserId == userId && allMealIds.Contains(m.Id))
@@ -164,14 +217,14 @@ public class MealController : ControllerBase
             plan = new WeeklyMealPlan { UserId = userId };
             _db.WeeklyMealPlans.Add(plan);
         }
-        plan.PlanJson = body.PlanJson;
+        plan.PlanJson = planJson;
         plan.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return Ok(plan);
     }
 
     [HttpPost("plan/copy-last-week")]
-    public async Task<IActionResult> CopyLastWeek([FromBody] CopyLastWeekRequest body)
+    public async Task<IActionResult> CopyLastWeek([FromBody] CopyLastWeekRequestDto body)
     {
         if (!DateOnly.TryParse(body.SourceDate, out var sourceDate))
             return BadRequest("Invalid sourceDate format. Use yyyy-MM-dd");
@@ -311,7 +364,7 @@ public class MealController : ControllerBase
     }
 
     [HttpPut("logs")]
-    public async Task<IActionResult> UpsertDailyLog([FromBody] UpsertDailyLogRequest body)
+    public async Task<IActionResult> UpsertDailyLog([FromBody] UpsertDailyLogRequestDto body)
     {
         if (!DateOnly.TryParse(body.Date, out var parsedDate))
             return BadRequest("Invalid date format. Use yyyy-MM-dd");
@@ -347,8 +400,5 @@ public class MealController : ControllerBase
         });
     }
 
-    public record UpsertPlanRequest(string PlanJson);
-    public record CopyLastWeekRequest(string SourceDate, string? TargetDate);
-    public record UpsertDailyLogRequest(string Date, List<int> MealIds);
     public record MealAssignment(int MealTemplateId, string? TimeOfDay);
 }

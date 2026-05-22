@@ -8,7 +8,7 @@ public class WorkoutSplitPreset
 {
     public int Id { get; set; }
     public int UserId { get; set; }
-    public User User { get; set; } = null!;
+    public User? User { get; set; }
     public string Name { get; set; } = string.Empty; // e.g. "My PPL Split"
     public string DayConfigs { get; set; } = "{}"; // JSON
     public bool IsActive { get; set; } = false;

@@ -9,7 +9,7 @@ public class MealTemplate
 {
     public int Id { get; set; }
     public int UserId { get; set; }
-    public User User { get; set; } = null!;
+    public User? User { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Timing { get; set; } = "breakfast"; // breakfast/lunch/dinner/pre-workout/post-workout/snack
     public string? TimeOfDay { get; set; }

@@ -12,7 +12,7 @@ public class WeeklyMealPlan
 {
     public int Id { get; set; }
     public int UserId { get; set; }
-    public User User { get; set; } = null!;
+    public User? User { get; set; }
     public string PlanJson { get; set; } = "{}";
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
