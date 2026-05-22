@@ -420,6 +420,27 @@ export default function MealPlannerSettings() {
               }}
               headerRight={
                 <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setSelectedDate(addDays(selectedDate, -7))}
+                    className="px-2 py-1 rounded-lg text-[11px] press"
+                    style={{ backgroundColor: 'var(--surface)', color: 'var(--text-secondary)' }}
+                  >
+                    ◀
+                  </button>
+                  <button
+                    onClick={() => setSelectedDate(new Date())}
+                    className="px-2 py-1 rounded-lg text-[11px] font-semibold press"
+                    style={{ backgroundColor: 'var(--surface)', color: 'var(--accent)' }}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => setSelectedDate(addDays(selectedDate, 7))}
+                    className="px-2 py-1 rounded-lg text-[11px] press"
+                    style={{ backgroundColor: 'var(--surface)', color: 'var(--text-secondary)' }}
+                  >
+                    ▶
+                  </button>
                   <button onClick={copyLastWeekPlan}
                     className="px-2 py-1 rounded-lg text-[11px] press"
                     style={{ backgroundColor: 'var(--surface)', color: 'var(--text-secondary)' }}>

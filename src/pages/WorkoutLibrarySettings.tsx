@@ -83,6 +83,9 @@ export default function WorkoutLibrarySettings() {
   const [filterMuscle, setFilterMuscle] = useState<string | null>(null);
   const [showExerciseFilters, setShowExerciseFilters] = useState(false);
   const lastProcessedPickToken = useRef<number>(0);
+  const routineInitializedRef = useRef(false);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistSequenceRef = useRef(0);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -161,25 +164,54 @@ export default function WorkoutLibrarySettings() {
     setRoutine(prev => {
       const existing = prev[day] || [];
       if (existing.some(e => e.exerciseId === exerciseId)) return prev;
-      const next = { ...prev, [day]: [...existing, { exerciseId, sets, reps }] };
-      void persistRoutine(next).catch(() => {
-        setStatus('Failed to auto-save routine');
-        setTimeout(() => setStatus(''), 2000);
-      });
-      return next;
+      return { ...prev, [day]: [...existing, { exerciseId, sets, reps }] };
     });
   }
 
   function removeFromRoutine(day: string, exerciseId: number) {
     setRoutine(prev => {
-      const next = { ...prev, [day]: (prev[day] || []).filter(e => e.exerciseId !== exerciseId) };
-      void persistRoutine(next).catch(() => {
-        setStatus('Failed to auto-save routine');
-        setTimeout(() => setStatus(''), 2000);
-      });
-      return next;
+      return { ...prev, [day]: (prev[day] || []).filter(e => e.exerciseId !== exerciseId) };
     });
   }
+
+  useEffect(() => {
+    if (loading) return;
+
+    // Skip first routine set that comes from initial load.
+    if (!routineInitializedRef.current) {
+      routineInitializedRef.current = true;
+      return;
+    }
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      const seq = ++persistSequenceRef.current;
+      void (async () => {
+        try {
+          setSaving(true);
+          await persistRoutine(routine);
+          if (seq === persistSequenceRef.current) {
+            setStatus('Routine auto-saved');
+            setTimeout(() => setStatus(''), 1200);
+          }
+        } catch (e: any) {
+          if (seq === persistSequenceRef.current) {
+            setStatus(e?.message || 'Failed to auto-save routine');
+            setTimeout(() => setStatus(''), 2000);
+          }
+        } finally {
+          if (seq === persistSequenceRef.current) setSaving(false);
+        }
+      })();
+    }, 250);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [routine, loading]);
 
   const filteredExercises = useMemo(() => {
     let result = exercises;
