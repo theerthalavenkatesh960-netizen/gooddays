@@ -59,23 +59,37 @@ function OptionCard({ selected, title, subtitle, caption, onClick, accent = 'var
   );
 }
 
-function MetricTile({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+function MetricTile({ icon, label, value, subvalue }: { icon: ReactNode; label: string; value: string; subvalue?: string }) {
   return (
     <div
       className="rounded-2xl p-3"
-      style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+      style={{
+        backgroundColor: 'var(--surface)',
+        border: '1px solid var(--border)',
+        minHeight: '95px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+      }}
     >
-      <div className="flex items-center gap-2 mb-2">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+      <div className="flex items-center gap-1.5 mb-1">
+        <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--surface-elevated)' }}>
           {icon}
         </div>
-        <p className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)' }}>
           {label}
         </p>
       </div>
-      <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-        {value}
-      </p>
+      <div>
+        <p className="text-base font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
+          {value}
+        </p>
+        {subvalue && (
+          <p className="text-[10px] mt-0.5 font-medium" style={{ color: 'var(--accent)' }}>
+            {subvalue}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -217,6 +231,12 @@ export default function AiPlannerSettings() {
   }
 
   async function getAiRecommendations() {
+    if (!heightCm || !weightKg) {
+      setStatus('Please update height and weight first');
+      setTimeout(() => setStatus(''), 3000);
+      return;
+    }
+
     setGettingRecommendations(true);
     try {
       const targetDate = targetWeightKg ? new Date().toISOString().split('T')[0] : undefined;
@@ -251,12 +271,24 @@ export default function AiPlannerSettings() {
     const t = Number(targetWeightKg);
 
     let bmiLabel = '--';
+    let bmiValue = '--';
+    let bmiStatus = '';
     if (h > 0 && w > 0) {
       const bmi = w / ((h / 100) * (h / 100));
-      if (bmi < 18.5) bmiLabel = 'Underweight';
-      else if (bmi < 25) bmiLabel = 'Healthy';
-      else if (bmi < 30) bmiLabel = 'Overweight';
-      else bmiLabel = 'Obese';
+      bmiValue = bmi.toFixed(1);
+      if (bmi < 18.5) {
+        bmiLabel = 'Underweight';
+        bmiStatus = bmiValue;
+      } else if (bmi < 25) {
+        bmiLabel = 'Healthy';
+        bmiStatus = bmiValue;
+      } else if (bmi < 30) {
+        bmiLabel = 'Overweight';
+        bmiStatus = bmiValue;
+      } else {
+        bmiLabel = 'Obese';
+        bmiStatus = bmiValue;
+      }
     }
 
     let deltaLabel = '--';
@@ -267,6 +299,7 @@ export default function AiPlannerSettings() {
 
     return {
       bmiLabel,
+      bmiStatus,
       deltaLabel,
       planMode: (dailyCaloriesTarget && activityLevel) ? 'Personalized' : 'Incomplete',
     };
@@ -329,16 +362,17 @@ export default function AiPlannerSettings() {
             </div>
             <button
               onClick={getAiRecommendations}
-              disabled={gettingRecommendations}
-              className="px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 press"
+              disabled={gettingRecommendations || !heightCm || !weightKg}
+              className="px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 press whitespace-nowrap transition-all"
               style={{
-                backgroundColor: 'var(--accent-green)22',
-                color: 'var(--accent-green)',
-                border: '1px solid var(--accent-green)33',
-                opacity: gettingRecommendations ? 0.7 : 1,
+                background: !heightCm || !weightKg ? 'var(--surface-elevated)' : 'linear-gradient(135deg, var(--accent-green), var(--accent)88)',
+                color: !heightCm || !weightKg ? 'var(--text-muted)' : '#fff',
+                border: '1px solid var(--accent-green)44',
+                opacity: gettingRecommendations ? 0.8 : 1,
+                boxShadow: !heightCm || !weightKg ? 'none' : '0 8px 24px rgba(78, 205, 196, 0.2)',
               }}
             >
-              <Sparkles size={13} /> {gettingRecommendations ? 'Analyzing' : 'Get AI Plan'}
+              <Sparkles size={14} /> {gettingRecommendations ? 'Analyzing' : 'Get AI Plan'}
             </button>
           </div>
 
@@ -372,9 +406,9 @@ export default function AiPlannerSettings() {
       )}
 
       <div className="grid grid-cols-3 gap-2 mb-4">
-        <MetricTile icon={<Gauge size={14} style={{ color: 'var(--accent)' }} />} label="Mode" value={metrics.planMode} />
-        <MetricTile icon={<TrendingUp size={14} style={{ color: 'var(--accent-green)' }} />} label="Target Delta" value={metrics.deltaLabel} />
-        <MetricTile icon={<Activity size={14} style={{ color: 'var(--accent-warm)' }} />} label="BMI" value={metrics.bmiLabel} />
+        <MetricTile icon={<Gauge size={13} style={{ color: 'var(--accent)' }} />} label="Mode" value={metrics.planMode} />
+        <MetricTile icon={<TrendingUp size={13} style={{ color: 'var(--accent-green)' }} />} label="Target Delta" value={metrics.deltaLabel} />
+        <MetricTile icon={<Activity size={13} style={{ color: 'var(--accent-warm)' }} />} label="BMI" value={metrics.bmiStatus} subvalue={metrics.bmiLabel} />
       </div>
 
       {isTestUser && (
@@ -545,25 +579,31 @@ export default function AiPlannerSettings() {
           <div className="grid grid-cols-2 gap-3 pb-4">
             <button
               onClick={getAiRecommendations}
-              disabled={gettingRecommendations}
-              className="py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 press"
+              disabled={gettingRecommendations || !heightCm || !weightKg}
+              className="py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 press transition-all"
               style={{
-                backgroundColor: 'var(--accent-green)22',
-                color: 'var(--accent-green)',
-                border: '1px solid var(--accent-green)33',
-                opacity: gettingRecommendations ? 0.7 : 1,
+                background: !heightCm || !weightKg ? 'var(--surface-elevated)' : 'linear-gradient(135deg, var(--accent-green), var(--accent)88)',
+                color: !heightCm || !weightKg ? 'var(--text-muted)' : '#fff',
+                border: '1px solid var(--accent-green)44',
+                opacity: gettingRecommendations ? 0.8 : 1,
+                boxShadow: !heightCm || !weightKg ? 'none' : '0 8px 24px rgba(78, 205, 196, 0.15)',
               }}
             >
-              <Sparkles size={15} /> {gettingRecommendations ? 'Analyzing...' : 'AI Recommendation'}
+              <Sparkles size={16} /> {gettingRecommendations ? 'Analyzing...' : 'Get AI Plan'}
             </button>
 
             <button
               onClick={saveAll}
               disabled={saving}
-              className="py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 press"
-              style={{ backgroundColor: 'var(--accent)', color: '#fff', opacity: saving ? 0.7 : 1 }}
+              className="py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 press transition-all"
+              style={{
+                background: 'linear-gradient(135deg, var(--accent), var(--accent)dd)',
+                color: '#fff',
+                opacity: saving ? 0.7 : 1,
+                boxShadow: '0 8px 24px rgba(139, 92, 246, 0.15)',
+              }}
             >
-              <Save size={15} /> {saving ? 'Saving...' : 'Save Setup'}
+              <Save size={16} /> {saving ? 'Saving...' : 'Save Setup'}
             </button>
           </div>
         </>
