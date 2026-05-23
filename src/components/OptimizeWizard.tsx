@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronRight, ChevronLeft, X, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronRight, ChevronLeft, X, Loader2, ExternalLink, CheckCircle2, AlertTriangle, Zap, Activity, TrendingUp } from 'lucide-react';
 import { getHealthRecommendations, type HealthProfile, type HealthRecommendation } from '../lib/api';
-import { AnalysisCard } from './AnalysisCard';
 
 type Step = 'review' | 'analyze' | 'apply';
 
@@ -20,6 +20,7 @@ type OptimizeWizardProps = {
 };
 
 export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWizardProps) {
+  const navigate = useNavigate();
   const [step, setStep] = useState<Step>('review');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<HealthRecommendation | null>(null);
@@ -270,12 +271,129 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
           {/* ANALYZE STEP */}
           {step === 'analyze' && result?.analysis && (
             <div>
-              <AnalysisCard
-                analysis={result.analysis}
-                feasible={result.analysis.feasibility_check?.passed}
-                dailyCalories={result.analysis.recommendation?.daily_calories}
-                activityLevel={draftProfile.activityLevel}
-              />
+              {/* Feasibility banner */}
+              <div
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: 14,
+                  background: result.analysis.feasibility_check?.passed ? '#34d39918' : '#f8717118',
+                  border: `1px solid ${result.analysis.feasibility_check?.passed ? '#34d399' : '#f87171'}44`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  marginBottom: 16,
+                }}
+              >
+                {result.analysis.feasibility_check?.passed ? (
+                  <CheckCircle2 size={18} style={{ color: '#34d399', flexShrink: 0 }} />
+                ) : (
+                  <AlertTriangle size={18} style={{ color: '#f87171', flexShrink: 0 }} />
+                )}
+                <div>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {result.analysis.feasibility_check?.passed ? 'Goal is Achievable' : 'Needs Attention'}
+                  </p>
+                  {result.analysis.feasibility_check?.reason && (
+                    <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-secondary)' }}>
+                      {result.analysis.feasibility_check.reason}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick metric pills */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+                {[
+                  { label: 'BMI', value: result.analysis.bmi?.toFixed(1) || '—', color: '#8b5cf6', icon: <Activity size={12} color="#8b5cf6" /> },
+                  { label: 'BMR', value: result.analysis.bmr ? `${result.analysis.bmr}` : '—', color: '#06b6d4', icon: <Zap size={12} color="#06b6d4" /> },
+                  { label: 'TDEE', value: result.analysis.tdee ? `${result.analysis.tdee}` : '—', color: '#10b981', icon: <TrendingUp size={12} color="#10b981" /> },
+                ].map((m) => (
+                  <div
+                    key={m.label}
+                    style={{
+                      padding: '10px 8px',
+                      borderRadius: 12,
+                      background: `${m.color}18`,
+                      border: `1px solid ${m.color}33`,
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4 }}>{m.icon}</div>
+                    <p style={{ margin: 0, fontSize: 16, fontWeight: 900, color: 'var(--text-primary)' }}>{m.value}</p>
+                    <p style={{ margin: 0, fontSize: 9, fontWeight: 700, color: m.color, textTransform: 'uppercase', letterSpacing: 0.8 }}>{m.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Calorie target */}
+              {result.analysis.recommendation?.daily_calories && (
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    borderRadius: 12,
+                    background: '#f59e0b18',
+                    border: '1px solid #f59e0b33',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 16,
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Daily Calorie Target</p>
+                  <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: '#f59e0b' }}>
+                    {result.analysis.recommendation.daily_calories}
+                    <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)', marginLeft: 3 }}>cal</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Milestone count teaser */}
+              {result.analysis.recommendation?.milestones && result.analysis.recommendation.milestones.length > 0 && (
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    borderRadius: 12,
+                    background: 'var(--surface-elevated)',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 16,
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text-secondary)' }}>
+                    📍 {result.analysis.recommendation?.milestones?.length ?? 0} progress milestones mapped
+                  </p>
+                  <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>Timeline ready</p>
+                </div>
+              )}
+
+              {/* View Full Analysis button */}
+              <button
+                onClick={() => {
+                  sessionStorage.setItem('ai_analysis_result', JSON.stringify(result));
+                  navigate('/settings/ai-planner/analysis');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: 14,
+                  background: 'linear-gradient(135deg, #14B8A6 0%, #0EA5E9 100%)',
+                  color: '#fff',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: 800,
+                  fontSize: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  boxShadow: '0 6px 18px rgba(14,165,233,0.35)',
+                }}
+              >
+                <ExternalLink size={16} />
+                View Full Analysis
+              </button>
             </div>
           )}
 

@@ -421,7 +421,15 @@ export default function AiPlannerSettings() {
     }
     if (recommendations.activityLevel) {
       const activity = rec?.activity_level ?? result.activityLevel;
-      if (activity) setActivityLevel(activity);
+      if (activity) {
+        // Normalize to title-case to match option values (e.g. "sedentary" → "Sedentary")
+        const normalizeActivity = (val: string) => {
+          const known = activityOptions.map((o) => o.value);
+          const match = known.find((k) => k.toLowerCase() === val.toLowerCase());
+          return match ?? (val.charAt(0).toUpperCase() + val.slice(1).toLowerCase());
+        };
+        setActivityLevel(normalizeActivity(activity));
+      }
     }
     if (recommendations.dietPreference) {
       const diet = result.dietPreference;
