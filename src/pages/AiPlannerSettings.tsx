@@ -638,6 +638,7 @@ export default function AiPlannerSettings() {
               title="Local Llama"
               subtitle="Self-hosted endpoint"
               caption="Runs on your machine"
+              accent="#3B82F6"
               onClick={() => setProvider('local-llama')}
             />
             <OptionCard
@@ -645,6 +646,7 @@ export default function AiPlannerSettings() {
               title="Claude"
               subtitle="Anthropic cloud"
               caption="External API"
+              accent="#8B5CF6"
               onClick={() => setProvider('claude')}
             />
           </div>
