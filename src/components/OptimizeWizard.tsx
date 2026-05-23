@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ChevronRight, ChevronLeft, X, Loader2 } from 'lucide-react';
 import { getHealthRecommendations, type HealthProfile, type HealthRecommendationResult } from '../lib/api';
 import { AnalysisCard } from './AnalysisCard';
@@ -24,6 +24,7 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<HealthRecommendationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [draftProfile, setDraftProfile] = useState<HealthProfile>(profile);
   const [checkedFields, setCheckedFields] = useState<AppliedRecommendations>({
     dailyCaloriesTarget: true,
     activityLevel: true,
@@ -31,20 +32,35 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
     budgetPerWeek: true,
   });
 
+  useEffect(() => {
+    if (isOpen) {
+      setDraftProfile(profile);
+      setStep('review');
+      setError(null);
+      setResult(null);
+      setCheckedFields({
+        dailyCaloriesTarget: true,
+        activityLevel: true,
+        dietPreference: true,
+        budgetPerWeek: true,
+      });
+    }
+  }, [isOpen, profile]);
+
   if (!isOpen) {
     return null;
   }
 
   const canGenerateAnalysis =
-    (profile.heightCm ?? 0) > 0 &&
-    (profile.weightKg ?? 0) > 0 &&
-    (profile.targetWeightKg ?? 0) > 0;
+    (draftProfile.heightCm ?? 0) > 0 &&
+    (draftProfile.weightKg ?? 0) > 0 &&
+    (draftProfile.targetWeightKg ?? 0) > 0;
 
   const handleGenerateAnalysis = async () => {
     setLoading(true);
     setError(null);
     try {
-      const rec = await getHealthRecommendations(profile);
+      const rec = await getHealthRecommendations(draftProfile);
       setResult(rec);
       setStep('analyze');
     } catch (err) {
@@ -61,8 +77,6 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
     }
   };
 
-  const backButtonLabel = step === 'review' ? 'Close' : step === 'analyze' ? 'Back' : 'Back';
-
   const handleBack = () => {
     if (step === 'review') {
       onClose();
@@ -71,6 +85,22 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
     } else if (step === 'apply') {
       setStep('analyze');
     }
+  };
+
+  const fieldStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: '1px solid var(--border)',
+    backgroundColor: 'var(--surface-elevated)',
+    color: 'var(--text-primary)',
+    fontSize: 13,
+    outline: 'none',
+  };
+
+  const toOptionalNumber = (value: string): number | undefined => {
+    const n = Number(value);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
   };
 
   return (
@@ -156,59 +186,52 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
           {/* REVIEW STEP */}
           {step === 'review' && (
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                <div style={{ padding: 12, backgroundColor: 'var(--surface-elevated)', borderRadius: 12 }}>
-                  <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Height</p>
-                  <p style={{ margin: '6px 0 0 0', fontSize: 16, fontWeight: 'bold' }}>
-                    {profile.heightCm ?? '—'} cm
-                  </p>
-                </div>
-                <div style={{ padding: 12, backgroundColor: 'var(--surface-elevated)', borderRadius: 12 }}>
-                  <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                    Current Weight
-                  </p>
-                  <p style={{ margin: '6px 0 0 0', fontSize: 16, fontWeight: 'bold' }}>
-                    {profile.weightKg ?? '—'} kg
-                  </p>
-                </div>
-                <div style={{ padding: 12, backgroundColor: 'var(--surface-elevated)', borderRadius: 12 }}>
-                  <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                    Target Weight
-                  </p>
-                  <p style={{ margin: '6px 0 0 0', fontSize: 16, fontWeight: 'bold' }}>
-                    {profile.targetWeightKg ?? '—'} kg
-                  </p>
-                </div>
-                <div style={{ padding: 12, backgroundColor: 'var(--surface-elevated)', borderRadius: 12 }}>
-                  <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                    Target Date
-                  </p>
-                  <p style={{ margin: '6px 0 0 0', fontSize: 16, fontWeight: 'bold' }}>
-                    {profile.targetDate ? new Date(profile.targetDate).toLocaleDateString() : '—'}
-                  </p>
-                </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                <input
+                  type="number"
+                  placeholder="Height (cm)"
+                  value={draftProfile.heightCm ?? ''}
+                  onChange={(e) => setDraftProfile((p) => ({ ...p, heightCm: toOptionalNumber(e.target.value) }))}
+                  style={fieldStyle}
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="Current Weight (kg)"
+                  value={draftProfile.weightKg ?? ''}
+                  onChange={(e) => setDraftProfile((p) => ({ ...p, weightKg: toOptionalNumber(e.target.value) }))}
+                  style={fieldStyle}
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="Target Weight (kg)"
+                  value={draftProfile.targetWeightKg ?? ''}
+                  onChange={(e) => setDraftProfile((p) => ({ ...p, targetWeightKg: toOptionalNumber(e.target.value) }))}
+                  style={fieldStyle}
+                />
+                <input
+                  type="date"
+                  placeholder="Target Date"
+                  value={draftProfile.targetDate ?? ''}
+                  onChange={(e) => setDraftProfile((p) => ({ ...p, targetDate: e.target.value || undefined }))}
+                  style={fieldStyle}
+                />
+                <input
+                  type="number"
+                  placeholder="Age"
+                  value={draftProfile.age ?? ''}
+                  onChange={(e) => setDraftProfile((p) => ({ ...p, age: toOptionalNumber(e.target.value) }))}
+                  style={fieldStyle}
+                />
+                <input
+                  type="text"
+                  placeholder="Gender"
+                  value={draftProfile.gender ?? ''}
+                  onChange={(e) => setDraftProfile((p) => ({ ...p, gender: e.target.value || undefined }))}
+                  style={fieldStyle}
+                />
               </div>
-
-              {profile.age !== undefined && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-                  <div style={{ padding: 12, backgroundColor: 'var(--surface-elevated)', borderRadius: 12 }}>
-                    <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                      Age
-                    </p>
-                    <p style={{ margin: '6px 0 0 0', fontSize: 16, fontWeight: 'bold' }}>
-                      {profile.age} years
-                    </p>
-                  </div>
-                  <div style={{ padding: 12, backgroundColor: 'var(--surface-elevated)', borderRadius: 12 }}>
-                    <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                      Gender
-                    </p>
-                    <p style={{ margin: '6px 0 0 0', fontSize: 16, fontWeight: 'bold' }}>
-                      {profile.gender ?? '—'}
-                    </p>
-                  </div>
-                </div>
-              )}
 
               {error && (
                 <div
@@ -233,7 +256,7 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
                 analysis={result.analysis}
                 feasible={result.analysis.feasibility_check?.passed}
                 dailyCalories={result.analysis.recommendation?.daily_calories}
-                activityLevel={profile.activityLevel}
+                activityLevel={draftProfile.activityLevel}
               />
             </div>
           )}
@@ -303,7 +326,7 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
                       Activity Level
                     </p>
                     <p style={{ margin: '4px 0 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
-                      {result.analysis.recommendation?.activity_level || profile.activityLevel || '—'}
+                      {result.analysis.recommendation?.activity_level || draftProfile.activityLevel || '—'}
                     </p>
                   </div>
                 </label>
@@ -334,7 +357,7 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
                       Diet Preference
                     </p>
                     <p style={{ margin: '4px 0 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
-                      {result.analysis.recommendation?.diet_type || profile.dietPreference || '—'}
+                      {result.analysis.recommendation?.diet_type || draftProfile.dietPreference || '—'}
                     </p>
                   </div>
                 </label>
@@ -367,8 +390,8 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
                     <p style={{ margin: '4px 0 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
                       {result.analysis.recommendation?.budget_per_week
                         ? `$${result.analysis.recommendation.budget_per_week}/week`
-                        : profile.budgetPerWeek
-                          ? `$${profile.budgetPerWeek}/week`
+                        : draftProfile.budgetPerWeek
+                          ? `$${draftProfile.budgetPerWeek}/week`
                           : '—'}
                     </p>
                   </div>

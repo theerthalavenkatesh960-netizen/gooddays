@@ -11,7 +11,6 @@ import {
   Lock,
   Salad,
   Save,
-  Sparkles,
   Target,
   TrendingUp,
   Wallet,
@@ -258,20 +257,6 @@ function MetricTile({ icon, label, value, subvalue }: { icon: ReactNode; label: 
   );
 }
 
-function nearestFromSet(value: number | undefined, set: number[]): number | undefined {
-  if (!value || Number.isNaN(value)) return undefined;
-  let nearest = set[0];
-  let delta = Math.abs(value - nearest);
-  for (const candidate of set) {
-    const next = Math.abs(value - candidate);
-    if (next < delta) {
-      nearest = candidate;
-      delta = next;
-    }
-  }
-  return nearest;
-}
-
 const calorieOptions = [
   { value: '1500', title: '1500 kcal', subtitle: 'Cut aggressive', caption: 'Fast fat loss', accent: '#FF6B6B' },
   { value: '1800', title: '1800 kcal', subtitle: 'Cut moderate', caption: 'Sustainable', accent: '#F59E0B' },
@@ -310,7 +295,6 @@ export default function AiPlannerSettings() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [gettingRecommendations, setGettingRecommendations] = useState(false);
   const [status, setStatus] = useState('');
   const [activeTab, setActiveTab] = useState<'health' | 'provider'>('health');
 
@@ -425,45 +409,6 @@ export default function AiPlannerSettings() {
     }
   }
 
-  async function getAiRecommendations() {
-    if (!heightCm || !weightKg || !targetWeightKg) {
-      setStatus('Please fill in height, weight and target weight first');
-      setTimeout(() => setStatus(''), 3000);
-      return;
-    }
-
-    setGettingRecommendations(true);
-    try {
-      const rec = await api.getHealthRecommendations({
-        heightCm: heightCm ? Number(heightCm) : undefined,
-        weightKg: weightKg ? Number(weightKg) : undefined,
-        targetWeightKg: targetWeightKg ? Number(targetWeightKg) : undefined,
-        targetDate: targetDate || undefined,
-        age: age ? Number(age) : undefined,
-        gender: gender || undefined,
-        activityLevel: activityLevel || undefined,
-        medicalConditions: medicalConditions.length > 0 ? medicalConditions : undefined,
-        dietPreference: dietPreference || undefined,
-      });
-
-      const nearestCalories = nearestFromSet(rec.dailyCaloriesTarget, [1500, 1800, 2000, 2400, 3000]);
-      const nearestBudget = nearestFromSet(rec.budgetPerWeek, [1000, 2000, 4000, 6000, 10000]);
-
-      if (nearestCalories) setDailyCaloriesTarget(String(nearestCalories));
-      if (nearestBudget) setBudgetPerWeek(String(nearestBudget));
-      if (rec.activityLevel) setActivityLevel(rec.activityLevel);
-      if (rec.dietPreference) setDietPreference(rec.dietPreference);
-      setAiRecommendation(rec);
-
-      setStatus('AI recommendation applied');
-      setTimeout(() => setStatus(''), 2200);
-    } catch (e: any) {
-      setStatus(e?.message || 'Failed to get recommendations');
-    } finally {
-      setGettingRecommendations(false);
-    }
-  }
-
   const handleApplyRecommendations = (recommendations: AppliedRecommendations, result: api.HealthRecommendationResult) => {
     // Apply selected recommendations
     if (recommendations.dailyCaloriesTarget && result.analysis.recommendation?.daily_calories) {
@@ -478,6 +423,9 @@ export default function AiPlannerSettings() {
     if (recommendations.budgetPerWeek && result.analysis.recommendation?.budget_per_week) {
       setBudgetPerWeek(String(result.analysis.recommendation.budget_per_week));
     }
+
+    // Keep analysis cards in sync with wizard output
+    setAiRecommendation(result);
 
     // Track applied recommendations for badge display
     setAppliedRecommendations(recommendations);
@@ -606,18 +554,17 @@ export default function AiPlannerSettings() {
               </p>
             </div>
             <button
-              onClick={getAiRecommendations}
-              disabled={gettingRecommendations || !heightCm || !weightKg || !targetWeightKg}
+              onClick={() => setShowOptimizeWizard(true)}
+              disabled={!heightCm || !weightKg || !targetWeightKg}
               className="px-6 py-3.5 rounded-2xl text-sm font-black flex items-center gap-2.5 press whitespace-nowrap transition-all"
               style={{
                 background: (!heightCm || !weightKg || !targetWeightKg) ? 'rgba(78, 205, 196, 0.15)' : 'linear-gradient(135deg, #4ECDC4 0%, #1ABC9C 100%)',
                 color: (!heightCm || !weightKg || !targetWeightKg) ? 'var(--text-muted)' : '#fff',
                 border: (!heightCm || !weightKg || !targetWeightKg) ? '1px solid rgba(78, 205, 196, 0.3)' : 'none',
-                opacity: gettingRecommendations ? 0.85 : 1,
                 boxShadow: (!heightCm || !weightKg || !targetWeightKg) ? 'none' : '0 12px 32px rgba(78, 205, 196, 0.35)',
               }}
             >
-              <Sparkles size={16} /> {gettingRecommendations ? 'Analyzing...' : 'Get AI Plan'}
+              Optimize with AI
             </button>
           </div>
 
@@ -1349,26 +1296,11 @@ export default function AiPlannerSettings() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pb-4">
-            <button
-              onClick={getAiRecommendations}
-              disabled={gettingRecommendations || !heightCm || !weightKg || !targetWeightKg}
-              className="py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2.5 press transition-all"
-              style={{
-                background: (!heightCm || !weightKg || !targetWeightKg) ? 'rgba(78, 205, 196, 0.15)' : 'linear-gradient(135deg, #4ECDC4 0%, #1ABC9C 100%)',
-                color: (!heightCm || !weightKg || !targetWeightKg) ? 'var(--text-muted)' : '#fff',
-                border: (!heightCm || !weightKg || !targetWeightKg) ? '1px solid rgba(78, 205, 196, 0.3)' : 'none',
-                opacity: gettingRecommendations ? 0.85 : 1,
-                boxShadow: (!heightCm || !weightKg || !targetWeightKg) ? 'none' : '0 12px 32px rgba(78, 205, 196, 0.35)',
-              }}
-            >
-              <Sparkles size={17} /> {gettingRecommendations ? 'Analyzing...' : 'Get AI Plan'}
-            </button>
-
+          <div className="pb-4">
             <button
               onClick={saveAll}
               disabled={saving}
-              className="py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 press transition-all"
+              className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 press transition-all"
               style={{
                 background: 'linear-gradient(135deg, var(--accent), var(--accent)dd)',
                 color: '#fff',

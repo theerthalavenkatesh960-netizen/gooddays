@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import type { HealthRecommendationAnalysis } from '../lib/api';
 import { TimelineChart, type Milestone } from './TimelineChart';
 import { MacroChart } from './MacroChart';
@@ -20,11 +20,13 @@ export function AnalysisCard({ analysis, feasible, dailyCalories, activityLevel 
   const milestones: Milestone[] = [];
   if (analysis.recommendation?.milestones && Array.isArray(analysis.recommendation.milestones)) {
     analysis.recommendation.milestones.forEach((m: any, idx: number) => {
-      if (m.week && m.estimated_weight_kg !== undefined) {
+      const weight = m.estimated_weight_kg ?? m.expected_weight_kg;
+      const weekNumber = m.week ?? idx + 1;
+      if (weight !== undefined) {
         milestones.push({
-          week: m.week,
-          date: m.date || `Week ${m.week}`,
-          estimatedWeightKg: m.estimated_weight_kg,
+          week: weekNumber,
+          date: m.date || `Week ${weekNumber}`,
+          estimatedWeightKg: weight,
           status: 'on-track',
           notes: m.notes || undefined,
         });
