@@ -44,7 +44,7 @@ export default function Signup() {
 
     try {
       await signUp(email, password, name);
-      navigate('/');
+      navigate('/onboarding');
     } catch (err: any) {
       setError(err.message || 'Account creation failed');
     } finally {

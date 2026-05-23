@@ -12,6 +12,7 @@ import {
   Zap,
 } from 'lucide-react';
 import type { HealthRecommendation, HealthRecommendationAnalysis } from '../lib/api';
+import { APP_FLAGS, DUMMY_AI_ANALYSIS } from '../lib/config';
 import { TimelineChart, type Milestone } from '../components/TimelineChart';
 
 // --- Ordinal helper ---
@@ -116,7 +117,9 @@ function MacroSection({ protein, carbs, fat }: { protein: number; carbs: number;
 export function AiAnalysisPage() {
   const navigate = useNavigate();
   const stored = sessionStorage.getItem('ai_analysis_result');
-  const result: HealthRecommendation | null = stored ? (JSON.parse(stored) as HealthRecommendation) : null;
+  const storedResult: HealthRecommendation | null = stored ? (JSON.parse(stored) as HealthRecommendation) : null;
+  // Use dummy data when flag is ON or no stored result exists
+  const result: HealthRecommendation | null = (APP_FLAGS.dummyAiAnalysis || !storedResult) ? DUMMY_AI_ANALYSIS : storedResult;
   const analysis: HealthRecommendationAnalysis | undefined = result?.analysis;
 
   const milestones: Milestone[] = [];

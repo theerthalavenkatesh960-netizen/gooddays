@@ -152,6 +152,33 @@ export const DUMMY_FLAGS = {
   quickLog: envBool('VITE_USE_DUMMY_QUICK_LOG', false ),
 };
 
+// ─── Onboarding Types ─────────────────────────────────────────────────────────
+export type OnboardingData = {
+  selectedFeatures: string[];       // e.g. ['health','finance']
+  // Step 2 – profile
+  heightCm?: number;
+  currentWeightKg?: number;
+  targetWeightKg?: number;
+  targetDate?: string;
+  age?: number;
+  gender?: string;
+  // Step 3 – health prefs
+  dailyCaloriesTarget?: number;
+  budgetPerWeek?: number;
+  activityLevel?: string;
+  dietPreference?: string;
+  // Step 4 – fitness/meal
+  preferredWorkouts?: string[];     // e.g. ['strength','cardio']
+  preferredMeals?: string[];       // e.g. ['home-cooked','meal-prep']
+  workoutsPerWeek?: number;
+  minutesPerSession?: number;
+};
+
+export type OnboardingStatus = {
+  completed: boolean;
+  data: OnboardingData | null;
+};
+
 // Legacy compatibility exports
 export const USE_DUMMY_DATA = DUMMY_FLAGS.settings;
 // ───────────────────────────────────────────────────────────────────────────
@@ -313,6 +340,15 @@ export async function generateAiWorkoutPlan(body: {
   repsDefault?: number;
 }) {
   return request('ai-planner/generate/workouts', { method: 'POST', body: JSON.stringify(body) });
+}
+
+// ─── Onboarding API ───────────────────────────────────────────────────────────
+export async function getOnboardingStatus(): Promise<OnboardingStatus> {
+  return request('onboarding/status');
+}
+
+export async function completeOnboarding(data: OnboardingData): Promise<void> {
+  return request('onboarding/complete', { method: 'POST', body: JSON.stringify(data) });
 }
 
 // Tasks
