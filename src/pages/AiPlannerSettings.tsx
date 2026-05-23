@@ -171,7 +171,20 @@ export default function AiPlannerSettings() {
   const [targetWeightKg, setTargetWeightKg] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('');
-  const [medicalConditions, setMedicalConditions] = useState('');
+  const [medicalConditions, setMedicalConditions] = useState<api.MedicalCondition[]>([]);
+  const [addingCondition, setAddingCondition] = useState(false);
+  const [newCondition, setNewCondition] = useState<Partial<api.MedicalCondition>>({
+    condition_name: '',
+    status: 'active',
+    severity: 'mild',
+    notes: '',
+    diet_restrictions: [],
+    exercise_limits: [],
+    medications_affecting_plan: [],
+  });
+  const [newDietRestriction, setNewDietRestriction] = useState('');
+  const [newExerciseLimit, setNewExerciseLimit] = useState('');
+  const [newMedication, setNewMedication] = useState('');
   const [dailyCaloriesTarget, setDailyCaloriesTarget] = useState('');
   const [dietPreference, setDietPreference] = useState('');
   const [budgetPerWeek, setBudgetPerWeek] = useState('');
@@ -201,7 +214,7 @@ export default function AiPlannerSettings() {
       setTargetWeightKg(profile?.targetWeightKg ? String(profile.targetWeightKg) : '');
       setAge(profile?.age ? String(profile.age) : '');
       setGender(profile?.gender || '');
-      setMedicalConditions(profile?.medicalConditions || '');
+      setMedicalConditions(profile?.medicalConditions || []);
       setDailyCaloriesTarget(profile?.dailyCaloriesTarget ? String(profile.dailyCaloriesTarget) : '');
       setDietPreference(profile?.dietPreference || '');
       setBudgetPerWeek(profile?.budgetPerWeek ? String(profile.budgetPerWeek) : '');
@@ -236,7 +249,7 @@ export default function AiPlannerSettings() {
         dietPreference: dietPreference || undefined,
         budgetPerWeek: budgetPerWeek ? Number(budgetPerWeek) : undefined,
         activityLevel: activityLevel || undefined,
-        medicalConditions: medicalConditions || undefined,
+        medicalConditions: medicalConditions.length > 0 ? medicalConditions : undefined,
       });
 
       setStatus('Saved');
@@ -267,7 +280,7 @@ export default function AiPlannerSettings() {
         age: age ? Number(age) : undefined,
         gender: gender || undefined,
         activityLevel: activityLevel || undefined,
-        medicalConditions: medicalConditions || undefined,
+        medicalConditions: medicalConditions.length > 0 ? medicalConditions : undefined,
         dietPreference: dietPreference || undefined,
       });
 
@@ -682,14 +695,290 @@ export default function AiPlannerSettings() {
               />
             </div>
 
-            <textarea
-              value={medicalConditions}
-              onChange={(e) => setMedicalConditions(e.target.value)}
-              placeholder="Medical conditions (optional)"
-              className="mt-2 w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
-              rows={2}
-              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-            />
+            {/* Medical Conditions */}
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                  Medical Conditions
+                  {medicalConditions.length > 0 && (
+                    <span className="ml-2 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'var(--accent)22', color: 'var(--accent)' }}>
+                      {medicalConditions.length}
+                    </span>
+                  )}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAddingCondition((v) => !v)}
+                  className="text-[11px] px-2.5 py-1 rounded-lg font-medium transition-colors"
+                  style={{ background: 'var(--accent)22', color: 'var(--accent)' }}
+                >
+                  {addingCondition ? 'Cancel' : '+ Add Condition'}
+                </button>
+              </div>
+
+              {/* Existing condition cards */}
+              {medicalConditions.length > 0 && (
+                <div className="flex flex-col gap-2 mb-2">
+                  {medicalConditions.map((cond, idx) => (
+                    <div key={idx} className="rounded-xl p-3 text-xs" style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{cond.condition_name}</p>
+                          <div className="flex gap-1.5 mt-1 flex-wrap">
+                            <span className="px-1.5 py-0.5 rounded-full" style={{ background: 'var(--accent)22', color: 'var(--accent)', fontSize: '10px' }}>{cond.status}</span>
+                            <span className="px-1.5 py-0.5 rounded-full" style={{ background: 'var(--accent-warm)22', color: 'var(--accent-warm)', fontSize: '10px' }}>{cond.severity}</span>
+                          </div>
+                          {cond.notes && <p className="mt-1" style={{ color: 'var(--text-muted)' }}>{cond.notes}</p>}
+                          {cond.diet_restrictions.length > 0 && (
+                            <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
+                              <span className="font-medium">Diet: </span>{cond.diet_restrictions.join(', ')}
+                            </p>
+                          )}
+                          {cond.exercise_limits.length > 0 && (
+                            <p className="mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                              <span className="font-medium">Exercise: </span>{cond.exercise_limits.join(', ')}
+                            </p>
+                          )}
+                          {cond.medications_affecting_plan.length > 0 && (
+                            <p className="mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                              <span className="font-medium">Meds: </span>{cond.medications_affecting_plan.join(', ')}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setMedicalConditions((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-lg leading-none opacity-50 hover:opacity-100 transition-opacity"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add condition form */}
+              {addingCondition && (
+                <div className="rounded-xl p-3 flex flex-col gap-2" style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+                  <input
+                    value={newCondition.condition_name || ''}
+                    onChange={(e) => setNewCondition((p) => ({ ...p, condition_name: e.target.value }))}
+                    placeholder="Condition name (e.g. Diabetes)"
+                    className="px-3 py-2 rounded-lg text-sm outline-none w-full"
+                    style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    list="mc-condition-names"
+                  />
+                  <datalist id="mc-condition-names">
+                    {[
+                      // Metabolic & Cardiovascular
+                      'Diabetes Type 1', 'Diabetes Type 2', 'Prediabetes', 'Hypertension', 'Heart Disease', 'Heart Failure',
+                      'Atrial Fibrillation', 'High Cholesterol', 'Metabolic Syndrome', 'Obesity',
+                      // Respiratory
+                      'Asthma', 'COPD', 'Sleep Apnea',
+                      // Musculoskeletal
+                      'Arthritis', 'Rheumatoid Arthritis', 'Osteoporosis', 'Osteopenia',
+                      'Stress Fracture', 'Bone Fracture', 'Herniated Disc', 'Scoliosis',
+                      'Knee Injury', 'Shoulder Injury', 'Hip Replacement', 'Knee Replacement',
+                      'Tendinitis', 'Plantar Fasciitis', 'Lower Back Pain',
+                      // Endocrine & Hormonal
+                      'Thyroid Disorder', 'Hypothyroidism', 'Hyperthyroidism', 'PCOS', 'Adrenal Insufficiency',
+                      // Digestive
+                      'GERD', 'IBS', 'Celiac Disease', 'Crohns Disease', 'Ulcerative Colitis',
+                      // Renal & Hepatic
+                      'Kidney Disease', 'Kidney Stones', 'Liver Disease', 'Fatty Liver',
+                      // Neurological
+                      'Epilepsy', 'Migraine', 'Multiple Sclerosis', 'Parkinsons Disease', 'Neuropathy',
+                      // Mental Health
+                      'Depression', 'Anxiety', 'Bipolar Disorder', 'Eating Disorder',
+                      // Blood & Immune
+                      'Anemia', 'Sickle Cell Anemia', 'Lupus', 'Fibromyalgia',
+                      // Cancer
+                      'Cancer (active)', 'Cancer (remission)',
+                    ].map((s) => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] mb-1 block" style={{ color: 'var(--text-muted)' }}>Status</label>
+                      <select
+                        value={newCondition.status || 'active'}
+                        onChange={(e) => setNewCondition((p) => ({ ...p, status: e.target.value as api.MedicalCondition['status'] }))}
+                        className="w-full px-2 py-2 rounded-lg text-xs outline-none"
+                        style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      >
+                        <option value="active">Active</option>
+                        <option value="controlled">Controlled</option>
+                        <option value="history">History</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] mb-1 block" style={{ color: 'var(--text-muted)' }}>Severity</label>
+                      <select
+                        value={newCondition.severity || 'mild'}
+                        onChange={(e) => setNewCondition((p) => ({ ...p, severity: e.target.value as api.MedicalCondition['severity'] }))}
+                        className="w-full px-2 py-2 rounded-lg text-xs outline-none"
+                        style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      >
+                        <option value="mild">Mild</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="severe">Severe</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <textarea
+                    value={newCondition.notes || ''}
+                    onChange={(e) => setNewCondition((p) => ({ ...p, notes: e.target.value }))}
+                    placeholder="Notes (optional)"
+                    rows={2}
+                    className="px-3 py-2 rounded-lg text-xs outline-none resize-none w-full"
+                    style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                  />
+
+                  {/* Diet restrictions chips */}
+                  <div>
+                    <label className="text-[10px] mb-1 block" style={{ color: 'var(--text-muted)' }}>Diet Restrictions</label>
+                    <div className="flex flex-wrap gap-1 mb-1">
+                      {(newCondition.diet_restrictions || []).map((r, i) => (
+                        <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{ background: 'var(--accent)22', color: 'var(--accent)' }}>
+                          {r}
+                          <button type="button" onClick={() => setNewCondition((p) => ({ ...p, diet_restrictions: (p.diet_restrictions || []).filter((_, j) => j !== i) }))}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-1">
+                      <input
+                        value={newDietRestriction}
+                        onChange={(e) => setNewDietRestriction(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && newDietRestriction.trim()) { e.preventDefault(); setNewCondition((p) => ({ ...p, diet_restrictions: [...(p.diet_restrictions || []), newDietRestriction.trim()] })); setNewDietRestriction(''); } }}
+                        placeholder="e.g. low sodium"
+                        list="mc-diet-opts"
+                        className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none"
+                        style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      />
+                      <datalist id="mc-diet-opts">
+                        {[
+                          'low sodium', 'low potassium', 'low glycemic', 'low fat', 'low carb', 'low phosphorus', 'low purine',
+                          'high protein', 'high calcium', 'high iron', 'high fiber',
+                          'dairy free', 'gluten free', 'sugar free', 'alcohol free',
+                          'soft foods only', 'small frequent meals', 'no processed foods',
+                        ].map((s) => <option key={s} value={s} />)}
+                      </datalist>
+                      <button type="button" onClick={() => { if (newDietRestriction.trim()) { setNewCondition((p) => ({ ...p, diet_restrictions: [...(p.diet_restrictions || []), newDietRestriction.trim()] })); setNewDietRestriction(''); } }} className="px-2 py-1.5 rounded-lg text-xs" style={{ background: 'var(--accent)22', color: 'var(--accent)' }}>Add</button>
+                    </div>
+                  </div>
+
+                  {/* Exercise limits chips */}
+                  <div>
+                    <label className="text-[10px] mb-1 block" style={{ color: 'var(--text-muted)' }}>Exercise Limits</label>
+                    <div className="flex flex-wrap gap-1 mb-1">
+                      {(newCondition.exercise_limits || []).map((r, i) => (
+                        <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{ background: 'var(--accent-warm)22', color: 'var(--accent-warm)' }}>
+                          {r}
+                          <button type="button" onClick={() => setNewCondition((p) => ({ ...p, exercise_limits: (p.exercise_limits || []).filter((_, j) => j !== i) }))}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-1">
+                      <input
+                        value={newExerciseLimit}
+                        onChange={(e) => setNewExerciseLimit(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && newExerciseLimit.trim()) { e.preventDefault(); setNewCondition((p) => ({ ...p, exercise_limits: [...(p.exercise_limits || []), newExerciseLimit.trim()] })); setNewExerciseLimit(''); } }}
+                        placeholder="e.g. no high impact"
+                        list="mc-exercise-opts"
+                        className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none"
+                        style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      />
+                      <datalist id="mc-exercise-opts">
+                        {[
+                          'no high impact', 'no jumping', 'no running',
+                          'avoid max HR', 'keep HR below 120', 'keep HR below 140',
+                          'low intensity only', 'moderate intensity only',
+                          'no weightlifting', 'light weights only', 'bodyweight only',
+                          'no overhead pressing', 'no spinal loading', 'no twisting',
+                          'limited weight bearing', 'non weight bearing',
+                          'upper body only', 'lower body only',
+                          'seated only', 'pool/aqua only',
+                          'short duration only', 'max 20 min sessions', 'max 30 min sessions',
+                          'supervised only',
+                        ].map((s) => <option key={s} value={s} />)}
+                      </datalist>
+                      <button type="button" onClick={() => { if (newExerciseLimit.trim()) { setNewCondition((p) => ({ ...p, exercise_limits: [...(p.exercise_limits || []), newExerciseLimit.trim()] })); setNewExerciseLimit(''); } }} className="px-2 py-1.5 rounded-lg text-xs" style={{ background: 'var(--accent-warm)22', color: 'var(--accent-warm)' }}>Add</button>
+                    </div>
+                  </div>
+
+                  {/* Medications chips */}
+                  <div>
+                    <label className="text-[10px] mb-1 block" style={{ color: 'var(--text-muted)' }}>Medications Affecting Plan</label>
+                    <div className="flex flex-wrap gap-1 mb-1">
+                      {(newCondition.medications_affecting_plan || []).map((r, i) => (
+                        <span key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px]" style={{ background: 'var(--border)', color: 'var(--text-secondary)' }}>
+                          {r}
+                          <button type="button" onClick={() => setNewCondition((p) => ({ ...p, medications_affecting_plan: (p.medications_affecting_plan || []).filter((_, j) => j !== i) }))}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex gap-1">
+                      <input
+                        value={newMedication}
+                        onChange={(e) => setNewMedication(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && newMedication.trim()) { e.preventDefault(); setNewCondition((p) => ({ ...p, medications_affecting_plan: [...(p.medications_affecting_plan || []), newMedication.trim()] })); setNewMedication(''); } }}
+                        placeholder="e.g. insulin"
+                        list="mc-med-opts"
+                        className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none"
+                        style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      />
+                      <datalist id="mc-med-opts">
+                        {[
+                          // Diabetes
+                          'insulin', 'metformin', 'GLP-1 agonists', 'SGLT2 inhibitors',
+                          // Cardiovascular
+                          'beta blockers', 'ACE inhibitors', 'calcium channel blockers', 'diuretics',
+                          'anticoagulants', 'statins', 'aspirin',
+                          // Anti-inflammatory / Immune
+                          'steroids', 'NSAIDs', 'immunosuppressants',
+                          // Neurological / Mental Health
+                          'antidepressants', 'antiepileptics', 'lithium',
+                          // Bone & Hormones
+                          'bisphosphonates', 'hormone therapy', 'thyroid medication',
+                        ].map((s) => <option key={s} value={s} />)}
+                      </datalist>
+                      <button type="button" onClick={() => { if (newMedication.trim()) { setNewCondition((p) => ({ ...p, medications_affecting_plan: [...(p.medications_affecting_plan || []), newMedication.trim()] })); setNewMedication(''); } }} className="px-2 py-1.5 rounded-lg text-xs" style={{ background: 'var(--border)', color: 'var(--text-secondary)' }}>Add</button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!newCondition.condition_name?.trim()}
+                    onClick={() => {
+                      if (!newCondition.condition_name?.trim()) return;
+                      setMedicalConditions((prev) => [...prev, {
+                        condition_name: newCondition.condition_name!.trim(),
+                        status: newCondition.status || 'active',
+                        severity: newCondition.severity || 'mild',
+                        notes: newCondition.notes?.trim() || undefined,
+                        diet_restrictions: newCondition.diet_restrictions || [],
+                        exercise_limits: newCondition.exercise_limits || [],
+                        medications_affecting_plan: newCondition.medications_affecting_plan || [],
+                      }]);
+                      setNewCondition({ condition_name: '', status: 'active', severity: 'mild', notes: '', diet_restrictions: [], exercise_limits: [], medications_affecting_plan: [] });
+                      setNewDietRestriction('');
+                      setNewExerciseLimit('');
+                      setNewMedication('');
+                      setAddingCondition(false);
+                    }}
+                    className="w-full py-2 rounded-xl text-sm font-semibold transition-opacity"
+                    style={{ background: 'var(--accent)', color: '#fff', opacity: newCondition.condition_name?.trim() ? 1 : 0.4 }}
+                  >
+                    Add Condition
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="rounded-3xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>

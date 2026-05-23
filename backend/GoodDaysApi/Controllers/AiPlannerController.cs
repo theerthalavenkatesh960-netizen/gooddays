@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using GoodDaysApi.Data;
 using GoodDaysApi.Models;
 using GoodDaysApi.Services;
@@ -128,7 +129,7 @@ public class AiPlannerController : ControllerBase
                 dietPreference = (string?)null,
                 budgetPerWeek = (decimal?)null,
                 activityLevel = (string?)null,
-                medicalConditions = (string?)null,
+                medicalConditions = Array.Empty<MedicalCondition>(),
             });
         }
 
@@ -143,7 +144,7 @@ public class AiPlannerController : ControllerBase
             dietPreference = profile.DietPreference,
             budgetPerWeek = profile.BudgetPerWeek,
             activityLevel = profile.ActivityLevel,
-            medicalConditions = profile.MedicalConditions,
+            medicalConditions = ParseMedicalConditions(profile.MedicalConditions),
         });
     }
 
@@ -171,7 +172,7 @@ public class AiPlannerController : ControllerBase
         profile.DietPreference = string.IsNullOrWhiteSpace(req.DietPreference) ? null : req.DietPreference.Trim();
         profile.BudgetPerWeek = req.BudgetPerWeek;
         profile.ActivityLevel = string.IsNullOrWhiteSpace(req.ActivityLevel) ? null : req.ActivityLevel.Trim();
-        profile.MedicalConditions = string.IsNullOrWhiteSpace(req.MedicalConditions) ? null : req.MedicalConditions.Trim();
+        profile.MedicalConditions = SerializeMedicalConditions(req.MedicalConditions);
         profile.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
@@ -187,7 +188,7 @@ public class AiPlannerController : ControllerBase
             dietPreference = profile.DietPreference,
             budgetPerWeek = profile.BudgetPerWeek,
             activityLevel = profile.ActivityLevel,
-            medicalConditions = profile.MedicalConditions,
+            medicalConditions = ParseMedicalConditions(profile.MedicalConditions),
         });
     }
 
@@ -340,7 +341,7 @@ public class AiPlannerController : ControllerBase
             req.Age ?? profile?.Age,
             req.Gender ?? profile?.Gender,
             req.ActivityLevel ?? profile?.ActivityLevel,
-            req.MedicalConditions ?? profile?.MedicalConditions,
+            req.MedicalConditions ?? ParseMedicalConditions(profile?.MedicalConditions),
             req.DietPreference ?? profile?.DietPreference);
 
         var recommendedBudget = profile?.BudgetPerWeek ?? 2000m;
@@ -565,6 +566,25 @@ public class AiPlannerController : ControllerBase
         return map;
     }
 
+    private static string? SerializeMedicalConditions(IReadOnlyList<MedicalCondition>? conditions)
+    {
+        if (conditions == null || conditions.Count == 0) return null;
+        return JsonSerializer.Serialize(conditions);
+    }
+
+    private static MedicalCondition[] ParseMedicalConditions(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return Array.Empty<MedicalCondition>();
+        try
+        {
+            return JsonSerializer.Deserialize<MedicalCondition[]>(raw) ?? Array.Empty<MedicalCondition>();
+        }
+        catch
+        {
+            return Array.Empty<MedicalCondition>();
+        }
+    }
+
     private static string NormalizeDateKey(string key)
     {
         return DateOnly.TryParse(key, out var d) ? d.ToString("yyyy-MM-dd") : string.Empty;
@@ -586,7 +606,7 @@ public record UpsertHealthProfileRequest(
     string? DietPreference,
     decimal? BudgetPerWeek,
     string? ActivityLevel,
-    string? MedicalConditions);
+    MedicalCondition[]? MedicalConditions);
 
 public record GenerateMealsRequest(string? StartDate, string? Mode, decimal? BudgetPerWeek, string? DietPreference);
 
@@ -600,5 +620,5 @@ public record RecommendHealthRequest(
     int? Age,
     string? Gender,
     string? ActivityLevel,
-    string? MedicalConditions,
+    MedicalCondition[]? MedicalConditions,
     string? DietPreference);

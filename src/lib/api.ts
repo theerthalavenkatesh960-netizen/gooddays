@@ -59,6 +59,16 @@ export type AiPlannerSettings = {
   claudeModel?: string;
 };
 
+export type MedicalCondition = {
+  condition_name: string;
+  status: 'active' | 'controlled' | 'history';
+  severity: 'mild' | 'moderate' | 'severe';
+  notes?: string;
+  diet_restrictions: string[];
+  exercise_limits: string[];
+  medications_affecting_plan: string[];
+};
+
 export type HealthProfile = {
   age?: number;
   gender?: string;
@@ -69,7 +79,7 @@ export type HealthProfile = {
   dietPreference?: string;
   budgetPerWeek?: number;
   activityLevel?: string;
-  medicalConditions?: string;
+  medicalConditions?: MedicalCondition[];
 };
 
 export type HealthRecommendation = {
@@ -279,7 +289,7 @@ export async function getHealthRecommendations(body: {
   age?: number;
   gender?: string;
   activityLevel?: string;
-  medicalConditions?: string;
+  medicalConditions?: MedicalCondition[];
   dietPreference?: string;
 }): Promise<HealthRecommendation> {
   return request('ai-planner/recommend-health', { method: 'POST', body: JSON.stringify(body) });

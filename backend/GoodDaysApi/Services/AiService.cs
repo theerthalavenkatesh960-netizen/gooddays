@@ -132,7 +132,7 @@ public class AiService
         int? age,
         string? gender,
         string? selfReportedActivityLevel,
-        string? medicalConditions,
+        IReadOnlyList<MedicalCondition>? medicalConditions,
         string? dietPreference)
     {
         var prompt = BuildHealthRecommendationPrompt(heightCm, currentWeightKg, targetWeightKg, targetDate, age, gender, selfReportedActivityLevel, medicalConditions, dietPreference);
@@ -232,7 +232,7 @@ public class AiService
         int? age,
         string? gender,
         string? selfReportedActivityLevel,
-        string? medicalConditions,
+        IReadOnlyList<MedicalCondition>? medicalConditions,
         string? dietPreference)
     {
         var sb = new StringBuilder();
@@ -249,7 +249,22 @@ public class AiService
         sb.AppendLine($"- Target Date: {targetDate:yyyy-MM-dd}");
         sb.AppendLine($"- Diet Preference: {(string.IsNullOrWhiteSpace(dietPreference) ? "Mixed" : dietPreference)}");
         sb.AppendLine($"- Activity Level (self-reported): {(string.IsNullOrWhiteSpace(selfReportedActivityLevel) ? "moderate" : selfReportedActivityLevel.Trim())}");
-        sb.AppendLine($"- Medical Conditions (if any): {(string.IsNullOrWhiteSpace(medicalConditions) ? "none" : medicalConditions.Trim())}");
+        if (medicalConditions == null || medicalConditions.Count == 0)
+        {
+            sb.AppendLine("- Medical Conditions (if any): none");
+        }
+        else
+        {
+            sb.AppendLine("- Medical Conditions:");
+            foreach (var c in medicalConditions)
+            {
+                var dietR = c.DietRestrictions.Count > 0 ? $", diet restrictions: {string.Join(", ", c.DietRestrictions)}" : "";
+                var exLim = c.ExerciseLimits.Count > 0 ? $", exercise limits: {string.Join(", ", c.ExerciseLimits)}" : "";
+                var meds = c.MedicationsAffectingPlan.Count > 0 ? $", medications: {string.Join(", ", c.MedicationsAffectingPlan)}" : "";
+                var notes = string.IsNullOrWhiteSpace(c.Notes) ? "" : $", notes: {c.Notes.Trim()}";
+                sb.AppendLine($"  * {c.ConditionName} ({c.Status}, {c.Severity}){dietR}{exLim}{meds}{notes}");
+            }
+        }
         sb.AppendLine();
         sb.AppendLine("STEP 1 — DERIVED CALCULATIONS (do these internally)");
         sb.AppendLine("Compute the following before generating output:");
