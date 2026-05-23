@@ -62,6 +62,9 @@ export default function Settings() {
   const [calorieGoal, setCalorieGoal] = useState('2400');
   const [trackingOptions, setTrackingOptions] = useState<string[]>(['sleep_hours','workout_minutes','phone_minutes']);
 
+  // Test user detection: show advanced features for test emails
+  const isTestUser = user?.email?.toLowerCase().includes('test');
+
   useEffect(() => {
     async function loadSettings() {
       try {
@@ -210,7 +213,12 @@ export default function Settings() {
 
       {/* AI Planner */}
       <SectionCard title="AI Planner">
-        <SettingRow icon={Brain} label="Provider & Health Profile" onPress={() => navigate('/settings/ai-planner')} color="var(--accent-green)" />
+        <SettingRow 
+          icon={Brain} 
+          label={isTestUser ? "AI Planner (Advanced)" : "Provider & Health Profile"} 
+          onPress={() => navigate('/settings/ai-planner')} 
+          color="var(--accent-green)" 
+        />
       </SectionCard>
 
       {/* ─────────────────────────── LIFE SECTION ─────────────────────────── */}

@@ -69,6 +69,14 @@ export type HealthProfile = {
   activityLevel?: string;
 };
 
+export type HealthRecommendation = {
+  dailyCaloriesTarget?: number;
+  budgetPerWeek?: number;
+  activityLevel?: string;
+  dietPreference?: string;
+  rationale?: string;
+};
+
 const API_BASE = ((import.meta as any).env?.VITE_API_URL || '').replace(/\/$/, '');
 
 // ─── Dummy Data Configuration ───────────────────────────────────────────────
@@ -221,6 +229,15 @@ export async function getHealthProfile(): Promise<HealthProfile> {
 
 export async function updateHealthProfile(patch: Partial<HealthProfile>): Promise<HealthProfile> {
   return request('ai-planner/profile', { method: 'PUT', body: JSON.stringify(patch) });
+}
+
+export async function getHealthRecommendations(body: {
+  heightCm?: number;
+  weightKg?: number;
+  targetWeightKg?: number;
+  targetDate?: string;
+}): Promise<HealthRecommendation> {
+  return request('ai-planner/recommend-health', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function generateAiMealPlan(body: {

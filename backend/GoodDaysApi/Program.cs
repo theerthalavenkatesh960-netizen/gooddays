@@ -1,4 +1,5 @@
 using GoodDaysApi.Data;
+using GoodDaysApi.Services;
 using GoodDaysApi.Services.Gmail;
 using GoodDaysApi.Services.Financial;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -59,6 +60,9 @@ builder.Services.AddScoped<ITransactionExtractionService, TransactionExtractionS
 builder.Services.AddScoped<IGmailService, GmailService>();
 builder.Services.AddScoped<IGmailSyncService, GmailSyncService>();
 builder.Services.AddHostedService<GmailSyncBackgroundWorker>();
+
+// Register AI Service
+builder.Services.AddScoped<AiService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "change_this_to_a_secure_random_key";
 var key = Encoding.ASCII.GetBytes(jwtKey);
