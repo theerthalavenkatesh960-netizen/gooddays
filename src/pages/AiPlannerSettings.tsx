@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -18,6 +18,153 @@ import {
 } from 'lucide-react';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
+
+// ─── Drum / Scroll Picker (Apple-style) ──────────────────────────────────────
+const ITEM_H = 36;
+const VISIBLE = 5; // odd number — selected item is in the center
+
+type DrumPickerProps = {
+  label: string;
+  value: string;
+  options: (string | number)[];
+  unit?: string;
+  onChange: (v: string) => void;
+};
+
+function DrumPicker({ label, value, options, unit, onChange }: DrumPickerProps) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const startY = useRef(0);
+  const startScroll = useRef(0);
+
+  const selectedIndex = options.findIndex((o) => String(o) === value);
+
+  // Scroll to selected value on mount / external change
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const idx = Math.max(0, selectedIndex);
+    el.scrollTop = idx * ITEM_H;
+  }, [selectedIndex]);
+
+  function handleScroll() {
+    const el = listRef.current;
+    if (!el) return;
+    const idx = Math.round(el.scrollTop / ITEM_H);
+    const snapped = Math.max(0, Math.min(idx, options.length - 1));
+    const v = String(options[snapped]);
+    if (v !== value) onChange(v);
+  }
+
+  // Snap after scroll ends
+  const snapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function onScroll() {
+    if (snapTimer.current) clearTimeout(snapTimer.current);
+    snapTimer.current = setTimeout(() => {
+      handleScroll();
+      // smoothly snap
+      const el = listRef.current;
+      if (!el) return;
+      const idx = Math.round(el.scrollTop / ITEM_H);
+      el.scrollTo({ top: idx * ITEM_H, behavior: 'smooth' });
+    }, 80);
+  }
+
+  // Touch / mouse drag support
+  function onPointerDown(e: React.PointerEvent) {
+    isDragging.current = true;
+    startY.current = e.clientY;
+    startScroll.current = listRef.current?.scrollTop ?? 0;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function onPointerMove(e: React.PointerEvent) {
+    if (!isDragging.current || !listRef.current) return;
+    const delta = startY.current - e.clientY;
+    listRef.current.scrollTop = startScroll.current + delta;
+  }
+  function onPointerUp() {
+    isDragging.current = false;
+    handleScroll();
+    const el = listRef.current;
+    if (!el) return;
+    const idx = Math.round(el.scrollTop / ITEM_H);
+    el.scrollTo({ top: idx * ITEM_H, behavior: 'smooth' });
+  }
+
+  const containerH = ITEM_H * VISIBLE;
+  const paddingItems = Math.floor(VISIBLE / 2);
+
+  return (
+    <div className="flex flex-col items-center gap-1 select-none" style={{ minWidth: 80 }}>
+      <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{label}</p>
+      <div
+        className="relative overflow-hidden rounded-2xl"
+        style={{
+          width: 80,
+          height: containerH,
+          background: 'var(--surface-elevated)',
+          border: '1px solid var(--border)',
+        }}
+      >
+        {/* Fade top */}
+        <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none" style={{ height: ITEM_H * paddingItems, background: 'linear-gradient(to bottom, var(--surface-elevated) 0%, transparent 100%)' }} />
+        {/* Selection highlight */}
+        <div className="absolute left-0 right-0 z-10 pointer-events-none rounded-xl mx-1" style={{ top: ITEM_H * paddingItems, height: ITEM_H, background: 'var(--accent)18', border: '1px solid var(--accent)44' }} />
+        {/* Fade bottom */}
+        <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none" style={{ height: ITEM_H * paddingItems, background: 'linear-gradient(to top, var(--surface-elevated) 0%, transparent 100%)' }} />
+
+        {/* Scrollable list */}
+        <div
+          ref={listRef}
+          onScroll={onScroll}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          className="absolute inset-0 overflow-y-scroll"
+          style={{ scrollbarWidth: 'none', cursor: 'grab' }}
+        >
+          {/* top padding */}
+          {Array.from({ length: paddingItems }).map((_, i) => (
+            <div key={`t${i}`} style={{ height: ITEM_H }} />
+          ))}
+          {options.map((opt) => {
+            const isSelected = String(opt) === value;
+            return (
+              <div
+                key={opt}
+                style={{
+                  height: ITEM_H,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: isSelected ? 15 : 13,
+                  fontWeight: isSelected ? 700 : 400,
+                  color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {opt}{unit && isSelected ? <span style={{ fontSize: 10, marginLeft: 2, color: 'var(--text-muted)' }}>{unit}</span> : null}
+              </div>
+            );
+          })}
+          {/* bottom padding */}
+          {Array.from({ length: paddingItems }).map((_, i) => (
+            <div key={`b${i}`} style={{ height: ITEM_H }} />
+          ))}
+        </div>
+      </div>
+      <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>
+        {value || '—'}{unit ? <span style={{ fontSize: 9, color: 'var(--text-muted)' }}> {unit}</span> : null}
+      </p>
+    </div>
+  );
+}
+
+// Height options: 100–250 cm
+const HEIGHT_OPTIONS = Array.from({ length: 151 }, (_, i) => 100 + i);
+// Weight options: 30–200 kg (0.1 kg steps)
+const WEIGHT_OPTIONS = Array.from({ length: 1701 }, (_, i) => +(30 + i * 0.1).toFixed(1));
 
 type OptionCardProps = {
   selected: boolean;
@@ -668,30 +815,27 @@ export default function AiPlannerSettings() {
               </select>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <input
+            <div className="flex justify-around gap-2 mt-2">
+              <DrumPicker
+                label="Height"
                 value={heightCm}
-                onChange={(e) => setHeightCm(e.target.value)}
-                type="number"
-                placeholder="Height cm"
-                className="px-3 py-2.5 rounded-xl text-sm outline-none"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                options={HEIGHT_OPTIONS}
+                unit="cm"
+                onChange={setHeightCm}
               />
-              <input
+              <DrumPicker
+                label="Weight"
                 value={weightKg}
-                onChange={(e) => setWeightKg(e.target.value)}
-                type="number"
-                placeholder="Weight kg"
-                className="px-3 py-2.5 rounded-xl text-sm outline-none"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                options={WEIGHT_OPTIONS}
+                unit="kg"
+                onChange={setWeightKg}
               />
-              <input
+              <DrumPicker
+                label="Target"
                 value={targetWeightKg}
-                onChange={(e) => setTargetWeightKg(e.target.value)}
-                type="number"
-                placeholder="Target kg"
-                className="px-3 py-2.5 rounded-xl text-sm outline-none"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                options={WEIGHT_OPTIONS}
+                unit="kg"
+                onChange={setTargetWeightKg}
               />
             </div>
 
