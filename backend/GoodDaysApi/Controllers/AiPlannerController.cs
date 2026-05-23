@@ -294,10 +294,22 @@ public class AiPlannerController : ControllerBase
         var currentWeight = req.WeightKg ?? profile?.WeightKg;
         var targetWeight = req.TargetWeightKg ?? profile?.TargetWeightKg;
 
-        if (!currentWeight.HasValue || !targetWeight.HasValue)
+        var missingFields = new List<string>();
+        if (!heightCm.HasValue) missingFields.Add("heightCm");
+        if (!currentWeight.HasValue) missingFields.Add("weightKg");
+        if (!targetWeight.HasValue) missingFields.Add("targetWeightKg");
+
+        if (missingFields.Count > 0)
         {
-            return BadRequest("weightKg and targetWeightKg are required (either in request or saved profile).");
+            return BadRequest(new
+            {
+                message = $"Missing required fields: {string.Join(", ", missingFields)}.",
+                missingFields,
+            });
         }
+
+        var currentWeightValue = currentWeight.GetValueOrDefault();
+        var targetWeightValue = targetWeight.GetValueOrDefault();
 
         var targetDate = DateTime.UtcNow.Date.AddDays(90);
         if (!string.IsNullOrWhiteSpace(req.TargetDate) && DateTime.TryParse(req.TargetDate, out var parsedDate))
@@ -308,8 +320,8 @@ public class AiPlannerController : ControllerBase
         var (recommendedDailyCalories, recommendedActivityLevel) = await _aiService.GetHealthRecommendations(
             settings,
             heightCm,
-            currentWeight.Value,
-            targetWeight.Value,
+            currentWeightValue,
+            targetWeightValue,
             targetDate,
             profile?.DietPreference);
 

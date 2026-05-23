@@ -239,8 +239,8 @@ export default function AiPlannerSettings() {
   }
 
   async function getAiRecommendations() {
-    if (!heightCm || !weightKg) {
-      setStatus('Please update height and weight first');
+    if (!heightCm || !weightKg || !targetWeightKg) {
+      setStatus('Please fill in height, weight and target weight first');
       setTimeout(() => setStatus(''), 3000);
       return;
     }
@@ -370,14 +370,14 @@ export default function AiPlannerSettings() {
             </div>
             <button
               onClick={getAiRecommendations}
-              disabled={gettingRecommendations || !heightCm || !weightKg}
+              disabled={gettingRecommendations || !heightCm || !weightKg || !targetWeightKg}
               className="px-6 py-3.5 rounded-2xl text-sm font-black flex items-center gap-2.5 press whitespace-nowrap transition-all"
               style={{
-                background: !heightCm || !weightKg ? 'rgba(78, 205, 196, 0.15)' : 'linear-gradient(135deg, #4ECDC4 0%, #1ABC9C 100%)',
-                color: !heightCm || !weightKg ? 'var(--text-muted)' : '#fff',
-                border: !heightCm || !weightKg ? '1px solid rgba(78, 205, 196, 0.3)' : 'none',
+                background: (!heightCm || !weightKg || !targetWeightKg) ? 'rgba(78, 205, 196, 0.15)' : 'linear-gradient(135deg, #4ECDC4 0%, #1ABC9C 100%)',
+                color: (!heightCm || !weightKg || !targetWeightKg) ? 'var(--text-muted)' : '#fff',
+                border: (!heightCm || !weightKg || !targetWeightKg) ? '1px solid rgba(78, 205, 196, 0.3)' : 'none',
                 opacity: gettingRecommendations ? 0.85 : 1,
-                boxShadow: !heightCm || !weightKg ? 'none' : '0 12px 32px rgba(78, 205, 196, 0.35)',
+                boxShadow: (!heightCm || !weightKg || !targetWeightKg) ? 'none' : '0 12px 32px rgba(78, 205, 196, 0.35)',
               }}
             >
               <Sparkles size={16} /> {gettingRecommendations ? 'Analyzing...' : 'Get AI Plan'}
@@ -590,14 +590,14 @@ export default function AiPlannerSettings() {
           <div className="grid grid-cols-2 gap-3 pb-4">
             <button
               onClick={getAiRecommendations}
-              disabled={gettingRecommendations || !heightCm || !weightKg}
+              disabled={gettingRecommendations || !heightCm || !weightKg || !targetWeightKg}
               className="py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2.5 press transition-all"
               style={{
-                background: !heightCm || !weightKg ? 'rgba(78, 205, 196, 0.15)' : 'linear-gradient(135deg, #4ECDC4 0%, #1ABC9C 100%)',
-                color: !heightCm || !weightKg ? 'var(--text-muted)' : '#fff',
-                border: !heightCm || !weightKg ? '1px solid rgba(78, 205, 196, 0.3)' : 'none',
+                background: (!heightCm || !weightKg || !targetWeightKg) ? 'rgba(78, 205, 196, 0.15)' : 'linear-gradient(135deg, #4ECDC4 0%, #1ABC9C 100%)',
+                color: (!heightCm || !weightKg || !targetWeightKg) ? 'var(--text-muted)' : '#fff',
+                border: (!heightCm || !weightKg || !targetWeightKg) ? '1px solid rgba(78, 205, 196, 0.3)' : 'none',
                 opacity: gettingRecommendations ? 0.85 : 1,
-                boxShadow: !heightCm || !weightKg ? 'none' : '0 12px 32px rgba(78, 205, 196, 0.35)',
+                boxShadow: (!heightCm || !weightKg || !targetWeightKg) ? 'none' : '0 12px 32px rgba(78, 205, 196, 0.35)',
               }}
             >
               <Sparkles size={17} /> {gettingRecommendations ? 'Analyzing...' : 'Get AI Plan'}
