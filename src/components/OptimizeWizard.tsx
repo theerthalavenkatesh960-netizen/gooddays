@@ -368,17 +368,14 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
                 </div>
               )}
 
-              {/* View Full Analysis button */}
+              {/* Primary CTA — go to apply step */}
               <button
-                onClick={() => {
-                  sessionStorage.setItem('ai_analysis_result', JSON.stringify(result));
-                  navigate('/settings/ai-planner/analysis');
-                }}
+                onClick={() => setStep('apply')}
                 style={{
                   width: '100%',
-                  padding: '14px',
+                  padding: '13px',
                   borderRadius: 14,
-                  background: 'linear-gradient(135deg, #14B8A6 0%, #0EA5E9 100%)',
+                  background: 'var(--accent)',
                   color: '#fff',
                   border: 'none',
                   cursor: 'pointer',
@@ -388,10 +385,36 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
-                  boxShadow: '0 6px 18px rgba(14,165,233,0.35)',
+                  marginBottom: 10,
                 }}
               >
-                <ExternalLink size={16} />
+                Choose What to Apply
+                <ChevronRight size={16} />
+              </button>
+
+              {/* Secondary — full analysis page */}
+              <button
+                onClick={() => {
+                  sessionStorage.setItem('ai_analysis_result', JSON.stringify(result));
+                  navigate('/settings/ai-planner/analysis');
+                }}
+                style={{
+                  width: '100%',
+                  padding: '11px',
+                  borderRadius: 14,
+                  background: 'none',
+                  color: 'var(--text-secondary)',
+                  border: '1px solid var(--border)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
+                <ExternalLink size={13} />
                 View Full Analysis
               </button>
             </div>
@@ -604,27 +627,9 @@ export function OptimizeWizard({ profile, isOpen, onClose, onApply }: OptimizeWi
           )}
 
           {step === 'analyze' && (
-            <button
-              onClick={() => setStep('apply')}
-              style={{
-                flex: 1,
-                padding: '10px 16px',
-                backgroundColor: 'var(--accent)',
-                border: 'none',
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 'bold',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-              }}
-            >
-              Next
-              <ChevronRight size={16} />
-            </button>
+            <div style={{ display: 'none' }}>
+              {/* navigation handled by buttons inside analyze content */}
+            </div>
           )}
 
           {step === 'apply' && (
