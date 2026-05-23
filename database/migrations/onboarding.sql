@@ -4,7 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS user_onboarding (
   id                    SERIAL PRIMARY KEY,
-  user_id               BIGINT NOT NULL UNIQUE REFERENCES "Users"(id) ON DELETE CASCADE,
+  user_id               BIGINT NOT NULL UNIQUE REFERENCES user_profiles(id) ON DELETE CASCADE,
 
   -- Step 1: feature selection
   selected_features     TEXT[]    DEFAULT '{}',
