@@ -290,7 +290,9 @@ public class AiPlannerController : ControllerBase
         var settings = await _db.UserAiSettings.FirstOrDefaultAsync(s => s.UserId == userId);
         var profile = await _db.UserHealthProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
 
-        var heightCm = req.HeightCm ?? (profile?.HeightCm.HasValue == true ? (int?)Math.Round(profile.HeightCm.Value) : null);
+        var heightCm = req.HeightCm.HasValue
+            ? (int?)Math.Round(req.HeightCm.Value)
+            : (profile?.HeightCm.HasValue == true ? (int?)Math.Round(profile.HeightCm.Value) : null);
         var currentWeight = req.WeightKg ?? profile?.WeightKg;
         var targetWeight = req.TargetWeightKg ?? profile?.TargetWeightKg;
 
@@ -568,4 +570,4 @@ public record GenerateMealsRequest(string? StartDate, string? Mode, decimal? Bud
 
 public record GenerateWorkoutsRequest(string? Mode, int? DaysPerWeek, int? MinutesPerSession, int? SetsDefault, int? RepsDefault);
 
-public record RecommendHealthRequest(int? HeightCm, decimal? WeightKg, decimal? TargetWeightKg, string? TargetDate);
+public record RecommendHealthRequest(decimal? HeightCm, decimal? WeightKg, decimal? TargetWeightKg, string? TargetDate);
