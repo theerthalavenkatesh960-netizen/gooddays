@@ -169,10 +169,14 @@ export default function AiPlannerSettings() {
   const [heightCm, setHeightCm] = useState('');
   const [weightKg, setWeightKg] = useState('');
   const [targetWeightKg, setTargetWeightKg] = useState('');
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState('');
+  const [medicalConditions, setMedicalConditions] = useState('');
   const [dailyCaloriesTarget, setDailyCaloriesTarget] = useState('');
   const [dietPreference, setDietPreference] = useState('');
   const [budgetPerWeek, setBudgetPerWeek] = useState('');
   const [activityLevel, setActivityLevel] = useState('');
+  const [aiRecommendation, setAiRecommendation] = useState<api.HealthRecommendation | null>(null);
 
   useEffect(() => {
     void load();
@@ -195,6 +199,9 @@ export default function AiPlannerSettings() {
       setHeightCm(profile?.heightCm ? String(profile.heightCm) : '');
       setWeightKg(profile?.weightKg ? String(profile.weightKg) : '');
       setTargetWeightKg(profile?.targetWeightKg ? String(profile.targetWeightKg) : '');
+      setAge(profile?.age ? String(profile.age) : '');
+      setGender(profile?.gender || '');
+      setMedicalConditions(profile?.medicalConditions || '');
       setDailyCaloriesTarget(profile?.dailyCaloriesTarget ? String(profile.dailyCaloriesTarget) : '');
       setDietPreference(profile?.dietPreference || '');
       setBudgetPerWeek(profile?.budgetPerWeek ? String(profile.budgetPerWeek) : '');
@@ -220,6 +227,8 @@ export default function AiPlannerSettings() {
       }
 
       await api.updateHealthProfile({
+        age: age ? Number(age) : undefined,
+        gender: gender || undefined,
         heightCm: heightCm ? Number(heightCm) : undefined,
         weightKg: weightKg ? Number(weightKg) : undefined,
         targetWeightKg: targetWeightKg ? Number(targetWeightKg) : undefined,
@@ -227,6 +236,7 @@ export default function AiPlannerSettings() {
         dietPreference: dietPreference || undefined,
         budgetPerWeek: budgetPerWeek ? Number(budgetPerWeek) : undefined,
         activityLevel: activityLevel || undefined,
+        medicalConditions: medicalConditions || undefined,
       });
 
       setStatus('Saved');
@@ -254,6 +264,11 @@ export default function AiPlannerSettings() {
         weightKg: weightKg ? Number(weightKg) : undefined,
         targetWeightKg: targetWeightKg ? Number(targetWeightKg) : undefined,
         targetDate,
+        age: age ? Number(age) : undefined,
+        gender: gender || undefined,
+        activityLevel: activityLevel || undefined,
+        medicalConditions: medicalConditions || undefined,
+        dietPreference: dietPreference || undefined,
       });
 
       const nearestCalories = nearestFromSet(rec.dailyCaloriesTarget, [1500, 1800, 2000, 2400, 3000]);
@@ -263,6 +278,7 @@ export default function AiPlannerSettings() {
       if (nearestBudget) setBudgetPerWeek(String(nearestBudget));
       if (rec.activityLevel) setActivityLevel(rec.activityLevel);
       if (rec.dietPreference) setDietPreference(rec.dietPreference);
+      setAiRecommendation(rec);
 
       setStatus('AI recommendation applied');
       setTimeout(() => setStatus(''), 2200);
@@ -326,6 +342,30 @@ export default function AiPlannerSettings() {
     const done = checks.filter(Boolean).length;
     return Math.round((done / checks.length) * 100);
   }, [heightCm, weightKg, targetWeightKg, dailyCaloriesTarget, budgetPerWeek, activityLevel, dietPreference]);
+
+  const aiSummary = useMemo(() => {
+    if (!aiRecommendation?.analysis) return null;
+
+    const analysis = aiRecommendation.analysis;
+    const goal = typeof analysis.goal_type === 'string' && analysis.goal_type
+      ? analysis.goal_type.charAt(0).toUpperCase() + analysis.goal_type.slice(1)
+      : '--';
+
+    const weeklyRate = typeof analysis.weekly_change_needed_kg === 'number'
+      ? `${analysis.weekly_change_needed_kg.toFixed(2)} kg/wk`
+      : '--';
+
+    const calories = analysis.recommendation?.daily_calories ?? aiRecommendation.dailyCaloriesTarget;
+    const activity = analysis.recommendation?.activity_level ?? aiRecommendation.activityLevel;
+
+    return {
+      feasible: analysis.feasible,
+      goal,
+      weeklyRate,
+      calories: calories ? `${calories} kcal` : '--',
+      activity: activity || '--',
+    };
+  }, [aiRecommendation]);
 
   if (loading) {
     return (
@@ -396,6 +436,38 @@ export default function AiPlannerSettings() {
               />
             </div>
           </div>
+
+          {aiSummary && (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div
+                className="rounded-xl px-2.5 py-2"
+                style={{
+                  backgroundColor: aiSummary.feasible ? 'rgba(78,205,196,0.12)' : 'rgba(255,107,107,0.12)',
+                  border: `1px solid ${aiSummary.feasible ? 'rgba(78,205,196,0.3)' : 'rgba(255,107,107,0.3)'}`,
+                }}
+              >
+                <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Feasibility</p>
+                <p className="text-xs font-bold" style={{ color: aiSummary.feasible ? 'var(--accent-green)' : '#FF6B6B' }}>
+                  {aiSummary.feasible ? 'Feasible' : 'Infeasible'}
+                </p>
+              </div>
+
+              <div className="rounded-xl px-2.5 py-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Goal / Rate</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{aiSummary.goal} · {aiSummary.weeklyRate}</p>
+              </div>
+
+              <div className="rounded-xl px-2.5 py-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Calories</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{aiSummary.calories}</p>
+              </div>
+
+              <div className="rounded-xl px-2.5 py-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-[9px] uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Activity</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{aiSummary.activity}</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -418,6 +490,108 @@ export default function AiPlannerSettings() {
         <MetricTile icon={<TrendingUp size={13} style={{ color: 'var(--accent-green)' }} />} label="Target Delta" value={metrics.deltaLabel} />
         <MetricTile icon={<Activity size={13} style={{ color: 'var(--accent-warm)' }} />} label="BMI" value={metrics.bmiStatus} subvalue={metrics.bmiLabel} />
       </div>
+
+      {aiRecommendation?.analysis && (
+        <div className="rounded-3xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>AI Analysis Details</p>
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Detailed output from your advanced prompt</p>
+            </div>
+            <span
+              className="px-2 py-1 rounded-lg text-[10px] font-bold uppercase"
+              style={{
+                backgroundColor: aiRecommendation.analysis.feasible ? 'rgba(78,205,196,0.15)' : 'rgba(255,107,107,0.15)',
+                color: aiRecommendation.analysis.feasible ? 'var(--accent-green)' : '#FF6B6B',
+                border: `1px solid ${aiRecommendation.analysis.feasible ? 'rgba(78,205,196,0.3)' : 'rgba(255,107,107,0.3)'}`,
+              }}
+            >
+              {aiRecommendation.analysis.feasible ? 'Feasible' : 'Infeasible'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="rounded-xl p-2" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Goal Type</p>
+              <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{aiRecommendation.analysis.goal_type || aiRecommendation.goalType || '--'}</p>
+            </div>
+            <div className="rounded-xl p-2" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Days Remaining</p>
+              <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{aiRecommendation.analysis.days_remaining ?? '--'}</p>
+            </div>
+            <div className="rounded-xl p-2" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>BMI / BMR</p>
+              <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                {(aiRecommendation.analysis.bmi ?? '--')} / {(aiRecommendation.analysis.bmr ?? '--')}
+              </p>
+            </div>
+            <div className="rounded-xl p-2" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>TDEE / Weekly Change</p>
+              <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
+                {(aiRecommendation.analysis.tdee ?? '--')} / {(aiRecommendation.analysis.weekly_change_needed_kg ?? '--')} kg
+              </p>
+            </div>
+          </div>
+
+          {aiRecommendation.analysis.recommendation?.macros && (
+            <div className="rounded-2xl p-3 mb-3" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Macro Split</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-lg p-2" style={{ backgroundColor: 'var(--surface)' }}>
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Protein</p>
+                  <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{aiRecommendation.analysis.recommendation.macros.protein_g ?? '--'} g</p>
+                </div>
+                <div className="rounded-lg p-2" style={{ backgroundColor: 'var(--surface)' }}>
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Carbs</p>
+                  <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{aiRecommendation.analysis.recommendation.macros.carbs_g ?? '--'} g</p>
+                </div>
+                <div className="rounded-lg p-2" style={{ backgroundColor: 'var(--surface)' }}>
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Fat</p>
+                  <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{aiRecommendation.analysis.recommendation.macros.fat_g ?? '--'} g</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!!aiRecommendation.analysis.recommendation?.warnings?.length && (
+            <div className="rounded-xl p-3 mb-3" style={{ backgroundColor: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)' }}>
+              <p className="text-xs font-semibold mb-1" style={{ color: '#F59E0B' }}>Warnings</p>
+              {aiRecommendation.analysis.recommendation.warnings.map((w, idx) => (
+                <p key={`${w}-${idx}`} className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{w}</p>
+              ))}
+            </div>
+          )}
+
+          {!!aiRecommendation.analysis.recommendation?.milestones?.length && (
+            <div className="rounded-2xl p-3 mb-3" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Milestones</p>
+              <div className="space-y-1.5">
+                {aiRecommendation.analysis.recommendation.milestones.map((m, idx) => (
+                  <div key={`${m.date}-${idx}`} className="flex items-center justify-between text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                    <span>{m.date || '--'}</span>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{m.expected_weight_kg ?? '--'} kg</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {aiRecommendation.analysis.alternative_plan && (
+            <div className="rounded-xl p-3" style={{ backgroundColor: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)' }}>
+              <p className="text-xs font-semibold mb-1" style={{ color: '#3B82F6' }}>Alternative Plan</p>
+              <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                Safe Target Date: {aiRecommendation.analysis.alternative_plan.safe_target_date || '--'}
+              </p>
+              <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                Safe Weekly Rate: {aiRecommendation.analysis.alternative_plan.safe_weekly_rate_kg ?? '--'} kg
+              </p>
+              <p className="text-[11px] mt-1" style={{ color: 'var(--text-primary)' }}>
+                {aiRecommendation.analysis.alternative_plan.interim_focus || '--'}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {isTestUser && (
         <div className="rounded-2xl p-1 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -459,6 +633,28 @@ export default function AiPlannerSettings() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <input
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                type="number"
+                placeholder="Age"
+                className="px-3 py-2.5 rounded-xl text-sm outline-none"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+              />
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="px-3 py-2.5 rounded-xl text-sm outline-none"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+              >
+                <option value="">Gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
             <div className="grid grid-cols-3 gap-2">
               <input
                 value={heightCm}
@@ -485,6 +681,15 @@ export default function AiPlannerSettings() {
                 style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
               />
             </div>
+
+            <textarea
+              value={medicalConditions}
+              onChange={(e) => setMedicalConditions(e.target.value)}
+              placeholder="Medical conditions (optional)"
+              className="mt-2 w-full px-3 py-2.5 rounded-xl text-sm outline-none resize-none"
+              rows={2}
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+            />
           </div>
 
           <div className="rounded-3xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>

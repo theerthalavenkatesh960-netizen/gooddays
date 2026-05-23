@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS user_ai_settings (
 CREATE TABLE IF NOT EXISTS user_health_profiles (
   id SERIAL PRIMARY KEY,
   user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL UNIQUE,
+  age integer,
+  gender text,
   height_cm decimal(5,1),
   weight_kg decimal(5,2),
   target_weight_kg decimal(5,2),
@@ -55,8 +57,14 @@ CREATE TABLE IF NOT EXISTS user_health_profiles (
   diet_preference text,
   budget_per_week decimal(10,2),
   activity_level text,
+  medical_conditions text,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE IF EXISTS user_health_profiles
+  ADD COLUMN IF NOT EXISTS age integer,
+  ADD COLUMN IF NOT EXISTS gender text,
+  ADD COLUMN IF NOT EXISTS medical_conditions text;
 
 CREATE TABLE IF NOT EXISTS tasks (
   id SERIAL PRIMARY KEY,

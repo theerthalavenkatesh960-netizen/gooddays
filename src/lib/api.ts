@@ -60,6 +60,8 @@ export type AiPlannerSettings = {
 };
 
 export type HealthProfile = {
+  age?: number;
+  gender?: string;
   heightCm?: number;
   weightKg?: number;
   targetWeightKg?: number;
@@ -67,6 +69,7 @@ export type HealthProfile = {
   dietPreference?: string;
   budgetPerWeek?: number;
   activityLevel?: string;
+  medicalConditions?: string;
 };
 
 export type HealthRecommendation = {
@@ -75,6 +78,43 @@ export type HealthRecommendation = {
   activityLevel?: string;
   dietPreference?: string;
   rationale?: string;
+  feasible?: boolean;
+  goalType?: 'bulk' | 'cut' | 'maintain' | string;
+  analysis?: HealthRecommendationAnalysis;
+};
+
+export type HealthRecommendationAnalysis = {
+  feasible?: boolean;
+  goal_type?: 'bulk' | 'cut' | 'maintain' | string;
+  bmi?: number;
+  bmr?: number;
+  tdee?: number;
+  days_remaining?: number;
+  weekly_change_needed_kg?: number;
+  feasibility_check?: {
+    passed?: boolean;
+    failed_rule?: string | null;
+    reason?: string | null;
+  };
+  recommendation?: {
+    daily_calories?: number;
+    activity_level?: string;
+    macros?: {
+      protein_g?: number;
+      carbs_g?: number;
+      fat_g?: number;
+    };
+    warnings?: string[];
+    milestones?: Array<{
+      date?: string;
+      expected_weight_kg?: number;
+    }>;
+  } | null;
+  alternative_plan?: {
+    safe_target_date?: string;
+    safe_weekly_rate_kg?: number;
+    interim_focus?: string;
+  } | null;
 };
 
 const API_BASE = ((import.meta as any).env?.VITE_API_URL || '').replace(/\/$/, '');
@@ -236,6 +276,11 @@ export async function getHealthRecommendations(body: {
   weightKg?: number;
   targetWeightKg?: number;
   targetDate?: string;
+  age?: number;
+  gender?: string;
+  activityLevel?: string;
+  medicalConditions?: string;
+  dietPreference?: string;
 }): Promise<HealthRecommendation> {
   return request('ai-planner/recommend-health', { method: 'POST', body: JSON.stringify(body) });
 }
