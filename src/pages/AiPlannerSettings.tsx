@@ -18,8 +18,17 @@ import {
 } from 'lucide-react';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
+import { OptimizeWizard } from '../components/OptimizeWizard';
+import { AiBadge } from '../components/AiBadge';
 
 // ─── Drum / Scroll Picker (Apple-style) ──────────────────────────────────────
+type AppliedRecommendations = {
+  dailyCaloriesTarget?: boolean;
+  activityLevel?: boolean;
+  dietPreference?: boolean;
+  budgetPerWeek?: boolean;
+};
+
 const ITEM_H = 34;
 const VISIBLE = 3; // odd number — selected item is in the center
 
@@ -338,6 +347,8 @@ export default function AiPlannerSettings() {
   const [budgetPerWeek, setBudgetPerWeek] = useState('');
   const [activityLevel, setActivityLevel] = useState('');
   const [aiRecommendation, setAiRecommendation] = useState<api.HealthRecommendation | null>(null);
+  const [showOptimizeWizard, setShowOptimizeWizard] = useState(false);
+  const [appliedRecommendations, setAppliedRecommendations] = useState<AppliedRecommendations>({});
 
   useEffect(() => {
     void load();
@@ -452,6 +463,28 @@ export default function AiPlannerSettings() {
       setGettingRecommendations(false);
     }
   }
+
+  const handleApplyRecommendations = (recommendations: AppliedRecommendations, result: api.HealthRecommendationResult) => {
+    // Apply selected recommendations
+    if (recommendations.dailyCaloriesTarget && result.analysis.recommendation?.daily_calories) {
+      setDailyCaloriesTarget(String(result.analysis.recommendation.daily_calories));
+    }
+    if (recommendations.activityLevel && result.analysis.recommendation?.activity_level) {
+      setActivityLevel(result.analysis.recommendation.activity_level);
+    }
+    if (recommendations.dietPreference && result.analysis.recommendation?.diet_type) {
+      setDietPreference(result.analysis.recommendation.diet_type);
+    }
+    if (recommendations.budgetPerWeek && result.analysis.recommendation?.budget_per_week) {
+      setBudgetPerWeek(String(result.analysis.recommendation.budget_per_week));
+    }
+
+    // Track applied recommendations for badge display
+    setAppliedRecommendations(recommendations);
+
+    setStatus('Recommendations applied');
+    setTimeout(() => setStatus(''), 2200);
+  };
 
   const metrics = useMemo(() => {
     const h = Number(heightCm);
@@ -796,6 +829,20 @@ export default function AiPlannerSettings() {
                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Core stats used by planning models</p>
               </div>
             </div>
+
+            <button
+              onClick={() => setShowOptimizeWizard(true)}
+              disabled={!heightCm || !weightKg || !targetWeightKg}
+              className="w-full px-4 py-2.5 rounded-xl text-xs font-bold mb-3 press transition-all flex items-center justify-center gap-2"
+              style={{
+                background: (!heightCm || !weightKg || !targetWeightKg) ? 'rgba(139, 92, 246, 0.15)' : 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%)',
+                color: (!heightCm || !weightKg || !targetWeightKg) ? 'var(--text-muted)' : '#fff',
+                border: (!heightCm || !weightKg || !targetWeightKg) ? '1px solid rgba(139, 92, 246, 0.3)' : 'none',
+                boxShadow: (!heightCm || !weightKg || !targetWeightKg) ? 'none' : '0 8px 20px rgba(139, 92, 246, 0.25)',
+              }}
+            >
+              <Brain size={15} /> Optimize with AI
+            </button>
 
             <div className="grid grid-cols-2 gap-2 mb-2">
               <input
@@ -1188,7 +1235,12 @@ export default function AiPlannerSettings() {
                 <Flame size={15} style={{ color: 'var(--accent-warm)' }} />
               </div>
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Daily Calories</p>
+                <p className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--text-primary)' }}>
+                  Daily Calories
+                  {appliedRecommendations.dailyCaloriesTarget && (
+                    <AiBadge onDismiss={() => setAppliedRecommendations({ ...appliedRecommendations, dailyCaloriesTarget: false })} />
+                  )}
+                </p>
                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Pick intensity based on body-composition goal</p>
               </div>
             </div>
@@ -1213,7 +1265,12 @@ export default function AiPlannerSettings() {
                 <Wallet size={15} style={{ color: 'var(--accent)' }} />
               </div>
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Budget / Week</p>
+                <p className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--text-primary)' }}>
+                  Budget / Week
+                  {appliedRecommendations.budgetPerWeek && (
+                    <AiBadge onDismiss={() => setAppliedRecommendations({ ...appliedRecommendations, budgetPerWeek: false })} />
+                  )}
+                </p>
                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Controls food recommendation quality and variety</p>
               </div>
             </div>
@@ -1238,7 +1295,12 @@ export default function AiPlannerSettings() {
                 <Activity size={15} style={{ color: 'var(--accent-green)' }} />
               </div>
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Activity Level</p>
+                <p className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--text-primary)' }}>
+                  Activity Level
+                  {appliedRecommendations.activityLevel && (
+                    <AiBadge onDismiss={() => setAppliedRecommendations({ ...appliedRecommendations, activityLevel: false })} />
+                  )}
+                </p>
                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Used for calorie and recovery adjustments</p>
               </div>
             </div>
@@ -1263,7 +1325,12 @@ export default function AiPlannerSettings() {
                 <Salad size={15} style={{ color: 'var(--accent-gold)' }} />
               </div>
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Diet Preference</p>
+                <p className="text-sm font-semibold flex items-center gap-1" style={{ color: 'var(--text-primary)' }}>
+                  Diet Preference
+                  {appliedRecommendations.dietPreference && (
+                    <AiBadge onDismiss={() => setAppliedRecommendations({ ...appliedRecommendations, dietPreference: false })} />
+                  )}
+                </p>
                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Shapes meal source and macro distribution</p>
               </div>
             </div>
@@ -1407,6 +1474,23 @@ export default function AiPlannerSettings() {
           </button>
         </div>
       )}
+      
+      <OptimizeWizard
+        profile={{
+          heightCm: heightCm ? Number(heightCm) : undefined,
+          weightKg: weightKg ? Number(weightKg) : undefined,
+          targetWeightKg: targetWeightKg ? Number(targetWeightKg) : undefined,
+          targetDate: targetDate || undefined,
+          age: age ? Number(age) : undefined,
+          gender: gender || undefined,
+          activityLevel: activityLevel || undefined,
+          medicalConditions: medicalConditions.length > 0 ? medicalConditions : undefined,
+          dietPreference: dietPreference || undefined,
+        }}
+        isOpen={showOptimizeWizard}
+        onClose={() => setShowOptimizeWizard(false)}
+        onApply={handleApplyRecommendations}
+      />
     </div>
   );
 }
