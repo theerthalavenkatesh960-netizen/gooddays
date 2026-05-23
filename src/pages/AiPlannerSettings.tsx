@@ -32,32 +32,32 @@ function OptionCard({ selected, title, subtitle, caption, onClick, accent = 'var
   return (
     <button
       onClick={onClick}
-      className="text-left p-3 rounded-2xl transition-all press relative overflow-hidden group"
+      className="text-left p-2.5 rounded-xl transition-all press relative overflow-hidden group"
       style={{
         background: selected
           ? `linear-gradient(135deg, ${accent}33 0%, ${accent}11 100%)`
           : 'var(--surface-elevated)',
         border: selected ? `2px solid ${accent}` : '1px solid var(--border)',
-        boxShadow: selected ? `0 16px 40px ${accent}40, inset 0 1px 0 ${accent}33` : 'none',
+        boxShadow: selected ? `0 12px 32px ${accent}35, inset 0 1px 0 ${accent}33` : 'none',
         transform: selected ? 'scale(1.02)' : 'scale(1)',
       }}
     >
       {selected && (
-        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: accent }}>
-          <CheckCircle2 size={16} color="#fff" strokeWidth={3} />
+        <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: accent }}>
+          <CheckCircle2 size={14} color="#fff" strokeWidth={3} />
         </div>
       )}
       <p
-        className="text-sm font-bold pr-4"
+        className="text-xs font-bold pr-3"
         style={{ color: selected ? accent : 'var(--text-primary)' }}
       >
         {title}
       </p>
-      <p className="text-[11px] mt-1" style={{ color: selected ? accent + 'cc' : 'var(--text-secondary)' }}>
+      <p className="text-[10px] mt-0.5" style={{ color: selected ? accent + 'cc' : 'var(--text-secondary)' }}>
         {subtitle}
       </p>
       {caption && (
-        <p className="text-[10px] mt-2" style={{ color: selected ? accent : 'var(--text-muted)' }}>
+        <p className="text-[9px] mt-1.5" style={{ color: selected ? accent : 'var(--text-muted)' }}>
           {caption}
         </p>
       )}
@@ -89,11 +89,11 @@ function MetricTile({ icon, label, value, subvalue }: { icon: ReactNode; label: 
         </p>
       </div>
       <div>
-        <p className="text-lg font-black leading-tight truncate" style={{ color: 'var(--text-primary)', maxWidth: '100%' }}>
+        <p className="text-base font-black leading-tight truncate" style={{ color: 'var(--text-primary)', maxWidth: '100%' }}>
           {value}
         </p>
         {subvalue && (
-          <p className="text-[10px] mt-1 font-semibold" style={{ color: 'var(--accent)' }}>
+          <p className="text-[9px] mt-1 font-semibold" style={{ color: 'var(--accent)' }}>
             {subvalue}
           </p>
         )}
@@ -125,27 +125,27 @@ const calorieOptions = [
 ] as const;
 
 const budgetOptions = [
-  { value: '1000', title: 'Low', subtitle: 'INR 1000 / week', caption: 'Essentials only' },
-  { value: '2000', title: 'Moderate', subtitle: 'INR 2000 / week', caption: 'Balanced groceries' },
-  { value: '4000', title: 'Medium', subtitle: 'INR 4000 / week', caption: 'More variety' },
-  { value: '6000', title: 'High', subtitle: 'INR 6000 / week', caption: 'Quality + convenience' },
-  { value: '10000', title: 'Unlimited', subtitle: 'No strict cap', caption: 'Best fit recommendations' },
+  { value: '1000', title: 'Low', subtitle: 'INR 1000 / week', caption: 'Essentials only', accent: '#FF6B6B' },
+  { value: '2000', title: 'Moderate', subtitle: 'INR 2000 / week', caption: 'Balanced groceries', accent: '#F59E0B' },
+  { value: '4000', title: 'Medium', subtitle: 'INR 4000 / week', caption: 'More variety', accent: '#10B981' },
+  { value: '6000', title: 'High', subtitle: 'INR 6000 / week', caption: 'Quality + convenience', accent: '#3B82F6' },
+  { value: '10000', title: 'Unlimited', subtitle: 'No strict cap', caption: 'Best fit recommendations', accent: '#8B5CF6' },
 ] as const;
 
 const activityOptions = [
-  { value: 'Sedentary', title: 'Sedentary', subtitle: 'Desk heavy lifestyle', caption: '<4k steps / day' },
-  { value: 'Light', title: 'Light', subtitle: 'Some movement', caption: '4-7k steps / day' },
-  { value: 'Moderate', title: 'Moderate', subtitle: 'Regular workouts', caption: '8-10k steps / day' },
-  { value: 'Active', title: 'Active', subtitle: 'Training focused', caption: '1-2 sessions / day' },
-  { value: 'Very Active', title: 'Very Active', subtitle: 'Athlete mode', caption: 'High output routine' },
+  { value: 'Sedentary', title: 'Sedentary', subtitle: 'Desk heavy lifestyle', caption: '<4k steps / day', accent: '#FF6B6B' },
+  { value: 'Light', title: 'Light', subtitle: 'Some movement', caption: '4-7k steps / day', accent: '#F59E0B' },
+  { value: 'Moderate', title: 'Moderate', subtitle: 'Regular workouts', caption: '8-10k steps / day', accent: '#10B981' },
+  { value: 'Active', title: 'Active', subtitle: 'Training focused', caption: '1-2 sessions / day', accent: '#3B82F6' },
+  { value: 'Very Active', title: 'Very Active', subtitle: 'Athlete mode', caption: 'High output routine', accent: '#8B5CF6' },
 ] as const;
 
 const dietOptions = [
-  { value: 'Vegetarian', title: 'Vegetarian', subtitle: 'Plant-based meals', caption: 'Paneer, lentils, tofu' },
-  { value: 'Non-Veg', title: 'Non-Veg', subtitle: 'Mixed protein sources', caption: 'Chicken, fish, eggs' },
-  { value: 'High-Protein', title: 'High-Protein', subtitle: 'Protein priority', caption: 'Lean body goals' },
-  { value: 'Low-Carb', title: 'Low-Carb', subtitle: 'Carb restricted', caption: 'Glycemic control' },
-  { value: 'Mixed', title: 'Mixed', subtitle: 'Flexible nutrition', caption: 'Most adaptable' },
+  { value: 'Vegetarian', title: 'Vegetarian', subtitle: 'Plant-based meals', caption: 'Paneer, lentils, tofu', accent: '#FF6B6B' },
+  { value: 'Non-Veg', title: 'Non-Veg', subtitle: 'Mixed protein sources', caption: 'Chicken, fish, eggs', accent: '#F59E0B' },
+  { value: 'High-Protein', title: 'High-Protein', subtitle: 'Protein priority', caption: 'Lean body goals', accent: '#10B981' },
+  { value: 'Low-Carb', title: 'Low-Carb', subtitle: 'Carb restricted', caption: 'Glycemic control', accent: '#3B82F6' },
+  { value: 'Mixed', title: 'Mixed', subtitle: 'Flexible nutrition', caption: 'Most adaptable', accent: '#8B5CF6' },
 ] as const;
 
 export default function AiPlannerSettings() {
@@ -530,6 +530,7 @@ export default function AiPlannerSettings() {
                   title={opt.title}
                   subtitle={opt.subtitle}
                   caption={opt.caption}
+                  accent={opt.accent}
                   onClick={() => setBudgetPerWeek(opt.value)}
                 />
               ))}
@@ -554,6 +555,7 @@ export default function AiPlannerSettings() {
                   title={opt.title}
                   subtitle={opt.subtitle}
                   caption={opt.caption}
+                  accent={opt.accent}
                   onClick={() => setActivityLevel(opt.value)}
                 />
               ))}
@@ -578,6 +580,7 @@ export default function AiPlannerSettings() {
                   title={opt.title}
                   subtitle={opt.subtitle}
                   caption={opt.caption}
+                  accent={opt.accent}
                   onClick={() => setDietPreference(opt.value)}
                 />
               ))}
