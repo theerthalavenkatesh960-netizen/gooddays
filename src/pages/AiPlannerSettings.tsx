@@ -32,22 +32,28 @@ function OptionCard({ selected, title, subtitle, caption, onClick, accent = 'var
   return (
     <button
       onClick={onClick}
-      className="text-left p-3 rounded-2xl transition-all press"
+      className="text-left p-3 rounded-2xl transition-all press relative overflow-hidden group"
       style={{
         background: selected
-          ? `linear-gradient(135deg, ${accent}1f, transparent)`
+          ? `linear-gradient(135deg, ${accent}33 0%, ${accent}11 100%)`
           : 'var(--surface-elevated)',
-        border: selected ? `1px solid ${accent}66` : '1px solid var(--border)',
-        boxShadow: selected ? `0 10px 28px ${accent}22` : 'none',
+        border: selected ? `2px solid ${accent}` : '1px solid var(--border)',
+        boxShadow: selected ? `0 16px 40px ${accent}40, inset 0 1px 0 ${accent}33` : 'none',
+        transform: selected ? 'scale(1.02)' : 'scale(1)',
       }}
     >
+      {selected && (
+        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center" style={{ background: accent }}>
+          <CheckCircle2 size={16} color="#fff" strokeWidth={3} />
+        </div>
+      )}
       <p
-        className="text-sm font-semibold"
-        style={{ color: selected ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+        className="text-sm font-bold pr-4"
+        style={{ color: selected ? accent : 'var(--text-primary)' }}
       >
         {title}
       </p>
-      <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+      <p className="text-[11px] mt-1" style={{ color: selected ? accent + 'cc' : 'var(--text-secondary)' }}>
         {subtitle}
       </p>
       {caption && (
@@ -66,26 +72,28 @@ function MetricTile({ icon, label, value, subvalue }: { icon: ReactNode; label: 
       style={{
         backgroundColor: 'var(--surface)',
         border: '1px solid var(--border)',
-        minHeight: '95px',
+        minHeight: '110px',
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
+        alignItems: 'center',
+        textAlign: 'center',
       }}
     >
-      <div className="flex items-center gap-1.5 mb-1">
-        <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+      <div className="flex items-center justify-center gap-1.5 mb-2 flex-wrap">
+        <div className="w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--surface-elevated)' }}>
           {icon}
         </div>
-        <p className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-[8px] uppercase tracking-wider font-bold" style={{ color: 'var(--text-muted)' }}>
           {label}
         </p>
       </div>
       <div>
-        <p className="text-base font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>
+        <p className="text-lg font-black leading-tight truncate" style={{ color: 'var(--text-primary)', maxWidth: '100%' }}>
           {value}
         </p>
         {subvalue && (
-          <p className="text-[10px] mt-0.5 font-medium" style={{ color: 'var(--accent)' }}>
+          <p className="text-[10px] mt-1 font-semibold" style={{ color: 'var(--accent)' }}>
             {subvalue}
           </p>
         )}
@@ -363,16 +371,16 @@ export default function AiPlannerSettings() {
             <button
               onClick={getAiRecommendations}
               disabled={gettingRecommendations || !heightCm || !weightKg}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 press whitespace-nowrap transition-all"
+              className="px-6 py-3.5 rounded-2xl text-sm font-black flex items-center gap-2.5 press whitespace-nowrap transition-all"
               style={{
-                background: !heightCm || !weightKg ? 'var(--surface-elevated)' : 'linear-gradient(135deg, var(--accent-green), var(--accent)88)',
+                background: !heightCm || !weightKg ? 'rgba(78, 205, 196, 0.15)' : 'linear-gradient(135deg, #4ECDC4 0%, #1ABC9C 100%)',
                 color: !heightCm || !weightKg ? 'var(--text-muted)' : '#fff',
-                border: '1px solid var(--accent-green)44',
-                opacity: gettingRecommendations ? 0.8 : 1,
-                boxShadow: !heightCm || !weightKg ? 'none' : '0 8px 24px rgba(78, 205, 196, 0.2)',
+                border: !heightCm || !weightKg ? '1px solid rgba(78, 205, 196, 0.3)' : 'none',
+                opacity: gettingRecommendations ? 0.85 : 1,
+                boxShadow: !heightCm || !weightKg ? 'none' : '0 12px 32px rgba(78, 205, 196, 0.35)',
               }}
             >
-              <Sparkles size={14} /> {gettingRecommendations ? 'Analyzing' : 'Get AI Plan'}
+              <Sparkles size={16} /> {gettingRecommendations ? 'Analyzing...' : 'Get AI Plan'}
             </button>
           </div>
 
@@ -580,16 +588,16 @@ export default function AiPlannerSettings() {
             <button
               onClick={getAiRecommendations}
               disabled={gettingRecommendations || !heightCm || !weightKg}
-              className="py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 press transition-all"
+              className="py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2.5 press transition-all"
               style={{
-                background: !heightCm || !weightKg ? 'var(--surface-elevated)' : 'linear-gradient(135deg, var(--accent-green), var(--accent)88)',
+                background: !heightCm || !weightKg ? 'rgba(78, 205, 196, 0.15)' : 'linear-gradient(135deg, #4ECDC4 0%, #1ABC9C 100%)',
                 color: !heightCm || !weightKg ? 'var(--text-muted)' : '#fff',
-                border: '1px solid var(--accent-green)44',
-                opacity: gettingRecommendations ? 0.8 : 1,
-                boxShadow: !heightCm || !weightKg ? 'none' : '0 8px 24px rgba(78, 205, 196, 0.15)',
+                border: !heightCm || !weightKg ? '1px solid rgba(78, 205, 196, 0.3)' : 'none',
+                opacity: gettingRecommendations ? 0.85 : 1,
+                boxShadow: !heightCm || !weightKg ? 'none' : '0 12px 32px rgba(78, 205, 196, 0.35)',
               }}
             >
-              <Sparkles size={16} /> {gettingRecommendations ? 'Analyzing...' : 'Get AI Plan'}
+              <Sparkles size={17} /> {gettingRecommendations ? 'Analyzing...' : 'Get AI Plan'}
             </button>
 
             <button
