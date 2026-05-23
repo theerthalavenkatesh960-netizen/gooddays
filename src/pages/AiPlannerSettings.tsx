@@ -1,17 +1,140 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Brain, Save, Sparkles, TrendingUp, Target, CheckCircle2, AlertCircle, Utensils } from 'lucide-react';
+import {
+  Activity,
+  ArrowLeft,
+  Brain,
+  CheckCircle2,
+  Flame,
+  Gauge,
+  Lock,
+  Salad,
+  Save,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
+
+type OptionCardProps = {
+  selected: boolean;
+  title: string;
+  subtitle: string;
+  caption?: string;
+  onClick: () => void;
+  accent?: string;
+};
+
+function OptionCard({ selected, title, subtitle, caption, onClick, accent = 'var(--accent)' }: OptionCardProps) {
+  return (
+    <button
+      onClick={onClick}
+      className="text-left p-3 rounded-2xl transition-all press"
+      style={{
+        background: selected
+          ? `linear-gradient(135deg, ${accent}1f, transparent)`
+          : 'var(--surface-elevated)',
+        border: selected ? `1px solid ${accent}66` : '1px solid var(--border)',
+        boxShadow: selected ? `0 10px 28px ${accent}22` : 'none',
+      }}
+    >
+      <p
+        className="text-sm font-semibold"
+        style={{ color: selected ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+      >
+        {title}
+      </p>
+      <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+        {subtitle}
+      </p>
+      {caption && (
+        <p className="text-[10px] mt-2" style={{ color: selected ? accent : 'var(--text-muted)' }}>
+          {caption}
+        </p>
+      )}
+    </button>
+  );
+}
+
+function MetricTile({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
+  return (
+    <div
+      className="rounded-2xl p-3"
+      style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+          {icon}
+        </div>
+        <p className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+          {label}
+        </p>
+      </div>
+      <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function nearestFromSet(value: number | undefined, set: number[]): number | undefined {
+  if (!value || Number.isNaN(value)) return undefined;
+  let nearest = set[0];
+  let delta = Math.abs(value - nearest);
+  for (const candidate of set) {
+    const next = Math.abs(value - candidate);
+    if (next < delta) {
+      nearest = candidate;
+      delta = next;
+    }
+  }
+  return nearest;
+}
+
+const calorieOptions = [
+  { value: '1500', title: '1500 kcal', subtitle: 'Cut aggressive', caption: 'Fast fat loss', accent: '#FF6B6B' },
+  { value: '1800', title: '1800 kcal', subtitle: 'Cut moderate', caption: 'Sustainable', accent: '#F59E0B' },
+  { value: '2000', title: '2000 kcal', subtitle: 'Balanced', caption: 'Recomposition', accent: '#10B981' },
+  { value: '2400', title: '2400 kcal', subtitle: 'Performance', caption: 'Training fuel', accent: '#3B82F6' },
+  { value: '3000', title: '3000+ kcal', subtitle: 'Bulk mode', caption: 'Gain phase', accent: '#8B5CF6' },
+] as const;
+
+const budgetOptions = [
+  { value: '1000', title: 'Low', subtitle: 'INR 1000 / week', caption: 'Essentials only' },
+  { value: '2000', title: 'Moderate', subtitle: 'INR 2000 / week', caption: 'Balanced groceries' },
+  { value: '4000', title: 'Medium', subtitle: 'INR 4000 / week', caption: 'More variety' },
+  { value: '6000', title: 'High', subtitle: 'INR 6000 / week', caption: 'Quality + convenience' },
+  { value: '10000', title: 'Unlimited', subtitle: 'No strict cap', caption: 'Best fit recommendations' },
+] as const;
+
+const activityOptions = [
+  { value: 'Sedentary', title: 'Sedentary', subtitle: 'Desk heavy lifestyle', caption: '<4k steps / day' },
+  { value: 'Light', title: 'Light', subtitle: 'Some movement', caption: '4-7k steps / day' },
+  { value: 'Moderate', title: 'Moderate', subtitle: 'Regular workouts', caption: '8-10k steps / day' },
+  { value: 'Active', title: 'Active', subtitle: 'Training focused', caption: '1-2 sessions / day' },
+  { value: 'Very Active', title: 'Very Active', subtitle: 'Athlete mode', caption: 'High output routine' },
+] as const;
+
+const dietOptions = [
+  { value: 'Vegetarian', title: 'Vegetarian', subtitle: 'Plant-based meals', caption: 'Paneer, lentils, tofu' },
+  { value: 'Non-Veg', title: 'Non-Veg', subtitle: 'Mixed protein sources', caption: 'Chicken, fish, eggs' },
+  { value: 'High-Protein', title: 'High-Protein', subtitle: 'Protein priority', caption: 'Lean body goals' },
+  { value: 'Low-Carb', title: 'Low-Carb', subtitle: 'Carb restricted', caption: 'Glycemic control' },
+  { value: 'Mixed', title: 'Mixed', subtitle: 'Flexible nutrition', caption: 'Most adaptable' },
+] as const;
 
 export default function AiPlannerSettings() {
   const navigate = useNavigate();
   const { user } = useAuth();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [gettingRecommendations, setGettingRecommendations] = useState(false);
   const [status, setStatus] = useState('');
-  const [activeTab, setActiveTab] = useState<'provider' | 'health'>('health');
+  const [activeTab, setActiveTab] = useState<'health' | 'provider'>('health');
 
   const isTestUser = user?.email?.toLowerCase().includes('test');
 
@@ -28,28 +151,6 @@ export default function AiPlannerSettings() {
   const [dietPreference, setDietPreference] = useState('');
   const [budgetPerWeek, setBudgetPerWeek] = useState('');
   const [activityLevel, setActivityLevel] = useState('');
-
-  // Computed stats for display
-  const currentWeight = weightKg ? Number(weightKg) : null;
-  const targetWeight = targetWeightKg ? Number(targetWeightKg) : null;
-  const weightDifference = currentWeight && targetWeight ? Math.abs(currentWeight - targetWeight) : null;
-  const isWeightGain = currentWeight && targetWeight ? targetWeight > currentWeight : false;
-  const profileComplete = heightCm && weightKg && dailyCaloriesTarget && activityLevel && dietPreference;
-
-  const calorieEmoji = dailyCaloriesTarget ? (
-    Number(dailyCaloriesTarget) < 1800 ? '🥗' :
-    Number(dailyCaloriesTarget) < 2200 ? '🥙' :
-    Number(dailyCaloriesTarget) < 2800 ? '🍽️' :
-    '🍔'
-  ) : '⚙️';
-
-  const activityEmoji = activityLevel ? (
-    activityLevel === 'Sedentary' ? '🪑' :
-    activityLevel === 'Light' ? '🚶' :
-    activityLevel === 'Moderate' ? '🏃' :
-    activityLevel === 'Active' ? '🏋️' :
-    '⚡'
-  ) : '⚙️';
 
   useEffect(() => {
     void load();
@@ -77,7 +178,7 @@ export default function AiPlannerSettings() {
       setBudgetPerWeek(profile?.budgetPerWeek ? String(profile.budgetPerWeek) : '');
       setActivityLevel(profile?.activityLevel || '');
     } catch (e: any) {
-      setStatus(e?.message || 'Failed to load settings');
+      setStatus(e?.message || 'Failed to load AI planner settings');
     } finally {
       setLoading(false);
     }
@@ -95,6 +196,7 @@ export default function AiPlannerSettings() {
           claudeModel: claudeModel.trim() || 'claude-3-5-sonnet-latest',
         });
       }
+
       await api.updateHealthProfile({
         heightCm: heightCm ? Number(heightCm) : undefined,
         weightKg: weightKg ? Number(weightKg) : undefined,
@@ -104,8 +206,9 @@ export default function AiPlannerSettings() {
         budgetPerWeek: budgetPerWeek ? Number(budgetPerWeek) : undefined,
         activityLevel: activityLevel || undefined,
       });
-      setStatus('✓ Profile saved successfully');
-      setTimeout(() => setStatus(''), 2000);
+
+      setStatus('Saved');
+      setTimeout(() => setStatus(''), 1800);
     } catch (e: any) {
       setStatus(e?.message || 'Failed to save');
     } finally {
@@ -117,20 +220,24 @@ export default function AiPlannerSettings() {
     setGettingRecommendations(true);
     try {
       const targetDate = targetWeightKg ? new Date().toISOString().split('T')[0] : undefined;
+
       const rec = await api.getHealthRecommendations({
         heightCm: heightCm ? Number(heightCm) : undefined,
         weightKg: weightKg ? Number(weightKg) : undefined,
         targetWeightKg: targetWeightKg ? Number(targetWeightKg) : undefined,
         targetDate,
       });
-      
-      if (rec.dailyCaloriesTarget) setDailyCaloriesTarget(String(rec.dailyCaloriesTarget));
-      if (rec.budgetPerWeek) setBudgetPerWeek(String(rec.budgetPerWeek));
+
+      const nearestCalories = nearestFromSet(rec.dailyCaloriesTarget, [1500, 1800, 2000, 2400, 3000]);
+      const nearestBudget = nearestFromSet(rec.budgetPerWeek, [1000, 2000, 4000, 6000, 10000]);
+
+      if (nearestCalories) setDailyCaloriesTarget(String(nearestCalories));
+      if (nearestBudget) setBudgetPerWeek(String(nearestBudget));
       if (rec.activityLevel) setActivityLevel(rec.activityLevel);
       if (rec.dietPreference) setDietPreference(rec.dietPreference);
-      
-      setStatus('✨ AI recommendations applied');
-      setTimeout(() => setStatus(''), 2500);
+
+      setStatus('AI recommendation applied');
+      setTimeout(() => setStatus(''), 2200);
     } catch (e: any) {
       setStatus(e?.message || 'Failed to get recommendations');
     } finally {
@@ -138,433 +245,419 @@ export default function AiPlannerSettings() {
     }
   }
 
+  const metrics = useMemo(() => {
+    const h = Number(heightCm);
+    const w = Number(weightKg);
+    const t = Number(targetWeightKg);
+
+    let bmiLabel = '--';
+    if (h > 0 && w > 0) {
+      const bmi = w / ((h / 100) * (h / 100));
+      if (bmi < 18.5) bmiLabel = 'Underweight';
+      else if (bmi < 25) bmiLabel = 'Healthy';
+      else if (bmi < 30) bmiLabel = 'Overweight';
+      else bmiLabel = 'Obese';
+    }
+
+    let deltaLabel = '--';
+    if (w > 0 && t > 0) {
+      const delta = Math.abs(w - t).toFixed(1);
+      deltaLabel = `${w > t ? '-' : '+'}${delta} kg`;
+    }
+
+    return {
+      bmiLabel,
+      deltaLabel,
+      planMode: (dailyCaloriesTarget && activityLevel) ? 'Personalized' : 'Incomplete',
+    };
+  }, [heightCm, weightKg, targetWeightKg, dailyCaloriesTarget, activityLevel]);
+
+  const profileProgress = useMemo(() => {
+    const checks = [
+      !!heightCm,
+      !!weightKg,
+      !!targetWeightKg,
+      !!dailyCaloriesTarget,
+      !!budgetPerWeek,
+      !!activityLevel,
+      !!dietPreference,
+    ];
+    const done = checks.filter(Boolean).length;
+    return Math.round((done / checks.length) * 100);
+  }, [heightCm, weightKg, targetWeightKg, dailyCaloriesTarget, budgetPerWeek, activityLevel, dietPreference]);
+
   if (loading) {
     return (
       <div className="pt-20 flex items-center justify-center" style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
-        <div className="text-sm animate-pulse" style={{ color: 'var(--text-muted)' }}>Initializing AI Planner...</div>
+        <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading AI planner settings...</div>
       </div>
     );
   }
 
   return (
     <div className="pt-4 pb-nav px-4" style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4">
         <button
           onClick={() => navigate('/settings')}
-          className="w-9 h-9 rounded-xl flex items-center justify-center press transition-all"
+          className="w-9 h-9 rounded-xl flex items-center justify-center press"
           style={{ backgroundColor: 'var(--surface)' }}
         >
           <ArrowLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>AI Planner</h1>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Personalized health & nutrition insights</p>
+        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>AI Planner</h1>
+      </div>
+
+      <div
+        className="rounded-3xl p-4 mb-4 overflow-hidden relative"
+        style={{
+          background: 'linear-gradient(135deg, var(--surface) 0%, var(--surface-elevated) 100%)',
+          border: '1px solid var(--border)',
+        }}
+      >
+        <div
+          className="absolute -top-10 -right-10 w-40 h-40 rounded-full"
+          style={{ background: 'radial-gradient(circle, var(--accent)30 0%, transparent 70%)' }}
+        />
+        <div className="relative">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Health Intelligence</p>
+              <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Advanced Personalization</h2>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                AI calibrates calories, activity and budget strategy to your goal.
+              </p>
+            </div>
+            <button
+              onClick={getAiRecommendations}
+              disabled={gettingRecommendations}
+              className="px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 press"
+              style={{
+                backgroundColor: 'var(--accent-green)22',
+                color: 'var(--accent-green)',
+                border: '1px solid var(--accent-green)33',
+                opacity: gettingRecommendations ? 0.7 : 1,
+              }}
+            >
+              <Sparkles size={13} /> {gettingRecommendations ? 'Analyzing' : 'Get AI Plan'}
+            </button>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Setup completeness</p>
+              <p className="text-[11px] font-semibold" style={{ color: 'var(--accent)' }}>{profileProgress}%</p>
+            </div>
+            <div className="h-2 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+              <div
+                className="h-2 rounded-full transition-all"
+                style={{ width: `${profileProgress}%`, background: 'linear-gradient(90deg, var(--accent), var(--accent-green))' }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Status Banner */}
       {status && (
         <div
-          className="mb-4 px-4 py-3 rounded-2xl text-sm font-semibold flex items-center gap-2 animate-in"
+          className="mb-4 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-2"
           style={{
-            backgroundColor: status.includes('✗') || status.includes('Failed') ? 'rgba(255,107,107,0.1)' : 'rgba(78,205,196,0.1)',
-            color: status.includes('✗') || status.includes('Failed') ? '#FF6B6B' : 'var(--accent-green)',
+            backgroundColor: status.toLowerCase().includes('fail') ? 'rgba(255,107,107,0.12)' : 'rgba(78,205,196,0.12)',
+            color: status.toLowerCase().includes('fail') ? '#FF6B6B' : 'var(--accent-green)',
+            border: `1px solid ${status.toLowerCase().includes('fail') ? 'rgba(255,107,107,0.3)' : 'rgba(78,205,196,0.3)'}`,
           }}
         >
-          {status.includes('✗') || status.includes('Failed') ? <AlertCircle size={16} /> : <CheckCircle2 size={16} />}
+          {status.toLowerCase().includes('fail') ? <Lock size={14} /> : <CheckCircle2 size={14} />}
           {status}
         </div>
       )}
 
-      {/* Tabs - Only show if test user */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <MetricTile icon={<Gauge size={14} style={{ color: 'var(--accent)' }} />} label="Mode" value={metrics.planMode} />
+        <MetricTile icon={<TrendingUp size={14} style={{ color: 'var(--accent-green)' }} />} label="Target Delta" value={metrics.deltaLabel} />
+        <MetricTile icon={<Activity size={14} style={{ color: 'var(--accent-warm)' }} />} label="BMI" value={metrics.bmiLabel} />
+      </div>
+
       {isTestUser && (
-        <div className="flex gap-2 mb-5" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0px' }}>
-          <button
-            onClick={() => setActiveTab('health')}
-            className="px-4 py-3 text-sm font-semibold transition-all press"
-            style={{
-              color: activeTab === 'health' ? 'var(--accent)' : 'var(--text-muted)',
-              borderBottom: activeTab === 'health' ? `2px solid var(--accent)` : 'transparent',
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <Target size={14} /> Health Profile
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('provider')}
-            className="px-4 py-3 text-sm font-semibold transition-all press"
-            style={{
-              color: activeTab === 'provider' ? 'var(--accent)' : 'var(--text-muted)',
-              borderBottom: activeTab === 'provider' ? `2px solid var(--accent)` : 'transparent',
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <Brain size={14} /> AI Provider
-            </div>
-          </button>
-        </div>
-      )}
-
-      {/* AI Provider Tab */}
-      {isTestUser && activeTab === 'provider' && (
-        <div className="rounded-3xl p-5 mb-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--accent)22' }}>
-              <Brain size={20} style={{ color: 'var(--accent)' }} />
-            </div>
-            <div>
-              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>AI Provider Configuration</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Advanced settings for AI model selection</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            {['local-llama', 'claude'].map((p) => (
-              <button
-                key={p}
-                onClick={() => setProvider(p as api.AiProvider)}
-                className="p-3 rounded-xl transition-all press relative overflow-hidden"
-                style={{
-                  backgroundColor: provider === p ? 'var(--accent)' : 'var(--surface-elevated)',
-                  border: `2px solid ${provider === p ? 'var(--accent)' : 'var(--border)'}`,
-                }}
-              >
-                <p className="font-semibold text-sm" style={{ color: provider === p ? '#fff' : 'var(--text-primary)' }}>
-                  {p === 'local-llama' ? '🦙 Local Llama' : '🤖 Claude'}
-                </p>
-                <p className="text-xs mt-1" style={{ color: provider === p ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)' }}>
-                  {p === 'local-llama' ? 'Self-hosted' : 'Cloud-based'}
-                </p>
-              </button>
-            ))}
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-muted)' }}>Local Llama Endpoint</label>
-              <input
-                value={localEndpoint}
-                onChange={(e) => setLocalEndpoint(e.target.value)}
-                placeholder="http://localhost:11434"
-                className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-              />
-            </div>
-
-            {provider === 'local-llama' && (
-              <div>
-                <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-muted)' }}>Local Model</label>
-                <select
-                  value={localModel}
-                  onChange={(e) => setLocalModel(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                >
-                  <option value="llama3.1:8b">llama3.1:8b (Fast)</option>
-                  <option value="llama3.2">llama3.2 (Balanced)</option>
-                  <option value="llama3.1:70b">llama3.1:70b (Powerful)</option>
-                </select>
-              </div>
-            )}
-
-            {provider === 'claude' && (
-              <>
-                <div>
-                  <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-muted)' }}>Claude Model</label>
-                  <select
-                    value={claudeModel}
-                    onChange={(e) => setClaudeModel(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
-                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                  >
-                    <option value="claude-3-5-sonnet-latest">Claude 3.5 Sonnet (Latest)</option>
-                    <option value="claude-3-7-sonnet-latest">Claude 3.7 Sonnet</option>
-                    <option value="claude-3-5-haiku-latest">Claude 3.5 Haiku (Fast)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-muted)' }}>API Key</label>
-                  <input
-                    value={claudeApiKey}
-                    onChange={(e) => setClaudeApiKey(e.target.value)}
-                    type="password"
-                    placeholder="sk-ant-..."
-                    className="w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all"
-                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                  />
-                </div>
-              </>
-            )}
+        <div className="rounded-2xl p-1 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="grid grid-cols-2 gap-1">
+            <button
+              onClick={() => setActiveTab('health')}
+              className="py-2.5 rounded-xl text-xs font-semibold press"
+              style={{
+                backgroundColor: activeTab === 'health' ? 'var(--accent)' : 'transparent',
+                color: activeTab === 'health' ? '#fff' : 'var(--text-secondary)',
+              }}
+            >
+              Health Engine
+            </button>
+            <button
+              onClick={() => setActiveTab('provider')}
+              className="py-2.5 rounded-xl text-xs font-semibold press"
+              style={{
+                backgroundColor: activeTab === 'provider' ? 'var(--accent)' : 'transparent',
+                color: activeTab === 'provider' ? '#fff' : 'var(--text-secondary)',
+              }}
+            >
+              AI Provider
+            </button>
           </div>
         </div>
       )}
 
-      {/* Health Profile Tab */}
-      {activeTab === 'health' && (
+      {(activeTab === 'health' || !isTestUser) && (
         <>
-          {/* Completion Status */}
-          {profileComplete && (
-            <div className="rounded-3xl p-4 mb-5 flex items-center gap-3" style={{ backgroundColor: 'var(--accent-green)22', border: '1px solid var(--accent-green)33' }}>
-              <CheckCircle2 size={18} style={{ color: 'var(--accent-green)' }} />
-              <div>
-                <p className="text-xs font-semibold" style={{ color: 'var(--accent-green)' }}>Profile Complete</p>
-                <p className="text-[10px] mt-0.5" style={{ color: 'var(--accent-green)' }}>All health parameters configured</p>
-              </div>
-            </div>
-          )}
-
-          {/* Quick Stats Cards */}
-          {weightDifference !== null && (
-            <div className="grid grid-cols-2 gap-3 mb-5">
-              <div className="rounded-2xl p-3 relative overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Progress Goal</p>
-                    <p className="text-lg font-bold mt-1 flex items-center gap-1" style={{ color: 'var(--accent)' }}>
-                      <span>{isWeightGain ? '⬆️' : '⬇️'}</span> {weightDifference.toFixed(1)}kg
-                    </p>
-                  </div>
-                  <TrendingUp size={16} style={{ color: 'var(--accent)33' }} />
-                </div>
-              </div>
-
-              <div className="rounded-2xl p-3 relative overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>BMI Category</p>
-                    <p className="text-lg font-bold mt-1" style={{ color: 'var(--accent)' }}>
-                      {heightCm && weightKg
-                        ? 'Calculated'
-                        : '—'}
-                    </p>
-                  </div>
-                  <Target size={16} style={{ color: 'var(--accent)33' }} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Physical Metrics Section */}
-          <div className="rounded-3xl p-5 mb-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--accent-warm)22' }}>
-                <Target size={18} style={{ color: 'var(--accent-warm)' }} />
+          <div className="rounded-3xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--accent)22' }}>
+                <Target size={15} style={{ color: 'var(--accent)' }} />
               </div>
               <div>
-                <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Physical Metrics</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Your body measurements</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Physical Baseline</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Core stats used by planning models</p>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2">
+              <input
+                value={heightCm}
+                onChange={(e) => setHeightCm(e.target.value)}
+                type="number"
+                placeholder="Height cm"
+                className="px-3 py-2.5 rounded-xl text-sm outline-none"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+              />
+              <input
+                value={weightKg}
+                onChange={(e) => setWeightKg(e.target.value)}
+                type="number"
+                placeholder="Weight kg"
+                className="px-3 py-2.5 rounded-xl text-sm outline-none"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+              />
+              <input
+                value={targetWeightKg}
+                onChange={(e) => setTargetWeightKg(e.target.value)}
+                type="number"
+                placeholder="Target kg"
+                className="px-3 py-2.5 rounded-xl text-sm outline-none"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-3xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--accent-warm)22' }}>
+                <Flame size={15} style={{ color: 'var(--accent-warm)' }} />
+              </div>
               <div>
-                <label className="text-[10px] font-semibold mb-1.5 block" style={{ color: 'var(--text-muted)' }}>HEIGHT</label>
-                <input
-                  value={heightCm}
-                  onChange={(e) => setHeightCm(e.target.value)}
-                  type="number"
-                  placeholder="cm"
-                  className="w-full px-3 py-2 rounded-xl text-sm font-semibold outline-none"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Daily Calories</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Pick intensity based on body-composition goal</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {calorieOptions.map((opt) => (
+                <OptionCard
+                  key={opt.value}
+                  selected={dailyCaloriesTarget === opt.value}
+                  title={opt.title}
+                  subtitle={opt.subtitle}
+                  caption={opt.caption}
+                  accent={opt.accent}
+                  onClick={() => setDailyCaloriesTarget(opt.value)}
                 />
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--accent)22' }}>
+                <Wallet size={15} style={{ color: 'var(--accent)' }} />
               </div>
               <div>
-                <label className="text-[10px] font-semibold mb-1.5 block" style={{ color: 'var(--text-muted)' }}>WEIGHT</label>
-                <input
-                  value={weightKg}
-                  onChange={(e) => setWeightKg(e.target.value)}
-                  type="number"
-                  placeholder="kg"
-                  className="w-full px-3 py-2 rounded-xl text-sm font-semibold outline-none"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Budget / Week</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Controls food recommendation quality and variety</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {budgetOptions.map((opt) => (
+                <OptionCard
+                  key={opt.value}
+                  selected={budgetPerWeek === opt.value}
+                  title={opt.title}
+                  subtitle={opt.subtitle}
+                  caption={opt.caption}
+                  onClick={() => setBudgetPerWeek(opt.value)}
                 />
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--accent-green)22' }}>
+                <Activity size={15} style={{ color: 'var(--accent-green)' }} />
               </div>
               <div>
-                <label className="text-[10px] font-semibold mb-1.5 block" style={{ color: 'var(--text-muted)' }}>TARGET</label>
-                <input
-                  value={targetWeightKg}
-                  onChange={(e) => setTargetWeightKg(e.target.value)}
-                  type="number"
-                  placeholder="kg"
-                  className="w-full px-3 py-2 rounded-xl text-sm font-semibold outline-none"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Activity Level</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Used for calorie and recovery adjustments</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {activityOptions.map((opt) => (
+                <OptionCard
+                  key={opt.value}
+                  selected={activityLevel === opt.value}
+                  title={opt.title}
+                  subtitle={opt.subtitle}
+                  caption={opt.caption}
+                  onClick={() => setActivityLevel(opt.value)}
                 />
-              </div>
-            </div>
-          </div>
-
-          {/* Daily Calories Section */}
-          <div className="rounded-3xl p-5 mb-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg" style={{ backgroundColor: 'var(--accent-warm)22' }}>
-                  {calorieEmoji}
-                </div>
-                <div>
-                  <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Daily Caloric Intake</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Select your daily calorie target</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-5 gap-2">
-              {[
-                { val: '1500', label: '1500', color: 'rgba(255,107,107,0.1)', textColor: '#FF6B6B' },
-                { val: '1800', label: '1800', color: 'rgba(255,193,7,0.1)', textColor: '#FFC107' },
-                { val: '2000', label: '2000', color: 'rgba(76,175,80,0.1)', textColor: '#4CAF50' },
-                { val: '2400', label: '2400', color: 'rgba(33,150,243,0.1)', textColor: '#2196F3' },
-                { val: '3000', label: '3000+', color: 'rgba(156,39,176,0.1)', textColor: '#9C27F0' },
-              ].map((cal) => (
-                <button
-                  key={cal.val}
-                  onClick={() => setDailyCaloriesTarget(cal.val)}
-                  className="py-3 rounded-xl font-semibold text-sm press transition-all relative overflow-hidden"
-                  style={{
-                    backgroundColor: dailyCaloriesTarget === cal.val ? cal.color : 'var(--surface-elevated)',
-                    color: dailyCaloriesTarget === cal.val ? cal.textColor : 'var(--text-secondary)',
-                    border: `1.5px solid ${dailyCaloriesTarget === cal.val ? cal.textColor + '33' : 'var(--border)'}`,
-                  }}
-                >
-                  {cal.label}
-                </button>
               ))}
             </div>
           </div>
 
-          {/* Activity Level Section */}
-          <div className="rounded-3xl p-5 mb-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg" style={{ backgroundColor: 'var(--accent-green)22' }}>
-                {activityEmoji}
+          <div className="rounded-3xl p-4 mb-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--accent-gold)22' }}>
+                <Salad size={15} style={{ color: 'var(--accent-gold)' }} />
               </div>
               <div>
-                <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Activity Level</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>How active is your lifestyle?</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Diet Preference</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Shapes meal source and macro distribution</p>
               </div>
             </div>
-
-            <div className="grid grid-cols-5 gap-2">
-              {['Sedentary', 'Light', 'Moderate', 'Active', 'Very Active'].map((level, idx) => (
-                <button
-                  key={level}
-                  onClick={() => setActivityLevel(level)}
-                  className="py-3 rounded-xl font-semibold text-sm press transition-all"
-                  style={{
-                    backgroundColor: activityLevel === level ? 'var(--accent)' : 'var(--surface-elevated)',
-                    color: activityLevel === level ? '#fff' : 'var(--text-secondary)',
-                    border: `1.5px solid ${activityLevel === level ? 'var(--accent)' : 'var(--border)'}`,
-                  }}
-                >
-                  {level.length > 8 ? level.substring(0, 5) + '...' : level}
-                </button>
+            <div className="grid grid-cols-2 gap-2">
+              {dietOptions.map((opt) => (
+                <OptionCard
+                  key={opt.value}
+                  selected={dietPreference === opt.value}
+                  title={opt.title}
+                  subtitle={opt.subtitle}
+                  caption={opt.caption}
+                  onClick={() => setDietPreference(opt.value)}
+                />
               ))}
             </div>
           </div>
 
-          {/* Budget Section */}
-          <div className="rounded-3xl p-5 mb-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg" style={{ backgroundColor: 'var(--accent)22' }}>
-                💰
-              </div>
-              <div>
-                <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Weekly Food Budget</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Optimize recommendations by budget</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-5 gap-2">
-              {[
-                { val: '1000', label: 'Low' },
-                { val: '2000', label: 'Moderate' },
-                { val: '4000', label: 'Medium' },
-                { val: '6000', label: 'High' },
-                { val: '10000', label: 'Flexible' },
-              ].map((opt) => (
-                <button
-                  key={opt.val}
-                  onClick={() => setBudgetPerWeek(opt.val)}
-                  className="py-3 rounded-xl press transition-all text-center"
-                  style={{
-                    backgroundColor: budgetPerWeek === opt.val ? 'var(--accent)' : 'var(--surface-elevated)',
-                    border: `1.5px solid ${budgetPerWeek === opt.val ? 'var(--accent)' : 'var(--border)'}`,
-                  }}
-                >
-                  <p className="font-semibold text-sm" style={{ color: budgetPerWeek === opt.val ? '#fff' : 'var(--text-primary)' }}>
-                    {opt.label}
-                  </p>
-                  <p className="text-[10px] mt-0.5" style={{ color: budgetPerWeek === opt.val ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)' }}>
-                    ₹{opt.val}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Diet Preference Section */}
-          <div className="rounded-3xl p-5 mb-6" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg" style={{ backgroundColor: 'var(--accent-warm)22' }}>
-                <Utensils size={18} style={{ color: 'var(--accent-warm)' }} />
-              </div>
-              <div>
-                <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Diet Preference</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Your dietary choices matter</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-5 gap-2">
-              {['Vegetarian', 'Non-Veg', 'High-Protein', 'Low-Carb', 'Mixed'].map((diet) => (
-                <button
-                  key={diet}
-                  onClick={() => setDietPreference(diet)}
-                  className="py-3 rounded-xl font-semibold text-sm press transition-all"
-                  style={{
-                    backgroundColor: dietPreference === diet ? 'var(--accent)' : 'var(--surface-elevated)',
-                    color: dietPreference === diet ? '#fff' : 'var(--text-secondary)',
-                    border: `1.5px solid ${dietPreference === diet ? 'var(--accent)' : 'var(--border)'}`,
-                  }}
-                >
-                  {diet.split('-')[0]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-2 gap-3 pb-4">
             <button
               onClick={getAiRecommendations}
               disabled={gettingRecommendations}
-              className="py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 press transition-all"
+              className="py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 press"
               style={{
                 backgroundColor: 'var(--accent-green)22',
-                border: '1.5px solid var(--accent-green)33',
                 color: 'var(--accent-green)',
-                opacity: gettingRecommendations ? 0.6 : 1,
+                border: '1px solid var(--accent-green)33',
+                opacity: gettingRecommendations ? 0.7 : 1,
               }}
             >
-              <Sparkles size={16} /> 
-              {gettingRecommendations ? 'Analyzing...' : 'AI Suggestions'}
+              <Sparkles size={15} /> {gettingRecommendations ? 'Analyzing...' : 'AI Recommendation'}
             </button>
 
             <button
               onClick={saveAll}
               disabled={saving}
-              className="py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 press transition-all"
-              style={{
-                backgroundColor: 'var(--accent)',
-                color: '#fff',
-                opacity: saving ? 0.8 : 1,
-              }}
+              className="py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 press"
+              style={{ backgroundColor: 'var(--accent)', color: '#fff', opacity: saving ? 0.7 : 1 }}
             >
-              <Save size={16} /> {saving ? 'Saving...' : 'Save Profile'}
+              <Save size={15} /> {saving ? 'Saving...' : 'Save Setup'}
             </button>
           </div>
         </>
+      )}
+
+      {isTestUser && activeTab === 'provider' && (
+        <div className="rounded-3xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--accent)22' }}>
+              <Brain size={15} style={{ color: 'var(--accent)' }} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Provider Configuration</p>
+              <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Visible only for test users</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <OptionCard
+              selected={provider === 'local-llama'}
+              title="Local Llama"
+              subtitle="Self-hosted endpoint"
+              caption="Runs on your machine"
+              onClick={() => setProvider('local-llama')}
+            />
+            <OptionCard
+              selected={provider === 'claude'}
+              title="Claude"
+              subtitle="Anthropic cloud"
+              caption="External API"
+              onClick={() => setProvider('claude')}
+            />
+          </div>
+
+          <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Local Endpoint</label>
+          <input
+            value={localEndpoint}
+            onChange={(e) => setLocalEndpoint(e.target.value)}
+            placeholder="http://localhost:11434"
+            className="w-full px-3 py-2 rounded-xl text-sm outline-none mb-3"
+            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+          />
+
+          {provider === 'local-llama' && (
+            <>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Local Model</label>
+              <select
+                value={localModel}
+                onChange={(e) => setLocalModel(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+              >
+                <option value="llama3.1:8b">llama3.1:8b</option>
+                <option value="llama3.2">llama3.2</option>
+                <option value="llama3.1:70b">llama3.1:70b</option>
+              </select>
+            </>
+          )}
+
+          {provider === 'claude' && (
+            <>
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Claude Model</label>
+              <select
+                value={claudeModel}
+                onChange={(e) => setClaudeModel(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl text-sm outline-none mb-3"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+              >
+                <option value="claude-3-5-sonnet-latest">claude-3-5-sonnet-latest</option>
+                <option value="claude-3-7-sonnet-latest">claude-3-7-sonnet-latest</option>
+                <option value="claude-3-5-haiku-latest">claude-3-5-haiku-latest</option>
+              </select>
+
+              <label className="text-xs mb-1 block" style={{ color: 'var(--text-muted)' }}>Claude API Key</label>
+              <input
+                value={claudeApiKey}
+                onChange={(e) => setClaudeApiKey(e.target.value)}
+                type="password"
+                placeholder="sk-ant-..."
+                className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+              />
+            </>
+          )}
+
+          <button
+            onClick={saveAll}
+            disabled={saving}
+            className="w-full mt-4 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 press"
+            style={{ backgroundColor: 'var(--accent)', color: '#fff', opacity: saving ? 0.7 : 1 }}
+          >
+            <Save size={15} /> {saving ? 'Saving...' : 'Save Provider'}
+          </button>
+        </div>
       )}
     </div>
   );
