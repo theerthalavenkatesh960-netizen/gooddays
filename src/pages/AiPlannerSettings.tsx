@@ -148,11 +148,13 @@ function DrumPicker({ label, value, options, unit, onChange }: DrumPickerProps) 
                   justifyContent: 'center',
                   fontSize: isSelected ? 15 : 13,
                   fontWeight: isSelected ? 700 : 400,
-                  color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
+                  color: isSelected ? 'var(--accent)' : 'var(--text-muted)',
+                  opacity: isSelected ? 1 : 0.22,
                   transition: 'all 0.15s',
                 }}
               >
-                {opt}{unit && isSelected ? <span style={{ fontSize: 10, marginLeft: 2, color: 'var(--text-muted)' }}>{unit}</span> : null}
+                {isSelected ? opt : '·'}
+                {unit && isSelected ? <span style={{ fontSize: 10, marginLeft: 2, color: 'var(--text-muted)' }}>{unit}</span> : null}
               </div>
             );
           })}
@@ -409,19 +411,25 @@ export default function AiPlannerSettings() {
     }
   }
 
-  const handleApplyRecommendations = (recommendations: AppliedRecommendations, result: api.HealthRecommendationResult) => {
+  const handleApplyRecommendations = (recommendations: AppliedRecommendations, result: api.HealthRecommendation) => {
+    const rec = result.analysis?.recommendation;
+
     // Apply selected recommendations
-    if (recommendations.dailyCaloriesTarget && result.analysis.recommendation?.daily_calories) {
-      setDailyCaloriesTarget(String(result.analysis.recommendation.daily_calories));
+    if (recommendations.dailyCaloriesTarget) {
+      const calories = rec?.daily_calories ?? result.dailyCaloriesTarget;
+      if (calories) setDailyCaloriesTarget(String(calories));
     }
-    if (recommendations.activityLevel && result.analysis.recommendation?.activity_level) {
-      setActivityLevel(result.analysis.recommendation.activity_level);
+    if (recommendations.activityLevel) {
+      const activity = rec?.activity_level ?? result.activityLevel;
+      if (activity) setActivityLevel(activity);
     }
-    if (recommendations.dietPreference && result.analysis.recommendation?.diet_type) {
-      setDietPreference(result.analysis.recommendation.diet_type);
+    if (recommendations.dietPreference) {
+      const diet = result.dietPreference;
+      if (diet) setDietPreference(diet);
     }
-    if (recommendations.budgetPerWeek && result.analysis.recommendation?.budget_per_week) {
-      setBudgetPerWeek(String(result.analysis.recommendation.budget_per_week));
+    if (recommendations.budgetPerWeek) {
+      const budget = result.budgetPerWeek;
+      if (budget) setBudgetPerWeek(String(budget));
     }
 
     // Keep analysis cards in sync with wizard output
@@ -545,7 +553,7 @@ export default function AiPlannerSettings() {
           style={{ background: 'radial-gradient(circle, var(--accent)30 0%, transparent 70%)' }}
         />
         <div className="relative">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
             <div>
               <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Health Intelligence</p>
               <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Advanced Personalization</h2>
@@ -553,19 +561,6 @@ export default function AiPlannerSettings() {
                 AI calibrates calories, activity and budget strategy to your goal.
               </p>
             </div>
-            <button
-              onClick={() => setShowOptimizeWizard(true)}
-              disabled={!heightCm || !weightKg || !targetWeightKg}
-              className="px-6 py-3.5 rounded-2xl text-sm font-black flex items-center gap-2.5 press whitespace-nowrap transition-all"
-              style={{
-                background: (!heightCm || !weightKg || !targetWeightKg) ? 'rgba(78, 205, 196, 0.15)' : 'linear-gradient(135deg, #4ECDC4 0%, #1ABC9C 100%)',
-                color: (!heightCm || !weightKg || !targetWeightKg) ? 'var(--text-muted)' : '#fff',
-                border: (!heightCm || !weightKg || !targetWeightKg) ? '1px solid rgba(78, 205, 196, 0.3)' : 'none',
-                boxShadow: (!heightCm || !weightKg || !targetWeightKg) ? 'none' : '0 12px 32px rgba(78, 205, 196, 0.35)',
-              }}
-            >
-              Optimize with AI
-            </button>
           </div>
 
           <div className="mt-4">
@@ -1302,10 +1297,11 @@ export default function AiPlannerSettings() {
               disabled={saving}
               className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 press transition-all"
               style={{
-                background: 'linear-gradient(135deg, var(--accent), var(--accent)dd)',
+                background: 'linear-gradient(135deg, #14B8A6 0%, #0EA5E9 100%)',
                 color: '#fff',
                 opacity: saving ? 0.7 : 1,
-                boxShadow: '0 8px 24px rgba(139, 92, 246, 0.15)',
+                border: '1px solid rgba(20, 184, 166, 0.55)',
+                boxShadow: '0 10px 26px rgba(14, 165, 233, 0.35)',
               }}
             >
               <Save size={16} /> {saving ? 'Saving...' : 'Save Setup'}

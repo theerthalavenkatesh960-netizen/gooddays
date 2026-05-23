@@ -19,10 +19,10 @@ export function MacroChart({ protein, carbs, fat, unit = 'g' }: MacroChartProps)
       <div
         style={{
           display: 'flex',
-          height: 40,
+          height: 34,
           borderRadius: 8,
           overflow: 'hidden',
-          marginBottom: 12,
+          marginBottom: 10,
           boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
         }}
       >
@@ -78,33 +78,21 @@ export function MacroChart({ protein, carbs, fat, unit = 'g' }: MacroChartProps)
         </div>
       </div>
 
-      {/* Legend with values */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-        <div style={{ padding: 8, backgroundColor: 'var(--surface-elevated)', borderRadius: 8 }}>
-          <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-            Protein
-          </p>
-          <p style={{ margin: '4px 0 0 0', fontSize: 14, fontWeight: 'bold', color: '#8b5cf6' }}>
-            {protein}{unit}
-          </p>
+      {/* Inline labels and gram counts */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: '#8b5cf6' }}>P</p>
+          <p style={{ margin: '2px 0 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>{protein}{unit}</p>
         </div>
 
-        <div style={{ padding: 8, backgroundColor: 'var(--surface-elevated)', borderRadius: 8 }}>
-          <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-            Carbs
-          </p>
-          <p style={{ margin: '4px 0 0 0', fontSize: 14, fontWeight: 'bold', color: '#fbbf24' }}>
-            {carbs}{unit}
-          </p>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: '#f59e0b' }}>C</p>
+          <p style={{ margin: '2px 0 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>{carbs}{unit}</p>
         </div>
 
-        <div style={{ padding: 8, backgroundColor: 'var(--surface-elevated)', borderRadius: 8 }}>
-          <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-            Fat
-          </p>
-          <p style={{ margin: '4px 0 0 0', fontSize: 14, fontWeight: 'bold', color: '#f87171' }}>
-            {fat}{unit}
-          </p>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: '#f87171' }}>F</p>
+          <p style={{ margin: '2px 0 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>{fat}{unit}</p>
         </div>
       </div>
     </div>

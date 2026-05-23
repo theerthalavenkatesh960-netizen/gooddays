@@ -1,5 +1,3 @@
-import React from 'react';
-
 export type Milestone = {
   week: number;
   date: string;
@@ -13,8 +11,6 @@ type TimelineChartProps = {
 };
 
 export function TimelineChart({ milestones }: TimelineChartProps) {
-  const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
-
   if (!milestones || milestones.length === 0) {
     return <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>No milestones available</p>;
   }
@@ -31,9 +27,27 @@ export function TimelineChart({ milestones }: TimelineChartProps) {
     }
   };
 
-  const minWeight = Math.min(...milestones.map((m) => m.estimatedWeightKg));
-  const maxWeight = Math.max(...milestones.map((m) => m.estimatedWeightKg));
-  const weightRange = maxWeight - minWeight || 1;
+  // Keep generous spacing so long timelines stay readable and naturally scroll on mobile.
+  const chartWidth = Math.max(560, milestones.length * 140);
+  const xStart = 32;
+  const xEnd = chartWidth - 32;
+  const y = 36;
+
+  const dateLabel = (value: string) => {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+
+    const day = parsed.getDate();
+    const month = parsed.toLocaleDateString(undefined, { month: 'short' });
+    const mod10 = day % 10;
+    const mod100 = day % 100;
+    let suffix = 'th';
+    if (mod10 === 1 && mod100 !== 11) suffix = 'st';
+    if (mod10 === 2 && mod100 !== 12) suffix = 'nd';
+    if (mod10 === 3 && mod100 !== 13) suffix = 'rd';
+
+    return `${month} ${day}${suffix}`;
+  };
 
   return (
     <div style={{ width: '100%' }}>
@@ -43,92 +57,71 @@ export function TimelineChart({ milestones }: TimelineChartProps) {
           position: 'relative',
           marginBottom: 24,
           overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          scrollBehavior: 'smooth',
           paddingBottom: 8,
         }}
       >
-        {/* SVG Line */}
+        {/* Static line with milestone dots and labels */}
         <svg
           style={{
-            minWidth: `${Math.max(400, milestones.length * 60)}px`,
-            height: 120,
+            minWidth: `${chartWidth}px`,
+            height: 126,
             display: 'block',
           }}
         >
-          {/* Baseline */}
+          {/* Main line */}
           <line
-            x1="30"
-            y1="60"
-            x2={Math.max(400, milestones.length * 60) - 30}
-            y2="60"
+            x1={xStart}
+            y1={y}
+            x2={xEnd}
+            y2={y}
             stroke="var(--border)"
-            strokeWidth="2"
+            strokeWidth="3"
+            strokeLinecap="round"
           />
 
-          {/* Dots and Vertical Lines */}
+          {/* Milestone dots + labels */}
           {milestones.map((milestone, idx) => {
-            const x = 30 + idx * 60;
-            const y = 60 - ((milestone.estimatedWeightKg - minWeight) / weightRange) * 30;
+            const ratio = milestones.length === 1 ? 0.5 : idx / (milestones.length - 1);
+            const x = xStart + ratio * (xEnd - xStart);
             const color = getStatusColor(milestone.status);
 
             return (
               <g key={idx}>
-                {/* Vertical line from baseline to dot */}
-                <line x1={x} y1="60" x2={x} y2={y} stroke={color} strokeWidth="1" opacity="0.3" />
-
                 {/* Dot */}
                 <circle
                   cx={x}
                   cy={y}
-                  r="6"
+                  r="8"
                   fill={color}
-                  stroke="white"
-                  strokeWidth="2"
-                  style={{
-                    cursor: 'pointer',
-                    filter:
-                      hoveredIndex === idx ? 'drop-shadow(0 0 8px rgba(0,0,0,0.3))' : 'none',
-                    transition: 'all 0.15s',
-                  }}
-                  onMouseEnter={() => setHoveredIndex(idx)}
-                  onMouseLeave={() => setHoveredIndex(null)}
+                  stroke="var(--surface)"
+                  strokeWidth="3"
                 />
 
-                {/* Tooltip */}
-                {hoveredIndex === idx && (
-                  <g>
-                    {/* Tooltip background */}
-                    <rect
-                      x={x - 50}
-                      y={y - 50}
-                      width="100"
-                      height="50"
-                      rx="4"
-                      fill="var(--surface-elevated)"
-                      stroke={color}
-                      strokeWidth="1"
-                    />
-                    {/* Text */}
-                    <text
-                      x={x}
-                      y={y - 30}
-                      textAnchor="middle"
-                      fill="var(--text-primary)"
-                      fontSize="12"
-                      fontWeight="bold"
-                    >
-                      {milestone.date}
-                    </text>
-                    <text
-                      x={x}
-                      y={y - 15}
-                      textAnchor="middle"
-                      fill="var(--text-secondary)"
-                      fontSize="11"
-                    >
-                      {milestone.estimatedWeightKg} kg
-                    </text>
-                  </g>
-                )}
+                {/* Weight label above */}
+                <text
+                  x={x}
+                  y={y - 14}
+                  textAnchor="middle"
+                  fill="var(--text-primary)"
+                  fontSize="11"
+                  fontWeight="700"
+                >
+                  {milestone.estimatedWeightKg} kg
+                </text>
+
+                {/* Date label below */}
+                <text
+                  x={x}
+                  y={y + 30}
+                  textAnchor="middle"
+                  fill="var(--text-secondary)"
+                  fontSize="11"
+                  fontWeight="700"
+                >
+                  {dateLabel(milestone.date)}
+                </text>
               </g>
             );
           })}
