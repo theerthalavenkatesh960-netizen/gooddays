@@ -130,6 +130,7 @@ public class AiPlannerController : ControllerBase
                 budgetPerWeek = (decimal?)null,
                 activityLevel = (string?)null,
                 medicalConditions = Array.Empty<MedicalCondition>(),
+                targetDate = (string?)null,
             });
         }
 
@@ -145,6 +146,7 @@ public class AiPlannerController : ControllerBase
             budgetPerWeek = profile.BudgetPerWeek,
             activityLevel = profile.ActivityLevel,
             medicalConditions = ParseMedicalConditions(profile.MedicalConditions),
+            targetDate = profile.TargetDate.HasValue ? profile.TargetDate.Value.ToString("yyyy-MM-dd") : (string?)null,
         });
     }
 
@@ -173,6 +175,7 @@ public class AiPlannerController : ControllerBase
         profile.BudgetPerWeek = req.BudgetPerWeek;
         profile.ActivityLevel = string.IsNullOrWhiteSpace(req.ActivityLevel) ? null : req.ActivityLevel.Trim();
         profile.MedicalConditions = SerializeMedicalConditions(req.MedicalConditions);
+        profile.TargetDate = DateOnly.TryParse(req.TargetDate, out var td) ? td : (DateOnly?)null;
         profile.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
@@ -189,6 +192,7 @@ public class AiPlannerController : ControllerBase
             budgetPerWeek = profile.BudgetPerWeek,
             activityLevel = profile.ActivityLevel,
             medicalConditions = ParseMedicalConditions(profile.MedicalConditions),
+            targetDate = profile.TargetDate.HasValue ? profile.TargetDate.Value.ToString("yyyy-MM-dd") : (string?)null,
         });
     }
 
@@ -327,7 +331,9 @@ public class AiPlannerController : ControllerBase
         var targetWeightValue = targetWeight.GetValueOrDefault();
 
         var targetDate = DateTime.UtcNow.Date.AddDays(90);
-        if (!string.IsNullOrWhiteSpace(req.TargetDate) && DateTime.TryParse(req.TargetDate, out var parsedDate))
+        var targetDateString = req.TargetDate
+            ?? (profile?.TargetDate.HasValue == true ? profile.TargetDate.Value.ToString("yyyy-MM-dd") : null);
+        if (!string.IsNullOrWhiteSpace(targetDateString) && DateTime.TryParse(targetDateString, out var parsedDate))
         {
             targetDate = parsedDate;
         }
@@ -606,7 +612,8 @@ public record UpsertHealthProfileRequest(
     string? DietPreference,
     decimal? BudgetPerWeek,
     string? ActivityLevel,
-    MedicalCondition[]? MedicalConditions);
+    MedicalCondition[]? MedicalConditions,
+    string? TargetDate);
 
 public record GenerateMealsRequest(string? StartDate, string? Mode, decimal? BudgetPerWeek, string? DietPreference);
 

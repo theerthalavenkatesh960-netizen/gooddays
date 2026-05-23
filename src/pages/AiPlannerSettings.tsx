@@ -318,6 +318,7 @@ export default function AiPlannerSettings() {
   const [targetWeightKg, setTargetWeightKg] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('');
+  const [targetDate, setTargetDate] = useState('');
   const [medicalConditions, setMedicalConditions] = useState<api.MedicalCondition[]>([]);
   const [addingCondition, setAddingCondition] = useState(false);
   const [newCondition, setNewCondition] = useState<Partial<api.MedicalCondition>>({
@@ -362,6 +363,7 @@ export default function AiPlannerSettings() {
       setAge(profile?.age ? String(profile.age) : '');
       setGender(profile?.gender || '');
       setMedicalConditions(profile?.medicalConditions || []);
+      setTargetDate(profile?.targetDate || '');
       setDailyCaloriesTarget(profile?.dailyCaloriesTarget ? String(profile.dailyCaloriesTarget) : '');
       setDietPreference(profile?.dietPreference || '');
       setBudgetPerWeek(profile?.budgetPerWeek ? String(profile.budgetPerWeek) : '');
@@ -397,6 +399,7 @@ export default function AiPlannerSettings() {
         budgetPerWeek: budgetPerWeek ? Number(budgetPerWeek) : undefined,
         activityLevel: activityLevel || undefined,
         medicalConditions: medicalConditions.length > 0 ? medicalConditions : undefined,
+        targetDate: targetDate || undefined,
       });
 
       setStatus('Saved');
@@ -417,13 +420,11 @@ export default function AiPlannerSettings() {
 
     setGettingRecommendations(true);
     try {
-      const targetDate = targetWeightKg ? new Date().toISOString().split('T')[0] : undefined;
-
       const rec = await api.getHealthRecommendations({
         heightCm: heightCm ? Number(heightCm) : undefined,
         weightKg: weightKg ? Number(weightKg) : undefined,
         targetWeightKg: targetWeightKg ? Number(targetWeightKg) : undefined,
-        targetDate,
+        targetDate: targetDate || undefined,
         age: age ? Number(age) : undefined,
         gender: gender || undefined,
         activityLevel: activityLevel || undefined,
@@ -839,6 +840,24 @@ export default function AiPlannerSettings() {
               />
             </div>
 
+            {/* Target Date */}
+            <div className="mt-3 flex flex-col gap-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Target Date</p>
+              <input
+                type="date"
+                value={targetDate}
+                min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                onChange={(e) => setTargetDate(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)', colorScheme: 'dark' }}
+              />
+              {targetDate && (
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  {Math.ceil((new Date(targetDate).getTime() - Date.now()) / 86400000)} days from today
+                </p>
+              )}
+            </div>
+
             {/* Medical Conditions */}
             <div className="mt-3">
               <div className="flex items-center justify-between mb-2">
@@ -921,11 +940,47 @@ export default function AiPlannerSettings() {
                       'Atrial Fibrillation', 'High Cholesterol', 'Metabolic Syndrome', 'Obesity',
                       // Respiratory
                       'Asthma', 'COPD', 'Sleep Apnea',
-                      // Musculoskeletal
-                      'Arthritis', 'Rheumatoid Arthritis', 'Osteoporosis', 'Osteopenia',
-                      'Stress Fracture', 'Bone Fracture', 'Herniated Disc', 'Scoliosis',
-                      'Knee Injury', 'Shoulder Injury', 'Hip Replacement', 'Knee Replacement',
-                      'Tendinitis', 'Plantar Fasciitis', 'Lower Back Pain',
+                      // Musculoskeletal — General
+                      'Arthritis', 'Rheumatoid Arthritis', 'Osteoporosis', 'Osteopenia', 'Fibromyalgia',
+                      // ── Head & Neck
+                      'Neck Pain', 'Cervical Spondylosis', 'Whiplash', 'TMJ Disorder',
+                      'Broken Neck (healed)', 'Cervical Fracture',
+                      // ── Shoulder
+                      'Shoulder Pain', 'Shoulder Impingement', 'Rotator Cuff Tear', 'Rotator Cuff Strain',
+                      'Frozen Shoulder', 'Shoulder Dislocation', 'Shoulder Fracture', 'AC Joint Injury',
+                      'Broken Collarbone', 'Clavicle Fracture',
+                      // ── Upper Arm & Elbow
+                      'Elbow Pain', 'Tennis Elbow', 'Golfer Elbow', 'Elbow Bursitis',
+                      'Broken Arm', 'Humerus Fracture', 'Radius Fracture', 'Ulna Fracture',
+                      // ── Wrist & Hand
+                      'Wrist Pain', 'Wrist Sprain', 'Carpal Tunnel Syndrome',
+                      'Broken Wrist', 'Scaphoid Fracture', 'Wrist Fracture',
+                      'Hand Pain', 'Finger Fracture', 'Trigger Finger',
+                      // ── Spine & Back
+                      'Upper Back Pain', 'Lower Back Pain', 'Chronic Back Pain',
+                      'Herniated Disc', 'Bulging Disc', 'Degenerative Disc Disease',
+                      'Scoliosis', 'Spondylolisthesis', 'Spinal Stenosis',
+                      'Compression Fracture', 'Vertebral Fracture', 'Sacral Fracture',
+                      'Sciatica', 'Piriformis Syndrome',
+                      // ── Hip & Pelvis
+                      'Hip Pain', 'Hip Impingement', 'Hip Bursitis', 'Hip Flexor Strain',
+                      'Hip Fracture', 'Hip Replacement', 'Femoral Neck Fracture',
+                      'Pelvic Fracture', 'SI Joint Dysfunction',
+                      // ── Thigh & Knee
+                      'Knee Pain', 'Knee Osteoarthritis', 'Patellar Tendinitis', 'Patellar Fracture',
+                      'ACL Tear', 'PCL Tear', 'MCL Tear', 'LCL Tear', 'Meniscus Tear',
+                      'Knee Replacement', 'IT Band Syndrome',
+                      'Femur Fracture', 'Thigh Strain', 'Quad Strain', 'Hamstring Strain',
+                      // ── Lower Leg & Ankle
+                      'Shin Splints', 'Stress Fracture (shin)', 'Tibial Fracture', 'Fibula Fracture',
+                      'Calf Strain', 'Achilles Tendinitis', 'Achilles Rupture',
+                      'Ankle Pain', 'Ankle Sprain', 'Ankle Fracture',
+                      // ── Foot & Toe
+                      'Foot Pain', 'Plantar Fasciitis', 'Heel Pain', 'Heel Spur',
+                      'Metatarsal Fracture', 'Stress Fracture (foot)', 'Bunion',
+                      'Toe Fracture', 'Turf Toe',
+                      // ── Ribs & Chest
+                      'Rib Fracture', 'Broken Rib', 'Rib Stress Fracture', 'Costochondritis',
                       // Endocrine & Hormonal
                       'Thyroid Disorder', 'Hypothyroidism', 'Hyperthyroidism', 'PCOS', 'Adrenal Insufficiency',
                       // Digestive
@@ -937,7 +992,7 @@ export default function AiPlannerSettings() {
                       // Mental Health
                       'Depression', 'Anxiety', 'Bipolar Disorder', 'Eating Disorder',
                       // Blood & Immune
-                      'Anemia', 'Sickle Cell Anemia', 'Lupus', 'Fibromyalgia',
+                      'Anemia', 'Sickle Cell Anemia', 'Lupus',
                       // Cancer
                       'Cancer (active)', 'Cancer (remission)',
                     ].map((s) => (

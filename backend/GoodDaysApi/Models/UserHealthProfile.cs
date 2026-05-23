@@ -15,5 +15,6 @@ public class UserHealthProfile
     public decimal? BudgetPerWeek { get; set; }
     public string? ActivityLevel { get; set; }
     public string? MedicalConditions { get; set; }
+    public DateOnly? TargetDate { get; set; }
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

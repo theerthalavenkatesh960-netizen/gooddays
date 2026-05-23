@@ -80,6 +80,7 @@ export type HealthProfile = {
   budgetPerWeek?: number;
   activityLevel?: string;
   medicalConditions?: MedicalCondition[];
+  targetDate?: string;
 };
 
 export type HealthRecommendation = {

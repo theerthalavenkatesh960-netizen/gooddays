@@ -58,13 +58,15 @@ CREATE TABLE IF NOT EXISTS user_health_profiles (
   budget_per_week decimal(10,2),
   activity_level text,
   medical_conditions text,
+  target_date date,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 ALTER TABLE IF EXISTS user_health_profiles
   ADD COLUMN IF NOT EXISTS age integer,
   ADD COLUMN IF NOT EXISTS gender text,
-  ADD COLUMN IF NOT EXISTS medical_conditions text;
+  ADD COLUMN IF NOT EXISTS medical_conditions text,
+  ADD COLUMN IF NOT EXISTS target_date date;
 
 CREATE TABLE IF NOT EXISTS tasks (
   id SERIAL PRIMARY KEY,
