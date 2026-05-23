@@ -20,8 +20,8 @@ import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 
 // ─── Drum / Scroll Picker (Apple-style) ──────────────────────────────────────
-const ITEM_H = 36;
-const VISIBLE = 5; // odd number — selected item is in the center
+const ITEM_H = 34;
+const VISIBLE = 3; // odd number — selected item is in the center
 
 type DrumPickerProps = {
   label: string;
@@ -363,7 +363,10 @@ export default function AiPlannerSettings() {
       setAge(profile?.age ? String(profile.age) : '');
       setGender(profile?.gender || '');
       setMedicalConditions(profile?.medicalConditions || []);
-      setTargetDate(profile?.targetDate || '');
+      const normalizedTargetDate = typeof profile?.targetDate === 'string'
+        ? profile.targetDate.slice(0, 10)
+        : '';
+      setTargetDate(normalizedTargetDate);
       setDailyCaloriesTarget(profile?.dailyCaloriesTarget ? String(profile.dailyCaloriesTarget) : '');
       setDietPreference(profile?.dietPreference || '');
       setBudgetPerWeek(profile?.budgetPerWeek ? String(profile.budgetPerWeek) : '');
@@ -846,7 +849,6 @@ export default function AiPlannerSettings() {
               <input
                 type="date"
                 value={targetDate}
-                min={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
                 onChange={(e) => setTargetDate(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
                 style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)', colorScheme: 'dark' }}
