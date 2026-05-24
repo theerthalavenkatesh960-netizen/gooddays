@@ -545,6 +545,13 @@ export default function Onboarding() {
     setShowSkipWarning(false);
 
     try {
+      // Auto-select first 5 ingredients to meet minimum requirement
+      const preferredIds = new Set<number>();
+      for (const item of ingredients) {
+        preferredIds.add(item.id);
+        if (preferredIds.size >= 5) break;
+      }
+
       // Minimal defaults to allow user to skip entire onboarding
       const payload: OnboardingData = {
         selectedFeatures: ['health'],
@@ -558,6 +565,7 @@ export default function Onboarding() {
         planAdherenceScore: 3,
         workoutsPerWeek: 3,
         minutesPerSession: 45,
+        preferredIngredientIds: Array.from(preferredIds),
       };
 
       setProgressText('Skipping onboarding...');
