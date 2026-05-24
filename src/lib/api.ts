@@ -300,6 +300,10 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
   return request('userprofiles/me/settings', { method: 'PUT', body: JSON.stringify(patch) });
 }
 
+export async function deleteMyAccount(): Promise<{ success: boolean }> {
+  return request('userprofiles/me', { method: 'DELETE' });
+}
+
 export async function getAiPlannerSettings(): Promise<AiPlannerSettings> {
   return request('ai-planner/settings');
 }
