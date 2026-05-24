@@ -195,6 +195,26 @@ public class OnboardingController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        // Ensure AI settings exist for first-time users before background AI generation starts.
+        if (string.Equals(generationMode, "ai", StringComparison.OrdinalIgnoreCase))
+        {
+            var aiSettings = await _db.UserAiSettings.FirstOrDefaultAsync(s => s.UserId == userId);
+            if (aiSettings is null)
+            {
+                aiSettings = new UserAiSetting
+                {
+                    UserId = userId,
+                    Provider = "local-llama",
+                    LocalEndpoint = "http://localhost:11434",
+                    LocalModel = "llama3.1:8b",
+                    ClaudeModel = "claude-3-5-sonnet-latest",
+                    UpdatedAt = DateTime.UtcNow,
+                };
+                _db.UserAiSettings.Add(aiSettings);
+                await _db.SaveChangesAsync();
+            }
+        }
+
         // Queue background plan generation based on adherence score and preferences.
         var adherenceParams = GetAdherenceAdjustedParams(
             req.PlanAdherenceScore,
