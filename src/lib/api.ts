@@ -2321,6 +2321,36 @@ export async function updateMealTemplate(id: number, body: any) {
   return request(`meal/templates/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
+export async function getMealCatalog(filters?: {
+  search?: string;
+  timing?: string;
+  minCost?: number;
+  maxCost?: number;
+  minCalories?: number;
+  maxCalories?: number;
+  minProtein?: number;
+  maxProtein?: number;
+}) {
+  const params = new URLSearchParams();
+  if (filters?.search) params.append('search', filters.search);
+  if (filters?.timing) params.append('timing', filters.timing);
+  if (filters?.minCost !== undefined) params.append('minCost', filters.minCost.toString());
+  if (filters?.maxCost !== undefined) params.append('maxCost', filters.maxCost.toString());
+  if (filters?.minCalories !== undefined) params.append('minCalories', filters.minCalories.toString());
+  if (filters?.maxCalories !== undefined) params.append('maxCalories', filters.maxCalories.toString());
+  if (filters?.minProtein !== undefined) params.append('minProtein', filters.minProtein.toString());
+  if (filters?.maxProtein !== undefined) params.append('maxProtein', filters.maxProtein.toString());
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return request(`meal/catalog${query}`);
+}
+
+export async function addMealFromCatalog(masterMealTemplateId: number) {
+  return request('meal/templates/add-from-catalog', {
+    method: 'POST',
+    body: JSON.stringify({ masterMealTemplateId }),
+  });
+}
+
 export async function getWeeklyMealPlan() {
   if (DUMMY_FLAGS.meals) return Promise.resolve(DUMMY_WEEKLY_MEAL_PLAN);
   return request('meal/plan');

@@ -545,10 +545,16 @@ export default function MealPlannerSettings() {
           <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between mb-3">
               <p className="section-label">Meal Templates</p>
-              <button onClick={() => setShowMealFilters(v => !v)} className="w-8 h-8 rounded-lg flex items-center justify-center press"
-                style={{ backgroundColor: showMealFilters ? 'var(--accent-green)' : 'var(--surface-elevated)', color: showMealFilters ? '#fff' : 'var(--text-secondary)' }} title="Toggle meal filters">
-                <Filter size={14} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => navigate('/settings/meals/catalog')} className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent-green)' }} title="Browse master catalog and add meals">
+                  Browse Catalog
+                </button>
+                <button onClick={() => setShowMealFilters(v => !v)} className="w-8 h-8 rounded-lg flex items-center justify-center press"
+                  style={{ backgroundColor: showMealFilters ? 'var(--accent-green)' : 'var(--surface-elevated)', color: showMealFilters ? '#fff' : 'var(--text-secondary)' }} title="Toggle meal filters">
+                  <Filter size={14} />
+                </button>
+              </div>
             </div>
 
             {showMealFilters && (

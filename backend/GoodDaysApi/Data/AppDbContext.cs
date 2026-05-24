@@ -59,6 +59,7 @@ public class AppDbContext : DbContext
     // Meal planner entities
     public DbSet<MealIngredient> MealIngredients { get; set; } = null!;
     public DbSet<MealTemplate> MealTemplates { get; set; } = null!;
+    public DbSet<MasterMealTemplate> MasterMealTemplates { get; set; } = null!;
     public DbSet<WeeklyMealPlan> WeeklyMealPlans { get; set; } = null!;
     public DbSet<DailyMealLog> DailyMealLogs { get; set; } = null!;
 
@@ -141,6 +142,7 @@ public class AppDbContext : DbContext
         // Meal planner table mappings
         modelBuilder.Entity<MealIngredient>().ToTable("meal_ingredients");
         modelBuilder.Entity<MealTemplate>().ToTable("meal_templates");
+        modelBuilder.Entity<MasterMealTemplate>().ToTable("master_meal_templates");
         modelBuilder.Entity<WeeklyMealPlan>().ToTable("weekly_meal_plans");
         modelBuilder.Entity<DailyMealLog>().ToTable("daily_meal_logs");
         modelBuilder.Entity<DailyMealLog>()

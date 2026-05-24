@@ -17,4 +17,7 @@ public class MealTemplate
     public string Recipe { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    // Optional link to the shared master catalog entry this was derived from.
+    public int? MasterMealTemplateId { get; set; }
+    public MasterMealTemplate? MasterMealTemplate { get; set; }
 }

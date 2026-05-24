@@ -25,6 +25,7 @@ import JournalEditor from './pages/JournalEditor';
 import Vehicles from './pages/Vehicles';
 import WorkoutLibrarySettings from './pages/WorkoutLibrarySettings';
 import MealPlannerSettings from './pages/MealPlannerSettings';
+import MealCatalogBrowse from './pages/MealCatalogBrowse';
 import RoutineManager from './pages/RoutineManager';
 import WorkoutExerciseDetails from './pages/WorkoutExerciseDetails';
 import MealTemplateDetails from './pages/MealTemplateDetails';
@@ -125,6 +126,7 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/settings/workout-library/new-exercise" element={<PrivateRoute><Layout><WorkoutAddExercisePage /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library/exercise/:id" element={<PrivateRoute><Layout><WorkoutExerciseDetails /></Layout></PrivateRoute>} />
               <Route path="/settings/meals" element={<PrivateRoute><Layout><MealPlannerSettings /></Layout></PrivateRoute>} />
+              <Route path="/settings/meals/catalog" element={<PrivateRoute><Layout><MealCatalogBrowse /></Layout></PrivateRoute>} />
               <Route path="/settings/routines" element={<PrivateRoute><Layout><RoutineManager /></Layout></PrivateRoute>} />
               <Route path="/settings/meals/ingredients" element={<PrivateRoute><Layout><MealIngredientLibraryPage /></Layout></PrivateRoute>} />
               <Route path="/settings/meals/new-template" element={<PrivateRoute><Layout><MealCreateTemplatePage /></Layout></PrivateRoute>} />

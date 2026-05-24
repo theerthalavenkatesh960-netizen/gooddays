@@ -98,31 +98,65 @@ public class OnboardingService : IOnboardingService
 
     private async Task GenerateMealPlanAsync(int userId, UserOnboarding onboarding, UserHealthProfile? profile, OnboardingGenerationPayload payload)
     {
-        var templates = await _db.MealTemplates
+        var userTemplates = await _db.MealTemplates
             .Where(t => t.UserId == userId)
+            .Include(t => t.MasterMealTemplate)
             .ToListAsync();
 
-        if (templates.Count == 0)
+        // Pull master catalog to supplement user templates (e.g. new user with empty library).
+        var masterTemplates = await _db.MasterMealTemplates.ToListAsync();
+
+        // If user has no templates at all and master catalog is empty, bail out.
+        if (userTemplates.Count == 0 && masterTemplates.Count == 0)
         {
             _logger.LogWarning("No meal templates available for user {UserId}", userId);
             return;
         }
 
+        // Ensure every master template that will be used in the plan exists as a user
+        // meal_template (linked via master_meal_template_id). Clone missing ones lazily.
+        var existingMasterLinks = userTemplates
+            .Where(t => t.MasterMealTemplateId.HasValue)
+            .ToDictionary(t => t.MasterMealTemplateId!.Value, t => t);
+
+        foreach (var master in masterTemplates)
+        {
+            if (!existingMasterLinks.ContainsKey(master.Id))
+            {
+                var cloned = new MealTemplate
+                {
+                    UserId = userId,
+                    Name = master.Name,
+                    Timing = master.Timing,
+                    TimeOfDay = master.TimeOfDay,
+                    IngredientsJson = master.IngredientsJson,
+                    Recipe = master.Recipe,
+                    ImageUrl = master.ImageUrl,
+                    MasterMealTemplateId = master.Id,
+                    CreatedAt = DateTime.UtcNow,
+                };
+                _db.MealTemplates.Add(cloned);
+                userTemplates.Add(cloned); // will get Id after SaveChanges
+            }
+        }
+
+        if (_db.ChangeTracker.HasChanges())
+            await _db.SaveChangesAsync(); // assign IDs to cloned templates
+
         var mealPlan = new Dictionary<string, List<object>>();
 
         if (string.Equals(onboarding.GenerationMode, "ai", StringComparison.OrdinalIgnoreCase))
         {
-            mealPlan = await TryBuildAiMealPlanAsync(userId, profile, payload, templates);
+            mealPlan = await TryBuildAiMealPlanAsync(userId, profile, payload, userTemplates);
             if (mealPlan.Count == 0)
             {
                 _logger.LogWarning("AI meal plan generation returned empty result for user {UserId}; falling back to normal generation", userId);
-                mealPlan = BuildNormalMealPlan(templates, onboarding.PreferredIngredientIds, onboarding.ExcludedIngredientIds, payload.MaxMealsPerDay);
+                mealPlan = BuildNormalMealPlan(userTemplates, masterTemplates, onboarding.PreferredIngredientIds, onboarding.ExcludedIngredientIds, payload.MaxMealsPerDay, (double?)profile?.BudgetPerWeek);
             }
         }
         else
         {
-            // Normal generation: rank templates by preferred/excluded ingredients.
-            mealPlan = BuildNormalMealPlan(templates, onboarding.PreferredIngredientIds, onboarding.ExcludedIngredientIds, payload.MaxMealsPerDay);
+            mealPlan = BuildNormalMealPlan(userTemplates, masterTemplates, onboarding.PreferredIngredientIds, onboarding.ExcludedIngredientIds, payload.MaxMealsPerDay, (double?)profile?.BudgetPerWeek);
         }
 
         // Persist the meal plan for next 7 days.
@@ -252,19 +286,36 @@ public class OnboardingService : IOnboardingService
 
     private Dictionary<string, List<object>> BuildNormalMealPlan(
         List<MealTemplate> templates,
+        List<MasterMealTemplate> masterTemplates,
         int[]? preferredIds,
         int[]? excludedIds,
-        int maxMealsPerDay)
+        int maxMealsPerDay,
+        double? budgetPerWeek)
     {
         var preferred = new HashSet<int>(preferredIds ?? Array.Empty<int>());
         var excluded = new HashSet<int>(excludedIds ?? Array.Empty<int>());
 
+        // Build a lookup of master template macros/cost by masterMealTemplateId for bonus scoring.
+        var masterById = masterTemplates.ToDictionary(m => m.Id);
+
+        double? dailyBudget = budgetPerWeek.HasValue ? budgetPerWeek.Value / 7.0 : null;
+
         var ranked = templates
-            .Select(t => new
+            .Select(t =>
             {
-                Template = t,
-                HasExcluded = ParseTemplateIngredientIds(t.IngredientsJson).Any(id => excluded.Contains(id)),
-                Score = ParseTemplateIngredientIds(t.IngredientsJson).Count(id => preferred.Contains(id)),
+                var ingredientIds = ParseTemplateIngredientIds(t.IngredientsJson);
+                bool hasExcluded = ingredientIds.Any(id => excluded.Contains(id));
+                int preferredScore = ingredientIds.Count(id => preferred.Contains(id));
+
+                // Cost fit: prefer templates whose estimated cost fits within daily budget.
+                double costScore = 0;
+                if (t.MasterMealTemplateId.HasValue && masterById.TryGetValue(t.MasterMealTemplateId.Value, out var master))
+                {
+                    double perMealBudget = dailyBudget.HasValue ? dailyBudget.Value / Math.Max(1, maxMealsPerDay) : double.MaxValue;
+                    costScore = master.EstimatedTotalCost <= perMealBudget ? 1.0 : 0.0;
+                }
+
+                return new { Template = t, HasExcluded = hasExcluded, Score = preferredScore + costScore };
             })
             .OrderBy(x => x.HasExcluded)
             .ThenByDescending(x => x.Score)
@@ -317,12 +368,18 @@ public class OnboardingService : IOnboardingService
         UserHealthProfile? profile,
         List<MealTemplate> templates)
     {
-        var templateRows = templates.Select(t => $"- id={t.Id}, name={t.Name}, timing={t.Timing}, timeOfDay={t.TimeOfDay ?? ""}");
+        var templateRows = templates.Select(t =>
+        {
+            var macroInfo = t.MasterMealTemplate is not null
+                ? $", kcal={t.MasterMealTemplate.TotalCaloriesKcal}, protein={t.MasterMealTemplate.TotalProteinG:F1}g, carbs={t.MasterMealTemplate.TotalCarbsG:F1}g, fats={t.MasterMealTemplate.TotalFatsG:F1}g, estimatedCost={t.MasterMealTemplate.EstimatedTotalCost:F2}{(string.IsNullOrWhiteSpace(t.MasterMealTemplate.PlannerNotes) ? "" : $", notes={t.MasterMealTemplate.PlannerNotes}")}"
+                : string.Empty;
+            return $"- id={t.Id}, name={t.Name}, timing={t.Timing}, timeOfDay={t.TimeOfDay ?? ""}{macroInfo}";
+        });
         var sb = new StringBuilder();
         sb.AppendLine("Return STRICT JSON only.");
         sb.AppendLine($"Plan meals for 7 days from {start:yyyy-MM-dd}.");
         sb.AppendLine($"Use up to {Math.Max(1, payload.MaxMealsPerDay)} meals per day.");
-        sb.AppendLine("Use ONLY these mealTemplateIds:");
+        sb.AppendLine("Use ONLY these mealTemplateIds (each row includes macros and estimated cost where available — prefer meals that fit the user's calorie target and weekly budget):");
         sb.AppendLine(string.Join("\n", templateRows));
         sb.AppendLine();
         sb.AppendLine($"profileHeightCm={profile?.HeightCm?.ToString() ?? "null"}, profileWeightKg={profile?.WeightKg?.ToString() ?? "null"}, profileTargetWeightKg={profile?.TargetWeightKg?.ToString() ?? "null"}, profileCalories={profile?.DailyCaloriesTarget?.ToString() ?? "null"}, profileDiet={profile?.DietPreference ?? "null"}, profileBudget={profile?.BudgetPerWeek?.ToString() ?? "null"}, profileActivity={profile?.ActivityLevel ?? "null"}");

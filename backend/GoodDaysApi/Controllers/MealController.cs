@@ -87,7 +87,11 @@ public class MealController : ControllerBase
     public async Task<IActionResult> GetTemplates()
     {
         var userId = GetUserId();
-        return Ok(await _db.MealTemplates.Where(m => m.UserId == userId).OrderBy(m => m.Name).ToListAsync());
+        return Ok(await _db.MealTemplates
+            .Where(m => m.UserId == userId)
+            .Include(m => m.MasterMealTemplate)
+            .OrderBy(m => m.Name)
+            .ToListAsync());
     }
 
     [HttpPost("templates")]
@@ -127,6 +131,11 @@ public class MealController : ControllerBase
         item.Recipe = body.Recipe?.Trim() ?? string.Empty;
         item.ImageUrl = string.IsNullOrWhiteSpace(body.ImageUrl) ? null : body.ImageUrl.Trim();
 
+        // Detach from master catalog — the user has customised this meal so it is
+        // no longer identical to the master entry. Clearing the link prevents the
+        // AI prompt from showing stale master macros/notes for a modified meal.
+        item.MasterMealTemplateId = null;
+
         await _db.SaveChangesAsync();
         return Ok(item);
     }
@@ -140,6 +149,91 @@ public class MealController : ControllerBase
         _db.MealTemplates.Remove(item);
         await _db.SaveChangesAsync();
         return Ok();
+    }
+
+    // ─── Master Catalog Browse ────────────────────────────────────────────
+
+    [HttpGet("catalog")]
+    public async Task<IActionResult> GetCatalog(
+        [FromQuery] string? search,
+        [FromQuery] string? timing,
+        [FromQuery] double? minCost,
+        [FromQuery] double? maxCost,
+        [FromQuery] int? minCalories,
+        [FromQuery] int? maxCalories,
+        [FromQuery] double? minProtein,
+        [FromQuery] double? maxProtein)
+    {
+        var query = _db.MasterMealTemplates.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(m => m.Name.ToLower().Contains(search.ToLower()) || 
+                                     (m.PlannerNotes != null && m.PlannerNotes.ToLower().Contains(search.ToLower())));
+
+        if (!string.IsNullOrWhiteSpace(timing))
+            query = query.Where(m => m.Timing.ToLower() == timing.ToLower());
+
+        if (minCost.HasValue)
+            query = query.Where(m => m.EstimatedTotalCost >= minCost.Value);
+
+        if (maxCost.HasValue)
+            query = query.Where(m => m.EstimatedTotalCost <= maxCost.Value);
+
+        if (minCalories.HasValue)
+            query = query.Where(m => m.TotalCaloriesKcal >= minCalories.Value);
+
+        if (maxCalories.HasValue)
+            query = query.Where(m => m.TotalCaloriesKcal <= maxCalories.Value);
+
+        if (minProtein.HasValue)
+            query = query.Where(m => m.TotalProteinG >= minProtein.Value);
+
+        if (maxProtein.HasValue)
+            query = query.Where(m => m.TotalProteinG <= maxProtein.Value);
+
+        var results = await query.OrderBy(m => m.Timing).ThenBy(m => m.Name).ToListAsync();
+        return Ok(results);
+    }
+
+    [HttpPost("templates/add-from-catalog")]
+    public async Task<IActionResult> AddFromCatalog([FromBody] AddFromCatalogRequest body)
+    {
+        if (body.MasterMealTemplateId <= 0) return BadRequest("Master meal template ID is required.");
+
+        var userId = GetUserId();
+        var master = await _db.MasterMealTemplates.FirstOrDefaultAsync(m => m.Id == body.MasterMealTemplateId);
+        if (master is null) return NotFound("Master meal not found.");
+
+        // Check if user already has this meal (by master FK)
+        var existing = await _db.MealTemplates
+            .FirstOrDefaultAsync(m => m.UserId == userId && m.MasterMealTemplateId == master.Id);
+
+        if (existing is not null)
+            return BadRequest("This meal is already in your library.");
+
+        // Clone the master meal to user's library
+        var cloned = new MealTemplate
+        {
+            UserId = userId,
+            Name = master.Name,
+            Timing = master.Timing,
+            TimeOfDay = master.TimeOfDay,
+            IngredientsJson = master.IngredientsJson,
+            Recipe = master.Recipe,
+            ImageUrl = master.ImageUrl,
+            MasterMealTemplateId = master.Id,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        _db.MealTemplates.Add(cloned);
+        await _db.SaveChangesAsync();
+
+        // Reload with master details
+        cloned = await _db.MealTemplates
+            .Include(m => m.MasterMealTemplate)
+            .FirstAsync(m => m.Id == cloned.Id);
+
+        return Ok(cloned);
     }
 
     // ─── Weekly Meal Plan ─────────────────────────────────────────────────
