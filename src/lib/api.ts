@@ -358,7 +358,7 @@ export async function getOnboardingStatus(): Promise<OnboardingStatus> {
   return request('onboarding/status');
 }
 
-export async function completeOnboarding(data: OnboardingData): Promise<{ completed: boolean }> {
+export async function completeOnboarding(data: OnboardingData): Promise<{ completed: boolean; generationQueued?: boolean }> {
   return request('onboarding/complete', { method: 'POST', body: JSON.stringify(data) });
 }
 

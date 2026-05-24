@@ -473,10 +473,14 @@ export default function Onboarding() {
       };
 
       setProgressText('Saving onboarding profile...');
-      await completeOnboarding(payload);
+      const completion = await completeOnboarding(payload);
 
-      setProgressText('Generating meal and workout plans...');
-      await generatePlans(payload);
+      // If backend queue is unavailable, kick off generation without blocking navigation.
+      if (!completion?.generationQueued) {
+        void generatePlans(payload).catch((generationError: any) => {
+          console.error('Background onboarding plan generation failed:', generationError);
+        });
+      }
 
       navigate('/', { replace: true });
     } catch (e: any) {
@@ -497,8 +501,10 @@ export default function Onboarding() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
-      <div className="flex items-center justify-between px-6 pt-12 pb-6">
+    <div className="min-h-screen app-bg">
+      <div className="page flex flex-col">
+      <div className="sticky top-0 z-10" style={{ background: 'linear-gradient(to bottom, var(--bg) 80%, transparent)' }}>
+      <div className="flex items-center justify-between px-6 pt-8 pb-4">
         {step > 0 ? (
           <button
             onClick={() => setStep((s) => s - 1)}
@@ -519,8 +525,10 @@ export default function Onboarding() {
       </div>
 
       <StepBar current={step + 1} total={totalSteps} />
+      </div>
 
-      <div className="flex-1 overflow-y-auto pb-6">
+      <div className="flex-1 overflow-y-auto px-3 pb-4">
+        <div className="card rounded-3xl p-3 md:p-4">
         {step === 0 && (
           <>
             <StepHeading step="Step 1 of 6" title="What are you here for?" subtitle="Pick your focus areas. You can change this later." />
@@ -716,9 +724,10 @@ export default function Onboarding() {
             </div>
           </>
         )}
+        </div>
       </div>
 
-      <div className="px-6 pb-10 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+      <div className="mx-3 mb-4 p-3 rounded-2xl" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
         {step < totalSteps - 1 ? (
           <button
             onClick={() => setStep((s) => s + 1)}
@@ -738,6 +747,7 @@ export default function Onboarding() {
             {saving ? (<><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> {progressText || 'Generating plans...'}</>) : (<><CheckCircle2 size={16} /> Generate and enter dashboard</>)}
           </button>
         )}
+      </div>
       </div>
     </div>
   );

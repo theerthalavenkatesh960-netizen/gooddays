@@ -67,6 +67,9 @@ builder.Services.AddHostedService<GmailSyncBackgroundWorker>();
 // Register AI Service
 builder.Services.AddScoped<AiService>();
 
+// Register Onboarding Service
+builder.Services.AddScoped<IOnboardingService, OnboardingService>();
+
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "change_this_to_a_secure_random_key";
 var key = Encoding.ASCII.GetBytes(jwtKey);
 

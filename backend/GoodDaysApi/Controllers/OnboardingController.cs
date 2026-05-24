@@ -1,5 +1,6 @@
 using GoodDaysApi.Data;
 using GoodDaysApi.Models;
+using GoodDaysApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +13,12 @@ namespace GoodDaysApi.Controllers;
 public class OnboardingController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IOnboardingService _onboardingService;
 
-    public OnboardingController(AppDbContext db)
+    public OnboardingController(AppDbContext db, IOnboardingService onboardingService)
     {
         _db = db;
+        _onboardingService = onboardingService;
     }
 
     private int GetUserId() => int.Parse(
@@ -192,7 +195,45 @@ public class OnboardingController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return Ok(new { completed = true });
+        // Queue background plan generation based on adherence score and preferences.
+        var adherenceParams = GetAdherenceAdjustedParams(
+            req.PlanAdherenceScore,
+            req.WorkoutsPerWeek,
+            req.MinutesPerSession);
+
+        var payload = new OnboardingGenerationPayload(
+            DaysPerWeek: adherenceParams.DaysPerWeek,
+            MaxMealsPerDay: adherenceParams.MaxMealsPerDay,
+            MinutesPerSession: adherenceParams.MinutesPerSession);
+
+        _onboardingService.QueuePlanGeneration(userId, payload);
+
+        return Ok(new
+        {
+            completed = true,
+            generationQueued = true,
+        });
+    }
+
+    private static (int DaysPerWeek, int MinutesPerSession, int MaxMealsPerDay) GetAdherenceAdjustedParams(
+        int? score, int? fallbackDays, int? fallbackMinutes)
+    {
+        var clamped = Math.Max(1, Math.Min(10, score ?? 6));
+        var baseParams = clamped <= 3
+            ? (DaysPerWeek: 2, MinutesPerSession: 30, MaxMealsPerDay: 2)
+            : clamped <= 7
+                ? (DaysPerWeek: 4, MinutesPerSession: 45, MaxMealsPerDay: 3)
+                : (DaysPerWeek: 5, MinutesPerSession: 60, MaxMealsPerDay: 4);
+
+        var daysPerWeek = fallbackDays.HasValue
+            ? Math.Max(1, Math.Min(6, (int)Math.Round((fallbackDays.Value + baseParams.DaysPerWeek) / 2.0)))
+            : baseParams.DaysPerWeek;
+
+        var minutesPerSession = fallbackMinutes.HasValue
+            ? Math.Max(20, Math.Min(90, (int)Math.Round((fallbackMinutes.Value + baseParams.MinutesPerSession) / 2.0)))
+            : baseParams.MinutesPerSession;
+
+        return (daysPerWeek, minutesPerSession, baseParams.MaxMealsPerDay);
     }
 }
 
