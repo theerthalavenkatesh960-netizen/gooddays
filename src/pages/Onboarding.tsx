@@ -310,6 +310,85 @@ function Field({ label, unit, children }: { label: string; unit?: string; childr
   );
 }
 
+// ─── Enhanced Options for Step 4 (Health Preferences) ───────────────────────────
+const CALORIE_OPTIONS = [
+  { value: '1500', title: '1500 kcal', subtitle: 'Cut aggressive', caption: 'Fast fat loss', accent: '#FF6B6B' },
+  { value: '1800', title: '1800 kcal', subtitle: 'Cut moderate', caption: 'Sustainable', accent: '#F59E0B' },
+  { value: '2000', title: '2000 kcal', subtitle: 'Balanced', caption: 'Recomposition', accent: '#10B981' },
+  { value: '2400', title: '2400 kcal', subtitle: 'Performance', caption: 'Training fuel', accent: '#3B82F6' },
+  { value: '3000', title: '3000+ kcal', subtitle: 'Bulk mode', caption: 'Gain phase', accent: '#8B5CF6' },
+] as const;
+
+const BUDGET_OPTIONS = [
+  { value: '1000', title: 'Low', subtitle: '₹1000 / week', caption: 'Essentials only', accent: '#FF6B6B' },
+  { value: '2000', title: 'Moderate', subtitle: '₹2000 / week', caption: 'Balanced groceries', accent: '#F59E0B' },
+  { value: '4000', title: 'Medium', subtitle: '₹4000 / week', caption: 'More variety', accent: '#10B981' },
+  { value: '6000', title: 'High', subtitle: '₹6000 / week', caption: 'Quality + convenience', accent: '#3B82F6' },
+  { value: '10000', title: 'Unlimited', subtitle: 'No strict cap', caption: 'Best fit recommendations', accent: '#8B5CF6' },
+] as const;
+
+const ACTIVITY_OPTIONS_ENHANCED = [
+  { value: 'Sedentary', title: 'Sedentary', subtitle: 'Desk heavy lifestyle', caption: '<4k steps / day', accent: '#FF6B6B' },
+  { value: 'Light', title: 'Light', subtitle: 'Some movement', caption: '4-7k steps / day', accent: '#F59E0B' },
+  { value: 'Moderate', title: 'Moderate', subtitle: 'Regular workouts', caption: '8-10k steps / day', accent: '#10B981' },
+  { value: 'Active', title: 'Active', subtitle: 'Training focused', caption: '1-2 sessions / day', accent: '#3B82F6' },
+  { value: 'Very Active', title: 'Very Active', subtitle: 'Athlete mode', caption: 'High output routine', accent: '#8B5CF6' },
+] as const;
+
+const DIET_OPTIONS_ENHANCED = [
+  { value: 'Vegetarian', title: 'Vegetarian', subtitle: 'Plant-based meals', caption: 'Paneer, lentils, tofu', accent: '#FF6B6B' },
+  { value: 'Non-Veg', title: 'Non-Veg', subtitle: 'Mixed protein sources', caption: 'Chicken, fish, eggs', accent: '#F59E0B' },
+  { value: 'High-Protein', title: 'High-Protein', subtitle: 'Protein priority', caption: 'Lean body goals', accent: '#10B981' },
+  { value: 'Low-Carb', title: 'Low-Carb', subtitle: 'Carb restricted', caption: 'Glycemic control', accent: '#3B82F6' },
+  { value: 'Balanced', title: 'Balanced', subtitle: 'Flexible nutrition', caption: 'Most adaptable', accent: '#8B5CF6' },
+] as const;
+
+type OptionCardProps = {
+  selected: boolean;
+  title: string;
+  subtitle: string;
+  caption?: string;
+  onClick: () => void;
+  accent?: string;
+};
+
+function OptionCard({ selected, title, subtitle, caption, onClick, accent = 'var(--accent)' }: OptionCardProps) {
+  return (
+    <button
+      onClick={onClick}
+      className="text-left p-2.5 rounded-xl transition-all press relative overflow-hidden group"
+      style={{
+        background: selected
+          ? `linear-gradient(135deg, ${accent}33 0%, ${accent}11 100%)`
+          : 'var(--surface-elevated)',
+        border: selected ? `2px solid ${accent}` : '1px solid var(--border)',
+        boxShadow: selected ? `0 12px 32px ${accent}35, inset 0 1px 0 ${accent}33` : 'none',
+        transform: selected ? 'scale(1.02)' : 'scale(1)',
+      }}
+    >
+      {selected && (
+        <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: accent }}>
+          <CheckCircle2 size={14} color="#fff" strokeWidth={3} />
+        </div>
+      )}
+      <p
+        className="text-xs font-bold pr-3"
+        style={{ color: selected ? accent : 'var(--text-primary)' }}
+      >
+        {title}
+      </p>
+      <p className="text-[10px] mt-0.5" style={{ color: selected ? accent + 'cc' : 'var(--text-secondary)' }}>
+        {subtitle}
+      </p>
+      {caption && (
+        <p className="text-[9px] mt-1.5" style={{ color: selected ? accent : 'var(--text-muted)' }}>
+          {caption}
+        </p>
+      )}
+    </button>
+  );
+}
+
 export default function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -484,6 +563,7 @@ export default function Onboarding() {
       setProgressText('Skipping onboarding...');
       await completeOnboarding(payload);
       // No plan generation when skipping
+      setSaving(false);
       navigate('/', { replace: true });
     } catch (e: any) {
       setError(e?.message || 'Failed to skip onboarding. Please try again.');
@@ -717,110 +797,107 @@ export default function Onboarding() {
                 </p>
               </div>
 
-              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              {/* Daily Calorie Target */}
+              <div className="rounded-3xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-warm)22' }}>
-                    <Flame size={14} style={{ color: 'var(--accent-warm)' }} />
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F59E0B22' }}>
+                    <Flame size={15} style={{ color: '#F59E0B' }} />
                   </div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Daily Calorie Target</p>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Daily Calorie Target</p>
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Pick intensity based on body-composition goal</p>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {CALORIE_PRESETS.map((c) => {
-                    const selected = String(data.dailyCaloriesTarget) === c.value;
-                    return (
-                      <button
-                        key={c.value}
-                        onClick={() => setPatch({ dailyCaloriesTarget: Number(c.value) })}
-                        className="rounded-xl p-2 text-left transition-all"
-                        style={{
-                          background: selected ? 'var(--accent)18' : 'var(--surface-elevated)',
-                          border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
-                        }}
-                      >
-                        <p className="text-sm font-bold" style={{ color: selected ? 'var(--accent)' : 'var(--text-primary)' }}>{c.label}</p>
-                        <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{c.desc}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-green)22' }}>
-                    <PiggyBank size={14} style={{ color: 'var(--accent-green)' }} />
-                  </div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Weekly Food Budget</p>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {BUDGET_PRESETS.map((b) => {
-                    const selected = String(data.budgetPerWeek) === b.value;
-                    return (
-                      <button
-                        key={b.value}
-                        onClick={() => setPatch({ budgetPerWeek: Number(b.value) })}
-                        className="rounded-xl p-2 text-left transition-all"
-                        style={{
-                          background: selected ? 'var(--accent)18' : 'var(--surface-elevated)',
-                          border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
-                        }}
-                      >
-                        <p className="text-sm font-bold" style={{ color: selected ? 'var(--accent)' : 'var(--text-primary)' }}>{b.label}</p>
-                        <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{b.desc}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)22' }}>
-                    <Activity size={14} style={{ color: 'var(--accent)' }} />
-                  </div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Activity Level</p>
-                </div>
-                <div className="space-y-2">
-                  {ACTIVITY_LEVELS.map((a) => (
-                    <ToggleCard
-                      key={a.value}
-                      emoji={a.emoji}
-                      title={a.label}
-                      desc={a.desc}
-                      selected={data.activityLevel === a.value}
-                      onToggle={() => setPatch({ activityLevel: a.value })}
+                  {CALORIE_OPTIONS.map((opt) => (
+                    <OptionCard
+                      key={opt.value}
+                      selected={String(data.dailyCaloriesTarget) === opt.value}
+                      title={opt.title}
+                      subtitle={opt.subtitle}
+                      caption={opt.caption}
+                      accent={opt.accent}
+                      onClick={() => setPatch({ dailyCaloriesTarget: Number(opt.value) })}
                     />
                   ))}
                 </div>
               </div>
 
-              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              {/* Weekly Food Budget */}
+              <div className="rounded-3xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-gold)22' }}>
-                    <Leaf size={14} style={{ color: 'var(--accent-gold)' }} />
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#10B98122' }}>
+                    <PiggyBank size={15} style={{ color: '#10B981' }} />
                   </div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Diet Preference</p>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Weekly Food Budget</p>
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Determines grocery recommendations and meal variety</p>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {DIET_PREFERENCES.map((d) => {
-                    const selected = data.dietPreference === d.value;
-                    return (
-                      <button
-                        key={d.value}
-                        onClick={() => setPatch({ dietPreference: d.value })}
-                        className="rounded-xl p-2 text-left transition-all"
-                        style={{
-                          background: selected ? 'var(--accent)18' : 'var(--surface-elevated)',
-                          border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
-                        }}
-                      >
-                        <p className="text-sm font-bold" style={{ color: selected ? 'var(--accent)' : 'var(--text-primary)' }}>
-                          <span className="mr-1">{d.emoji}</span>{d.label}
-                        </p>
-                        <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{d.desc}</p>
-                      </button>
-                    );
-                  })}
+                  {BUDGET_OPTIONS.map((opt) => (
+                    <OptionCard
+                      key={opt.value}
+                      selected={String(data.budgetPerWeek) === opt.value}
+                      title={opt.title}
+                      subtitle={opt.subtitle}
+                      caption={opt.caption}
+                      accent={opt.accent}
+                      onClick={() => setPatch({ budgetPerWeek: Number(opt.value) })}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Activity Level */}
+              <div className="rounded-3xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--accent)22' }}>
+                    <Activity size={15} style={{ color: 'var(--accent)' }} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Activity Level</p>
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Used for calorie and recovery adjustments</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {ACTIVITY_OPTIONS_ENHANCED.map((opt) => (
+                    <OptionCard
+                      key={opt.value}
+                      selected={data.activityLevel === opt.value}
+                      title={opt.title}
+                      subtitle={opt.subtitle}
+                      caption={opt.caption}
+                      accent={opt.accent}
+                      onClick={() => setPatch({ activityLevel: opt.value })}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Diet Preference */}
+              <div className="rounded-3xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#F59E0B22' }}>
+                    <Leaf size={15} style={{ color: '#F59E0B' }} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Diet Preference</p>
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Shapes meal source and macro distribution</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {DIET_OPTIONS_ENHANCED.map((opt) => (
+                    <OptionCard
+                      key={opt.value}
+                      selected={data.dietPreference === opt.value}
+                      title={opt.title}
+                      subtitle={opt.subtitle}
+                      caption={opt.caption}
+                      accent={opt.accent}
+                      onClick={() => setPatch({ dietPreference: opt.value })}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
