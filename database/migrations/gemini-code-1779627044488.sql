@@ -1,5 +1,5 @@
 -- =============================================================================
--- Seed: master_meal_templates — Indian Meal Library (100+ Total Unique Entries)
+-- Seed: master_meal_templates G�� Indian Meal Library (100+ Total Unique Entries)
 -- Focus: Muscle Building, Weight Loss, Weight Gaining, Maintaining Health
 -- Formats: Breakfast, Lunch, Dinner, Snack, Pre-Workout, Post-Workout, Juices
 -- NO structural alterations. NO custom columns. Metadata added via planner_notes.
@@ -38,7 +38,7 @@ VALUES
 
 ('Egg White and Methi Scramble with Toast', 'breakfast', '08:00',
  '[{"name":"Egg whites (5)","caloriesKcal":85,"proteinG":18,"carbsG":1,"fatsG":0},{"name":"Fresh fenugreek (Methi) leaves","caloriesKcal":15,"proteinG":1.5,"carbsG":2.5,"fatsG":0.2},{"name":"Brown bread (2 slices)","caloriesKcal":130,"proteinG":5,"carbsG":24,"fatsG":1.5},{"name":"Olive oil","caloriesKcal":40,"proteinG":0,"carbsG":0,"fatsG":4.5}]',
- 'Sauté fresh methi leaves in olive oil until soft. Pour in whisked egg whites, add chopped green chillies, and scramble until dry. Serve with toasted brown bread.',
+ 'Saut+� fresh methi leaves in olive oil until soft. Pour in whisked egg whites, add chopped green chillies, and scramble until dry. Serve with toasted brown bread.',
  270, 24.5, 27.5, 6.2,
  40,
  'GOAL: Muscle Building, Weight Loss. NOTES: Premium quality ultra-lean protein with minimal carbohydrates and fat. Fenugreek leaves offer metabolic support.'),
@@ -112,7 +112,7 @@ VALUES
 
 ('Soya Chunk and Matar Pulao with Raita', 'lunch', '13:00',
  '[{"name":"Soya chunks (boiled & squeezed)","caloriesKcal":150,"proteinG":26,"carbsG":10,"fatsG":0.5},{"name":"Basmati rice","caloriesKcal":160,"proteinG":3.5,"carbsG":35,"fatsG":0.3},{"name":"Green peas","caloriesKcal":40,"proteinG":2,"carbsG":8,"fatsG":0.1},{"name":"Low fat curd raita","caloriesKcal":60,"proteinG":4.5,"carbsG":6,"fatsG":1.5}]',
- 'Sauté soya chunks and green peas with whole spices. Toss in basmati rice and pressure cook. Serve with a refreshing, cold bowl of vegetable raita.',
+ 'Saut+� soya chunks and green peas with whole spices. Toss in basmati rice and pressure cook. Serve with a refreshing, cold bowl of vegetable raita.',
  410, 36, 59, 2.4,
  40,
  'GOAL: Muscle Building, Weight Loss. NOTES: Exceptionally high protein vegetarian lunch. Soya chunks contain a massive concentration of BCAAs for muscle repair.'),
@@ -163,7 +163,7 @@ VALUES
 -- DINNER
 -- =============================================================================
 
-('Sarson ka Saag with Makki Roti', 'dinner', '20:30',
+('Sarson Ka Saag with Makki di Roti', 'dinner', '20:30',
  '[{"name":"Mustard greens & bathua leaves","caloriesKcal":60,"proteinG":4,"carbsG":8,"fatsG":1},{"name":"Makki (Yellow corn) flour","caloriesKcal":260,"proteinG":6,"carbsG":56,"fatsG":2.5},{"name":"White butter / Desi ghee","caloriesKcal":90,"proteinG":0,"carbsG":0,"fatsG":10}]',
  'Slow cook and mash mustard greens with green chillies and maize flour. Serve piping hot with flatbreads made from corn flour, topped with fresh white butter.',
  410, 10, 64, 13.5,
@@ -193,7 +193,7 @@ VALUES
 
 ('Aloo Methi with Whole Wheat Roti', 'dinner', '20:00',
  '[{"name":"Fresh fenugreek leaves (Methi)","caloriesKcal":20,"proteinG":1.5,"carbsG":3,"fatsG":0.2},{"name":"Diced potatoes","caloriesKcal":110,"proteinG":2,"carbsG":25,"fatsG":0.1},{"name":"Whole wheat roti (2 nos)","caloriesKcal":180,"proteinG":6,"carbsG":36,"fatsG":1},{"name":"Oil","caloriesKcal":40,"proteinG":0,"carbsG":0,"fatsG":4.5}]',
- 'Sauté diced potatoes and fresh bitter methi leaves together with turmeric and red chilli powder. Eat with fresh warm handmade rotis.',
+ 'Saut+� diced potatoes and fresh bitter methi leaves together with turmeric and red chilli powder. Eat with fresh warm handmade rotis.',
  350, 9.5, 64, 5.8,
  25,
  'GOAL: Maintaining Health, Weight Loss. NOTES: Traditional daily comfort dinner. Methi leaves actively stimulate liver action and assist lipid profiles.'),
@@ -270,7 +270,7 @@ VALUES
  'Char-roast tomatoes over open flame. Blend with coriander stems. Simmer with black pepper and half a teaspoon of melted cream butter.',
  85, 2, 10.5, 4.2,
  20,
- 'GOAL: Weight Loss, Maintaining Health. NOTES: Rich in lycopene—a powerful cardio-protective antioxidant. High comfort warmth before dinner hours.'),
+ 'GOAL: Weight Loss, Maintaining Health. NOTES: Rich in lycopeneG��a powerful cardio-protective antioxidant. High comfort warmth before dinner hours.'),
 
 -- =============================================================================
 -- MID-DAY SNACKS & LIGHT MEALS
@@ -299,7 +299,7 @@ VALUES
 
 ('Baked Oats and Almond Crust Cookies', 'snack', '16:00',
  '[{"name":"Rolled oats crushed","caloriesKcal":110,"proteinG":3.5,"carbsG":19,"fatsG":2},{"name":"Almond meal","caloriesKcal":90,"proteinG":3,"carbsG":2,"fatsG":8},{"name":"Cold pressed coconut oil","caloriesKcal":45,"proteinG":0,"carbsG":0,"fatsG":5}]',
- 'Bind crushed oats, almond meal, and clean coconut oil into small cookie discs. Bake at 180°C until edges turn deep golden brown.',
+ 'Bind crushed oats, almond meal, and clean coconut oil into small cookie discs. Bake at 180-�C until edges turn deep golden brown.',
  245, 6.5, 21, 15,
  45,
  'GOAL: Maintaining Health, Weight Gaining. NOTES: Excellent healthy alternative to commercial store biscuits. Clean fats and low GI grain profiles.'),
@@ -345,7 +345,7 @@ VALUES
 
 ('Post-Workout: Paneer Bhurji with 3 Soft Rotis', 'post-workout', '09:30',
  '[{"name":"Low fat paneer crumbled","caloriesKcal":150,"proteinG":15,"carbsG":2,"fatsG":9},{"name":"Whole wheat rotis (3 nos)","caloriesKcal":270,"proteinG":9,"carbsG":54,"fatsG":1.5}]',
- 'Sauté fresh low-fat paneer with chopped tomatoes and green chillies. Serve hot with three thin, oil-free whole wheat flatbreads.',
+ 'Saut+� fresh low-fat paneer with chopped tomatoes and green chillies. Serve hot with three thin, oil-free whole wheat flatbreads.',
  420, 24, 56, 10.5,
  55,
  'GOAL: Muscle Building, Maintaining Health. NOTES: Ideal vegetarian muscle recovery formula balancing complete proteins with necessary complex carbs.'),
@@ -370,7 +370,7 @@ VALUES
 
 ('Mixed Vegetable Poriyal with Curd Rice', 'lunch', '12:45',
  '[{"name":"Cabbage, carrots & beans","caloriesKcal":50,"proteinG":2,"carbsG":9,"fatsG":0.2},{"name":"Grated coconut garnish","caloriesKcal":35,"proteinG":0.3,"carbsG":1.2,"fatsG":3.3},{"name":"Curd rice mix","caloriesKcal":220,"proteinG":6,"carbsG":40,"fatsG":4}]',
- 'Sauté chopped vegetables with mustard seeds and curry leaves; finish with fresh coconut. Pair with cold, well-set probiotic curd rice.',
+ 'Saut+� chopped vegetables with mustard seeds and curry leaves; finish with fresh coconut. Pair with cold, well-set probiotic curd rice.',
  305, 8.3, 50.2, 7.5,
  35,
  'GOAL: Maintaining Health, Weight Loss. NOTES: Exceptional soothing lunch choice for hot tropical days. Improves bowel ecosystem and hydration dynamics.'),
@@ -496,7 +496,7 @@ VALUES
 
 ('Jeera Aloo with Kuttu (Buckwheat) Roti', 'lunch', '13:00',
  '[{"name":"Boiled potato cubes spiced","caloriesKcal":130,"proteinG":2,"carbsG":24,"fatsG":3},{"name":"Buckwheat (Kuttu) flour rotis (2)","caloriesKcal":220,"proteinG":6,"carbsG":44,"fatsG":2}]',
- 'Sauté tender potato cubes with abundant cumin seeds. Pair alongside fresh handmade flatbreads rolled from grain-free mineral dense buckwheat flour.',
+ 'Saut+� tender potato cubes with abundant cumin seeds. Pair alongside fresh handmade flatbreads rolled from grain-free mineral dense buckwheat flour.',
  350, 8, 68, 5,
  35,
  'GOAL: Weight Gaining, Maintaining Health. NOTES: Gluten free complex carbohydrate stack. Ideal for matching caloric targets on active physical working days.'),
@@ -524,7 +524,7 @@ VALUES
 
 ('Stir Fried Mushroom Matar with Missi Roti', 'dinner', '20:00',
  '[{"name":"Button mushrooms chopped","caloriesKcal":25,"proteinG":2.5,"carbsG":3,"fatsG":0.2},{"name":"Green peas","caloriesKcal":40,"proteinG":2,"carbsG":8,"fatsG":0.1},{"name":"Missi flour rotis (2 nos)","caloriesKcal":220,"proteinG":9,"carbsG":40,"fatsG":2.5}]',
- 'Sauté clean mushroom slices and fresh green peas inside basic spices. Serve alongside two high protein bengal gram blended missi flatbreads.',
+ 'Saut+� clean mushroom slices and fresh green peas inside basic spices. Serve alongside two high protein bengal gram blended missi flatbreads.',
  285, 13.5, 51, 2.8,
  40,
  'GOAL: Maintaining Health, Weight Loss. NOTES: Contains excellent levels of selenium and plant fiber profiles. Highly satiating low fat setup.'),
@@ -685,7 +685,7 @@ VALUES
 
 ('Stir Fried Ridge Gourd (Turai) with Moong Dal', 'dinner', '20:00',
  '[{"name":"Ridge gourd sliced","caloriesKcal":25,"proteinG":0.5,"carbsG":5,"fatsG":0.1},{"name":"Moong dal washed boiled","caloriesKcal":80,"proteinG":6,"carbsG":14,"fatsG":0.3},{"name":"Oil and cumin tracking","caloriesKcal":40,"proteinG":0,"carbsG":0,"fatsG":4.5}]',
- 'Sauté ridge gourd cubes inside a hot vessel with yellow parboiled moong dal lentils, green chillies, and half a teaspoon of mustard oil matrices.',
+ 'Saut+� ridge gourd cubes inside a hot vessel with yellow parboiled moong dal lentils, green chillies, and half a teaspoon of mustard oil matrices.',
  145, 7, 19, 4.9,
  20,
  'GOAL: Weight Loss, Maintaining Health. NOTES: High cell-hydration framework setup. Drastically smooth breakdown parameters protecting nocturnal rest loops.'),
@@ -731,7 +731,7 @@ VALUES
 
 ('Stir-Fried Amaranth Leaves Fry (Thotakura Vepudu)', 'dinner', '20:00',
  '[{"name":"Fresh amaranth leaves","caloriesKcal":40,"proteinG":3.5,"carbsG":6,"fatsG":0.4},{"name":"Garlic pods and whole red chillies","caloriesKcal":15,"proteinG":0.5,"carbsG":3,"fatsG":0},{"name":"Groundnut oil","caloriesKcal":45,"proteinG":0,"carbsG":0,"fatsG":5}]',
- 'Chop fresh amaranth leaves finely. Sauté in groundnut oil with crushed garlic, mustard seeds, and dry red chillies until shrunk and tender.',
+ 'Chop fresh amaranth leaves finely. Saut+� in groundnut oil with crushed garlic, mustard seeds, and dry red chillies until shrunk and tender.',
  100, 4, 9, 5.4,
  20,
  'GOAL: Weight Loss, Maintaining Health. NOTES: Traditional South Indian green preparation. Dense source of folate, iron, and bone-building Vitamin K.'),
@@ -780,7 +780,7 @@ VALUES
 
 ('Stir-Fried Ivy Gourd (Tindora/Kovakkai) with Roti', 'dinner', '20:00',
  '[{"name":"Ivy Gourd sliced","caloriesKcal":30,"proteinG":1.5,"carbsG":6,"fatsG":0.2},{"name":"Whole wheat rotis (2)","caloriesKcal":180,"proteinG":6,"carbsG":36,"fatsG":1},{"name":"Groundnut oil","caloriesKcal":40,"proteinG":0,"carbsG":0,"fatsG":4.5}]',
- 'Sauté clean thinly sliced ivy gourd with turmeric, red chilli powder, and mustard seeds in groundnut oil until crisp. Eat with warm dry wheat rotis.',
+ 'Saut+� clean thinly sliced ivy gourd with turmeric, red chilli powder, and mustard seeds in groundnut oil until crisp. Eat with warm dry wheat rotis.',
  250, 7.5, 42, 5.7,
  25,
  'GOAL: Weight Loss, Maintaining Health. NOTES: Traditional regular home subji. Ivy gourd contains plant compounds that help optimize peripheral glucose uptake.'),
@@ -847,7 +847,7 @@ VALUES
 
 ('Oats Bran Upma with Green Peas & Carrots', 'breakfast', '08:00',
  '[{"name":"Oats bran grains","caloriesKcal":140,"proteinG":5.5,"carbsG":25,"fatsG":2.5},{"name":"Mixed diced carrot & peas","caloriesKcal":40,"proteinG":2,"carbsG":8,"fatsG":0.1},{"name":"Mustard seeds oil temper","caloriesKcal":45,"proteinG":0,"carbsG":0,"fatsG":5}]',
- 'Dry roast oats bran. Temper mustard seeds, curry leaves, and green chillies in oil; sauté vegetables, add boiling water, stir in bran till thick.',
+ 'Dry roast oats bran. Temper mustard seeds, curry leaves, and green chillies in oil; saut+� vegetables, add boiling water, stir in bran till thick.',
  225, 7.5, 33, 7.6,
  35,
  'GOAL: Weight Loss, Maintaining Health. NOTES: Massive concentration of soluble beta-glucan dietary fibers. Helps sweep cholesterol arrays from digestive tract paths.'),
@@ -874,7 +874,7 @@ VALUES
  'GOAL: Muscle Building, Weight Loss. NOTES: Direct caffeine stimulation fires nervous motor path signals while raisin fructose quickly loads hepatic tracking systems.'),
 
 ('Stir-Fried Paneer and Mushroom Wok Mix', 'dinner', '19:45',
- '[{"name":"Low fat paneer blocks","caloriesKcal":120,"proteinG":11,"carbsG":1.5,"fatsG":8},{"name":"Fresh white button mushrooms","caloriesKcal":25,"proteinG":2.5,"carbsG":3,"fatsG":0.2},{"name":"Olive oil and black pepper","caloriesKcal":40 nighttime,"proteinG":0,"carbsG":0,"fatsG":4.5}]',
+ '[{"name":"Low fat paneer blocks","caloriesKcal":120,"proteinG":11,"carbsG":1.5,"fatsG":8},{"name":"Fresh white button mushrooms","caloriesKcal":25,"proteinG":2.5,"carbsG":3,"fatsG":0.2},{"name":"Olive oil and black pepper","caloriesKcal":40,"proteinG":0,"carbsG":0,"fatsG":4.5}]',
  'Toss diced low-fat paneer cubes and sliced clean mushrooms inside a searing hot pan with black pepper, sea salt, and minimal olive oil lines.',
  185, 13.5, 4.5, 12.7,
  75,
@@ -1050,7 +1050,7 @@ VALUES
 
 ('Classic Steamed Rava Upma with Roasted Cashews', 'breakfast', '08:00',
  '[{"name":"Dry roasted semolina (Rava)","caloriesKcal":160,"proteinG":4.5,"carbsG":34,"fatsG":0.8},{"name":"Broken roasted cashew bits","caloriesKcal":60,"proteinG":1.5,"carbsG":2,"fatsG":5},{"name":"Oil and curry leaves temper","caloriesKcal":45,"proteinG":0,"carbsG":0,"fatsG":5}]',
- 'Temper mustard seeds, split urad dal, and curry leaves in oil. Sauté onions, pour water, bring to boil, add semolina slowly till thick water lock occurs.',
+ 'Temper mustard seeds, split urad dal, and curry leaves in oil. Saut+� onions, pour water, bring to boil, add semolina slowly till thick water lock occurs.',
  265, 6, 36, 10.8,
  25,
  'GOAL: Maintaining Health, Weight Gaining. NOTES: Reliable South Indian comfort matrix. Supplies consistent energetic parameters for non gluten sensitive individuals cleanly.'),
@@ -1078,7 +1078,7 @@ VALUES
 
 ('Steamed Wheat Broken Daliya Upma with Veggies', 'breakfast', '08:00',
  '[{"name":"Broken wheat grains (Daliya)","caloriesKcal":140,"proteinG":4.5,"carbsG":30,"fatsG":0.8},{"name":"Green peas, carrots chopped","caloriesKcal":40,"proteinG":1.8,"carbsG":8,"fatsG":0.1},{"name":"Oil allocation","caloriesKcal":40,"proteinG":0,"carbsG":0,"fatsG":4.5}]',
- 'Dry roast daliya. Sauté onions and winter chopped vegetables with mustard seeds inside oil. Pour water, add grains, slow steam covered until soft.',
+ 'Dry roast daliya. Saut+� onions and winter chopped vegetables with mustard seeds inside oil. Pour water, add grains, slow steam covered until soft.',
  220, 6.3, 38, 5.4,
  25,
  'GOAL: Weight Loss, Maintaining Health. NOTES: Unrefined whole grain morning solution strategy. High physical fiber levels blunt insulin spike potentials dynamically.'),
@@ -1113,7 +1113,7 @@ VALUES
 
 ('Stir Fried Cluster Beans (Gavar) with Jowar Roti', 'dinner', '20:00',
  '[{"name":"Cluster beans chopped","caloriesKcal":35,"proteinG":2,"carbsG":7,"fatsG":0.1},{"name":"Jowar flour flatbreads (2)","caloriesKcal":180,"proteinG":5,"carbsG":38,"fatsG":1.5},{"name":"Oil tracking allocation","caloriesKcal":40,"proteinG":0,"carbsG":0,"fatsG":4.5}]',
- 'Sauté finely chopped cluster beans with mustard seeds and spice arrays inside groundnut oil. Consume alongside two soft sorghum (jowar) rotis.',
+ 'Saut+� finely chopped cluster beans with mustard seeds and spice arrays inside groundnut oil. Consume alongside two soft sorghum (jowar) rotis.',
  255, 7, 45, 6.1,
  25,
  'GOAL: Weight Loss, Maintaining Health. NOTES: Cluster beans contain high levels of guar gum fiber parameters which slow down stomach emptying steps cleanly.'),
@@ -1190,7 +1190,7 @@ VALUES
 
 ('Thick Arhar Dal Rice with Ghee Stir Fried Spinach', 'lunch', '13:00',
  '[{"name":"Pigeon pea (Arhar) dal cooked thick","caloriesKcal":120,"proteinG":8,"carbsG":20,"fatsG":0.5},{"name":"Steamed basmati rice portion","caloriesKcal":160,"proteinG":3.5,"carbsG":35,"fatsG":0.3},{"name":"Fresh spinach fried in ghee","caloriesKcal":65,"proteinG":2,"carbsG":3,"fatsG":5}]',
- 'Combine simple yellow arhar dal over soft steamed rice. Accompany with a fresh side bowl of raw spinach leaves sautéed fast inside desi cow ghee.',
+ 'Combine simple yellow arhar dal over soft steamed rice. Accompany with a fresh side bowl of raw spinach leaves saut+�ed fast inside desi cow ghee.',
  345, 13.5, 58, 5.8,
  30,
  'GOAL: Maintaining Health, Weight Loss. NOTES: Ultimate baseline household macro pairing structure. Provides highly bioavailable complete protein locks efficiently.'),
