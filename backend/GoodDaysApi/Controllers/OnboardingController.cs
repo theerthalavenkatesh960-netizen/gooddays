@@ -168,7 +168,7 @@ public class OnboardingController : ControllerBase
         row.ExcludedIngredientIds = excludedIngredientIds;
         row.GenerationMode = generationMode;
         row.PlanAdherenceScore = req.PlanAdherenceScore.HasValue
-            ? Math.Clamp(req.PlanAdherenceScore.Value, 1, 10)
+            ? Math.Clamp(req.PlanAdherenceScore.Value, 1, 5)
             : (int?)null;
         row.CompletedAt = DateTime.UtcNow;
         row.UpdatedAt = DateTime.UtcNow;
@@ -218,10 +218,10 @@ public class OnboardingController : ControllerBase
     private static (int DaysPerWeek, int MinutesPerSession, int MaxMealsPerDay) GetAdherenceAdjustedParams(
         int? score, int? fallbackDays, int? fallbackMinutes)
     {
-        var clamped = Math.Max(1, Math.Min(10, score ?? 6));
-        var baseParams = clamped <= 3
+        var clamped = Math.Max(1, Math.Min(5, score ?? 3));
+        var baseParams = clamped <= 2
             ? (DaysPerWeek: 2, MinutesPerSession: 30, MaxMealsPerDay: 2)
-            : clamped <= 7
+            : clamped <= 4
                 ? (DaysPerWeek: 4, MinutesPerSession: 45, MaxMealsPerDay: 3)
                 : (DaysPerWeek: 5, MinutesPerSession: 60, MaxMealsPerDay: 4);
 

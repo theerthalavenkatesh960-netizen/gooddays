@@ -137,10 +137,10 @@ function sanitizeAiMealPlan(
 }
 
 function getAdherenceAdjustedParams(score?: number, fallbackDays?: number, fallbackMinutes?: number) {
-  const clamped = Math.max(1, Math.min(10, Number(score || 6)));
-  const base = clamped <= 3
+  const clamped = Math.max(1, Math.min(5, Number(score || 3)));
+  const base = clamped <= 2
     ? { daysPerWeek: 2, minutesPerSession: 30, maxMealsPerDay: 2 }
-    : clamped <= 7
+    : clamped <= 4
       ? { daysPerWeek: 4, minutesPerSession: 45, maxMealsPerDay: 3 }
       : { daysPerWeek: 5, minutesPerSession: 60, maxMealsPerDay: 4 };
 
@@ -319,6 +319,7 @@ export default function Onboarding() {
   const [ingredientSearch, setIngredientSearch] = useState('');
   const [customIngredientInput, setCustomIngredientInput] = useState('');
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [showSkipWarning, setShowSkipWarning] = useState(false);
 
   const [data, setData] = useState<OnboardingData>({
     selectedFeatures: [],
@@ -459,6 +460,39 @@ export default function Onboarding() {
     await persistWorkoutRoutine(normalRoutine);
   }
 
+  async function skipAllOnboarding() {
+    setSaving(true);
+    setError('');
+    setShowSkipWarning(false);
+
+    try {
+      // Minimal defaults to allow user to skip entire onboarding
+      const payload: OnboardingData = {
+        selectedFeatures: ['health'],
+        age: 30,
+        heightCm: 170,
+        currentWeightKg: 70,
+        targetWeightKg: 70,
+        gender: 'other',
+        activityLevel: 'moderate',
+        dietPreference: 'balanced',
+        planAdherenceScore: 3,
+        workoutsPerWeek: 3,
+        minutesPerSession: 45,
+      };
+
+      setProgressText('Skipping onboarding...');
+      await completeOnboarding(payload);
+      // No plan generation when skipping
+      navigate('/', { replace: true });
+    } catch (e: any) {
+      setError(e?.message || 'Failed to skip onboarding. Please try again.');
+      setSaving(false);
+      setProgressText('');
+      setShowSkipWarning(false);
+    }
+  }
+
   async function handleFinish() {
     setSaving(true);
     setError('');
@@ -582,6 +616,32 @@ export default function Onboarding() {
                   onToggle={() => toggleArr('selectedFeatures', f.id)}
                 />
               ))}
+            </div>
+            <div className="px-6 mt-4 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>
+                Want to create plans yourself?
+              </p>
+              <button
+                onClick={() => setShowSkipWarning(true)}
+                disabled={saving}
+                className="w-full text-xs font-semibold px-3 py-2 rounded-lg transition-all"
+                style={{
+                  background: 'var(--surface-elevated)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  opacity: saving ? 0.6 : 1,
+                }}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 size={14} className="inline mr-1.5 animate-spin" />
+                    Skipping...
+                  </>
+                ) : (
+                  'Skip Onboarding'
+                )}
+              </button>
             </div>
           </>
         )}
@@ -965,6 +1025,94 @@ export default function Onboarding() {
           </button>
         )}
       </div>
+
+      {/* Skip Confirmation Modal */}
+      {showSkipWarning && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => !saving && setShowSkipWarning(false)}
+        >
+          <div
+            className="card rounded-2xl p-5 max-w-sm mx-4 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4">
+              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Skip Onboarding?</p>
+              <p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
+                You're about to skip guided setup. Here's what you'll be missing:
+              </p>
+            </div>
+
+            <div className="space-y-2.5 mb-5">
+              <div className="flex gap-2 items-start p-2.5 rounded-lg" style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+                <Sparkles size={14} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>AI-Powered Plans</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>No personalized meal & workout generation</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 items-start p-2.5 rounded-lg" style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+                <Dumbbell size={14} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Smart Suggestions</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>No tailored recommendations based on your goals</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 items-start p-2.5 rounded-lg" style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+                <Flame size={14} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Default Settings</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Starting with moderate intensity & generic preferences</p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+              You can always update your profile later in Settings to get personalized recommendations.
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowSkipWarning(false)}
+                disabled={saving}
+                className="flex-1 text-xs font-semibold px-3 py-2 rounded-lg transition-all"
+                style={{
+                  background: 'var(--surface-elevated)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  opacity: saving ? 0.6 : 1,
+                }}
+              >
+                Go Back
+              </button>
+              <button
+                onClick={() => void skipAllOnboarding()}
+                disabled={saving}
+                className="flex-1 text-xs font-semibold px-3 py-2 rounded-lg transition-all"
+                style={{
+                  background: saving ? 'var(--accent)60' : 'var(--accent)',
+                  border: 'none',
+                  color: '#fff',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {saving ? (
+                  <>
+                    <Loader2 size={12} className="inline mr-1.5 animate-spin" />
+                    Skipping...
+                  </>
+                ) : (
+                  'Skip Anyway'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
