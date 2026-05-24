@@ -172,6 +172,13 @@ export type OnboardingData = {
   preferredMeals?: string[];       // e.g. ['home-cooked','meal-prep']
   workoutsPerWeek?: number;
   minutesPerSession?: number;
+  // Step 5 - ingredient preferences and generation mode
+  preferredIngredientIds?: number[];
+  excludedIngredientIds?: number[];
+  customPreferredIngredients?: string[];
+  generationMode?: 'ai' | 'normal';
+  // Step 6 - consistency/adherence signal
+  planAdherenceScore?: number;
 };
 
 export type OnboardingStatus = {
@@ -347,7 +354,7 @@ export async function getOnboardingStatus(): Promise<OnboardingStatus> {
   return request('onboarding/status');
 }
 
-export async function completeOnboarding(data: OnboardingData): Promise<void> {
+export async function completeOnboarding(data: OnboardingData): Promise<{ completed: boolean }> {
   return request('onboarding/complete', { method: 'POST', body: JSON.stringify(data) });
 }
 

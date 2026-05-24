@@ -74,6 +74,7 @@ public class AppDbContext : DbContext
     // AI planner entities
     public DbSet<UserAiSetting> UserAiSettings { get; set; } = null!;
     public DbSet<UserHealthProfile> UserHealthProfiles { get; set; } = null!;
+    public DbSet<UserOnboarding> UserOnboardings { get; set; } = null!;
 
     // Vehicle tracker entities
     public DbSet<Vehicle> Vehicles { get; set; } = null!;
@@ -156,6 +157,7 @@ public class AppDbContext : DbContext
         // AI planner table mappings
         modelBuilder.Entity<UserAiSetting>().ToTable("user_ai_settings");
         modelBuilder.Entity<UserHealthProfile>().ToTable("user_health_profiles");
+        modelBuilder.Entity<UserOnboarding>().ToTable("user_onboarding");
 
         modelBuilder.Entity<UserAiSetting>()
             .HasOne(s => s.User)
@@ -175,6 +177,16 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<UserHealthProfile>()
             .HasIndex(p => p.UserId)
+            .IsUnique();
+
+        modelBuilder.Entity<UserOnboarding>()
+            .HasOne(o => o.User)
+            .WithMany()
+            .HasForeignKey(o => o.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserOnboarding>()
+            .HasIndex(o => o.UserId)
             .IsUnique();
 
         // Daily routine table mappings

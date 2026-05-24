@@ -29,6 +29,14 @@ CREATE TABLE IF NOT EXISTS user_onboarding (
   minutes_per_session   INTEGER,
   preferred_meals       TEXT[]    DEFAULT '{}',
 
+  -- Step 5: ingredient preferences and generation mode
+  preferred_ingredient_ids INTEGER[] DEFAULT '{}',
+  excluded_ingredient_ids  INTEGER[] DEFAULT '{}',
+  generation_mode          TEXT      NOT NULL DEFAULT 'ai',
+
+  -- Step 6: consistency/adherence signal
+  plan_adherence_score     INTEGER,
+
   -- Meta
   completed_at          TIMESTAMP WITH TIME ZONE,
   created_at            TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -51,3 +59,16 @@ DROP TRIGGER IF EXISTS trg_onboarding_updated_at ON user_onboarding;
 CREATE TRIGGER trg_onboarding_updated_at
   BEFORE UPDATE ON user_onboarding
   FOR EACH ROW EXECUTE FUNCTION update_onboarding_updated_at();
+
+-- Make reruns on existing databases additive (idempotent schema evolution)
+ALTER TABLE user_onboarding
+  ADD COLUMN IF NOT EXISTS preferred_ingredient_ids INTEGER[] DEFAULT '{}';
+
+ALTER TABLE user_onboarding
+  ADD COLUMN IF NOT EXISTS excluded_ingredient_ids INTEGER[] DEFAULT '{}';
+
+ALTER TABLE user_onboarding
+  ADD COLUMN IF NOT EXISTS generation_mode TEXT NOT NULL DEFAULT 'ai';
+
+ALTER TABLE user_onboarding
+  ADD COLUMN IF NOT EXISTS plan_adherence_score INTEGER;
