@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { Activity, ArrowLeft, ArrowRight, Check, CheckCircle2, Clock3, Dumbbell, Flame, Leaf, ListFilter, Loader2, PiggyBank, Sparkles, UtensilsCrossed } from 'lucide-react';
 import {
   completeOnboarding,
   createMealIngredient,
@@ -509,6 +509,13 @@ export default function Onboarding() {
   }
 
   const preferredCount = (data.preferredIngredientIds?.length || 0) + (data.customPreferredIngredients?.length || 0);
+  const adherenceOptions = [
+    { score: 1, title: 'Rarely follows', hint: 'Needs very low-friction plans' },
+    { score: 2, title: 'Sometimes follows', hint: 'Can follow simple structure' },
+    { score: 3, title: 'Usually follows', hint: 'Moderate consistency' },
+    { score: 4, title: 'Mostly follows', hint: 'Can handle stronger structure' },
+    { score: 5, title: 'Strictly follows', hint: 'High commitment and consistency' },
+  ];
   const canNext = [
     true,
     true,
@@ -581,21 +588,36 @@ export default function Onboarding() {
 
         {step === 1 && (
           <>
-            <StepHeading step="Step 2 of 6" title="How likely are you to follow a plan?" subtitle="Be realistic. We tune your first plans around consistency to keep momentum high." />
+            <StepHeading step="Step 2 of 6" title="How likely are you to follow a plan?" subtitle="Choose a score from 1 to 5. We tune your plan intensity from this." />
             <div className="px-6 space-y-4">
-              <div className="grid grid-cols-5 gap-2">
-                {Array.from({ length: 10 }, (_, i) => i + 1).map((score) => (
-                  <OptionPill
-                    key={score}
-                    label={String(score)}
-                    desc={score <= 3 ? 'Low' : score <= 7 ? 'Med' : 'High'}
-                    selected={Number(data.planAdherenceScore) === score}
-                    onClick={() => setPatch({ planAdherenceScore: score })}
-                  />
-                ))}
+              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="space-y-2">
+                  {adherenceOptions.map((opt) => {
+                    const selected = Number(data.planAdherenceScore) === opt.score;
+                    return (
+                      <button
+                        key={opt.score}
+                        onClick={() => setPatch({ planAdherenceScore: opt.score })}
+                        className="w-full text-left rounded-xl p-3 transition-all"
+                        style={{
+                          background: selected ? 'var(--accent)18' : 'var(--surface-elevated)',
+                          border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-bold" style={{ color: selected ? 'var(--accent)' : 'var(--text-primary)' }}>
+                            {opt.score} - {opt.title}
+                          </p>
+                          {selected && <CheckCircle2 size={16} style={{ color: 'var(--accent)' }} />}
+                        </div>
+                        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{opt.hint}</p>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div className="rounded-xl p-3 text-xs" style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-                Lower score gives simpler, lower-friction plans. Higher score gives more structured plans.
+                1 means rarely follows and needs simpler plans. 5 means strictly follows and can handle more structured plans.
               </div>
             </div>
           </>
@@ -628,22 +650,118 @@ export default function Onboarding() {
         {step === 3 && (
           <>
             <StepHeading step="Step 4 of 6" title="Your health preferences" subtitle="Set food, activity, and budget preferences." />
-            <div className="px-6 space-y-5">
-              <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Daily Calorie Target</p>
-                <div className="grid grid-cols-5 gap-1.5">{CALORIE_PRESETS.map((c) => <OptionPill key={c.value} label={c.label} desc={c.desc} selected={String(data.dailyCaloriesTarget) === c.value} onClick={() => setPatch({ dailyCaloriesTarget: Number(c.value) })} />)}</div>
+            <div className="px-6 space-y-4">
+              <div className="rounded-2xl p-3" style={{ background: 'var(--accent)14', border: '1px solid var(--accent)33' }}>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  These choices shape your first week plan. You can fine-tune everything later in Settings.
+                </p>
               </div>
-              <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Weekly Food Budget</p>
-                <div className="grid grid-cols-5 gap-1.5">{BUDGET_PRESETS.map((b) => <OptionPill key={b.value} label={b.label} desc={b.desc} selected={String(data.budgetPerWeek) === b.value} onClick={() => setPatch({ budgetPerWeek: Number(b.value) })} />)}</div>
+
+              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-warm)22' }}>
+                    <Flame size={14} style={{ color: 'var(--accent-warm)' }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Daily Calorie Target</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {CALORIE_PRESETS.map((c) => {
+                    const selected = String(data.dailyCaloriesTarget) === c.value;
+                    return (
+                      <button
+                        key={c.value}
+                        onClick={() => setPatch({ dailyCaloriesTarget: Number(c.value) })}
+                        className="rounded-xl p-2 text-left transition-all"
+                        style={{
+                          background: selected ? 'var(--accent)18' : 'var(--surface-elevated)',
+                          border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                        }}
+                      >
+                        <p className="text-sm font-bold" style={{ color: selected ? 'var(--accent)' : 'var(--text-primary)' }}>{c.label}</p>
+                        <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{c.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Activity Level</p>
-                <div className="space-y-2">{ACTIVITY_LEVELS.map((a) => <ToggleCard key={a.value} emoji={a.emoji} title={a.label} desc={a.desc} selected={data.activityLevel === a.value} onToggle={() => setPatch({ activityLevel: a.value })} />)}</div>
+
+              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-green)22' }}>
+                    <PiggyBank size={14} style={{ color: 'var(--accent-green)' }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Weekly Food Budget</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {BUDGET_PRESETS.map((b) => {
+                    const selected = String(data.budgetPerWeek) === b.value;
+                    return (
+                      <button
+                        key={b.value}
+                        onClick={() => setPatch({ budgetPerWeek: Number(b.value) })}
+                        className="rounded-xl p-2 text-left transition-all"
+                        style={{
+                          background: selected ? 'var(--accent)18' : 'var(--surface-elevated)',
+                          border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                        }}
+                      >
+                        <p className="text-sm font-bold" style={{ color: selected ? 'var(--accent)' : 'var(--text-primary)' }}>{b.label}</p>
+                        <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{b.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Diet Preference</p>
-                <div className="grid grid-cols-5 gap-1.5">{DIET_PREFERENCES.map((d) => <OptionPill key={d.value} emoji={d.emoji} label={d.label} desc={d.desc} selected={data.dietPreference === d.value} onClick={() => setPatch({ dietPreference: d.value })} />)}</div>
+
+              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)22' }}>
+                    <Activity size={14} style={{ color: 'var(--accent)' }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Activity Level</p>
+                </div>
+                <div className="space-y-2">
+                  {ACTIVITY_LEVELS.map((a) => (
+                    <ToggleCard
+                      key={a.value}
+                      emoji={a.emoji}
+                      title={a.label}
+                      desc={a.desc}
+                      selected={data.activityLevel === a.value}
+                      onToggle={() => setPatch({ activityLevel: a.value })}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-gold)22' }}>
+                    <Leaf size={14} style={{ color: 'var(--accent-gold)' }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Diet Preference</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {DIET_PREFERENCES.map((d) => {
+                    const selected = data.dietPreference === d.value;
+                    return (
+                      <button
+                        key={d.value}
+                        onClick={() => setPatch({ dietPreference: d.value })}
+                        className="rounded-xl p-2 text-left transition-all"
+                        style={{
+                          background: selected ? 'var(--accent)18' : 'var(--surface-elevated)',
+                          border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
+                        }}
+                      >
+                        <p className="text-sm font-bold" style={{ color: selected ? 'var(--accent)' : 'var(--text-primary)' }}>
+                          <span className="mr-1">{d.emoji}</span>{d.label}
+                        </p>
+                        <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{d.desc}</p>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </>
@@ -652,18 +770,66 @@ export default function Onboarding() {
         {step === 4 && (
           <>
             <StepHeading step="Step 5 of 6" title="Customize your routine" subtitle="Choose workout styles and meal preferences." />
-            <div className="px-6 space-y-5">
-              <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Workout styles (pick all that apply)</p>
-                <div className="space-y-2">{WORKOUT_TYPES.map((w) => <ToggleCard key={w.id} emoji={w.emoji} title={w.name} desc={w.desc} selected={(data.preferredWorkouts || []).includes(w.id)} onToggle={() => toggleArr('preferredWorkouts', w.id)} />)}</div>
+            <div className="px-6 space-y-4">
+              <div className="rounded-2xl p-3" style={{ background: 'var(--accent)14', border: '1px solid var(--accent)33' }}>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Pick styles you actually enjoy. This directly influences plan variety and sustainability.
+                </p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Workouts / week"><input type="number" min={1} max={7} value={data.workoutsPerWeek ?? ''} onChange={(e) => setPatch({ workoutsPerWeek: e.target.value ? Number(e.target.value) : undefined })} style={fieldStyle} /></Field>
-                <Field label="Minutes / session"><input type="number" min={10} max={180} value={data.minutesPerSession ?? ''} onChange={(e) => setPatch({ minutesPerSession: e.target.value ? Number(e.target.value) : undefined })} style={fieldStyle} /></Field>
+
+              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)22' }}>
+                    <Dumbbell size={14} style={{ color: 'var(--accent)' }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Workout styles</p>
+                </div>
+                <div className="space-y-2">
+                  {WORKOUT_TYPES.map((w) => (
+                    <ToggleCard
+                      key={w.id}
+                      emoji={w.emoji}
+                      title={w.name}
+                      desc={w.desc}
+                      selected={(data.preferredWorkouts || []).includes(w.id)}
+                      onToggle={() => toggleArr('preferredWorkouts', w.id)}
+                    />
+                  ))}
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Meal style (pick all that apply)</p>
-                <div className="space-y-2">{MEAL_PREFERENCES.map((m) => <ToggleCard key={m.id} emoji={m.emoji} title={m.name} desc={m.desc} selected={(data.preferredMeals || []).includes(m.id)} onToggle={() => toggleArr('preferredMeals', m.id)} />)}</div>
+
+              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-green)22' }}>
+                    <Clock3 size={14} style={{ color: 'var(--accent-green)' }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Weekly structure</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Workouts / week"><input type="number" min={1} max={7} value={data.workoutsPerWeek ?? ''} onChange={(e) => setPatch({ workoutsPerWeek: e.target.value ? Number(e.target.value) : undefined })} style={fieldStyle} /></Field>
+                  <Field label="Minutes / session"><input type="number" min={10} max={180} value={data.minutesPerSession ?? ''} onChange={(e) => setPatch({ minutesPerSession: e.target.value ? Number(e.target.value) : undefined })} style={fieldStyle} /></Field>
+                </div>
+              </div>
+
+              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-gold)22' }}>
+                    <UtensilsCrossed size={14} style={{ color: 'var(--accent-gold)' }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Meal style</p>
+                </div>
+                <div className="space-y-2">
+                  {MEAL_PREFERENCES.map((m) => (
+                    <ToggleCard
+                      key={m.id}
+                      emoji={m.emoji}
+                      title={m.name}
+                      desc={m.desc}
+                      selected={(data.preferredMeals || []).includes(m.id)}
+                      onToggle={() => toggleArr('preferredMeals', m.id)}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           </>
@@ -673,8 +839,19 @@ export default function Onboarding() {
           <>
             <StepHeading step="Step 6 of 6" title="Ingredients and generation" subtitle="Pick preferred ingredients (minimum 5), exclusions, and your plan generation mode." />
             <div className="px-6 space-y-4">
-              <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Search ingredients</p>
+              <div className="rounded-2xl p-3" style={{ background: 'var(--accent)14', border: '1px solid var(--accent)33' }}>
+                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  Choose at least 5 preferred ingredients. Tap ingredients to cycle preferred, excluded, and neutral.
+                </p>
+              </div>
+
+              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent)22' }}>
+                    <ListFilter size={14} style={{ color: 'var(--accent)' }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Ingredients</p>
+                </div>
                 <input
                   type="text"
                   value={ingredientSearch}
@@ -682,35 +859,38 @@ export default function Onboarding() {
                   placeholder="Paneer, chicken, tofu, bell peppers..."
                   style={fieldStyle}
                 />
+                <div className="grid grid-cols-2 gap-2 mt-3 max-h-56 overflow-y-auto pr-1">
+                  {filteredIngredients.slice(0, 80).map((item) => {
+                    const preferred = (data.preferredIngredientIds || []).includes(item.id);
+                    const excluded = (data.excludedIngredientIds || []).includes(item.id);
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => cycleIngredientSelection(item.id)}
+                        className="text-left px-3 py-2 rounded-xl"
+                        style={{
+                          background: preferred ? 'var(--accent)18' : excluded ? 'var(--accent-warm)18' : 'var(--surface-elevated)',
+                          border: preferred ? '2px solid var(--accent)' : excluded ? '2px solid var(--accent-warm)' : '1px solid var(--border)',
+                        }}
+                        title="Tap cycles: preferred -> excluded -> neutral"
+                      >
+                        <p className="text-xs font-semibold" style={{ color: preferred ? 'var(--accent)' : excluded ? 'var(--accent-warm)' : 'var(--text-primary)' }}>{item.name}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
+                  Preferred selected: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{preferredCount}</span> (minimum 5)
+                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                {filteredIngredients.slice(0, 80).map((item) => {
-                  const preferred = (data.preferredIngredientIds || []).includes(item.id);
-                  const excluded = (data.excludedIngredientIds || []).includes(item.id);
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => cycleIngredientSelection(item.id)}
-                      className="text-left px-3 py-2 rounded-xl"
-                      style={{
-                        background: preferred ? 'var(--accent)18' : excluded ? 'var(--accent-warm)18' : 'var(--surface-elevated)',
-                        border: preferred ? '2px solid var(--accent)' : excluded ? '2px solid var(--accent-warm)' : '1px solid var(--border)',
-                      }}
-                      title="Tap cycles: preferred -> excluded -> neutral"
-                    >
-                      <p className="text-xs font-semibold" style={{ color: preferred ? 'var(--accent)' : excluded ? 'var(--accent-warm)' : 'var(--text-primary)' }}>{item.name}</p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Preferred: {preferredCount} (minimum 5). Tap an ingredient to cycle preferred to excluded to neutral.
-              </p>
-
-              <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Add custom preferred ingredient</p>
+              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-green)22' }}>
+                    <UtensilsCrossed size={14} style={{ color: 'var(--accent-green)' }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Custom ingredients</p>
+                </div>
                 <div className="flex gap-2">
                   <input type="text" value={customIngredientInput} onChange={(e) => setCustomIngredientInput(e.target.value)} placeholder="e.g. Greek yogurt" style={fieldStyle} />
                   <button onClick={addCustomIngredient} className="px-3 rounded-xl text-xs font-semibold" style={{ border: '1px solid var(--border)', background: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>Add</button>
@@ -726,8 +906,13 @@ export default function Onboarding() {
                 )}
               </div>
 
-              <div>
-                <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Plan generation mode</p>
+              <div className="rounded-2xl p-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-gold)22' }}>
+                    <Sparkles size={14} style={{ color: 'var(--accent-gold)' }} />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Plan generation mode</p>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => setPatch({ generationMode: 'ai' })}
