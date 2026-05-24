@@ -262,8 +262,10 @@ function MealTab({ meals, today, onLog }: { meals: MealTemplate[], today: string
       else if (plan?.plan_json) rawPlan = typeof plan.plan_json === 'string' ? JSON.parse(plan.plan_json) : plan.plan_json;
 
       const legacyDayKey = format(new Date(today), 'EEEE').toLowerCase();
+      const utcToday = new Date().toISOString().slice(0, 10);
       const dayIds = parseIds(rawPlan?.[today]);
-      const fallbackIds = dayIds.length > 0 ? dayIds : parseIds(rawPlan?.[legacyDayKey]);
+      const utcDayIds = dayIds.length > 0 ? dayIds : parseIds(rawPlan?.[utcToday]);
+      const fallbackIds = utcDayIds.length > 0 ? utcDayIds : parseIds(rawPlan?.[legacyDayKey]);
       setPlannedMealIds(fallbackIds);
       setCompletedMealIds(parseIds(dailyLog?.mealIds));
     } catch {
