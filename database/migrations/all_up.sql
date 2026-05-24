@@ -599,7 +599,7 @@ ALTER TABLE IF EXISTS meal_ingredients
   ADD COLUMN IF NOT EXISTS price_per_100g double precision,
   ADD COLUMN IF NOT EXISTS serving_size_g double precision;
 
-CREATE INDEX IF NOT EXISTS idx_master_meal_templates_name ON master_meal_templates(lower(name));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_master_meal_templates_name ON master_meal_templates(lower(name));
 
 -- ===================================================================
 -- 003: DAILY ROUTINE SYSTEM
