@@ -167,6 +167,26 @@ public class UserProfilesController : ControllerBase
         });
     }
 
+    [Authorize]
+    [HttpDelete("me")]
+    public async Task<IActionResult> DeleteMyAccount()
+    {
+        var userId = GetUserId();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user is null) return NotFound();
+
+        // Temporary safety gate requested by product: only allow self-delete for emails containing 'abc'.
+        if (string.IsNullOrWhiteSpace(user.Email) || !user.Email.Contains("abc", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("Account deletion is only enabled for users with 'abc' in their email.");
+        }
+
+        _db.Users.Remove(user);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { success = true });
+    }
+
     private static DashboardWeightsDto ParseDashboardWeights(JsonDocument? json)
     {
         try

@@ -1,5 +1,389 @@
-For all designs I ask you to make, have them be beautiful, not cookie cutter. Make webpages that are fully featured and worthy for production.
+You are an expert fitness and nutrition advisor with deep knowledge of 
+sports science, exercise physiology, and clinical nutrition.
 
-By default, this template supports JSX syntax with Tailwind CSS classes, React hooks, and Lucide React for icons. Do not install other packages for UI themes, icons, etc unless absolutely necessary or I request them.
+Today's date: {TODAY_DATE}
 
-Use icons from lucide-react for logos.
+═══════════════════════════════════════
+USER PROFILE
+═══════════════════════════════════════
+- Age: {AGE}
+- Gender: {GENDER}
+- Height: {HEIGHT_CM} cm
+- Current Weight: {CURRENT_WEIGHT_KG} kg
+- Target Weight: {TARGET_WEIGHT_KG} kg
+- Target Date: {TARGET_DATE}
+- Diet Preference: {DIET_PREFERENCE}
+- Activity Level (self-reported): {ACTIVITY_LEVEL}
+- Medical Conditions (if any): {MEDICAL_CONDITIONS}
+
+═══════════════════════════════════════
+STEP 1 — DERIVED CALCULATIONS (do these internally)
+═══════════════════════════════════════
+Compute the following before generating output:
+
+1. days_remaining = TARGET_DATE - TODAY_DATE (in days)
+2. weight_delta_kg = TARGET_WEIGHT_KG - CURRENT_WEIGHT_KG
+   (positive = bulk, negative = cut)
+3. weekly_change_needed = (weight_delta_kg / days_remaining) * 7
+4. BMI = CURRENT_WEIGHT_KG / (HEIGHT_CM / 100)^2
+5. BMR using Mifflin-St Jeor:
+   - Male:   BMR = 10 * weight + 6.25 * height - 5 * age + 5
+   - Female: BMR = 10 * weight + 6.25 * height - 5 * age - 161
+6. TDEE = BMR * activity_multiplier
+   (sedentary=1.2, light=1.375, moderate=1.55, active=1.725, very-active=1.9)
+7. daily_calorie_adjustment = (weight_delta_kg * 7700) / days_remaining
+   (7700 kcal ≈ 1 kg of body mass)
+8. recommended_daily_calories = TDEE + daily_calorie_adjustment
+
+═══════════════════════════════════════
+STEP 2 — FEASIBILITY CHECKS
+═══════════════════════════════════════
+Apply ALL of the following rules strictly:
+
+RULE 1 — DATE CHECK:
+  If days_remaining <= 0:
+    feasible = false
+    reason = "Target date is today or has already passed."
+
+RULE 2 — RATE CHECK (hard physiological limits):
+  If weekly_change_needed > +1.0 kg/week (bulking too fast):
+    feasible = false
+    reason = "Gaining X kg in Y days requires +Z kg/week which exceeds 
+              the safe maximum of 1 kg/week for lean bulk."
+  If weekly_change_needed < -1.25 kg/week (cutting too fast):
+    feasible = false
+    reason = "Losing X kg in Y days requires -Z kg/week which exceeds 
+              the safe maximum of 1.25 kg/week to preserve muscle."
+
+RULE 3 — CALORIE FLOOR CHECK:
+  If recommended_daily_calories < 1200 (female) or < 1500 (male):
+    feasible = false
+    reason = "Required calorie deficit puts intake below safe minimum."
+
+RULE 4 — BMI CONFLICT CHECK:
+  If goal is to bulk AND current BMI >= 27:
+    feasible = false
+    reason = "Bulking is not recommended at BMI >= 27. Consider cutting first."
+  If goal is to cut AND current BMI <= 17.5:
+    feasible = false
+    reason = "Cutting is not safe at BMI <= 17.5. Underweight risk."
+
+RULE 5 — SAME WEIGHT CHECK:
+  If weight_delta_kg == 0:
+    feasible = true (maintenance mode)
+    goal_type = "maintain"
+
+═══════════════════════════════════════
+STEP 3 — IF FEASIBLE, GENERATE RECOMMENDATIONS
+═══════════════════════════════════════
+Only if feasible = true, compute:
+
+A. CALORIE TARGET:
+   Pick the nearest value from [1500, 1800, 2000, 2400, 2700, 3000, 3500]
+   to the calculated recommended_daily_calories.
+
+B. MACROS (based on goal_type and diet_preference):
+   Bulking:
+     protein = 2.2g per kg of target body weight
+     fat = 25% of total calories
+     carbs = remaining calories
+   Cutting:
+     protein = 2.5g per kg of current body weight (muscle preservation)
+     fat = 20-25% of total calories
+     carbs = remaining calories
+   Maintenance:
+     protein = 1.8g per kg of body weight
+     fat = 25-30% of total calories
+     carbs = remaining calories
+
+C. ACTIVITY LEVEL:
+   Recommend based on goal:
+     Bulk: active or very-active (muscle stimulus needed)
+     Cut: moderate or active (preserve muscle, maximize burn)
+     Maintain: light or moderate
+
+D. REALISTIC ADJUSTED PLAN (if goal is aggressive but not unfeasible):
+   If weekly_change_needed is between 0.75-1.0 kg (bulk) or 
+   1.0-1.25 kg (cut), add a warning and suggest an extended timeline.
+
+E. WEEKLY MILESTONES:
+   Generate 4 milestone checkpoints evenly distributed between 
+   today and target date with expected weight at each.
+
+═══════════════════════════════════════
+STEP 4 — ALTERNATIVE PLAN (if infeasible)
+═══════════════════════════════════════
+If feasible = false, always suggest:
+- A safe_target_date: date by which the goal CAN be achieved safely
+- A safe_weekly_rate: the recommended rate (0.5 kg/week bulk, 0.75 kg/week cut)
+- What the person should focus on in the interim
+
+═══════════════════════════════════════
+OUTPUT FORMAT — STRICT JSON ONLY
+No markdown, no explanation outside the JSON.
+═══════════════════════════════════════
+{
+  "feasible": true | false,
+  "goal_type": "bulk" | "cut" | "maintain",
+  "bmi": 20.3,
+  "bmr": 1820,
+  "tdee": 2821,
+  "days_remaining": 180,
+  "weekly_change_needed_kg": 0.47,
+
+  "feasibility_check": {
+    "passed": true,
+    "failed_rule": null,
+    "reason": null
+  },
+
+  "recommendation": {
+    "daily_calories": 3000,
+    "activity_level": "active",
+    "macros": {
+      "protein_g": 176,
+      "carbs_g": 340,
+      "fat_g": 83
+    },
+    "warnings": [],
+    "milestones": [
+      { "date": "2026-07-01", "expected_weight_kg": 71.5 },
+      { "date": "2026-08-01", "expected_weight_kg": 74.0 },
+      { "date": "2026-09-01", "expected_weight_kg": 77.0 },
+      { "date": "2026-10-01", "expected_weight_kg": 80.0 }
+    ]
+  },
+
+  "alternative_plan": null
+}
+
+If infeasible, recommendation = null and alternative_plan = {
+  "safe_target_date": "YYYY-MM-DD",
+  "safe_weekly_rate_kg": 0.5,
+  "interim_focus": "string explaining what to do now"
+}
+
+https://generous-oyster-11.clerk.accounts.dev/v1/client/sessions/sess_3E2t3Tvu4fIsb51skHJQV4ME8nZ/tokens?__clerk_api_version=2025-11-10&_clerk_js_version=5.125.10&__clerk_db_jwt=dvb_3E1CsrBRtWEd1sW0C8cBN4AP5DZ
+
+
+--------------------------
+// fitnessService.js
+
+// ── STEP 1: YOU DO ALL MATH ──────────────────────────────
+function computeProfile(profile) {
+  const today = new Date();
+  const targetDate = new Date(profile.targetDate);
+  const days_remaining = Math.round(
+    (targetDate - today) / (1000 * 60 * 60 * 24)
+  );
+
+  // THIS is where llama got it wrong — you do it instead
+  const weight_delta = parseFloat(
+    (profile.targetWeight - profile.currentWeight).toFixed(1)
+  );
+
+  const weekly_change = parseFloat(
+    ((weight_delta / days_remaining) * 7).toFixed(2)
+  );
+
+  // goal_type derived by YOU, not llama
+  const goal_type =
+    weight_delta > 0 ? "bulk" :
+    weight_delta < 0 ? "cut" :
+    "maintain";
+
+  const heightM = profile.height / 100;
+  const bmi = parseFloat(
+    (profile.currentWeight / (heightM * heightM)).toFixed(1)
+  );
+
+  const bmr = Math.round(
+    profile.gender === "male"
+      ? (10 * profile.currentWeight) + (6.25 * profile.height) - (5 * profile.age) + 5
+      : (10 * profile.currentWeight) + (6.25 * profile.height) - (5 * profile.age) - 161
+  );
+
+  const multipliers = {
+    sedentary: 1.2, light: 1.375, moderate: 1.55,
+    active: 1.725, "very-active": 1.9
+  };
+  const tdee = Math.round(bmr * (multipliers[profile.activityLevel] || 1.55));
+  const daily_adjustment = Math.round((weight_delta * 7700) / days_remaining);
+  const recommended_calories = tdee + daily_adjustment;
+
+  // Calorie bucket
+  const buckets = [1500, 1800, 2000, 2400, 2700, 3000, 3500];
+  const daily_calories = buckets.reduce((a, b) =>
+    Math.abs(b - recommended_calories) < Math.abs(a - recommended_calories) ? b : a
+  );
+
+  // Macros — YOU compute these too
+  const macros = computeMacros(goal_type, daily_calories, profile);
+
+  // Milestones — YOU generate dates
+  const milestones = [1, 2, 3, 4].map(i => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + Math.round((days_remaining / 4) * i));
+    return {
+      date: d.toISOString().split("T")[0],
+      expected_weight_kg: parseFloat(
+        (profile.currentWeight + (weight_delta * (i / 4))).toFixed(1)
+      )
+    };
+  });
+
+  // Safe target date
+  const safeRate = goal_type === "bulk" ? 0.5 : 0.75;
+  const safeWeeks = Math.ceil(Math.abs(weight_delta) / safeRate);
+  const safeDate = new Date(today);
+  safeDate.setDate(safeDate.getDate() + safeWeeks * 7);
+
+  // Feasibility — YOU check rules
+  const feasibility = checkFeasibility({
+    days_remaining, weekly_change, recommended_calories,
+    goal_type, bmi, gender: profile.gender
+  });
+
+  return {
+    // raw values
+    days_remaining, weight_delta, weekly_change,
+    goal_type, bmi, bmr, tdee,
+    recommended_calories, daily_calories,
+    macros, milestones,
+    safe_target_date: safeDate.toISOString().split("T")[0],
+    safe_weekly_rate: safeRate,
+    feasibility
+  };
+}
+
+function computeMacros(goal_type, daily_calories, profile) {
+  let protein_g, fat_g, carbs_g;
+
+  if (goal_type === "bulk") {
+    protein_g = Math.round(2.2 * profile.targetWeight);
+    fat_g = Math.round((daily_calories * 0.25) / 9);
+  } else if (goal_type === "cut") {
+    protein_g = Math.round(2.5 * profile.currentWeight);
+    fat_g = Math.round((daily_calories * 0.22) / 9);
+  } else {
+    protein_g = Math.round(1.8 * profile.currentWeight);
+    fat_g = Math.round((daily_calories * 0.27) / 9);
+  }
+
+  const protein_kcal = protein_g * 4;
+  const fat_kcal = fat_g * 9;
+  carbs_g = Math.round((daily_calories - protein_kcal - fat_kcal) / 4);
+
+  return { protein_g, carbs_g, fat_g };
+}
+
+function checkFeasibility({ days_remaining, weekly_change,
+  recommended_calories, goal_type, bmi, gender }) {
+
+  if (days_remaining <= 0)
+    return { passed: false, failed_rule: "DATE",
+      reason: "Target date is today or has already passed." };
+
+  if (weekly_change > 1.0)
+    return { passed: false, failed_rule: "RATE",
+      reason: `Gaining ${weekly_change}kg/week exceeds safe max of 1.0kg/week.` };
+
+  if (weekly_change < -1.25)
+    return { passed: false, failed_rule: "RATE",
+      reason: `Losing ${Math.abs(weekly_change)}kg/week exceeds safe max of 1.25kg/week.` };
+
+  const floor = gender === "male" ? 1500 : 1200;
+  if (recommended_calories < floor)
+    return { passed: false, failed_rule: "FLOOR",
+      reason: `Required intake of ${recommended_calories} kcal is below safe minimum.` };
+
+  if (goal_type === "bulk" && bmi >= 27)
+    return { passed: false, failed_rule: "BMI_CONFLICT",
+      reason: `Bulking not recommended at BMI ${bmi}. Consider cutting first.` };
+
+  if (goal_type === "cut" && bmi <= 17.5)
+    return { passed: false, failed_rule: "BMI_CONFLICT",
+      reason: `Cutting not safe at BMI ${bmi}. Currently underweight.` };
+
+  return { passed: true, failed_rule: null, reason: null };
+}
+
+
+// ── STEP 2: LLAMA ONLY DOES WARNINGS + ACTIVITY LEVEL ───
+function buildPrompt(computed, profile) {
+  return `
+You are a fitness advisor. All calculations are already done.
+Your ONLY tasks are:
+1. Choose activity_level recommendation
+2. Write warnings array (can be empty)
+3. Write interim_focus if infeasible
+4. Assemble final JSON using the exact values provided
+
+GOAL TYPE: ${computed.goal_type}
+WEEKLY CHANGE: ${computed.weekly_change} kg/week
+BMI: ${computed.bmi}
+FEASIBLE: ${computed.feasibility.passed}
+FAILED RULE: ${computed.feasibility.failed_rule || "none"}
+
+ACTIVITY LEVEL RULE:
+  bulk → recommend "active" or "very-active"
+  cut → recommend "moderate" or "active"  
+  maintain → recommend "light" or "moderate"
+
+WARNING RULES (add to warnings array if true, else empty array):
+  - If bulk AND weekly_change > 0.75: "Aggressive bulk pace. Expect some fat gain."
+  - If cut AND weekly_change < -1.0: "Aggressive cut. Risk of muscle loss."
+  - If bmi < 18.5: "Currently underweight. Prioritize calorie-dense whole foods."
+
+INTERIM FOCUS RULE (only if feasible=false):
+  bulk: "Focus on progressive overload and hitting protein targets daily."
+  cut:  "Focus on resistance training to preserve muscle during deficit."
+
+USE THESE EXACT VALUES — DO NOT CHANGE ANY NUMBER:
+{
+  "feasible": ${computed.feasibility.passed},
+  "goal_type": "${computed.goal_type}",
+  "bmi": ${computed.bmi},
+  "bmr": ${computed.bmr},
+  "tdee": ${computed.tdee},
+  "days_remaining": ${computed.days_remaining},
+  "weekly_change_needed_kg": ${computed.weekly_change},
+  "feasibility_check": {
+    "passed": ${computed.feasibility.passed},
+    "failed_rule": ${computed.feasibility.failed_rule ? `"${computed.feasibility.failed_rule}"` : "null"},
+    "reason": ${computed.feasibility.reason ? `"${computed.feasibility.reason}"` : "null"}
+  },
+  "recommendation": ${computed.feasibility.passed ? `{
+    "daily_calories": ${computed.daily_calories},
+    "activity_level": "FILL_THIS",
+    "macros": {
+      "protein_g": ${computed.macros.protein_g},
+      "carbs_g": ${computed.macros.carbs_g},
+      "fat_g": ${computed.macros.fat_g}
+    },
+    "warnings": ["FILL_THIS"],
+    "milestones": ${JSON.stringify(computed.milestones)}
+  }` : "null"},
+  "alternative_plan": ${!computed.feasibility.passed ? `{
+    "safe_target_date": "${computed.safe_target_date}",
+    "safe_weekly_rate_kg": ${computed.safe_weekly_rate},
+    "interim_focus": "FILL_THIS"
+  }` : "null"}
+}
+
+Return the JSON above with FILL_THIS replaced. 
+No markdown. No backticks. Start with { end with }.
+`;
+}
+
+
+// ── STEP 3: ASSEMBLE FINAL RESULT ───────────────────────
+export async function getFitnessRecommendation(profile) {
+  const computed = computeProfile(profile);
+
+  // If all rules pass, we can even skip llama entirely for simple cases
+  const prompt = buildPrompt(computed, profile);
+
+  const raw = await callOllama(prompt);
+  return extractJSON(raw);
+}

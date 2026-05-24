@@ -376,6 +376,10 @@ function normalizePlannedMealIdsForDay(dayValue: unknown): number[] {
     .filter((id): id is number => Number.isFinite(id));
 }
 
+function getUtcDateKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function DietTab() {
   const [plannedMeals, setPlannedMeals] = useState<MealTemplate[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
@@ -386,6 +390,7 @@ function DietTab() {
   const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
   const todayKey = format(new Date(), 'EEEE').toLowerCase();
+  const utcToday = getUtcDateKey();
 
   useEffect(() => {
     async function load() {
@@ -405,7 +410,9 @@ function DietTab() {
         try {
           const rawPlanJson = weeklyPlan?.planJson ?? weeklyPlan?.plan_json;
           const map = rawPlanJson ? JSON.parse(rawPlanJson) : {};
-          plannedIds = normalizePlannedMealIdsForDay(map?.[todayKey]);
+          const byLocalDate = normalizePlannedMealIdsForDay(map?.[today]);
+          const byUtcDate = byLocalDate.length > 0 ? byLocalDate : normalizePlannedMealIdsForDay(map?.[utcToday]);
+          plannedIds = byUtcDate.length > 0 ? byUtcDate : normalizePlannedMealIdsForDay(map?.[todayKey]);
         } catch {
           plannedIds = [];
         }
@@ -429,7 +436,7 @@ function DietTab() {
     }
 
     load();
-  }, [today, todayKey]);
+  }, [today, todayKey, utcToday]);
 
   async function toggleMeal(id: number) {
     const next = selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id];
@@ -848,8 +855,6 @@ function ProgressTab() {
       }
     }
     load();
-    const interval = setInterval(load, 10000); // Refresh every 10s
-    return () => clearInterval(interval);
   }, []);
 
   return (

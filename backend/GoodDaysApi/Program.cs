@@ -1,4 +1,5 @@
 using GoodDaysApi.Data;
+using GoodDaysApi.Services;
 using GoodDaysApi.Services.Gmail;
 using GoodDaysApi.Services.Financial;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,7 +12,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
-        o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles);
+    {
+        o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
@@ -59,6 +63,12 @@ builder.Services.AddScoped<ITransactionExtractionService, TransactionExtractionS
 builder.Services.AddScoped<IGmailService, GmailService>();
 builder.Services.AddScoped<IGmailSyncService, GmailSyncService>();
 builder.Services.AddHostedService<GmailSyncBackgroundWorker>();
+
+// Register AI Service
+builder.Services.AddScoped<AiService>();
+
+// Register Onboarding Service
+builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "change_this_to_a_secure_random_key";
 var key = Encoding.ASCII.GetBytes(jwtKey);

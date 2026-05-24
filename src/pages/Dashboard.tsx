@@ -237,6 +237,8 @@ function DashboardTab({
   const [routinePendingCount, setRoutinePendingCount] = useState(0);
   const [routineCompletionText, setRoutineCompletionText] = useState('No routine');
   const [momentumWeights, setMomentumWeights] = useState(DEFAULT_MOMENTUM_WEIGHTS);
+  const [upcomingMeal, setUpcomingMeal] = useState<any>(null);
+  const [upcomingWorkout, setUpcomingWorkout] = useState<any>(null);
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const completedTaskCount = tasks.filter(t => t.isCompleted ?? t.status === 'completed').length;
@@ -365,6 +367,9 @@ function DashboardTab({
         expenseData,
         budgetData,
         goalsData,
+        weeklyMealPlanData,
+        todayWorkoutPlan,
+        tomorrowWorkoutPlan,
       ] = await Promise.all([
         api.getUserSettings().catch(() => null),
         api.getTasks(user.id).catch(() => []),
@@ -377,6 +382,9 @@ function DashboardTab({
         api.getExpenses(user.id).catch(() => []),
         (api as any).getFinanceBudgetProfile(new Date().getMonth() + 1, new Date().getFullYear()).catch(() => null),
         api.getGoals().catch(() => []),
+        api.getWeeklyMealPlan().catch(() => null),
+        api.getWorkoutPlanByDate(today).catch(() => null),
+        api.getWorkoutPlanByDate(format(addDays(new Date(), 1), 'yyyy-MM-dd')).catch(() => null),
       ]);
 
       const settingsWeights = (settingsData as any)?.dashboardWeights;
@@ -573,6 +581,25 @@ function DashboardTab({
 
       setMomentumScore(clamp(score, 0, 100));
       setMomentumDelta(clamp(score - yesterdayScore, -100, 100));
+
+      // Set upcoming meal and workout
+      if (weeklyMealPlanData?.planJson || weeklyMealPlanData?.plan_json) {
+        try {
+          const planJson = JSON.parse(weeklyMealPlanData.planJson || weeklyMealPlanData.plan_json);
+          const todayMeals = planJson[today] || [];
+          if (todayMeals.length > 0) {
+            setUpcomingMeal(todayMeals[0]);
+          }
+        } catch (e) {
+          console.error('Failed to parse meal plan:', e);
+        }
+      }
+
+      if (todayWorkoutPlan) {
+        setUpcomingWorkout(todayWorkoutPlan);
+      } else if (tomorrowWorkoutPlan) {
+        setUpcomingWorkout(tomorrowWorkoutPlan);
+      }
     } catch {
       // Keep prior values for resilience.
     } finally {
@@ -662,6 +689,40 @@ function DashboardTab({
           );
         })}
       </div>
+
+      {/* Upcoming meal & workout */}
+      {(upcomingMeal || upcomingWorkout) && (
+        <div className="mb-4 grid grid-cols-2 gap-2">
+          {upcomingMeal && (
+            <div className="rounded-xl p-3 flex flex-col" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Next Meal</p>
+              <p className="text-xs font-bold mt-1.5 truncate" style={{ color: 'var(--text-primary)' }}>
+                {upcomingMeal.mealTemplateId ? `Meal ${upcomingMeal.mealTemplateId}` : 'Planned'}
+              </p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                {upcomingMeal.timeOfDay || 'No specific time'}
+              </p>
+              <button onClick={() => navigate('/track?tab=meal')} className="mt-2 text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
+                View →
+              </button>
+            </div>
+          )}
+          {upcomingWorkout && (
+            <div className="rounded-xl p-3 flex flex-col" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Next Workout</p>
+              <p className="text-xs font-bold mt-1.5 truncate" style={{ color: 'var(--text-primary)' }}>
+                {upcomingWorkout.dayLabel || format(parseISO(upcomingWorkout.date || today), 'EEE')}
+              </p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                {upcomingWorkout.plannedExercises?.split(',').length || 0} exercises
+              </p>
+              <button onClick={() => navigate('/body/workout-log')} className="mt-2 text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
+                Start →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Wins board */}
       <div className="mb-4 rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>

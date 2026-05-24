@@ -12,7 +12,7 @@
  * Note: Google signup uses same OAuth flow as Login (unified entry point)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Mail, Lock, User, Chrome } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
@@ -29,10 +29,11 @@ export default function Signup() {
   const { isLoaded: isClerkLoaded, isSignedIn: isClerkSignedIn } = useClerkAuth();
   const { isLoaded, signIn: clerkSignIn } = useSignIn();
   const navigate = useNavigate();
+  const justSignedUp = useRef(false);
 
-  // Redirect to dashboard if already logged in
+  // Redirect to dashboard if already logged in (skip for fresh signups — they go to /onboarding)
   useEffect(() => {
-    if (user) {
+    if (user && !justSignedUp.current) {
       navigate('/');
     }
   }, [user, navigate]);
@@ -43,8 +44,9 @@ export default function Signup() {
     setLoading(true);
 
     try {
+      justSignedUp.current = true;
       await signUp(email, password, name);
-      navigate('/');
+      navigate('/onboarding');
     } catch (err: any) {
       setError(err.message || 'Account creation failed');
     } finally {

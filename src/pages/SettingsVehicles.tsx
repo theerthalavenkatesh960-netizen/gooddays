@@ -348,6 +348,14 @@ export default function SettingsVehicles() {
             <Fuel size={48} className="mx-auto mb-3" style={{ color: 'var(--text-muted)' }} />
             <p className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>No vehicles yet</p>
             <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>Add your first vehicle to track refills, services, and issues</p>
+            <button
+              onClick={() => navigate('/finance/vehicles')}
+              className="mt-4 inline-flex items-center gap-2 px-4 h-10 rounded-xl text-sm font-semibold press"
+              style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+            >
+              <Plus size={14} />
+              Add Vehicle
+            </button>
           </div>
         </div>
       </div>
@@ -362,6 +370,14 @@ export default function SettingsVehicles() {
           <ChevronLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Vehicles</h1>
+        <button
+          onClick={() => navigate('/finance/vehicles')}
+          className="ml-auto inline-flex items-center gap-1.5 px-3 h-9 rounded-xl text-xs font-semibold press"
+          style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+        >
+          <Plus size={13} />
+          Add Vehicle
+        </button>
       </div>
 
       {/* Vehicle Selector */}

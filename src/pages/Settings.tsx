@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
-  ChevronLeft, ChevronRight, User, Moon, Palette, Download,
-  Upload, LogOut, Bell, Shield, Target, Dumbbell,
-  Check, Sun, Droplets, BookOpen, Brain, BarChart2, Sparkles,
+  ChevronLeft, ChevronRight, Download,
+  Upload, LogOut, Shield, Target, Dumbbell,
+  Check, BookOpen, Brain, BarChart2, Trash2,
   Fuel, Wallet
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -60,13 +60,15 @@ export default function Settings() {
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const [calorieGoal, setCalorieGoal] = useState('2400');
-  const [trackingOptions, setTrackingOptions] = useState<string[]>(['sleep_hours','workout_minutes','phone_minutes']);
+
+  // Test user detection: show advanced features for test emails
+  const isTestUser = user?.email?.toLowerCase().includes('test');
+  const canDeleteAccount = user?.email?.toLowerCase().includes('abc');
 
   useEffect(() => {
     async function loadSettings() {
       try {
         const settings = await api.getUserSettings();
-        if (settings?.trackingOptions) setTrackingOptions(settings.trackingOptions);
         if (Number.isFinite(settings?.calorieGoal)) setCalorieGoal(String(settings.calorieGoal));
       } catch {
         // Keep existing defaults when API settings are unavailable.
@@ -74,18 +76,6 @@ export default function Settings() {
     }
     loadSettings();
   }, []);
-
-  const toggleTrackOpt = async (opt: string) => {
-    const next = trackingOptions.includes(opt)
-      ? trackingOptions.filter(o => o !== opt)
-      : [...trackingOptions, opt];
-    setTrackingOptions(next);
-    try {
-      await api.updateUserSettings({ trackingOptions: next });
-    } catch {
-      // Keep optimistic UI; next settings refresh will reconcile state.
-    }
-  };
 
   const persistCalorieGoal = async () => {
     const parsed = Number(calorieGoal || 2400);
@@ -103,6 +93,19 @@ export default function Settings() {
     navigate('/login');
   };
 
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm("Delete your account permanently? This cannot be undone.");
+    if (!confirmed) return;
+
+    try {
+      await api.deleteMyAccount();
+      await signOut();
+      navigate('/login', { replace: true });
+    } catch (e: any) {
+      window.alert(e?.message || 'Failed to delete account');
+    }
+  };
+
   const exportData = () => {
     const data = { user, theme, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -110,14 +113,6 @@ export default function Settings() {
     const a = document.createElement('a');
     a.href = url; a.download = 'gooddays-backup.json'; a.click();
   };
-
-  const TRACK_OPTS = [
-    { id: 'sleep_hours',      label: 'Sleep',   icon: Moon,    color: '#6C63FF' },
-    { id: 'workout_minutes',  label: 'Workout', icon: Dumbbell,color: '#FF6B6B' },
-    { id: 'phone_minutes',    label: 'Phone',   icon: Bell,    color: '#8888A0' },
-    { id: 'mood',             label: 'Mood',    icon: Sun,     color: '#FFD93D' },
-    { id: 'water',            label: 'Water',   icon: Droplets,color: '#06B6D4' },
-  ];
 
   return (
     <div className="pt-4 pb-nav" style={{ backgroundColor: 'var(--bg)' }}>
@@ -210,7 +205,12 @@ export default function Settings() {
 
       {/* AI Planner */}
       <SectionCard title="AI Planner">
-        <SettingRow icon={Brain} label="Provider & Health Profile" onPress={() => navigate('/settings/ai-planner')} color="var(--accent-green)" />
+        <SettingRow 
+          icon={Brain} 
+          label={isTestUser ? "AI Planner (Advanced)" : "Provider & Health Profile"} 
+          onPress={() => navigate('/settings/ai-planner')} 
+          color="var(--accent-green)" 
+        />
       </SectionCard>
 
       {/* ─────────────────────────── LIFE SECTION ─────────────────────────── */}
@@ -238,6 +238,18 @@ export default function Settings() {
       {/* Account */}
       <SectionCard title="Account">
         <SettingRow icon={Shield} label="Security & Privacy" />
+        {canDeleteAccount && (
+          <button
+            onClick={handleDeleteAccount}
+            className="w-full flex items-center gap-3 p-4 press"
+            style={{ minHeight: 52 }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#ef444422' }}>
+              <Trash2 size={18} style={{ color: '#ef4444' }} />
+            </div>
+            <span className="flex-1 text-left text-sm font-medium" style={{ color: '#ef4444' }}>Delete Account</span>
+          </button>
+        )}
         <button
           onClick={handleSignOut}
           className="w-full flex items-center gap-3 p-4 press"

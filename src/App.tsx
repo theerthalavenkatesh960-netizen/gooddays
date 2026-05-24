@@ -30,10 +30,12 @@ import WorkoutExerciseDetails from './pages/WorkoutExerciseDetails';
 import MealTemplateDetails from './pages/MealTemplateDetails';
 import WorkoutAddExercisePage from './pages/WorkoutAddExercisePage';
 import MealIngredientLibraryPage from './pages/MealIngredientLibraryPage';
+import Onboarding from './pages/Onboarding';
 import MealCreateTemplatePage from './pages/MealCreateTemplatePage';
 import MealDayPickerPage from './pages/MealDayPickerPage';
 import RoutineExercisePickerPage from './pages/RoutineExercisePickerPage';
 import AiPlannerSettings from './pages/AiPlannerSettings';
+import { AiAnalysisPage } from './pages/AiAnalysisPage';
 import ClerkCallback from './pages/ClerkCallback';
 import ClerkSsoCallback from './pages/ClerkSsoCallback';
 import SettingsLife from './pages/SettingsLife';
@@ -95,6 +97,7 @@ VITE_API_URL=https://gooddays.onrender.com
             <Routes>
               <Route path="/login"  element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/auth/sso-callback" element={<ClerkSsoCallback />} />
               <Route path="/auth/callback" element={<ClerkCallback />} />
 
@@ -129,6 +132,7 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/settings/meals/pick" element={<PrivateRoute><Layout><MealDayPickerPage /></Layout></PrivateRoute>} />
               <Route path="/settings/workout-library/pick" element={<PrivateRoute><Layout><RoutineExercisePickerPage /></Layout></PrivateRoute>} />
               <Route path="/settings/ai-planner" element={<PrivateRoute><Layout><AiPlannerSettings /></Layout></PrivateRoute>} />
+              <Route path="/settings/ai-planner/analysis" element={<PrivateRoute><AiAnalysisPage /></PrivateRoute>} />
 
               {/* Journal editor — full screen, no nav */}
               <Route path="/journal/new"      element={<PrivateRoute><JournalEditor /></PrivateRoute>} />

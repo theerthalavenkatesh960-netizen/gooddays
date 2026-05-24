@@ -1,8 +1,10 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using GoodDaysApi.Data;
 using GoodDaysApi.Models;
+using GoodDaysApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,11 +18,13 @@ public class AiPlannerController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly AiService _aiService;
 
-    public AiPlannerController(AppDbContext db, IHttpClientFactory httpClientFactory)
+    public AiPlannerController(AppDbContext db, IHttpClientFactory httpClientFactory, AiService aiService)
     {
         _db = db;
         _httpClientFactory = httpClientFactory;
+        _aiService = aiService;
     }
 
     private int GetUserId() => int.Parse(
@@ -116,6 +120,8 @@ public class AiPlannerController : ControllerBase
         {
             return Ok(new
             {
+                age = (int?)null,
+                gender = (string?)null,
                 heightCm = (decimal?)null,
                 weightKg = (decimal?)null,
                 targetWeightKg = (decimal?)null,
@@ -123,11 +129,15 @@ public class AiPlannerController : ControllerBase
                 dietPreference = (string?)null,
                 budgetPerWeek = (decimal?)null,
                 activityLevel = (string?)null,
+                medicalConditions = Array.Empty<MedicalCondition>(),
+                targetDate = (string?)null,
             });
         }
 
         return Ok(new
         {
+            age = profile.Age,
+            gender = profile.Gender,
             heightCm = profile.HeightCm,
             weightKg = profile.WeightKg,
             targetWeightKg = profile.TargetWeightKg,
@@ -135,6 +145,8 @@ public class AiPlannerController : ControllerBase
             dietPreference = profile.DietPreference,
             budgetPerWeek = profile.BudgetPerWeek,
             activityLevel = profile.ActivityLevel,
+            medicalConditions = ParseMedicalConditions(profile.MedicalConditions),
+            targetDate = profile.TargetDate.HasValue ? profile.TargetDate.Value.ToString("yyyy-MM-dd") : (string?)null,
         });
     }
 
@@ -153,6 +165,8 @@ public class AiPlannerController : ControllerBase
             _db.UserHealthProfiles.Add(profile);
         }
 
+        profile.Age = req.Age;
+        profile.Gender = string.IsNullOrWhiteSpace(req.Gender) ? null : req.Gender.Trim();
         profile.HeightCm = req.HeightCm;
         profile.WeightKg = req.WeightKg;
         profile.TargetWeightKg = req.TargetWeightKg;
@@ -160,12 +174,16 @@ public class AiPlannerController : ControllerBase
         profile.DietPreference = string.IsNullOrWhiteSpace(req.DietPreference) ? null : req.DietPreference.Trim();
         profile.BudgetPerWeek = req.BudgetPerWeek;
         profile.ActivityLevel = string.IsNullOrWhiteSpace(req.ActivityLevel) ? null : req.ActivityLevel.Trim();
+        profile.MedicalConditions = SerializeMedicalConditions(req.MedicalConditions);
+        profile.TargetDate = DateOnly.TryParse(req.TargetDate, out var td) ? td : (DateOnly?)null;
         profile.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
 
         return Ok(new
         {
+            age = profile.Age,
+            gender = profile.Gender,
             heightCm = profile.HeightCm,
             weightKg = profile.WeightKg,
             targetWeightKg = profile.TargetWeightKg,
@@ -173,6 +191,8 @@ public class AiPlannerController : ControllerBase
             dietPreference = profile.DietPreference,
             budgetPerWeek = profile.BudgetPerWeek,
             activityLevel = profile.ActivityLevel,
+            medicalConditions = ParseMedicalConditions(profile.MedicalConditions),
+            targetDate = profile.TargetDate.HasValue ? profile.TargetDate.Value.ToString("yyyy-MM-dd") : (string?)null,
         });
     }
 
@@ -277,6 +297,72 @@ public class AiPlannerController : ControllerBase
             provider = settings?.Provider ?? "local-llama",
             mode = string.IsNullOrWhiteSpace(req.Mode) ? "profile" : req.Mode,
             routine = sanitized,
+        });
+    }
+
+    [HttpPost("recommend-health")]
+    public async Task<IActionResult> RecommendHealth([FromBody] RecommendHealthRequest req)
+    {
+        var userId = GetUserId();
+        var settings = await _db.UserAiSettings.FirstOrDefaultAsync(s => s.UserId == userId);
+        var profile = await _db.UserHealthProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+
+        var heightCm = req.HeightCm.HasValue
+            ? (int?)Math.Round(req.HeightCm.Value)
+            : (profile?.HeightCm.HasValue == true ? (int?)Math.Round(profile.HeightCm.Value) : null);
+        var currentWeight = req.WeightKg ?? profile?.WeightKg;
+        var targetWeight = req.TargetWeightKg ?? profile?.TargetWeightKg;
+
+        var missingFields = new List<string>();
+        if (!heightCm.HasValue) missingFields.Add("heightCm");
+        if (!currentWeight.HasValue) missingFields.Add("weightKg");
+        if (!targetWeight.HasValue) missingFields.Add("targetWeightKg");
+
+        if (missingFields.Count > 0)
+        {
+            return BadRequest(new
+            {
+                message = $"Missing required fields: {string.Join(", ", missingFields)}.",
+                missingFields,
+            });
+        }
+
+        var currentWeightValue = currentWeight.GetValueOrDefault();
+        var targetWeightValue = targetWeight.GetValueOrDefault();
+
+        var targetDate = DateTime.UtcNow.Date.AddDays(90);
+        var targetDateString = req.TargetDate
+            ?? (profile?.TargetDate.HasValue == true ? profile.TargetDate.Value.ToString("yyyy-MM-dd") : null);
+        if (!string.IsNullOrWhiteSpace(targetDateString) && DateTime.TryParse(targetDateString, out var parsedDate))
+        {
+            targetDate = parsedDate;
+        }
+
+        var recommendation = await _aiService.GetHealthRecommendations(
+            settings,
+            heightCm,
+            currentWeightValue,
+            targetWeightValue,
+            targetDate,
+            req.Age ?? profile?.Age,
+            req.Gender ?? profile?.Gender,
+            req.ActivityLevel ?? profile?.ActivityLevel,
+            req.MedicalConditions ?? ParseMedicalConditions(profile?.MedicalConditions),
+            req.DietPreference ?? profile?.DietPreference);
+
+        var recommendedBudget = profile?.BudgetPerWeek ?? 2000m;
+        var recommendedDietPreference = profile?.DietPreference ?? "Mixed";
+
+        return Ok(new
+        {
+            dailyCaloriesTarget = recommendation.RecommendedDailyCalories,
+            budgetPerWeek = recommendedBudget,
+            activityLevel = recommendation.RecommendedActivityLevel,
+            dietPreference = recommendedDietPreference,
+            rationale = recommendation.Rationale,
+            feasible = recommendation.Feasible,
+            goalType = recommendation.GoalType,
+            analysis = recommendation.Analysis,
         });
     }
 
@@ -486,6 +572,25 @@ public class AiPlannerController : ControllerBase
         return map;
     }
 
+    private static string? SerializeMedicalConditions(IReadOnlyList<MedicalCondition>? conditions)
+    {
+        if (conditions == null || conditions.Count == 0) return null;
+        return JsonSerializer.Serialize(conditions);
+    }
+
+    private static MedicalCondition[] ParseMedicalConditions(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return Array.Empty<MedicalCondition>();
+        try
+        {
+            return JsonSerializer.Deserialize<MedicalCondition[]>(raw) ?? Array.Empty<MedicalCondition>();
+        }
+        catch
+        {
+            return Array.Empty<MedicalCondition>();
+        }
+    }
+
     private static string NormalizeDateKey(string key)
     {
         return DateOnly.TryParse(key, out var d) ? d.ToString("yyyy-MM-dd") : string.Empty;
@@ -498,14 +603,29 @@ public class AiPlannerController : ControllerBase
 public record UpsertAiSettingsRequest(string? Provider, string? LocalEndpoint, string? LocalModel, string? ClaudeApiKey, string? ClaudeModel);
 
 public record UpsertHealthProfileRequest(
+    int? Age,
+    string? Gender,
     decimal? HeightCm,
     decimal? WeightKg,
     decimal? TargetWeightKg,
     int? DailyCaloriesTarget,
     string? DietPreference,
     decimal? BudgetPerWeek,
-    string? ActivityLevel);
+    string? ActivityLevel,
+    MedicalCondition[]? MedicalConditions,
+    string? TargetDate);
 
 public record GenerateMealsRequest(string? StartDate, string? Mode, decimal? BudgetPerWeek, string? DietPreference);
 
 public record GenerateWorkoutsRequest(string? Mode, int? DaysPerWeek, int? MinutesPerSession, int? SetsDefault, int? RepsDefault);
+
+public record RecommendHealthRequest(
+    decimal? HeightCm,
+    decimal? WeightKg,
+    decimal? TargetWeightKg,
+    string? TargetDate,
+    int? Age,
+    string? Gender,
+    string? ActivityLevel,
+    MedicalCondition[]? MedicalConditions,
+    string? DietPreference);

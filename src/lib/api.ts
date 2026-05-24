@@ -59,7 +59,19 @@ export type AiPlannerSettings = {
   claudeModel?: string;
 };
 
+export type MedicalCondition = {
+  condition_name: string;
+  status: 'active' | 'controlled' | 'history';
+  severity: 'mild' | 'moderate' | 'severe';
+  notes?: string;
+  diet_restrictions: string[];
+  exercise_limits: string[];
+  medications_affecting_plan: string[];
+};
+
 export type HealthProfile = {
+  age?: number;
+  gender?: string;
   heightCm?: number;
   weightKg?: number;
   targetWeightKg?: number;
@@ -67,6 +79,53 @@ export type HealthProfile = {
   dietPreference?: string;
   budgetPerWeek?: number;
   activityLevel?: string;
+  medicalConditions?: MedicalCondition[];
+  targetDate?: string;
+};
+
+export type HealthRecommendation = {
+  dailyCaloriesTarget?: number;
+  budgetPerWeek?: number;
+  activityLevel?: string;
+  dietPreference?: string;
+  rationale?: string;
+  feasible?: boolean;
+  goalType?: 'bulk' | 'cut' | 'maintain' | string;
+  analysis?: HealthRecommendationAnalysis;
+};
+
+export type HealthRecommendationAnalysis = {
+  feasible?: boolean;
+  goal_type?: 'bulk' | 'cut' | 'maintain' | string;
+  bmi?: number;
+  bmr?: number;
+  tdee?: number;
+  days_remaining?: number;
+  weekly_change_needed_kg?: number;
+  feasibility_check?: {
+    passed?: boolean;
+    failed_rule?: string | null;
+    reason?: string | null;
+  };
+  recommendation?: {
+    daily_calories?: number;
+    activity_level?: string;
+    macros?: {
+      protein_g?: number;
+      carbs_g?: number;
+      fat_g?: number;
+    };
+    warnings?: string[];
+    milestones?: Array<{
+      date?: string;
+      expected_weight_kg?: number;
+    }>;
+  } | null;
+  alternative_plan?: {
+    safe_target_date?: string;
+    safe_weekly_rate_kg?: number;
+    interim_focus?: string;
+  } | null;
 };
 
 const API_BASE = ((import.meta as any).env?.VITE_API_URL || '').replace(/\/$/, '');
@@ -91,6 +150,40 @@ export const DUMMY_FLAGS = {
   water: envBool('VITE_USE_DUMMY_WATER', false),
   bodyMetrics: envBool('VITE_USE_DUMMY_BODY_METRICS', false),
   quickLog: envBool('VITE_USE_DUMMY_QUICK_LOG', false ),
+};
+
+// ─── Onboarding Types ─────────────────────────────────────────────────────────
+export type OnboardingData = {
+  selectedFeatures: string[];       // e.g. ['health','finance']
+  // Step 2 – profile
+  heightCm?: number;
+  currentWeightKg?: number;
+  targetWeightKg?: number;
+  targetDate?: string;
+  age?: number;
+  gender?: string;
+  // Step 3 – health prefs
+  dailyCaloriesTarget?: number;
+  budgetPerWeek?: number;
+  activityLevel?: string;
+  dietPreference?: string;
+  // Step 4 – fitness/meal
+  preferredWorkouts?: string[];     // e.g. ['strength','cardio']
+  preferredMeals?: string[];       // e.g. ['home-cooked','meal-prep']
+  workoutsPerWeek?: number;
+  minutesPerSession?: number;
+  // Step 5 - ingredient preferences and generation mode
+  preferredIngredientIds?: number[];
+  excludedIngredientIds?: number[];
+  customPreferredIngredients?: string[];
+  generationMode?: 'ai' | 'normal';
+  // Step 6 - consistency/adherence signal
+  planAdherenceScore?: number;
+};
+
+export type OnboardingStatus = {
+  completed: boolean;
+  data: OnboardingData | null;
 };
 
 // Legacy compatibility exports
@@ -207,6 +300,10 @@ export async function updateUserSettings(patch: Partial<UserSettings>): Promise<
   return request('userprofiles/me/settings', { method: 'PUT', body: JSON.stringify(patch) });
 }
 
+export async function deleteMyAccount(): Promise<{ success: boolean }> {
+  return request('userprofiles/me', { method: 'DELETE' });
+}
+
 export async function getAiPlannerSettings(): Promise<AiPlannerSettings> {
   return request('ai-planner/settings');
 }
@@ -221,6 +318,20 @@ export async function getHealthProfile(): Promise<HealthProfile> {
 
 export async function updateHealthProfile(patch: Partial<HealthProfile>): Promise<HealthProfile> {
   return request('ai-planner/profile', { method: 'PUT', body: JSON.stringify(patch) });
+}
+
+export async function getHealthRecommendations(body: {
+  heightCm?: number;
+  weightKg?: number;
+  targetWeightKg?: number;
+  targetDate?: string;
+  age?: number;
+  gender?: string;
+  activityLevel?: string;
+  medicalConditions?: MedicalCondition[];
+  dietPreference?: string;
+}): Promise<HealthRecommendation> {
+  return request('ai-planner/recommend-health', { method: 'POST', body: JSON.stringify(body) });
 }
 
 export async function generateAiMealPlan(body: {
@@ -240,6 +351,15 @@ export async function generateAiWorkoutPlan(body: {
   repsDefault?: number;
 }) {
   return request('ai-planner/generate/workouts', { method: 'POST', body: JSON.stringify(body) });
+}
+
+// ─── Onboarding API ───────────────────────────────────────────────────────────
+export async function getOnboardingStatus(): Promise<OnboardingStatus> {
+  return request('onboarding/status');
+}
+
+export async function completeOnboarding(data: OnboardingData): Promise<{ completed: boolean; generationQueued?: boolean }> {
+  return request('onboarding/complete', { method: 'POST', body: JSON.stringify(data) });
 }
 
 // Tasks
