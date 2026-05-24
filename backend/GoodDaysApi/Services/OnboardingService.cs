@@ -20,12 +20,18 @@ public class OnboardingService : IOnboardingService
     private readonly AppDbContext _db;
     private readonly AiService _aiService;
     private readonly ILogger<OnboardingService> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public OnboardingService(AppDbContext db, AiService aiService, ILogger<OnboardingService> logger)
+    public OnboardingService(
+        AppDbContext db,
+        AiService aiService,
+        ILogger<OnboardingService> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _db = db;
         _aiService = aiService;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     public void QueuePlanGeneration(int userId, OnboardingGenerationPayload payload)
@@ -35,7 +41,13 @@ public class OnboardingService : IOnboardingService
         {
             try
             {
-                await GeneratePlansAsync(userId, payload);
+                using var scope = _scopeFactory.CreateScope();
+                var scopedDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var scopedAiService = scope.ServiceProvider.GetRequiredService<AiService>();
+
+                // Use a scoped runner so DbContext/AI service remain valid for the background task lifetime.
+                var runner = new OnboardingService(scopedDb, scopedAiService, _logger, _scopeFactory);
+                await runner.GeneratePlansAsync(userId, payload);
             }
             catch (Exception ex)
             {
