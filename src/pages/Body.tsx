@@ -855,8 +855,6 @@ function ProgressTab() {
       }
     }
     load();
-    const interval = setInterval(load, 10000); // Refresh every 10s
-    return () => clearInterval(interval);
   }, []);
 
   return (

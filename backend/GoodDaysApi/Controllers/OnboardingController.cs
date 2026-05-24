@@ -193,6 +193,31 @@ public class OnboardingController : ControllerBase
         profile.TargetDate = DateOnly.TryParse(req.TargetDate, out var profileDate) ? profileDate : (DateOnly?)null;
         profile.UpdatedAt = DateTime.UtcNow;
 
+        // Keep Body Progress sources in sync so values show immediately after onboarding.
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user is not null)
+        {
+            user.HeightCm = req.HeightCm;
+            user.TargetWeightKg = req.TargetWeightKg;
+            user.UpdatedAt = DateTime.UtcNow;
+        }
+
+        if (req.CurrentWeightKg.HasValue)
+        {
+            var hasAnyWeightLog = await _db.BodyWeightLogs.AnyAsync(l => l.UserId == userId);
+            if (!hasAnyWeightLog)
+            {
+                _db.BodyWeightLogs.Add(new BodyWeightLog
+                {
+                    UserId = userId,
+                    Date = DateOnly.FromDateTime(DateTime.UtcNow),
+                    WeightKg = req.CurrentWeightKg.Value,
+                    Note = "Seeded from onboarding",
+                    LoggedAt = DateTime.UtcNow,
+                });
+            }
+        }
+
         await _db.SaveChangesAsync();
 
         // Ensure AI settings exist for first-time users before background AI generation starts.
