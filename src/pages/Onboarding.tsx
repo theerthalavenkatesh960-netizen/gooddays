@@ -467,9 +467,27 @@ export default function Onboarding() {
       setProgressText('Preparing ingredients...');
       const preferredIngredientIds = await ensureCustomIngredientsCreated();
 
+      const selectedFeatures = (data.selectedFeatures && data.selectedFeatures.length > 0)
+        ? data.selectedFeatures
+        : ['health'];
+
+      const excludedSet = new Set(data.excludedIngredientIds || []);
+      const preferredSet = new Set(
+        (preferredIngredientIds || []).filter((id) => Number.isFinite(id) && id > 0 && !excludedSet.has(id))
+      );
+
+      if (preferredSet.size < 5) {
+        for (const item of ingredients) {
+          if (excludedSet.has(item.id)) continue;
+          preferredSet.add(item.id);
+          if (preferredSet.size >= 5) break;
+        }
+      }
+
       const payload: OnboardingData = {
         ...data,
-        preferredIngredientIds,
+        selectedFeatures,
+        preferredIngredientIds: Array.from(preferredSet),
       };
 
       setProgressText('Saving onboarding profile...');
@@ -492,12 +510,12 @@ export default function Onboarding() {
 
   const preferredCount = (data.preferredIngredientIds?.length || 0) + (data.customPreferredIngredients?.length || 0);
   const canNext = [
-    (data.selectedFeatures?.length || 0) > 0,
-    (data.planAdherenceScore ?? 0) >= 1,
-    (data.heightCm ?? 0) > 0 && (data.currentWeightKg ?? 0) > 0,
-    (data.activityLevel ?? '') !== '' && (data.dietPreference ?? '') !== '',
-    (data.preferredWorkouts?.length || 0) > 0 || (data.preferredMeals?.length || 0) > 0,
-    preferredCount >= 5,
+    true,
+    true,
+    (data.heightCm ?? 0) > 0 && (data.currentWeightKg ?? 0) > 0 && (data.age ?? 0) > 0,
+    true,
+    true,
+    true,
   ];
 
   return (
@@ -516,11 +534,25 @@ export default function Onboarding() {
         ) : <div className="w-8 h-8" />}
         <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{step + 1} of {totalSteps}</p>
         <button
-          onClick={() => navigate('/', { replace: true })}
+          onClick={() => {
+            if (step === 2) return;
+            if (step < totalSteps - 1) {
+              setStep((s) => s + 1);
+              return;
+            }
+            void handleFinish();
+          }}
+          disabled={step === 2 || saving}
           className="text-xs font-semibold"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: step === 2 || saving ? 'not-allowed' : 'pointer',
+            color: step === 2 || saving ? 'var(--text-muted)' : 'var(--text-secondary)',
+            opacity: step === 2 || saving ? 0.55 : 1,
+          }}
         >
-          Skip
+          {step === totalSteps - 1 ? 'Skip to finish' : 'Skip step'}
         </button>
       </div>
 
