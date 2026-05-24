@@ -98,14 +98,18 @@ public class MealController : ControllerBase
     public async Task<IActionResult> CreateTemplate([FromBody] MealTemplateUpsertRequest body)
     {
         if (string.IsNullOrWhiteSpace(body.Name)) return BadRequest("Template name is required.");
+        var userId = GetUserId();
+        var ingredientsJson = string.IsNullOrWhiteSpace(body.IngredientsJson) ? "[]" : body.IngredientsJson;
+
+        await EnsureMissingIngredientsFromJsonAsync(userId, ingredientsJson);
 
         var entity = new MealTemplate
         {
-            UserId = GetUserId(),
+            UserId = userId,
             Name = body.Name.Trim(),
             Timing = string.IsNullOrWhiteSpace(body.Timing) ? "breakfast" : body.Timing.Trim(),
             TimeOfDay = string.IsNullOrWhiteSpace(body.TimeOfDay) ? null : body.TimeOfDay.Trim(),
-            IngredientsJson = string.IsNullOrWhiteSpace(body.IngredientsJson) ? "[]" : body.IngredientsJson,
+            IngredientsJson = ingredientsJson,
             Recipe = body.Recipe?.Trim() ?? string.Empty,
             ImageUrl = string.IsNullOrWhiteSpace(body.ImageUrl) ? null : body.ImageUrl.Trim(),
             CreatedAt = DateTime.UtcNow,
@@ -124,10 +128,13 @@ public class MealController : ControllerBase
         if (item is null) return NotFound();
         if (string.IsNullOrWhiteSpace(body.Name)) return BadRequest("Template name is required.");
 
+        var ingredientsJson = string.IsNullOrWhiteSpace(body.IngredientsJson) ? "[]" : body.IngredientsJson;
+        await EnsureMissingIngredientsFromJsonAsync(userId, ingredientsJson);
+
         item.Name = body.Name.Trim();
         item.Timing = string.IsNullOrWhiteSpace(body.Timing) ? "breakfast" : body.Timing.Trim();
         item.TimeOfDay = string.IsNullOrWhiteSpace(body.TimeOfDay) ? null : body.TimeOfDay.Trim();
-        item.IngredientsJson = string.IsNullOrWhiteSpace(body.IngredientsJson) ? "[]" : body.IngredientsJson;
+        item.IngredientsJson = ingredientsJson;
         item.Recipe = body.Recipe?.Trim() ?? string.Empty;
         item.ImageUrl = string.IsNullOrWhiteSpace(body.ImageUrl) ? null : body.ImageUrl.Trim();
 
@@ -211,6 +218,8 @@ public class MealController : ControllerBase
         if (existing is not null)
             return BadRequest("This meal is already in your library.");
 
+        await EnsureMissingIngredientsFromJsonAsync(userId, master.IngredientsJson ?? "[]");
+
         // Clone the master meal to user's library
         var cloned = new MealTemplate
         {
@@ -218,8 +227,8 @@ public class MealController : ControllerBase
             Name = master.Name,
             Timing = master.Timing,
             TimeOfDay = master.TimeOfDay,
-            IngredientsJson = master.IngredientsJson,
-            Recipe = master.Recipe,
+            IngredientsJson = master.IngredientsJson ?? "[]",
+            Recipe = master.Recipe ?? string.Empty,
             ImageUrl = master.ImageUrl,
             MasterMealTemplateId = master.Id,
             CreatedAt = DateTime.UtcNow,
@@ -234,6 +243,85 @@ public class MealController : ControllerBase
             .FirstAsync(m => m.Id == cloned.Id);
 
         return Ok(cloned);
+    }
+
+    private async Task EnsureMissingIngredientsFromJsonAsync(int userId, string? ingredientsJson)
+    {
+        var parsedNames = ExtractIngredientNames(ingredientsJson);
+        if (parsedNames.Count == 0) return;
+
+        var normalizedRequested = parsedNames
+            .Select(NormalizeIngredientName)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalizedRequested.Count == 0) return;
+
+        var existingNames = await _db.MealIngredients
+            .Where(i => i.UserId == userId)
+            .Select(i => i.Name)
+            .ToListAsync();
+
+        var existingNormalized = existingNames
+            .Select(NormalizeIngredientName)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var toCreate = parsedNames
+            .Where(name => !existingNormalized.Contains(NormalizeIngredientName(name)))
+            .GroupBy(name => NormalizeIngredientName(name), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
+
+        foreach (var name in toCreate)
+        {
+            _db.MealIngredients.Add(new MealIngredient
+            {
+                UserId = userId,
+                Name = name,
+                CaloriesKcal = 0,
+                ProteinG = 0,
+                CarbsG = 0,
+                FatsG = 0,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+    }
+
+    private static List<string> ExtractIngredientNames(string? ingredientsJson)
+    {
+        var names = new List<string>();
+        if (string.IsNullOrWhiteSpace(ingredientsJson)) return names;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(ingredientsJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return names;
+
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                if (element.ValueKind != JsonValueKind.Object) continue;
+
+                if (element.TryGetProperty("name", out var nameProp) && nameProp.ValueKind == JsonValueKind.String)
+                {
+                    var name = nameProp.GetString()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(name)) names.Add(name);
+                }
+            }
+        }
+        catch
+        {
+            return names;
+        }
+
+        return names;
+    }
+
+    private static string NormalizeIngredientName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return string.Empty;
+        return name.Trim().ToLowerInvariant();
     }
 
     // ─── Weekly Meal Plan ─────────────────────────────────────────────────
