@@ -1031,30 +1031,32 @@ function TasksTab({ user }: { user: any }) {
       </div>
 
       {/* Filters row */}
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-2 mb-3">
-        {(['all', 'today', 'overdue'] as const).map(v => (
-          <button key={v} onClick={() => setFilterView(v)}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 press transition-all"
-            style={{
-              backgroundColor: filterView === v ? (v === 'overdue' ? '#ef4444' : 'var(--accent)') : 'var(--surface)',
-              color: filterView === v ? '#fff' : 'var(--text-secondary)',
-            }}>
-            {v.charAt(0).toUpperCase() + v.slice(1)}
-          </button>
-        ))}
-        <div className="flex items-center gap-1.5 flex-shrink-0 px-3 py-1.5 rounded-full" style={{ backgroundColor: 'var(--surface)' }}>
-          <Filter size={12} style={{ color: 'var(--text-muted)' }} />
-          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
-            className="text-xs outline-none bg-transparent" style={{ color: 'var(--text-secondary)' }}>
-            <option value="all">All</option>
-            {CATEGORY_OPTIONS.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-          </select>
+      <div className="flex items-center flex-wrap gap-1.5 mb-3">
+        <div className="flex items-center flex-wrap gap-1.5 flex-1 min-w-0">
+          {(['all', 'today', 'overdue'] as const).map(v => (
+            <button key={v} onClick={() => setFilterView(v)}
+              className="px-2.5 py-1 rounded-full text-[10px] font-semibold flex-shrink-0 press transition-all"
+              style={{
+                backgroundColor: filterView === v ? (v === 'overdue' ? '#ef4444' : 'var(--accent)') : 'var(--surface)',
+                color: filterView === v ? '#fff' : 'var(--text-secondary)',
+              }}>
+              {v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
+          <div className="flex items-center gap-1 flex-shrink-0 px-2.5 py-1 rounded-full" style={{ backgroundColor: 'var(--surface)' }}>
+            <Filter size={11} style={{ color: 'var(--text-muted)' }} />
+            <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
+              className="text-[10px] outline-none bg-transparent" style={{ color: 'var(--text-secondary)' }}>
+              <option value="all">All</option>
+              {CATEGORY_OPTIONS.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+            </select>
+          </div>
         </div>
 
         <button onClick={() => { setEditingTask(null); setShowAddSheet(true); }}
-          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold press text-white"
+          className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold press text-white"
           style={{ backgroundColor: 'var(--accent)' }}>
-          <Plus size={13} /> New
+          <Plus size={11} /> New
         </button>
       </div>
 
