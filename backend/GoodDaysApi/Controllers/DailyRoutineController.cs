@@ -20,6 +20,59 @@ public class DailyRoutineController : ControllerBase
         ?? User.FindFirst("sub")?.Value
         ?? throw new UnauthorizedAccessException("User id claim missing"));
 
+    private async Task<int?> GetValidatedWorkoutPlanIdAsync(int userId, int? linkedWorkoutPlanId)
+    {
+        if (!linkedWorkoutPlanId.HasValue) return null;
+
+        var exists = await _db.WorkoutDayPlans
+            .AnyAsync(p => p.Id == linkedWorkoutPlanId.Value && p.UserId == userId);
+
+        return exists ? linkedWorkoutPlanId.Value : null;
+    }
+
+    private async Task<List<int>> GetValidatedMealIdsAsync(int userId, List<int>? linkedMealTemplateIds)
+    {
+        if (linkedMealTemplateIds is null || linkedMealTemplateIds.Count == 0) return new List<int>();
+
+        var requested = linkedMealTemplateIds.Where(id => id > 0).Distinct().ToList();
+        if (requested.Count == 0) return new List<int>();
+
+        return await _db.MealTemplates
+            .Where(m => m.UserId == userId && requested.Contains(m.Id))
+            .Select(m => m.Id)
+            .ToListAsync();
+    }
+
+    private async Task SyncBlockMealLinksAsync(int blockId, List<int> validatedMealIds)
+    {
+        var existing = await _db.RoutineBlockMealLinks
+            .Where(l => l.RoutineBlockId == blockId)
+            .ToListAsync();
+
+        var validatedSet = validatedMealIds.ToHashSet();
+        var toRemove = existing.Where(l => !validatedSet.Contains(l.MealTemplateId)).ToList();
+        if (toRemove.Count > 0)
+        {
+            _db.RoutineBlockMealLinks.RemoveRange(toRemove);
+        }
+
+        var existingSet = existing.Select(l => l.MealTemplateId).ToHashSet();
+        var toAdd = validatedMealIds
+            .Where(id => !existingSet.Contains(id))
+            .Select(id => new RoutineBlockMealLink
+            {
+                RoutineBlockId = blockId,
+                MealTemplateId = id,
+                CreatedAt = DateTime.UtcNow,
+            })
+            .ToList();
+
+        if (toAdd.Count > 0)
+        {
+            await _db.RoutineBlockMealLinks.AddRangeAsync(toAdd);
+        }
+    }
+
     // ─── Routines CRUD ────────────────────────────────────────────────────
 
     [HttpGet]
@@ -27,9 +80,36 @@ public class DailyRoutineController : ControllerBase
     {
         var userId = GetUserId();
         var routines = await _db.DailyRoutines
-            .Include(r => r.Blocks.OrderBy(b => b.SortOrder).ThenBy(b => b.StartTime))
             .Where(r => r.UserId == userId)
             .OrderBy(r => r.Name)
+            .Select(r => new
+            {
+                r.Id,
+                r.UserId,
+                r.Name,
+                r.Description,
+                r.Color,
+                r.CreatedAt,
+                r.UpdatedAt,
+                Blocks = r.Blocks
+                    .OrderBy(b => b.SortOrder)
+                    .ThenBy(b => b.StartTime)
+                    .Select(b => new
+                    {
+                        b.Id,
+                        b.RoutineId,
+                        b.Title,
+                        b.StartTime,
+                        b.EndTime,
+                        b.Category,
+                        b.Color,
+                        b.SortOrder,
+                        b.CreatedAt,
+                        b.LinkedWorkoutPlanId,
+                        LinkedWorkoutLabel = b.LinkedWorkoutPlan != null ? (b.LinkedWorkoutPlan.DayLabel ?? "Today Workout") : null,
+                        LinkedMealTemplateIds = b.MealLinks.Select(l => l.MealTemplateId).ToList(),
+                    }).ToList(),
+            })
             .ToListAsync();
         return Ok(routines);
     }
@@ -77,7 +157,57 @@ public class DailyRoutineController : ControllerBase
         return Ok();
     }
 
-    // ─── Blocks CRUD ──────────────────────────────────────────────────────
+    [HttpPost("{id}/copy")]
+    public async Task<IActionResult> CopyRoutine(int id)
+    {
+        var userId = GetUserId();
+        var source = await _db.DailyRoutines
+            .Include(r => r.Blocks)
+                .ThenInclude(b => b.MealLinks)
+            .FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
+        if (source is null) return NotFound();
+
+        var copy = new DailyRoutine
+        {
+            UserId = userId,
+            Name = $"{source.Name} (Copy)",
+            Description = source.Description,
+            Color = source.Color,
+        };
+        _db.DailyRoutines.Add(copy);
+        await _db.SaveChangesAsync();
+
+        foreach (var block in source.Blocks)
+        {
+            var newBlock = new RoutineBlock
+            {
+                RoutineId = copy.Id,
+                Title = block.Title,
+                StartTime = block.StartTime,
+                EndTime = block.EndTime,
+                Category = block.Category,
+                Color = block.Color,
+                SortOrder = block.SortOrder,
+                LinkedWorkoutPlanId = block.LinkedWorkoutPlanId,
+            };
+            _db.RoutineBlocks.Add(newBlock);
+            await _db.SaveChangesAsync();
+
+            foreach (var mealLink in block.MealLinks)
+            {
+                _db.RoutineBlockMealLinks.Add(new RoutineBlockMealLink
+                {
+                    RoutineBlockId = newBlock.Id,
+                    MealTemplateId = mealLink.MealTemplateId,
+                });
+            }
+        }
+        await _db.SaveChangesAsync();
+
+        return Ok(new { id = copy.Id, name = copy.Name });
+    }
+
+
 
     [HttpPost("{routineId}/blocks")]
     public async Task<IActionResult> AddBlock(int routineId, [FromBody] RoutineBlockRequest body)
@@ -85,6 +215,10 @@ public class DailyRoutineController : ControllerBase
         var userId = GetUserId();
         var routine = await _db.DailyRoutines.FirstOrDefaultAsync(r => r.Id == routineId && r.UserId == userId);
         if (routine is null) return NotFound();
+
+        var validatedWorkoutPlanId = await GetValidatedWorkoutPlanIdAsync(userId, body.LinkedWorkoutPlanId);
+        var validatedMealIds = await GetValidatedMealIdsAsync(userId, body.LinkedMealTemplateIds);
+
         var block = new RoutineBlock
         {
             RoutineId = routineId,
@@ -94,12 +228,30 @@ public class DailyRoutineController : ControllerBase
             Category = body.Category,
             Color = body.Color,
             SortOrder = body.SortOrder ?? 0,
+            LinkedWorkoutPlanId = validatedWorkoutPlanId,
             CreatedAt = DateTime.UtcNow,
         };
 
         _db.RoutineBlocks.Add(block);
         await _db.SaveChangesAsync();
-        return Ok(block);
+
+        await SyncBlockMealLinksAsync(block.Id, validatedMealIds);
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            block.Id,
+            block.RoutineId,
+            block.Title,
+            block.StartTime,
+            block.EndTime,
+            block.Category,
+            block.Color,
+            block.SortOrder,
+            block.CreatedAt,
+            block.LinkedWorkoutPlanId,
+            LinkedMealTemplateIds = validatedMealIds,
+        });
     }
 
     [HttpPut("blocks/{id}")]
@@ -110,14 +262,35 @@ public class DailyRoutineController : ControllerBase
             .Include(b => b.Routine)
             .FirstOrDefaultAsync(b => b.Id == id && b.Routine.UserId == userId);
         if (block is null) return NotFound();
+
+        var validatedWorkoutPlanId = await GetValidatedWorkoutPlanIdAsync(userId, body.LinkedWorkoutPlanId);
+        var validatedMealIds = await GetValidatedMealIdsAsync(userId, body.LinkedMealTemplateIds);
+
         block.Title = body.Title;
         block.StartTime = body.StartTime;
         block.EndTime = body.EndTime;
         block.Category = body.Category;
         block.Color = body.Color;
+        block.LinkedWorkoutPlanId = validatedWorkoutPlanId;
         if (body.SortOrder.HasValue) block.SortOrder = body.SortOrder.Value;
+
+        await SyncBlockMealLinksAsync(block.Id, validatedMealIds);
         await _db.SaveChangesAsync();
-        return Ok(block);
+
+        return Ok(new
+        {
+            block.Id,
+            block.RoutineId,
+            block.Title,
+            block.StartTime,
+            block.EndTime,
+            block.Category,
+            block.Color,
+            block.SortOrder,
+            block.CreatedAt,
+            block.LinkedWorkoutPlanId,
+            LinkedMealTemplateIds = validatedMealIds,
+        });
     }
 
     [HttpDelete("blocks/{id}")]
@@ -175,7 +348,7 @@ public class DailyRoutineController : ControllerBase
     }
 
     public record RoutineRequest(string Name, string? Description, string? Color);
-    public record RoutineBlockRequest(string Title, string StartTime, string EndTime, string? Category, string? Color, int? SortOrder);
+    public record RoutineBlockRequest(string Title, string StartTime, string EndTime, string? Category, string? Color, int? SortOrder, int? LinkedWorkoutPlanId, List<int>? LinkedMealTemplateIds);
     public record ScheduleEntry(int DayOfWeek, int? RoutineId);
 
     // ─── Today ────────────────────────────────────────────────────────────
@@ -210,8 +383,20 @@ public class DailyRoutineController : ControllerBase
         var routine = scheduleEntry.Routine;
         var blocks = await _db.RoutineBlocks
             .Where(b => b.RoutineId == routine.Id)
+            .Include(b => b.MealLinks)
             .OrderBy(b => b.SortOrder).ThenBy(b => b.StartTime)
             .ToListAsync();
+
+        var linkedWorkoutIds = blocks
+            .Where(b => b.LinkedWorkoutPlanId.HasValue)
+            .Select(b => b.LinkedWorkoutPlanId!.Value)
+            .Distinct()
+            .ToList();
+        var workoutLabelMap = linkedWorkoutIds.Count > 0
+            ? await _db.WorkoutDayPlans
+                .Where(w => linkedWorkoutIds.Contains(w.Id) && w.UserId == userId)
+                .ToDictionaryAsync(w => w.Id, w => w.DayLabel)
+            : new Dictionary<int, string?>();
 
         var logs = await _db.DailyRoutineLogs
             .Where(l => l.UserId == userId && l.Date == today && blocks.Select(b => b.Id).Contains(l.RoutineBlockId))
@@ -229,6 +414,11 @@ public class DailyRoutineController : ControllerBase
                 b.Category,
                 b.Color,
                 b.SortOrder,
+                b.LinkedWorkoutPlanId,
+                LinkedWorkoutLabel = b.LinkedWorkoutPlanId.HasValue && workoutLabelMap.TryGetValue(b.LinkedWorkoutPlanId.Value, out var label)
+                    ? (label ?? "Today Workout")
+                    : null,
+                LinkedMealTemplateIds = b.MealLinks.Select(m => m.MealTemplateId).ToList(),
                 status = log?.Status ?? "pending",
                 logId = log?.Id,
             };

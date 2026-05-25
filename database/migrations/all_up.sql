@@ -624,7 +624,19 @@ CREATE TABLE IF NOT EXISTS routine_blocks (
   category   text,
   color      text,
   sort_order integer DEFAULT 0,
+  linked_workout_plan_id integer REFERENCES workout_day_plans(id) ON DELETE SET NULL,
   created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE IF EXISTS routine_blocks
+  ADD COLUMN IF NOT EXISTS linked_workout_plan_id integer REFERENCES workout_day_plans(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS routine_block_meal_links (
+  id              SERIAL PRIMARY KEY,
+  routine_block_id integer REFERENCES routine_blocks(id) ON DELETE CASCADE NOT NULL,
+  meal_template_id integer REFERENCES meal_templates(id) ON DELETE CASCADE NOT NULL,
+  created_at      timestamptz DEFAULT now(),
+  UNIQUE(routine_block_id, meal_template_id)
 );
 
 CREATE TABLE IF NOT EXISTS weekly_routine_schedule (
@@ -657,6 +669,9 @@ CREATE TABLE IF NOT EXISTS daily_routine_skips (
 
 CREATE INDEX IF NOT EXISTS idx_daily_routines_user ON daily_routines(user_id);
 CREATE INDEX IF NOT EXISTS idx_routine_blocks_routine ON routine_blocks(routine_id);
+CREATE INDEX IF NOT EXISTS idx_routine_blocks_workout_plan ON routine_blocks(linked_workout_plan_id);
+CREATE INDEX IF NOT EXISTS idx_routine_block_meal_links_block ON routine_block_meal_links(routine_block_id);
+CREATE INDEX IF NOT EXISTS idx_routine_block_meal_links_meal ON routine_block_meal_links(meal_template_id);
 CREATE INDEX IF NOT EXISTS idx_weekly_routine_schedule_user ON weekly_routine_schedule(user_id);
 CREATE INDEX IF NOT EXISTS idx_daily_routine_logs_user_date ON daily_routine_logs(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_daily_routine_skips_user_date ON daily_routine_skips(user_id, date);

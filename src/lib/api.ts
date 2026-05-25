@@ -948,6 +948,9 @@ type DummyRoutineBlock = {
   category?: string;
   color?: string;
   sortOrder: number;
+  linkedWorkoutPlanId?: number | null;
+  linkedWorkoutLabel?: string | null;
+  linkedMealTemplateIds?: number[];
 };
 
 type DummyRoutine = {
@@ -975,8 +978,8 @@ const _dummyDailyRoutineStore: {
       name: 'Weekday Prime',
       color: '#6C63FF',
       blocks: [
-        { id: 1, routineId: 1, title: 'Study DSA', startTime: '04:30', endTime: '05:30', sortOrder: 1 },
-        { id: 2, routineId: 1, title: 'Workout', startTime: '05:30', endTime: '06:30', sortOrder: 2 },
+        { id: 1, routineId: 1, title: 'Study DSA', startTime: '04:30', endTime: '05:30', sortOrder: 1, linkedMealTemplateIds: [2, 3] },
+        { id: 2, routineId: 1, title: 'Workout', startTime: '05:30', endTime: '06:30', sortOrder: 2, linkedWorkoutPlanId: 1, linkedWorkoutLabel: 'Today Workout' },
         { id: 3, routineId: 1, title: 'Deep Work Sprint', startTime: '09:00', endTime: '11:00', sortOrder: 3 },
       ],
     },
@@ -1059,7 +1062,39 @@ export async function deleteDailyRoutine(id: number) {
   return request(`dailyroutine/${id}`, { method: 'DELETE' });
 }
 
-export async function addRoutineBlock(routineId: number, body: { title: string; startTime: string; endTime: string; category?: string; color?: string; sortOrder?: number }) {
+export async function copyDailyRoutine(id: number) {
+  if (DUMMY_FLAGS.dailyRoutine) {
+    const source = _dummyDailyRoutineStore.routines.find(r => r.id === id);
+    if (!source) return Promise.reject(new Error('Routine not found'));
+    const newId = _dummyDailyRoutineStore.nextRoutineId++;
+    const copy: DummyRoutine = {
+      id: newId,
+      name: `${source.name} (Copy)`,
+      description: source.description,
+      color: source.color,
+      blocks: source.blocks.map(b => ({
+        ...b,
+        id: _dummyDailyRoutineStore.nextBlockId++,
+        routineId: newId,
+        linkedMealTemplateIds: b.linkedMealTemplateIds ? [...b.linkedMealTemplateIds] : [],
+      })),
+    };
+    _dummyDailyRoutineStore.routines.push(copy);
+    return Promise.resolve(clone(copy));
+  }
+  return request(`dailyroutine/${id}/copy`, { method: 'POST' });
+}
+
+export async function addRoutineBlock(routineId: number, body: {
+  title: string;
+  startTime: string;
+  endTime: string;
+  category?: string;
+  color?: string;
+  sortOrder?: number;
+  linkedWorkoutPlanId?: number | null;
+  linkedMealTemplateIds?: number[];
+}) {
   if (DUMMY_FLAGS.dailyRoutine) {
     const routine = _dummyDailyRoutineStore.routines.find(r => r.id === routineId);
     if (!routine) return Promise.reject(new Error('Routine not found'));
@@ -1072,6 +1107,8 @@ export async function addRoutineBlock(routineId: number, body: { title: string; 
       category: body.category,
       color: body.color,
       sortOrder: body.sortOrder ?? (routine.blocks.length + 1),
+      linkedWorkoutPlanId: (body as any).linkedWorkoutPlanId ?? null,
+      linkedMealTemplateIds: Array.isArray((body as any).linkedMealTemplateIds) ? [...(body as any).linkedMealTemplateIds] : [],
     };
     routine.blocks.push(block);
     return Promise.resolve(clone(block));
@@ -1079,7 +1116,16 @@ export async function addRoutineBlock(routineId: number, body: { title: string; 
   return request(`dailyroutine/${routineId}/blocks`, { method: 'POST', body: JSON.stringify(body) });
 }
 
-export async function updateRoutineBlock(id: number, body: { title: string; startTime: string; endTime: string; category?: string; color?: string; sortOrder?: number }) {
+export async function updateRoutineBlock(id: number, body: {
+  title: string;
+  startTime: string;
+  endTime: string;
+  category?: string;
+  color?: string;
+  sortOrder?: number;
+  linkedWorkoutPlanId?: number | null;
+  linkedMealTemplateIds?: number[];
+}) {
   if (DUMMY_FLAGS.dailyRoutine) {
     for (const routine of _dummyDailyRoutineStore.routines) {
       const block = routine.blocks.find(b => b.id === id);
@@ -1090,6 +1136,12 @@ export async function updateRoutineBlock(id: number, body: { title: string; star
       block.category = body.category;
       block.color = body.color;
       if (typeof body.sortOrder === 'number') block.sortOrder = body.sortOrder;
+      if (Object.prototype.hasOwnProperty.call(body, 'linkedWorkoutPlanId')) {
+        block.linkedWorkoutPlanId = (body as any).linkedWorkoutPlanId ?? null;
+      }
+      if (Array.isArray((body as any).linkedMealTemplateIds)) {
+        block.linkedMealTemplateIds = [...(body as any).linkedMealTemplateIds];
+      }
       return Promise.resolve(clone(block));
     }
     return Promise.reject(new Error('Block not found'));
@@ -1169,6 +1221,9 @@ export async function getTodayRoutine() {
           endTime: block.endTime,
           category: block.category,
           color: block.color,
+          linkedWorkoutPlanId: block.linkedWorkoutPlanId ?? null,
+          linkedWorkoutLabel: block.linkedWorkoutLabel ?? null,
+          linkedMealTemplateIds: block.linkedMealTemplateIds ?? [],
           status,
           logId: status === 'pending' ? undefined : Number(`${dateKey.replace(/-/g, '')}${block.id}`),
         };

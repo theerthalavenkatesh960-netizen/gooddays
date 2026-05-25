@@ -1340,6 +1340,9 @@ type TodayRoutineBlock = {
   color?: string;
   status: 'pending' | 'completed' | 'skipped' | 'missed';
   logId?: number;
+  linkedMealTemplateIds?: number[];
+  linkedWorkoutPlanId?: number | null;
+  linkedWorkoutLabel?: string | null;
 };
 
 type TodayRoutine = {
@@ -1357,14 +1360,20 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const [data, setData] = useState<TodayRoutine | null>(null);
   const [loading, setLoading] = useState(true);
   const [skipping, setSkipping] = useState(false);
+  const [mealNameMap, setMealNameMap] = useState<Record<number, string>>({});
 
   const now = currentMinutes();
 
   async function load() {
     setLoading(true);
     try {
-      const res = await (api as any).getTodayRoutine();
+      const [res, templates] = await Promise.all([
+        (api as any).getTodayRoutine().catch(() => null),
+        api.getMealTemplates().catch(() => []),
+      ]);
       setData(res || null);
+      const list = Array.isArray(templates) ? templates : [];
+      setMealNameMap(Object.fromEntries(list.map((m: any) => [Number(m.id), String(m.name)])));
     } catch {
       setData(null);
     } finally {
@@ -1488,9 +1497,16 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
         </div>
       </div>
 
-      {/* Time blocks */}
-      <div className="space-y-2">
-        {blocks.map(block => {
+      {/* Time blocks — vertical timeline */}
+      <div className="relative">
+        {/* Continuous vertical line */}
+        <div
+          className="absolute top-0 bottom-0 w-px"
+          style={{ left: 20, backgroundColor: 'var(--accent)', opacity: 0.2 }}
+        />
+
+        <div className="space-y-3">
+          {blocks.map((block, idx) => {
           const start = timeToMinutes(block.startTime);
           const end = timeToMinutes(block.endTime);
           const isActive = now >= start && now < end;
@@ -1498,72 +1514,119 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           const isBlockSkipped = block.status === 'skipped';
 
           return (
-            <motion.div key={block.id} layout
-              className="rounded-xl overflow-hidden"
-              style={{ border: isActive ? `1px solid var(--accent)` : '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
-              <div className="flex items-center gap-3 p-3">
-                {/* Time */}
-                <div className="text-center flex-shrink-0 w-14">
-                  <p className="text-[10px] num font-semibold" style={{ color: 'var(--text-muted)' }}>{block.startTime}</p>
-                  <div className="w-px h-3 mx-auto my-0.5" style={{ backgroundColor: 'var(--border)' }} />
-                  <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>{block.endTime}</p>
-                </div>
-
-                {/* Active dot */}
-                {isActive && !isDone && !isBlockSkipped && (
-                  <div className="w-1.5 h-1.5 rounded-full animate-pulse-dot flex-shrink-0" style={{ backgroundColor: 'var(--accent)' }} />
-                )}
-
-                {/* Label */}
-                <p className="flex-1 text-sm font-medium" style={{
-                  color: isDone || isBlockSkipped ? 'var(--text-muted)' : 'var(--text-primary)',
-                  textDecoration: isDone ? 'line-through' : isBlockSkipped ? 'line-through' : 'none',
-                }}>
-                  {block.title}
-                  {isBlockSkipped && (
-                    <span className="ml-2 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>skipped</span>
-                  )}
-                </p>
-
-                {/* Now badge */}
-                {isActive && !isDone && !isBlockSkipped && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
-                    Now
-                  </span>
-                )}
-
-                {/* Skip button (only for pending) */}
-                {!isDone && !isBlockSkipped && !isSkipped && (
-                  <button onClick={() => skipBlock(block)}
-                    className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}
-                    title="Skip this block">
-                    <X size={13} />
-                  </button>
-                )}
-
-                {/* Check toggle */}
-                {!isSkipped && (
-                  <button onClick={() => toggleBlock(block)} className="press ml-0.5">
-                    {isDone
-                      ? <CheckCircle2 size={20} style={{ color: routine.color || 'var(--accent)' }} />
-                      : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--border)' }} />}
-                  </button>
-                )}
+            <div key={block.id} className="flex items-start gap-3">
+              {/* Timeline dot */}
+              <div className="flex-shrink-0 flex flex-col items-center" style={{ width: 41 }}>
+                <div
+                  className="w-2.5 h-2.5 rounded-full z-10 mt-3.5 flex-shrink-0"
+                  style={{
+                    backgroundColor: isDone
+                      ? (routine.color || 'var(--accent)')
+                      : isBlockSkipped
+                        ? 'var(--border)'
+                        : isActive
+                          ? (routine.color || 'var(--accent)')
+                          : 'var(--surface-elevated)',
+                    border: `2px solid ${isDone || isActive ? (routine.color || 'var(--accent)') : 'var(--border)'}`,
+                    boxShadow: isActive && !isDone ? `0 0 0 4px ${routine.color || 'var(--accent)'}28` : undefined,
+                  }}
+                />
               </div>
 
-              {/* Active progress bar */}
-              {isActive && !isDone && !isBlockSkipped && (
-                <div className="h-0.5 w-full" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                  <div className="h-full" style={{
-                    backgroundColor: routine.color || 'var(--accent)',
-                    width: `${Math.min(100, ((now - start) / (end - start)) * 100)}%`,
-                    transition: 'width 60s linear',
-                  }} />
+              {/* Card */}
+              <motion.div layout
+                className="flex-1 rounded-xl overflow-hidden mb-0.5"
+                style={{ border: isActive ? `1px solid ${routine.color || 'var(--accent)'}` : '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
+                <div className="flex items-center gap-3 p-3">
+                  {/* Time */}
+                  <div className="text-center flex-shrink-0 w-12">
+                    <p className="text-[10px] num font-semibold" style={{ color: 'var(--text-muted)' }}>{block.startTime}</p>
+                    <div className="w-px h-2 mx-auto my-0.5" style={{ backgroundColor: 'var(--border)' }} />
+                    <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>{block.endTime}</p>
+                  </div>
+
+                  {/* Active pulse dot */}
+                  {isActive && !isDone && !isBlockSkipped && (
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse-dot flex-shrink-0" style={{ backgroundColor: routine.color || 'var(--accent)' }} />
+                  )}
+
+                  {/* Label + linked chips */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium" style={{
+                      color: isDone || isBlockSkipped ? 'var(--text-muted)' : 'var(--text-primary)',
+                      textDecoration: isDone ? 'line-through' : isBlockSkipped ? 'line-through' : 'none',
+                    }}>
+                      {block.title}
+                      {isBlockSkipped && (
+                        <span className="ml-2 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>skipped</span>
+                      )}
+                    </p>
+                    {((block.linkedMealTemplateIds ?? []).length > 0 || block.linkedWorkoutPlanId) && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {(block.linkedMealTemplateIds ?? []).map(mealId => (
+                          <span
+                            key={`dash-meal-${block.id}-${mealId}`}
+                            className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
+                            style={{ backgroundColor: 'rgba(34,197,94,0.14)', color: 'var(--accent-green)', border: '1px solid rgba(34,197,94,0.28)' }}
+                          >
+                            {mealNameMap[mealId] ?? `Meal #${mealId}`}
+                          </span>
+                        ))}
+                        {block.linkedWorkoutPlanId ? (
+                          <button
+                            type="button"
+                            onClick={() => navigate('/body?tab=Workout')}
+                            className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold press"
+                            style={{ backgroundColor: 'rgba(108,99,255,0.16)', color: 'var(--accent)', border: '1px solid rgba(108,99,255,0.3)' }}
+                          >
+                            {block.linkedWorkoutLabel ?? 'Today Workout'}
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Now badge */}
+                  {isActive && !isDone && !isBlockSkipped && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: routine.color || 'var(--accent)', color: '#fff' }}>
+                      Now
+                    </span>
+                  )}
+
+                  {/* Skip button */}
+                  {!isDone && !isBlockSkipped && !isSkipped && (
+                    <button onClick={() => skipBlock(block)}
+                      className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}
+                      title="Skip this block">
+                      <X size={13} />
+                    </button>
+                  )}
+
+                  {/* Check toggle */}
+                  {!isSkipped && (
+                    <button onClick={() => toggleBlock(block)} className="press ml-0.5">
+                      {isDone
+                        ? <CheckCircle2 size={20} style={{ color: routine.color || 'var(--accent)' }} />
+                        : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--border)' }} />}
+                    </button>
+                  )}
                 </div>
-              )}
-            </motion.div>
+
+                {/* Active progress bar */}
+                {isActive && !isDone && !isBlockSkipped && (
+                  <div className="h-0.5 w-full" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                    <div className="h-full" style={{
+                      backgroundColor: routine.color || 'var(--accent)',
+                      width: `${Math.min(100, ((now - start) / (end - start)) * 100)}%`,
+                      transition: 'width 60s linear',
+                    }} />
+                  </div>
+                )}
+              </motion.div>
+            </div>
           );
         })}
+        </div>
       </div>
 
       {/* Footer */}

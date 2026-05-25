@@ -30,6 +30,12 @@ public class RoutineBlock
     [Column("sort_order")]
     public int SortOrder { get; set; } = 0;
 
+    [Column("linked_workout_plan_id")]
+    public int? LinkedWorkoutPlanId { get; set; }
+    public WorkoutDayPlan? LinkedWorkoutPlan { get; set; }
+
+    public List<RoutineBlockMealLink> MealLinks { get; set; } = new();
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

@@ -86,6 +86,7 @@ public class AppDbContext : DbContext
     // Daily routine entities
     public DbSet<DailyRoutine> DailyRoutines { get; set; } = null!;
     public DbSet<RoutineBlock> RoutineBlocks { get; set; } = null!;
+    public DbSet<RoutineBlockMealLink> RoutineBlockMealLinks { get; set; } = null!;
     public DbSet<WeeklyRoutineSchedule> WeeklyRoutineSchedules { get; set; } = null!;
     public DbSet<DailyRoutineLog> DailyRoutineLogs { get; set; } = null!;
     public DbSet<DailyRoutineSkip> DailyRoutineSkips { get; set; } = null!;
@@ -194,6 +195,7 @@ public class AppDbContext : DbContext
         // Daily routine table mappings
         modelBuilder.Entity<DailyRoutine>().ToTable("daily_routines");
         modelBuilder.Entity<RoutineBlock>().ToTable("routine_blocks");
+        modelBuilder.Entity<RoutineBlockMealLink>().ToTable("routine_block_meal_links");
         modelBuilder.Entity<WeeklyRoutineSchedule>().ToTable("weekly_routine_schedule");
         modelBuilder.Entity<DailyRoutineLog>().ToTable("daily_routine_logs");
         modelBuilder.Entity<DailyRoutineSkip>().ToTable("daily_routine_skips");
@@ -202,6 +204,14 @@ public class AppDbContext : DbContext
             .HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<RoutineBlock>()
             .HasOne(b => b.Routine).WithMany(r => r.Blocks).HasForeignKey(b => b.RoutineId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RoutineBlock>()
+            .HasOne(b => b.LinkedWorkoutPlan).WithMany().HasForeignKey(b => b.LinkedWorkoutPlanId).OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<RoutineBlockMealLink>()
+            .HasOne(l => l.RoutineBlock).WithMany(b => b.MealLinks).HasForeignKey(l => l.RoutineBlockId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RoutineBlockMealLink>()
+            .HasOne(l => l.MealTemplate).WithMany().HasForeignKey(l => l.MealTemplateId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RoutineBlockMealLink>()
+            .HasIndex(l => new { l.RoutineBlockId, l.MealTemplateId }).IsUnique();
         modelBuilder.Entity<WeeklyRoutineSchedule>()
             .HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<WeeklyRoutineSchedule>()
