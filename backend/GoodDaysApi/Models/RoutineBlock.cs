@@ -34,6 +34,9 @@ public class RoutineBlock
     public int? LinkedWorkoutPlanId { get; set; }
     public WorkoutDayPlan? LinkedWorkoutPlan { get; set; }
 
+    [Column("meal_type")]
+    public string? MealType { get; set; }
+
     public List<RoutineBlockMealLink> MealLinks { get; set; } = new();
 
     [Column("created_at")]

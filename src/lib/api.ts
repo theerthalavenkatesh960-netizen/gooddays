@@ -950,7 +950,7 @@ type DummyRoutineBlock = {
   sortOrder: number;
   linkedWorkoutPlanId?: number | null;
   linkedWorkoutLabel?: string | null;
-  linkedMealTemplateIds?: number[];
+  mealType?: string | null;
 };
 
 type DummyRoutine = {
@@ -978,9 +978,10 @@ const _dummyDailyRoutineStore: {
       name: 'Weekday Prime',
       color: '#6C63FF',
       blocks: [
-        { id: 1, routineId: 1, title: 'Study DSA', startTime: '04:30', endTime: '05:30', sortOrder: 1, linkedMealTemplateIds: [2, 3] },
+        { id: 1, routineId: 1, title: 'Study DSA', startTime: '04:30', endTime: '05:30', sortOrder: 1 },
         { id: 2, routineId: 1, title: 'Workout', startTime: '05:30', endTime: '06:30', sortOrder: 2, linkedWorkoutPlanId: 1, linkedWorkoutLabel: 'Today Workout' },
-        { id: 3, routineId: 1, title: 'Deep Work Sprint', startTime: '09:00', endTime: '11:00', sortOrder: 3 },
+        { id: 3, routineId: 1, title: 'Breakfast', startTime: '06:30', endTime: '07:00', sortOrder: 3, mealType: 'Breakfast' },
+        { id: 4, routineId: 1, title: 'Deep Work Sprint', startTime: '09:00', endTime: '11:00', sortOrder: 4 },
       ],
     },
     {
@@ -1076,7 +1077,6 @@ export async function copyDailyRoutine(id: number) {
         ...b,
         id: _dummyDailyRoutineStore.nextBlockId++,
         routineId: newId,
-        linkedMealTemplateIds: b.linkedMealTemplateIds ? [...b.linkedMealTemplateIds] : [],
       })),
     };
     _dummyDailyRoutineStore.routines.push(copy);
@@ -1093,7 +1093,7 @@ export async function addRoutineBlock(routineId: number, body: {
   color?: string;
   sortOrder?: number;
   linkedWorkoutPlanId?: number | null;
-  linkedMealTemplateIds?: number[];
+  mealType?: string | null;
 }) {
   if (DUMMY_FLAGS.dailyRoutine) {
     const routine = _dummyDailyRoutineStore.routines.find(r => r.id === routineId);
@@ -1107,8 +1107,8 @@ export async function addRoutineBlock(routineId: number, body: {
       category: body.category,
       color: body.color,
       sortOrder: body.sortOrder ?? (routine.blocks.length + 1),
-      linkedWorkoutPlanId: (body as any).linkedWorkoutPlanId ?? null,
-      linkedMealTemplateIds: Array.isArray((body as any).linkedMealTemplateIds) ? [...(body as any).linkedMealTemplateIds] : [],
+      linkedWorkoutPlanId: body.linkedWorkoutPlanId ?? null,
+      mealType: body.mealType ?? null,
     };
     routine.blocks.push(block);
     return Promise.resolve(clone(block));
@@ -1124,7 +1124,7 @@ export async function updateRoutineBlock(id: number, body: {
   color?: string;
   sortOrder?: number;
   linkedWorkoutPlanId?: number | null;
-  linkedMealTemplateIds?: number[];
+  mealType?: string | null;
 }) {
   if (DUMMY_FLAGS.dailyRoutine) {
     for (const routine of _dummyDailyRoutineStore.routines) {
@@ -1137,10 +1137,10 @@ export async function updateRoutineBlock(id: number, body: {
       block.color = body.color;
       if (typeof body.sortOrder === 'number') block.sortOrder = body.sortOrder;
       if (Object.prototype.hasOwnProperty.call(body, 'linkedWorkoutPlanId')) {
-        block.linkedWorkoutPlanId = (body as any).linkedWorkoutPlanId ?? null;
+        block.linkedWorkoutPlanId = body.linkedWorkoutPlanId ?? null;
       }
-      if (Array.isArray((body as any).linkedMealTemplateIds)) {
-        block.linkedMealTemplateIds = [...(body as any).linkedMealTemplateIds];
+      if (Object.prototype.hasOwnProperty.call(body, 'mealType')) {
+        block.mealType = body.mealType ?? null;
       }
       return Promise.resolve(clone(block));
     }
@@ -1223,7 +1223,7 @@ export async function getTodayRoutine() {
           color: block.color,
           linkedWorkoutPlanId: block.linkedWorkoutPlanId ?? null,
           linkedWorkoutLabel: block.linkedWorkoutLabel ?? null,
-          linkedMealTemplateIds: block.linkedMealTemplateIds ?? [],
+          mealType: block.mealType ?? null,
           status,
           logId: status === 'pending' ? undefined : Number(`${dateKey.replace(/-/g, '')}${block.id}`),
         };

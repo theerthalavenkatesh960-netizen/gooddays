@@ -625,11 +625,14 @@ CREATE TABLE IF NOT EXISTS routine_blocks (
   color      text,
   sort_order integer DEFAULT 0,
   linked_workout_plan_id integer REFERENCES workout_day_plans(id) ON DELETE SET NULL,
+  meal_type  varchar(50),
   created_at timestamptz DEFAULT now()
 );
 
 ALTER TABLE IF EXISTS routine_blocks
   ADD COLUMN IF NOT EXISTS linked_workout_plan_id integer REFERENCES workout_day_plans(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS routine_blocks
+  ADD COLUMN IF NOT EXISTS meal_type varchar(50);
 
 CREATE TABLE IF NOT EXISTS routine_block_meal_links (
   id              SERIAL PRIMARY KEY,

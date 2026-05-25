@@ -34,7 +34,7 @@ interface RoutineBlock {
   sortOrder: number;
   linkedWorkoutPlanId?: number | null;
   linkedWorkoutLabel?: string | null;
-  linkedMealTemplateIds?: number[];
+  mealType?: string | null;
 }
 
 interface Routine {
@@ -54,12 +54,7 @@ interface ScheduleEntry {
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const COLORS = ['#6C63FF', '#FF6584', '#43CBFF', '#F7971E', '#56AB2F', '#c471ed', '#12c2e9', '#f64f59'];
 
-type MealOption = {
-  id: number;
-  name: string;
-  timing?: string;
-  isPlannedToday?: boolean;
-};
+const MEAL_TYPES = ['Breakfast', 'Pre-Workout', 'Post-Workout', 'Lunch', 'Snack', 'Dinner', 'Evening Snack'] as const;
 
 type WorkoutOption = {
   id: number;
@@ -82,31 +77,13 @@ function addMinutesToTime(t: string, delta: number): string {
   return minutesToTime(parseTimeToMinutes(t) + delta);
 }
 
-function normalizePlannedMealIdsForDay(dayValue: unknown): number[] {
-  if (!Array.isArray(dayValue)) return [];
-
-  return dayValue
-    .map(item => {
-      if (typeof item === 'number') return item;
-      if (item && typeof item === 'object' && 'mealTemplateId' in item) {
-        const id = Number((item as { mealTemplateId?: number }).mealTemplateId);
-        return Number.isFinite(id) ? id : null;
-      }
-      return null;
-    })
-    .filter((id): id is number => Number.isFinite(id));
-}
-
 // ─── Sortable block row wrapper ────────────────────────────────────────────
 
 function SortableBlockRow({
   block,
   routineId,
   editing,
-  todayMealOptions,
-  allMealOptions,
   todayWorkoutOptions,
-  mealNameMap,
   workoutLabelMap,
   onEdit,
   onSaved,
@@ -116,10 +93,7 @@ function SortableBlockRow({
   block: RoutineBlock;
   routineId: number;
   editing: boolean;
-  todayMealOptions: MealOption[];
-  allMealOptions: MealOption[];
   todayWorkoutOptions: WorkoutOption[];
-  mealNameMap: Record<number, string>;
   workoutLabelMap: Record<number, string>;
   onEdit: () => void;
   onSaved: () => void;
@@ -141,10 +115,7 @@ function SortableBlockRow({
         <BlockForm
           routineId={routineId}
           initial={block}
-          todayMealOptions={todayMealOptions}
-          allMealOptions={allMealOptions}
           todayWorkoutOptions={todayWorkoutOptions}
-          mealNameMap={mealNameMap}
           onSave={onSaved}
           onCancel={onCancelEdit}
         />
@@ -157,7 +128,6 @@ function SortableBlockRow({
       style={{ ...style, backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}
       className="flex items-center gap-2 px-3 py-2 rounded-xl"
       {...attributes}>
-      {/* Drag handle */}
       <button
         {...listeners}
         className="p-0.5 cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
@@ -174,16 +144,15 @@ function SortableBlockRow({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium truncate" style={{ color: 'var(--text-primary)' }}>{block.title}</p>
-        <div className="mt-1 flex flex-wrap gap-1">
-          {(block.linkedMealTemplateIds ?? []).map(mealId => (
+        <div className="mt-0.5 flex flex-wrap gap-1">
+          {block.mealType && (
             <span
-              key={`block-${block.id}-meal-${mealId}`}
               className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
               style={{ backgroundColor: 'rgba(34,197,94,0.14)', color: 'var(--accent-green)', border: '1px solid rgba(34,197,94,0.28)' }}
             >
-              {mealNameMap[mealId] ?? `Meal #${mealId}`}
+              🍽 {block.mealType}
             </span>
-          ))}
+          )}
           {block.linkedWorkoutPlanId ? (
             <button
               type="button"
@@ -191,7 +160,7 @@ function SortableBlockRow({
               className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
               style={{ backgroundColor: 'rgba(108,99,255,0.16)', color: 'var(--accent)', border: '1px solid rgba(108,99,255,0.3)' }}
             >
-              {workoutLabelMap[block.linkedWorkoutPlanId] ?? block.linkedWorkoutLabel ?? 'Today Workout'}
+              💪 {workoutLabelMap[block.linkedWorkoutPlanId] ?? block.linkedWorkoutLabel ?? 'Today Workout'}
             </button>
           ) : null}
         </div>
@@ -214,46 +183,25 @@ function SortableBlockRow({
 function BlockForm({
   routineId,
   initial,
-  todayMealOptions,
-  allMealOptions,
   todayWorkoutOptions,
-  mealNameMap,
   onSave,
   onCancel,
 }: {
   routineId: number;
   initial?: Partial<RoutineBlock>;
-  todayMealOptions: MealOption[];
-  allMealOptions: MealOption[];
   todayWorkoutOptions: WorkoutOption[];
-  mealNameMap: Record<number, string>;
   onSave: () => void;
   onCancel: () => void;
 }) {
   const [title, setTitle] = useState(initial?.title ?? '');
   const [startTime, setStartTime] = useState(initial?.startTime ?? '06:00');
   const [endTime, setEndTime] = useState(initial?.endTime ?? '07:00');
-  const [linkedMealTemplateIds, setLinkedMealTemplateIds] = useState<number[]>(initial?.linkedMealTemplateIds ?? []);
+  const [isMealBlock, setIsMealBlock] = useState(Boolean(initial?.mealType));
+  const [mealType, setMealType] = useState<string>(initial?.mealType ?? '');
   const [linkedWorkoutPlanId, setLinkedWorkoutPlanId] = useState<number | null>(initial?.linkedWorkoutPlanId ?? null);
-  const [mealPickerValue, setMealPickerValue] = useState('');
   const [saving, setSaving] = useState(false);
 
   const workoutValue = linkedWorkoutPlanId != null ? String(linkedWorkoutPlanId) : '';
-
-  function toggleMeal(mealId: number) {
-    setLinkedMealTemplateIds(prev => prev.includes(mealId) ? prev.filter(id => id !== mealId) : [...prev, mealId]);
-  }
-
-  function addMealFromPicker(value: string) {
-    const id = Number(value);
-    if (!Number.isFinite(id) || id <= 0) return;
-    setLinkedMealTemplateIds(prev => prev.includes(id) ? prev : [...prev, id]);
-    setMealPickerValue('');
-  }
-
-  function removeMeal(mealId: number) {
-    setLinkedMealTemplateIds(prev => prev.filter(id => id !== mealId));
-  }
 
   async function submit() {
     if (!title.trim()) return;
@@ -263,7 +211,7 @@ function BlockForm({
         title,
         startTime,
         endTime,
-        linkedMealTemplateIds,
+        mealType: isMealBlock && mealType ? mealType : null,
         linkedWorkoutPlanId,
       };
       if (initial?.id) {
@@ -303,76 +251,52 @@ function BlockForm({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Linked Meals (multiple)</p>
+      {/* Meal block toggle */}
+      <button
+        type="button"
+        onClick={() => { setIsMealBlock(m => !m); if (!isMealBlock) setMealType(''); }}
+        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs press"
+        style={{
+          backgroundColor: isMealBlock ? 'rgba(34,197,94,0.10)' : 'var(--surface)',
+          border: `1px solid ${isMealBlock ? 'rgba(34,197,94,0.4)' : 'var(--border)'}`,
+          color: isMealBlock ? 'var(--accent-green)' : 'var(--text-secondary)',
+        }}
+      >
+        <div
+          className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: isMealBlock ? 'rgba(34,197,94,0.8)' : 'transparent', border: `1.5px solid ${isMealBlock ? 'rgba(34,197,94,0.8)' : 'var(--border)'}` }}
+        >
+          {isMealBlock && <Check size={10} color="#fff" />}
+        </div>
+        <span className="font-semibold">This is a meal block</span>
+      </button>
 
-        {linkedMealTemplateIds.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {linkedMealTemplateIds.map(id => (
+      {isMealBlock && (
+        <div>
+          <p className="text-[10px] font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>Meal type</p>
+          <div className="flex flex-wrap gap-1.5">
+            {MEAL_TYPES.map(type => (
               <button
-                key={`linked-meal-${id}`}
+                key={type}
                 type="button"
-                onClick={() => removeMeal(id)}
-                className="px-2 py-1 rounded-lg text-[10px] font-semibold inline-flex items-center gap-1"
-                style={{ backgroundColor: 'rgba(34,197,94,0.14)', color: 'var(--accent-green)', border: '1px solid rgba(34,197,94,0.3)' }}
+                onClick={() => setMealType(type)}
+                className="px-2.5 py-1 rounded-lg text-[11px] font-semibold press"
+                style={{
+                  backgroundColor: mealType === type ? 'rgba(34,197,94,0.16)' : 'var(--surface)',
+                  color: mealType === type ? 'var(--accent-green)' : 'var(--text-secondary)',
+                  border: mealType === type ? '1px solid rgba(34,197,94,0.4)' : '1px solid var(--border)',
+                }}
               >
-                {mealNameMap[id] ?? `Meal #${id}`}
-                <X size={10} />
+                {type}
               </button>
             ))}
           </div>
-        )}
-
-        {todayMealOptions.length > 0 && (
-          <div>
-            <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Planned Today</p>
-            <div className="flex flex-wrap gap-1">
-              {todayMealOptions.map(meal => {
-                const selected = linkedMealTemplateIds.includes(meal.id);
-                return (
-                  <button
-                    key={`today-meal-${meal.id}`}
-                    type="button"
-                    onClick={() => toggleMeal(meal.id)}
-                    className="px-2 py-1 rounded-lg text-[10px] font-semibold"
-                    style={{
-                      backgroundColor: selected ? 'rgba(34,197,94,0.16)' : 'var(--surface)',
-                      color: selected ? 'var(--accent-green)' : 'var(--text-secondary)',
-                      border: selected ? '1px solid rgba(34,197,94,0.4)' : '1px solid var(--border)',
-                    }}
-                  >
-                    {meal.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <div>
-          <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>All Meals (fallback)</p>
-          <select
-            value={mealPickerValue}
-            onChange={e => {
-              const nextValue = e.target.value;
-              setMealPickerValue(nextValue);
-              addMealFromPicker(nextValue);
-            }}
-            className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
-            style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-          >
-            <option value="">Select meal to add...</option>
-            {allMealOptions.map(meal => (
-              <option key={`all-meal-${meal.id}`} value={meal.id}>
-                {meal.name}{meal.isPlannedToday ? ' (today)' : ''}
-              </option>
-            ))}
-          </select>
         </div>
-      </div>
+      )}
 
+      {/* Workout block */}
       <div className="space-y-1">
-        <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Linked Workout (single)</p>
+        <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Workout block (links to today's workout)</p>
         <select
           value={workoutValue}
           onChange={e => setLinkedWorkoutPlanId(e.target.value ? Number(e.target.value) : null)}
@@ -408,26 +332,24 @@ function BlockForm({
 
 function RoutineCard({
   routine,
-  todayMealOptions,
-  allMealOptions,
   todayWorkoutOptions,
-  mealNameMap,
   workoutLabelMap,
   onRefresh,
 }: {
   routine: Routine;
-  todayMealOptions: MealOption[];
-  allMealOptions: MealOption[];
   todayWorkoutOptions: WorkoutOption[];
-  mealNameMap: Record<number, string>;
   workoutLabelMap: Record<number, string>;
   onRefresh: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [addingBlock, setAddingBlock] = useState(false);
   const [editingBlock, setEditingBlock] = useState<number | null>(null);
+  const [editingRoutine, setEditingRoutine] = useState(false);
+  const [editName, setEditName] = useState(routine.name);
+  const [editColor, setEditColor] = useState(routine.color);
   const [deleting, setDeleting] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [blocks, setBlocks] = useState<RoutineBlock[]>([]);
 
   // Keep local blocks in sync with prop
@@ -449,6 +371,27 @@ function RoutineCard({
     } finally {
       setDeleting(false);
     }
+  }
+
+  async function saveRoutine() {
+    if (!editName.trim()) return;
+    setSaving(true);
+    try {
+      await (api as any).updateDailyRoutine(routine.id, {
+        name: editName.trim(),
+        color: editColor,
+      });
+      setEditingRoutine(false);
+      onRefresh();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function cancelEditRoutine() {
+    setEditName(routine.name);
+    setEditColor(routine.color);
+    setEditingRoutine(false);
   }
 
   async function copyRoutine() {
@@ -500,7 +443,7 @@ function RoutineCard({
           startTime: block.startTime,
           endTime: block.endTime,
           sortOrder: idx + 1,
-          linkedMealTemplateIds: block.linkedMealTemplateIds ?? [],
+          mealType: block.mealType ?? null,
           linkedWorkoutPlanId: block.linkedWorkoutPlanId ?? null,
         }),
       ),
@@ -517,23 +460,72 @@ function RoutineCard({
   return (
     <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
       {/* Header */}
-      <div className="flex items-center gap-3 p-4">
-        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: routine.color }} />
-        <p className="flex-1 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{routine.name}</p>
-        <span className="text-xs mr-1" style={{ color: 'var(--text-muted)' }}>{routine.blocks.length} blocks</span>
-        <button onClick={copyRoutine} disabled={copying}
-          className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}
-          title="Copy routine">
-          <Copy size={14} />
-        </button>
-        <button onClick={deleteRoutine} disabled={deleting}
-          className="p-1.5 rounded-lg press" style={{ color: '#ef4444' }}>
-          <Trash2 size={14} />
-        </button>
-        <button onClick={() => setExpanded(e => !e)} className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}>
-          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
-      </div>
+      {editingRoutine ? (
+        <div className="p-4 space-y-3" style={{ backgroundColor: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
+          <div>
+            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Name</p>
+            <input
+              type="text"
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              autoFocus
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+            />
+          </div>
+          <div>
+            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Color</p>
+            <div className="flex gap-2 flex-wrap">
+              {COLORS.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setEditColor(c)}
+                  className="w-7 h-7 rounded-full press flex items-center justify-center"
+                  style={{ backgroundColor: c }}>
+                  {editColor === c && <Check size={12} color="#fff" />}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-2 pt-2">
+            <button onClick={cancelEditRoutine} className="px-3 py-1.5 rounded-lg text-xs font-semibold press"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+              Cancel
+            </button>
+            <button onClick={saveRoutine} disabled={!editName.trim() || saving}
+              className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white press disabled:opacity-40"
+              style={{ backgroundColor: 'var(--accent)' }}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 p-4">
+          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: routine.color }} />
+          <p className="flex-1 text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{routine.name}</p>
+          <span className="text-xs mr-1" style={{ color: 'var(--text-muted)' }}>{routine.blocks.length} blocks</span>
+          <button onClick={() => { setEditName(routine.name); setEditColor(routine.color); setEditingRoutine(true); }}
+            className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}
+            title="Edit routine">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+          <button onClick={copyRoutine} disabled={copying}
+            className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}
+            title="Copy routine">
+            <Copy size={14} />
+          </button>
+          <button onClick={deleteRoutine} disabled={deleting}
+            className="p-1.5 rounded-lg press" style={{ color: '#ef4444' }}>
+            <Trash2 size={14} />
+          </button>
+          <button onClick={() => setExpanded(e => !e)} className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}>
+            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+        </div>
+      )}
 
       {/* Blocks */}
       <AnimatePresence>
@@ -549,10 +541,7 @@ function RoutineCard({
                       block={block}
                       routineId={routine.id}
                       editing={editingBlock === block.id}
-                      todayMealOptions={todayMealOptions}
-                      allMealOptions={allMealOptions}
                       todayWorkoutOptions={todayWorkoutOptions}
-                      mealNameMap={mealNameMap}
                       workoutLabelMap={workoutLabelMap}
                       onEdit={() => setEditingBlock(block.id)}
                       onSaved={() => { setEditingBlock(null); onRefresh(); }}
@@ -567,10 +556,7 @@ function RoutineCard({
                 <BlockForm
                   routineId={routine.id}
                   initial={defaultForNextBlock}
-                  todayMealOptions={todayMealOptions}
-                  allMealOptions={allMealOptions}
                   todayWorkoutOptions={todayWorkoutOptions}
-                  mealNameMap={mealNameMap}
                   onSave={() => { setAddingBlock(false); onRefresh(); }}
                   onCancel={() => setAddingBlock(false)}
                 />
@@ -595,8 +581,6 @@ export default function RoutineManager() {
   const navigate = useNavigate();
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
-  const [todayMealOptions, setTodayMealOptions] = useState<MealOption[]>([]);
-  const [allMealOptions, setAllMealOptions] = useState<MealOption[]>([]);
   const [todayWorkoutOptions, setTodayWorkoutOptions] = useState<WorkoutOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [creatingRoutine, setCreatingRoutine] = useState(false);
@@ -604,11 +588,6 @@ export default function RoutineManager() {
   const [newColor, setNewColor] = useState(COLORS[0]);
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [pickerDay, setPickerDay] = useState<number | null>(null);
-
-  const mealNameMap = useMemo<Record<number, string>>(
-    () => Object.fromEntries(allMealOptions.map(opt => [opt.id, opt.name])),
-    [allMealOptions],
-  );
 
   const workoutLabelMap = useMemo<Record<number, string>>(
     () => Object.fromEntries(todayWorkoutOptions.map(opt => [opt.id, opt.label])),
@@ -619,45 +598,13 @@ export default function RoutineManager() {
     setLoading(true);
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
-      const todayKey = format(new Date(), 'EEEE').toLowerCase();
-      const utcToday = new Date().toISOString().slice(0, 10);
 
-      const [r, s, templates, weeklyPlan, workoutPlan] = await Promise.all([
+      const [r, s, workoutPlan] = await Promise.all([
         (api as any).getDailyRoutines(),
         (api as any).getWeeklyRoutineSchedule(),
-        api.getMealTemplates(),
-        api.getWeeklyMealPlan(),
         api.getWorkoutPlanByDate(today),
       ]);
       setRoutines(r);
-
-      const list = Array.isArray(templates) ? templates : [];
-      let plannedIds: number[] = [];
-      try {
-        const rawPlanJson = (weeklyPlan as any)?.planJson ?? (weeklyPlan as any)?.plan_json;
-        const planMap = rawPlanJson ? JSON.parse(rawPlanJson) : {};
-        const byLocalDate = normalizePlannedMealIdsForDay(planMap?.[today]);
-        const byUtcDate = byLocalDate.length > 0 ? byLocalDate : normalizePlannedMealIdsForDay(planMap?.[utcToday]);
-        plannedIds = byUtcDate.length > 0 ? byUtcDate : normalizePlannedMealIdsForDay(planMap?.[todayKey]);
-      } catch {
-        plannedIds = [];
-      }
-
-      const todayMeals = plannedIds
-        .map(id => list.find((m: any) => m.id === id))
-        .filter((m: any): m is any => Boolean(m))
-        .map((m: any) => ({ id: Number(m.id), name: String(m.name), timing: m.timing, isPlannedToday: true }));
-      const todayMealIdSet = new Set(todayMeals.map(m => m.id));
-
-      setTodayMealOptions(todayMeals);
-      setAllMealOptions(
-        list.map((m: any) => ({
-          id: Number(m.id),
-          name: String(m.name),
-          timing: m.timing,
-          isPlannedToday: todayMealIdSet.has(Number(m.id)),
-        })),
-      );
 
       if ((workoutPlan as any)?.id) {
         setTodayWorkoutOptions([
@@ -776,10 +723,7 @@ export default function RoutineManager() {
           <RoutineCard
             key={r.id}
             routine={r}
-            todayMealOptions={todayMealOptions}
-            allMealOptions={allMealOptions}
             todayWorkoutOptions={todayWorkoutOptions}
-            mealNameMap={mealNameMap}
             workoutLabelMap={workoutLabelMap}
             onRefresh={load}
           />

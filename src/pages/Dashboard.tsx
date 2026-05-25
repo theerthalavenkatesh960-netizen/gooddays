@@ -1340,7 +1340,7 @@ type TodayRoutineBlock = {
   color?: string;
   status: 'pending' | 'completed' | 'skipped' | 'missed';
   logId?: number;
-  linkedMealTemplateIds?: number[];
+  mealType?: string | null;
   linkedWorkoutPlanId?: number | null;
   linkedWorkoutLabel?: string | null;
 };
@@ -1360,20 +1360,14 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const [data, setData] = useState<TodayRoutine | null>(null);
   const [loading, setLoading] = useState(true);
   const [skipping, setSkipping] = useState(false);
-  const [mealNameMap, setMealNameMap] = useState<Record<number, string>>({});
 
   const now = currentMinutes();
 
   async function load() {
     setLoading(true);
     try {
-      const [res, templates] = await Promise.all([
-        (api as any).getTodayRoutine().catch(() => null),
-        api.getMealTemplates().catch(() => []),
-      ]);
+      const res = await (api as any).getTodayRoutine().catch(() => null);
       setData(res || null);
-      const list = Array.isArray(templates) ? templates : [];
-      setMealNameMap(Object.fromEntries(list.map((m: any) => [Number(m.id), String(m.name)])));
     } catch {
       setData(null);
     } finally {
@@ -1499,36 +1493,54 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
 
       {/* Time blocks — vertical timeline */}
       <div className="relative">
-        {/* Continuous vertical line */}
-        <div
-          className="absolute top-0 bottom-0 w-px"
-          style={{ left: 20, backgroundColor: 'var(--accent)', opacity: 0.2 }}
-        />
-
-        <div className="space-y-3">
+        <div className="space-y-2">
           {blocks.map((block, idx) => {
           const start = timeToMinutes(block.startTime);
           const end = timeToMinutes(block.endTime);
           const isActive = now >= start && now < end;
           const isDone = block.status === 'completed';
           const isBlockSkipped = block.status === 'skipped';
+          const isLast = idx === blocks.length - 1;
+          const reachedByCompletion = blocks.slice(0, idx + 1).every(b => b.status === 'completed');
+          const connectorColor = reachedByCompletion ? (routine.color || 'var(--accent)') : 'var(--border)';
+          const dotColor = isDone || isActive ? (routine.color || 'var(--accent)') : isBlockSkipped ? 'var(--border)' : 'var(--surface-elevated)';
 
           return (
-            <div key={block.id} className="flex items-start gap-3">
-              {/* Timeline dot */}
-              <div className="flex-shrink-0 flex flex-col items-center" style={{ width: 41 }}>
+            <div key={block.id} className="relative flex items-start gap-1.5">
+              {/* Timeline rail + dot + horizontal connector */}
+              <div className="relative flex-shrink-0" style={{ width: 26 }}>
+                {!isLast && (
+                  <div
+                    className="absolute"
+                    style={{
+                      left: 8,
+                      top: 22,
+                      bottom: -10,
+                      width: 2,
+                      borderRadius: 999,
+                      backgroundColor: isDone ? (routine.color || 'var(--accent)') : 'var(--border)',
+                      opacity: isDone ? 0.95 : 0.5,
+                    }}
+                  />
+                )}
                 <div
-                  className="w-2.5 h-2.5 rounded-full z-10 mt-3.5 flex-shrink-0"
+                  className="absolute w-2.5 h-2.5 rounded-full z-10"
                   style={{
-                    backgroundColor: isDone
-                      ? (routine.color || 'var(--accent)')
-                      : isBlockSkipped
-                        ? 'var(--border)'
-                        : isActive
-                          ? (routine.color || 'var(--accent)')
-                          : 'var(--surface-elevated)',
-                    border: `2px solid ${isDone || isActive ? (routine.color || 'var(--accent)') : 'var(--border)'}`,
+                    left: 5,
+                    top: 18,
+                    backgroundColor: dotColor,
+                    border: `2px solid ${isDone || isActive || reachedByCompletion ? (routine.color || 'var(--accent)') : 'var(--border)'}`,
                     boxShadow: isActive && !isDone ? `0 0 0 4px ${routine.color || 'var(--accent)'}28` : undefined,
+                  }}
+                />
+                <div
+                  className="absolute h-px"
+                  style={{
+                    left: 10,
+                    top: 22,
+                    width: 14,
+                    backgroundColor: connectorColor,
+                    opacity: reachedByCompletion || isActive ? 0.95 : 0.55,
                   }}
                 />
               </div>
@@ -1561,17 +1573,16 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                         <span className="ml-2 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>skipped</span>
                       )}
                     </p>
-                    {((block.linkedMealTemplateIds ?? []).length > 0 || block.linkedWorkoutPlanId) && (
+                    {(block.mealType || block.linkedWorkoutPlanId) && (
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {(block.linkedMealTemplateIds ?? []).map(mealId => (
+                        {block.mealType && (
                           <span
-                            key={`dash-meal-${block.id}-${mealId}`}
                             className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
                             style={{ backgroundColor: 'rgba(34,197,94,0.14)', color: 'var(--accent-green)', border: '1px solid rgba(34,197,94,0.28)' }}
                           >
-                            {mealNameMap[mealId] ?? `Meal #${mealId}`}
+                            🍽 {block.mealType}
                           </span>
-                        ))}
+                        )}
                         {block.linkedWorkoutPlanId ? (
                           <button
                             type="button"

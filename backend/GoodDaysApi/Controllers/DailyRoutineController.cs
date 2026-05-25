@@ -107,6 +107,7 @@ public class DailyRoutineController : ControllerBase
                         b.CreatedAt,
                         b.LinkedWorkoutPlanId,
                         LinkedWorkoutLabel = b.LinkedWorkoutPlan != null ? (b.LinkedWorkoutPlan.DayLabel ?? "Today Workout") : null,
+                        b.MealType,
                         LinkedMealTemplateIds = b.MealLinks.Select(l => l.MealTemplateId).ToList(),
                     }).ToList(),
             })
@@ -229,6 +230,7 @@ public class DailyRoutineController : ControllerBase
             Color = body.Color,
             SortOrder = body.SortOrder ?? 0,
             LinkedWorkoutPlanId = validatedWorkoutPlanId,
+            MealType = string.IsNullOrWhiteSpace(body.MealType) ? null : body.MealType.Trim(),
             CreatedAt = DateTime.UtcNow,
         };
 
@@ -250,6 +252,7 @@ public class DailyRoutineController : ControllerBase
             block.SortOrder,
             block.CreatedAt,
             block.LinkedWorkoutPlanId,
+            block.MealType,
             LinkedMealTemplateIds = validatedMealIds,
         });
     }
@@ -272,6 +275,7 @@ public class DailyRoutineController : ControllerBase
         block.Category = body.Category;
         block.Color = body.Color;
         block.LinkedWorkoutPlanId = validatedWorkoutPlanId;
+        block.MealType = string.IsNullOrWhiteSpace(body.MealType) ? null : body.MealType.Trim();
         if (body.SortOrder.HasValue) block.SortOrder = body.SortOrder.Value;
 
         await SyncBlockMealLinksAsync(block.Id, validatedMealIds);
@@ -289,6 +293,7 @@ public class DailyRoutineController : ControllerBase
             block.SortOrder,
             block.CreatedAt,
             block.LinkedWorkoutPlanId,
+            block.MealType,
             LinkedMealTemplateIds = validatedMealIds,
         });
     }
@@ -348,7 +353,7 @@ public class DailyRoutineController : ControllerBase
     }
 
     public record RoutineRequest(string Name, string? Description, string? Color);
-    public record RoutineBlockRequest(string Title, string StartTime, string EndTime, string? Category, string? Color, int? SortOrder, int? LinkedWorkoutPlanId, List<int>? LinkedMealTemplateIds);
+    public record RoutineBlockRequest(string Title, string StartTime, string EndTime, string? Category, string? Color, int? SortOrder, int? LinkedWorkoutPlanId, string? MealType, List<int>? LinkedMealTemplateIds);
     public record ScheduleEntry(int DayOfWeek, int? RoutineId);
 
     // ─── Today ────────────────────────────────────────────────────────────
@@ -418,6 +423,7 @@ public class DailyRoutineController : ControllerBase
                 LinkedWorkoutLabel = b.LinkedWorkoutPlanId.HasValue && workoutLabelMap.TryGetValue(b.LinkedWorkoutPlanId.Value, out var label)
                     ? (label ?? "Today Workout")
                     : null,
+                b.MealType,
                 LinkedMealTemplateIds = b.MealLinks.Select(m => m.MealTemplateId).ToList(),
                 status = log?.Status ?? "pending",
                 logId = log?.Id,
