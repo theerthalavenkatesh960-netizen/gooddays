@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, ChevronDown, Plus, ArrowLeft, Eye, Sparkles, Filter, Clock3 } from 'lucide-react';
+import { Search, X, ChevronDown, Plus, ArrowLeft, Eye, Sparkles, Filter, Clock3, Flame } from 'lucide-react';
 import * as api from '../lib/api';
 
 type MasterMealTemplate = {
@@ -456,73 +456,95 @@ export default function MealCatalogBrowse() {
                     ({groupMeals.length})
                   </span>
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-3">
                   {groupMeals.map(meal => (
                     <div
                       key={meal.id}
-                      className="rounded-3xl p-4 flex flex-col h-full transition-all hover:shadow-lg"
+                      className="rounded-2xl overflow-hidden transition-all hover:shadow-lg flex items-center"
                       style={{
                         background: 'linear-gradient(145deg, rgba(255,255,255,0.02), transparent), var(--surface)',
                         border: '1px solid var(--border)',
-                        boxShadow: '0 12px 30px rgba(0,0,0,0.08)',
+                        boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
                       }}
                     >
-                      {/* Card Header */}
-                      <div className="mb-3 flex-1">
-                        <h3 className="text-sm font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
-                          {meal.name}
-                        </h3>
-                        {meal.estimatedTotalCost > 0 && (
-                          <p className="text-xs mt-2 font-semibold" style={{ color: 'var(--accent-gold)' }}>
-                            ₹{meal.estimatedTotalCost.toFixed(0)}
+                      {/* Image Section - Left/Right */}
+                      <div className="w-32 h-32 flex-shrink-0 bg-gradient-to-br from-teal-500/10 to-green-600/10 flex items-center justify-center overflow-hidden relative">
+                        {meal.name && (
+                          <>
+                            <div className="absolute inset-0" style={{
+                              backgroundImage: `url('${meal.name}')`,
+                              backgroundPosition: 'center',
+                              backgroundSize: 'cover',
+                              opacity: 0.1,
+                            }} />
+                            <div className="text-center z-10 px-2">
+                              <Flame size={28} style={{ color: 'var(--accent-gold)', margin: '0 auto 4px' }} />
+                              <p className="text-[10px] font-bold" style={{ color: 'var(--accent-green)' }}>
+                                {meal.totalCaloriesKcal} kcal
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Content Section */}
+                      <div className="flex-1 p-4 flex flex-col">
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <div className="flex-1">
+                            <h3 className="text-sm font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                              {meal.name}
+                            </h3>
+                            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+                              {timingLabel(meal.timing)}
+                            </p>
+                          </div>
+                          {meal.estimatedTotalCost > 0 && (
+                            <div className="text-right">
+                              <p className="text-sm font-bold" style={{ color: 'var(--accent-gold)' }}>
+                                ₹{meal.estimatedTotalCost.toFixed(0)}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Macros Inline */}
+                        <div className="flex items-center gap-3 mb-2 text-xs">
+                          <span className="px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                            <span className="font-bold" style={{ color: 'var(--accent-green)' }}>{meal.totalProteinG.toFixed(1)}g</span> P
+                          </span>
+                          <span className="px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                            <span className="font-bold" style={{ color: 'var(--accent-warm)' }}>{meal.totalCarbsG.toFixed(1)}g</span> C
+                          </span>
+                          <span className="px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                            <span className="font-bold" style={{ color: 'var(--accent)' }}>{meal.totalFatsG.toFixed(1)}g</span> F
+                          </span>
+                        </div>
+
+                        {/* Notes */}
+                        {meal.plannerNotes && (
+                          <p className="text-xs mb-3 leading-relaxed flex-1" style={{ color: 'var(--text-muted)' }}>
+                            {meal.plannerNotes.length > 80 ? meal.plannerNotes.substring(0, 80) + '...' : meal.plannerNotes}
                           </p>
                         )}
                       </div>
 
-                      {/* Macros Grid */}
-                      <div className="grid grid-cols-4 gap-2 text-xs mb-4">
-                        <div className="px-2 py-2 rounded-lg text-center" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                          <p className="font-bold">{meal.totalCaloriesKcal}</p>
-                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>kcal</p>
-                        </div>
-                        <div className="px-2 py-2 rounded-lg text-center" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                          <p className="font-bold">{meal.totalProteinG.toFixed(1)}g</p>
-                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>P</p>
-                        </div>
-                        <div className="px-2 py-2 rounded-lg text-center" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                          <p className="font-bold">{meal.totalCarbsG.toFixed(1)}g</p>
-                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>C</p>
-                        </div>
-                        <div className="px-2 py-2 rounded-lg text-center" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                          <p className="font-bold">{meal.totalFatsG.toFixed(1)}g</p>
-                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>F</p>
-                        </div>
-                      </div>
-
-                      {/* Notes */}
-                      {meal.plannerNotes && (
-                        <p className="text-xs leading-relaxed mb-4 pb-4" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
-                          {meal.plannerNotes}
-                        </p>
-                      )}
-
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-2 pt-2">
+                      {/* Action Buttons - Right */}
+                      <div className="flex flex-col items-center gap-2 p-3 flex-shrink-0">
                         <button
                           onClick={() => setSelectedMeal(meal)}
-                          className="flex-1 px-3 py-2 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
+                          className="px-4 py-2 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-all hover:opacity-90 w-full"
                           style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
                         >
                           <Eye size={14} />
-                          Open
+                          <span className="hidden sm:inline">View</span>
                         </button>
                         <button
                           onClick={() => addToLibrary(meal)}
-                          className="flex-1 px-3 py-2 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
+                          className="px-4 py-2 rounded-xl text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 transition-all hover:opacity-90 w-full"
                           style={{ backgroundColor: 'var(--accent-green)' }}
                         >
                           <Plus size={14} />
-                          Add
+                          <span className="hidden sm:inline">Add</span>
                         </button>
                       </div>
                     </div>
