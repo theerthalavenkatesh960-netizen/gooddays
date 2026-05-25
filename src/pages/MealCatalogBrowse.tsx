@@ -629,7 +629,7 @@ export default function MealCatalogBrowse() {
                         <div className="w-36 sm:w-40 flex-shrink-0 p-2 self-start">
                           <div className="relative w-full">
                             <div
-                              className="w-full h-28 sm:h-32 rounded-xl overflow-hidden relative bg-center bg-cover"
+                              className="w-full h-28 sm:h-32 rounded-xl overflow-hidden relative bg-center bg-cover flex items-end justify-center pb-2"
                               style={{
                                 border: '1px solid var(--border)',
                                 backgroundImage: meal.imageUrl ? `url('${meal.imageUrl}')` : 'none',
@@ -650,21 +650,21 @@ export default function MealCatalogBrowse() {
                                   <UtensilsCrossed size={24} style={{ color: 'var(--accent)' }} />
                                 </div>
                               )}
-                            </div>
 
-                            <button
-                              onClick={e => {
-                                e.stopPropagation();
-                                addToLibrary(meal);
-                              }}
-                              className="absolute left-1/2 -translate-x-1/2 -bottom-3 px-4 py-1.5 rounded-lg text-[11px] font-bold text-white shadow-md z-20"
-                              style={{ backgroundColor: 'var(--accent-green)', border: '1px solid rgba(0,0,0,0.05)' }}
-                            >
-                              <span className="inline-flex items-center gap-1">
-                                <Plus size={12} />
-                                Add
-                              </span>
-                            </button>
+                              <button
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  addToLibrary(meal);
+                                }}
+                                className="relative px-2.5 py-1 rounded-lg text-[10px] font-bold text-white shadow-md z-10"
+                                style={{ backgroundColor: 'var(--accent-green)', border: '1px solid rgba(0,0,0,0.05)' }}
+                              >
+                                <span className="inline-flex items-center gap-1">
+                                  <Plus size={11} />
+                                  Add
+                                </span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -692,14 +692,38 @@ export default function MealCatalogBrowse() {
           >
             <button
               onClick={() => setSelectedMeal(null)}
-              className="absolute top-3 right-4 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold"
+              className="absolute top-3 right-4 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold z-10"
               style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
             >
               <X size={16} />
             </button>
 
+            {/* Image Section at Top */}
+            <div
+              className="w-full h-48 sm:h-56 bg-center bg-cover relative"
+              style={{
+                backgroundImage: selectedMeal.imageUrl ? `url('${selectedMeal.imageUrl}')` : 'none',
+                backgroundColor: 'var(--surface-elevated)',
+              }}
+            >
+              <div
+                className="absolute inset-0"
+                style={{ backgroundColor: 'var(--accent)', opacity: selectedMeal.imageUrl ? 0.08 : 0.12 }}
+              />
+
+              {!selectedMeal.imageUrl && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <UtensilsCrossed size={48} style={{ color: 'var(--accent)' }} />
+                </div>
+              )}
+
+              <div className="absolute top-3 left-3 px-2.5 py-1.5 rounded-lg text-xs font-semibold" style={{ backgroundColor: 'rgba(10,10,15,0.45)', color: 'var(--text-primary)' }}>
+                {selectedMeal.totalCaloriesKcal} kcal
+              </div>
+            </div>
+
             <div className="p-5 border-b" style={{ borderColor: 'var(--border)' }}>
-              <div className="flex items-start justify-between gap-4 pr-10">
+              <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>{timingLabel(selectedMeal.timing)}</p>
                   <h3 className="text-xl font-bold mt-1" style={{ color: 'var(--text-primary)' }}>{selectedMeal.name}</h3>
