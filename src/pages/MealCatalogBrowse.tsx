@@ -200,12 +200,52 @@ export default function MealCatalogBrowse() {
           'radial-gradient(circle at 20% 0%, rgba(34,197,94,0.08), transparent 36%), radial-gradient(circle at 90% 20%, rgba(245,158,11,0.08), transparent 28%), var(--bg)',
       }}
     >
+      <style>{`
+        input[type='range'] {
+          width: 100%;
+          height: 6px;
+          border-radius: 3px;
+          background: var(--surface-elevated);
+          outline: none;
+          -webkit-appearance: none;
+          appearance: none;
+        }
+        input[type='range']::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: var(--accent-green);
+          cursor: pointer;
+          box-shadow: 0 2px 6px rgba(78, 205, 196, 0.3);
+          transition: all 0.2s;
+        }
+        input[type='range']::-webkit-slider-thumb:hover {
+          transform: scale(1.15);
+          box-shadow: 0 4px 12px rgba(78, 205, 196, 0.5);
+        }
+        input[type='range']::-moz-range-thumb {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: var(--accent-green);
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 2px 6px rgba(78, 205, 196, 0.3);
+          transition: all 0.2s;
+        }
+        input[type='range']::-moz-range-thumb:hover {
+          transform: scale(1.15);
+          box-shadow: 0 4px 12px rgba(78, 205, 196, 0.5);
+        }
+      `}</style>
       <div className="mb-6 max-w-6xl mx-auto">
         <div className="rounded-3xl p-5 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <button
               onClick={goBack}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all hover:opacity-80"
               style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
             >
               <ArrowLeft size={16} />
@@ -227,7 +267,7 @@ export default function MealCatalogBrowse() {
         <div className="rounded-3xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <button
             onClick={() => setExpandedFilters(!expandedFilters)}
-            className="w-full flex items-center justify-between"
+            className="w-full flex items-center justify-between hover:opacity-80 transition-opacity"
           >
             <p className="text-sm font-semibold inline-flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
               <Filter size={15} />
@@ -241,7 +281,7 @@ export default function MealCatalogBrowse() {
               {/* Search */}
               <div>
                 <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Search</label>
-                <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl transition-all" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid transparent' }}>
                   <Search size={16} style={{ color: 'var(--text-muted)' }} />
                   <input
                     type="text"
@@ -252,7 +292,7 @@ export default function MealCatalogBrowse() {
                     style={{ color: 'var(--text-primary)' }}
                   />
                   {search && (
-                    <button onClick={() => setSearch('')} className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <button onClick={() => setSearch('')} className="text-xs hover:opacity-70 transition-opacity" style={{ color: 'var(--text-muted)' }}>
                       <X size={14} />
                     </button>
                   )}
@@ -270,7 +310,7 @@ export default function MealCatalogBrowse() {
                       className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                         timing === opt.value
                           ? 'text-white'
-                          : ''
+                          : 'hover:opacity-80'
                       }`}
                       style={{
                         backgroundColor: timing === opt.value ? 'var(--accent-green)' : 'var(--surface-elevated)',
@@ -285,80 +325,101 @@ export default function MealCatalogBrowse() {
 
               {/* Cost Range */}
               <div>
-                <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-                  Cost Range: ₹{costRange.min.toFixed(0)} - ₹{costRange.max.toFixed(0)}
-                </label>
-                <div className="mt-2 space-y-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="500"
-                    value={costRange.min}
-                    onChange={e => setCostRange({ ...costRange, min: Number(e.target.value) })}
-                    className="w-full"
-                  />
-                  <input
-                    type="range"
-                    min="0"
-                    max="500"
-                    value={costRange.max}
-                    onChange={e => setCostRange({ ...costRange, max: Number(e.target.value) })}
-                    className="w-full"
-                  />
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Cost Range</label>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--accent-gold)' }}>₹{costRange.min.toFixed(0)} - ₹{costRange.max.toFixed(0)}</span>
+                </div>
+                <div className="mt-3 px-2 py-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Min</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="500"
+                        value={costRange.min}
+                        onChange={e => setCostRange({ ...costRange, min: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Max</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="500"
+                        value={costRange.max}
+                        onChange={e => setCostRange({ ...costRange, max: Number(e.target.value) })}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Calorie Range */}
               <div>
-                <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-                  Calories: {calorieRange.min} - {calorieRange.max} kcal
-                </label>
-                <div className="mt-2 space-y-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="1000"
-                    step="50"
-                    value={calorieRange.min}
-                    onChange={e => setCalorieRange({ ...calorieRange, min: Number(e.target.value) })}
-                    className="w-full"
-                  />
-                  <input
-                    type="range"
-                    min="0"
-                    max="1000"
-                    step="50"
-                    value={calorieRange.max}
-                    onChange={e => setCalorieRange({ ...calorieRange, max: Number(e.target.value) })}
-                    className="w-full"
-                  />
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Calories</label>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--accent-gold)' }}>{calorieRange.min} - {calorieRange.max} kcal</span>
+                </div>
+                <div className="mt-3 px-2 py-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Min</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1000"
+                        step="50"
+                        value={calorieRange.min}
+                        onChange={e => setCalorieRange({ ...calorieRange, min: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Max</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1000"
+                        step="50"
+                        value={calorieRange.max}
+                        onChange={e => setCalorieRange({ ...calorieRange, max: Number(e.target.value) })}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Protein Range */}
               <div>
-                <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-                  Protein: {proteinRange.min.toFixed(1)} - {proteinRange.max.toFixed(1)}g
-                </label>
-                <div className="mt-2 space-y-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="50"
-                    step="0.5"
-                    value={proteinRange.min}
-                    onChange={e => setProteinRange({ ...proteinRange, min: Number(e.target.value) })}
-                    className="w-full"
-                  />
-                  <input
-                    type="range"
-                    min="0"
-                    max="50"
-                    step="0.5"
-                    value={proteinRange.max}
-                    onChange={e => setProteinRange({ ...proteinRange, max: Number(e.target.value) })}
-                    className="w-full"
-                  />
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Protein</label>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--accent-gold)' }}>{proteinRange.min.toFixed(1)} - {proteinRange.max.toFixed(1)}g</span>
+                </div>
+                <div className="mt-3 px-2 py-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Min</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="50"
+                        step="0.5"
+                        value={proteinRange.min}
+                        onChange={e => setProteinRange({ ...proteinRange, min: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Max</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="50"
+                        step="0.5"
+                        value={proteinRange.max}
+                        onChange={e => setProteinRange({ ...proteinRange, max: Number(e.target.value) })}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -388,77 +449,82 @@ export default function MealCatalogBrowse() {
           <div className="space-y-8">
             {Object.entries(grouped).map(([group, groupMeals]) => (
               <div key={group}>
-                <h2 className="text-sm font-bold mb-3 capitalize inline-flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                <h2 className="text-sm font-bold mb-4 capitalize inline-flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                   <Clock3 size={14} />
                   {timingLabel(group)}
                   <span className="ml-1 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
                     ({groupMeals.length})
                   </span>
                 </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {groupMeals.map(meal => (
                     <div
                       key={meal.id}
-                      className="rounded-3xl p-4"
+                      className="rounded-3xl p-4 flex flex-col h-full transition-all hover:shadow-lg"
                       style={{
                         background: 'linear-gradient(145deg, rgba(255,255,255,0.02), transparent), var(--surface)',
                         border: '1px solid var(--border)',
                         boxShadow: '0 12px 30px rgba(0,0,0,0.08)',
                       }}
                     >
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex-1">
-                          <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
-                          {meal.estimatedTotalCost > 0 && (
-                            <p className="text-xs mt-1 font-semibold" style={{ color: 'var(--accent-gold)' }}>₹{meal.estimatedTotalCost.toFixed(0)}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setSelectedMeal(meal)}
-                            className="px-3 py-1.5 rounded-xl text-xs font-semibold inline-flex items-center gap-1"
-                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-                          >
-                            <Eye size={14} />
-                            Open
-                          </button>
-                          <button
-                            onClick={() => addToLibrary(meal)}
-                            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-white flex items-center gap-1"
-                            style={{ backgroundColor: 'var(--accent-green)' }}
-                          >
-                            <Plus size={14} />
-                            Add
-                          </button>
-                        </div>
+                      {/* Card Header */}
+                      <div className="mb-3 flex-1">
+                        <h3 className="text-sm font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                          {meal.name}
+                        </h3>
+                        {meal.estimatedTotalCost > 0 && (
+                          <p className="text-xs mt-2 font-semibold" style={{ color: 'var(--accent-gold)' }}>
+                            ₹{meal.estimatedTotalCost.toFixed(0)}
+                          </p>
+                        )}
                       </div>
 
-                      {/* Macros */}
-                      <div className="grid grid-cols-2 gap-2 text-xs mb-2">
-                        <div className="px-3 py-2 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                          <p className="font-semibold">{meal.totalCaloriesKcal} kcal</p>
-                          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Energy</p>
+                      {/* Macros Grid */}
+                      <div className="grid grid-cols-4 gap-2 text-xs mb-4">
+                        <div className="px-2 py-2 rounded-lg text-center" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                          <p className="font-bold">{meal.totalCaloriesKcal}</p>
+                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>kcal</p>
                         </div>
-                        <div className="px-3 py-2 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                          <p className="font-semibold">{meal.totalProteinG.toFixed(1)}g</p>
-                          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Protein</p>
+                        <div className="px-2 py-2 rounded-lg text-center" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                          <p className="font-bold">{meal.totalProteinG.toFixed(1)}g</p>
+                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>P</p>
                         </div>
-                        <div className="px-3 py-2 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                          <p className="font-semibold">{meal.totalCarbsG.toFixed(1)}g</p>
-                          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Carbs</p>
+                        <div className="px-2 py-2 rounded-lg text-center" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                          <p className="font-bold">{meal.totalCarbsG.toFixed(1)}g</p>
+                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>C</p>
                         </div>
-                        <div className="px-3 py-2 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                          <p className="font-semibold">{meal.totalFatsG.toFixed(1)}g</p>
-                          <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Fat</p>
+                        <div className="px-2 py-2 rounded-lg text-center" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                          <p className="font-bold">{meal.totalFatsG.toFixed(1)}g</p>
+                          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>F</p>
                         </div>
                       </div>
 
                       {/* Notes */}
                       {meal.plannerNotes && (
-                        <p className="text-xs leading-relaxed mt-2 pt-2" style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}>
+                        <p className="text-xs leading-relaxed mb-4 pb-4" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
                           {meal.plannerNotes}
                         </p>
                       )}
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 pt-2">
+                        <button
+                          onClick={() => setSelectedMeal(meal)}
+                          className="flex-1 px-3 py-2 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
+                          style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                        >
+                          <Eye size={14} />
+                          Open
+                        </button>
+                        <button
+                          onClick={() => addToLibrary(meal)}
+                          className="flex-1 px-3 py-2 rounded-xl text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-all hover:opacity-90"
+                          style={{ backgroundColor: 'var(--accent-green)' }}
+                        >
+                          <Plus size={14} />
+                          Add
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
