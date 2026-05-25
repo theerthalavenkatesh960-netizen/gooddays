@@ -540,17 +540,17 @@ export default function MealCatalogBrowse() {
 
         {/* Grouped Meal Cards */}
         {!loading && meals.length > 0 && (
-          <div className="space-y-8">
+          <div className="space-y-6">
             {Object.entries(grouped).map(([group, groupMeals]) => (
               <div key={group}>
-                <h2 className="text-sm font-bold mb-4 capitalize inline-flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
+                <h2 className="text-sm font-bold mb-3 capitalize inline-flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
                   <Clock3 size={14} />
                   {timingLabel(group)}
                   <span className="ml-1 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
                     ({groupMeals.length})
                   </span>
                 </h2>
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {groupMeals.map(meal => (
                     <div
                       key={meal.id}
@@ -563,7 +563,7 @@ export default function MealCatalogBrowse() {
                           setSelectedMeal(meal);
                         }
                       }}
-                      className="rounded-2xl overflow-visible transition-all hover:shadow-lg cursor-pointer"
+                      className="rounded-2xl overflow-hidden transition-all hover:shadow-lg cursor-pointer"
                       style={{
                         background: 'linear-gradient(145deg, rgba(255,255,255,0.02), transparent), var(--surface)',
                         border: '1px solid var(--border)',
@@ -572,40 +572,47 @@ export default function MealCatalogBrowse() {
                     >
                       <div className="flex items-start">
                         {/* Content Section */}
-                        <div className="flex-1 p-4 pb-2">
-                          <div className="mb-1.5 flex items-center gap-1 overflow-x-auto whitespace-nowrap no-scrollbar">
-                          {extractTagsFromNotes(meal.plannerNotes).map(tag => (
-                            <span
-                              key={`${meal.id}-${tag}`}
-                              className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold inline-flex items-center gap-1 shrink-0"
-                              style={getTagTone(tag)}
-                            >
-                              <span
-                                className="inline-block h-1 w-1 rounded-full"
-                                style={{ backgroundColor: 'currentColor', opacity: 0.9 }}
-                              />
-                              {tag}
-                            </span>
-                          ))}
-                          </div>
-
-                          <div className="flex items-start justify-between gap-2 mb-1">
+                        <div className="flex-1 p-3 pb-1.5">
+                          <div className="flex items-start justify-between gap-2 mb-0.5">
                             <h3 className="text-sm font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
-                            {meal.name}
+                              {meal.name}
                             </h3>
                           </div>
 
+                          <div className="mb-1.5 flex items-center gap-1 overflow-x-auto whitespace-nowrap no-scrollbar">
+                            <span
+                              className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold inline-flex items-center gap-1 shrink-0"
+                              style={{ backgroundColor: 'rgba(108,99,255,0.16)', color: 'var(--accent)', border: '1px solid rgba(108,99,255,0.3)' }}
+                            >
+                              <span className="inline-block h-1 w-1 rounded-full" style={{ backgroundColor: 'currentColor', opacity: 0.9 }} />
+                              {timingLabel(meal.timing)}
+                            </span>
+                            {extractTagsFromNotes(meal.plannerNotes).map(tag => (
+                              <span
+                                key={`${meal.id}-${tag}`}
+                                className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold inline-flex items-center gap-1 shrink-0"
+                                style={getTagTone(tag)}
+                              >
+                                <span
+                                  className="inline-block h-1 w-1 rounded-full"
+                                  style={{ backgroundColor: 'currentColor', opacity: 0.9 }}
+                                />
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+
                           {meal.estimatedTotalCost > 0 ? (
-                            <p className="text-sm font-bold mb-2" style={{ color: 'var(--accent-gold)' }}>
+                            <p className="text-sm font-bold mb-1" style={{ color: 'var(--accent-gold)' }}>
                               ₹{meal.estimatedTotalCost.toFixed(0)}
                             </p>
                           ) : (
-                            <p className="text-sm font-bold mb-2" style={{ color: 'var(--accent-gold)' }}>
+                            <p className="text-sm font-bold mb-1" style={{ color: 'var(--accent-gold)' }}>
                               ₹0
                             </p>
                           )}
 
-                          <div className="flex items-center gap-2 mb-1 text-[11px]">
+                          <div className="flex items-center gap-2 text-[11px]">
                             <span className="px-2 py-1 rounded-md" style={{ backgroundColor: 'rgba(78,205,196,0.12)', color: 'var(--accent-green)' }}>
                               P {meal.totalProteinG.toFixed(1)}g
                             </span>
@@ -617,27 +624,30 @@ export default function MealCatalogBrowse() {
                             </span>
                           </div>
                         </div>
-                      
 
                         {/* Image Section - Right */}
-                        <div className="w-36 sm:w-40 flex-shrink-0 p-3 pt-3 self-start">
-                          <div className="relative w-full overflow-visible">
+                        <div className="w-36 sm:w-40 flex-shrink-0 p-2 self-start">
+                          <div className="relative w-full">
                             <div
                               className="w-full h-28 sm:h-32 rounded-xl overflow-hidden relative bg-center bg-cover"
                               style={{
                                 border: '1px solid var(--border)',
-                                backgroundImage: meal.imageUrl
-                                  ? `linear-gradient(145deg, rgba(10,10,15,0.22), rgba(10,10,15,0.18)), url('${meal.imageUrl}')`
-                                  : 'linear-gradient(145deg, rgba(78,205,196,0.35), rgba(108,99,255,0.25), rgba(0,0,0,0.35))',
+                                backgroundImage: meal.imageUrl ? `url('${meal.imageUrl}')` : 'none',
+                                backgroundColor: 'var(--surface-elevated)',
                               }}
                             >
-                              <div className="absolute top-2 left-2 px-2 py-1 rounded-md text-[10px] font-semibold" style={{ backgroundColor: 'rgba(10,10,15,0.55)', color: 'var(--text-primary)' }}>
+                              <div
+                                className="absolute inset-0"
+                                style={{ backgroundColor: 'var(--accent)', opacity: meal.imageUrl ? 0.08 : 0.12 }}
+                              />
+
+                              <div className="absolute top-2 left-2 px-2 py-1 rounded-md text-[10px] font-semibold" style={{ backgroundColor: 'rgba(10,10,15,0.45)', color: 'var(--text-primary)' }}>
                                 {meal.totalCaloriesKcal} kcal
                               </div>
 
                               {!meal.imageUrl && (
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <UtensilsCrossed size={24} style={{ color: 'var(--accent-gold)' }} />
+                                  <UtensilsCrossed size={24} style={{ color: 'var(--accent)' }} />
                                 </div>
                               )}
                             </div>
@@ -659,12 +669,9 @@ export default function MealCatalogBrowse() {
                         </div>
                       </div>
 
-                      <div className="px-4 pb-4 pt-1">
+                      <div className="px-3 pb-3 pt-0.5">
                         <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                           {shortDescription(meal.plannerNotes)}
-                        </p>
-                        <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
-                          {timingLabel(meal.timing)}
                         </p>
                       </div>
                     </div>
