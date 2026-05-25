@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, ChevronDown, Plus, ArrowLeft, Eye, Sparkles, Filter, Clock3, Flame } from 'lucide-react';
+import { Search, X, ChevronDown, Plus, ArrowLeft, Sparkles, Filter, Clock3, Flame } from 'lucide-react';
 import * as api from '../lib/api';
 
 type MasterMealTemplate = {
@@ -8,6 +8,7 @@ type MasterMealTemplate = {
   name: string;
   timing: string;
   timeOfDay?: string;
+  imageUrl?: string | null;
   ingredientsJson?: string | null;
   recipe?: string | null;
   totalCaloriesKcal: number;
@@ -101,6 +102,93 @@ function timingLabel(value: string) {
     .split('-')
     .map(s => s.charAt(0).toUpperCase() + s.slice(1))
     .join(' ');
+}
+
+function extractTagsFromNotes(notes?: string | null): string[] {
+  if (!notes) return [];
+
+  const text = notes.toLowerCase();
+  const tags: string[] = [];
+  const tagRules: Array<{ match: RegExp; label: string }> = [
+    { match: /\bveg\b|\bvegetarian\b/, label: 'Veg' },
+    { match: /\bvegan\b/, label: 'Vegan' },
+    { match: /\bhigh\s*protein\b|\bprotein\s*rich\b/, label: 'High Protein' },
+    { match: /\blow\s*carb\b|\bketo\b/, label: 'Low Carb' },
+    { match: /\bfiber\b|\bgut\b/, label: 'Gut Friendly' },
+    { match: /\bquick\b|\bfast\b|\bunder\s*\d+\s*min/, label: 'Quick' },
+    { match: /\bpost\s*workout\b|\bpre\s*workout\b/, label: 'Workout' },
+    { match: /\bbudget\b|\baffordable\b|\blow\s*cost\b/, label: 'Budget' },
+    { match: /\bspicy\b|\bmasala\b/, label: 'Spicy' },
+  ];
+
+  tagRules.forEach(rule => {
+    if (rule.match.test(text)) tags.push(rule.label);
+  });
+
+  if (tags.length > 0) return tags.slice(0, 3);
+
+  const normalized = notes
+    .replace(/goal:\s*/gi, '')
+    .replace(/notes:\s*/gi, '')
+    .split(/[.;,|]/)
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  return normalized.slice(0, 2).map(s => (s.length > 18 ? `${s.slice(0, 18)}...` : s));
+}
+
+function shortDescription(notes?: string | null): string {
+  if (!notes) return 'Balanced meal crafted for your daily nutrition target.';
+
+  const cleaned = notes
+    .replace(/goal:\s*/gi, '')
+    .replace(/notes:\s*/gi, '')
+    .trim();
+
+  if (cleaned.length <= 90) return cleaned;
+  return `${cleaned.slice(0, 90).trim()}...`;
+}
+
+function getTagTone(tag: string) {
+  const key = tag.toLowerCase();
+
+  if (key.includes('veg') || key.includes('vegan')) {
+    return {
+      backgroundColor: 'rgba(78,205,196,0.12)',
+      color: 'var(--accent-green)',
+      border: '1px solid rgba(78,205,196,0.28)',
+    };
+  }
+
+  if (key.includes('protein') || key.includes('workout')) {
+    return {
+      backgroundColor: 'rgba(108,99,255,0.14)',
+      color: 'var(--accent)',
+      border: '1px solid rgba(108,99,255,0.3)',
+    };
+  }
+
+  if (key.includes('spicy')) {
+    return {
+      backgroundColor: 'rgba(255,107,107,0.12)',
+      color: 'var(--accent-warm)',
+      border: '1px solid rgba(255,107,107,0.3)',
+    };
+  }
+
+  if (key.includes('budget') || key.includes('quick')) {
+    return {
+      backgroundColor: 'rgba(255,217,61,0.14)',
+      color: 'var(--accent-gold)',
+      border: '1px solid rgba(255,217,61,0.3)',
+    };
+  }
+
+  return {
+    backgroundColor: 'var(--surface-elevated)',
+    color: 'var(--text-secondary)',
+    border: '1px solid var(--border)',
+  };
 }
 
 export default function MealCatalogBrowse() {
@@ -460,92 +548,111 @@ export default function MealCatalogBrowse() {
                   {groupMeals.map(meal => (
                     <div
                       key={meal.id}
-                      className="rounded-2xl overflow-hidden transition-all hover:shadow-lg flex items-center"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedMeal(meal)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedMeal(meal);
+                        }
+                      }}
+                      className="rounded-2xl overflow-hidden transition-all hover:shadow-lg flex items-stretch cursor-pointer"
                       style={{
                         background: 'linear-gradient(145deg, rgba(255,255,255,0.02), transparent), var(--surface)',
                         border: '1px solid var(--border)',
                         boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
                       }}
                     >
-                      {/* Image Section - Left/Right */}
-                      <div className="w-32 h-32 flex-shrink-0 bg-gradient-to-br from-teal-500/10 to-green-600/10 flex items-center justify-center overflow-hidden relative">
-                        {meal.name && (
-                          <>
-                            <div className="absolute inset-0" style={{
-                              backgroundImage: `url('${meal.name}')`,
-                              backgroundPosition: 'center',
-                              backgroundSize: 'cover',
-                              opacity: 0.1,
-                            }} />
-                            <div className="text-center z-10 px-2">
-                              <Flame size={28} style={{ color: 'var(--accent-gold)', margin: '0 auto 4px' }} />
-                              <p className="text-[10px] font-bold" style={{ color: 'var(--accent-green)' }}>
-                                {meal.totalCaloriesKcal} kcal
-                              </p>
-                            </div>
-                          </>
-                        )}
-                      </div>
-
                       {/* Content Section */}
-                      <div className="flex-1 p-4 flex flex-col">
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <div className="flex-1">
-                            <h3 className="text-sm font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
-                              {meal.name}
-                            </h3>
-                            <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-                              {timingLabel(meal.timing)}
-                            </p>
-                          </div>
-                          {meal.estimatedTotalCost > 0 && (
-                            <div className="text-right">
-                              <p className="text-sm font-bold" style={{ color: 'var(--accent-gold)' }}>
-                                ₹{meal.estimatedTotalCost.toFixed(0)}
-                              </p>
-                            </div>
-                          )}
+                      <div className="flex-1 p-4 flex flex-col justify-center">
+                        <div className="mb-2 flex flex-wrap gap-1.5">
+                          {extractTagsFromNotes(meal.plannerNotes).map(tag => (
+                            <span
+                              key={`${meal.id}-${tag}`}
+                              className="px-2 py-0.5 rounded-full text-[10px] font-semibold inline-flex items-center gap-1"
+                              style={getTagTone(tag)}
+                            >
+                              <span
+                                className="inline-block h-1.5 w-1.5 rounded-full"
+                                style={{ backgroundColor: 'currentColor', opacity: 0.9 }}
+                              />
+                              {tag}
+                            </span>
+                          ))}
                         </div>
 
-                        {/* Macros Inline */}
-                        <div className="flex items-center gap-3 mb-2 text-xs">
-                          <span className="px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                            <span className="font-bold" style={{ color: 'var(--accent-green)' }}>{meal.totalProteinG.toFixed(1)}g</span> P
-                          </span>
-                          <span className="px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                            <span className="font-bold" style={{ color: 'var(--accent-warm)' }}>{meal.totalCarbsG.toFixed(1)}g</span> C
-                          </span>
-                          <span className="px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                            <span className="font-bold" style={{ color: 'var(--accent)' }}>{meal.totalFatsG.toFixed(1)}g</span> F
-                          </span>
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <h3 className="text-sm font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                            {meal.name}
+                          </h3>
                         </div>
 
-                        {/* Notes */}
-                        {meal.plannerNotes && (
-                          <p className="text-xs mb-3 leading-relaxed flex-1" style={{ color: 'var(--text-muted)' }}>
-                            {meal.plannerNotes.length > 80 ? meal.plannerNotes.substring(0, 80) + '...' : meal.plannerNotes}
+                        {meal.estimatedTotalCost > 0 ? (
+                          <p className="text-sm font-bold mb-2" style={{ color: 'var(--accent-gold)' }}>
+                            ₹{meal.estimatedTotalCost.toFixed(0)}
+                          </p>
+                        ) : (
+                          <p className="text-sm font-bold mb-2" style={{ color: 'var(--accent-gold)' }}>
+                            ₹0
                           </p>
                         )}
+
+                        <div className="flex items-center gap-2 mb-2 text-[11px]">
+                          <span className="px-2 py-1 rounded-md" style={{ backgroundColor: 'rgba(78,205,196,0.12)', color: 'var(--accent-green)' }}>
+                            P {meal.totalProteinG.toFixed(1)}g
+                          </span>
+                          <span className="px-2 py-1 rounded-md" style={{ backgroundColor: 'rgba(255,107,107,0.12)', color: 'var(--accent-warm)' }}>
+                            C {meal.totalCarbsG.toFixed(1)}g
+                          </span>
+                          <span className="px-2 py-1 rounded-md" style={{ backgroundColor: 'rgba(108,99,255,0.14)', color: 'var(--accent)' }}>
+                            F {meal.totalFatsG.toFixed(1)}g
+                          </span>
+                        </div>
+
+                        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                          {shortDescription(meal.plannerNotes)}
+                        </p>
+                        <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
+                          {timingLabel(meal.timing)}
+                        </p>
                       </div>
 
-                      {/* Action Buttons - Right */}
-                      <div className="flex flex-col items-center gap-2 p-3 flex-shrink-0">
-                        <button
-                          onClick={() => setSelectedMeal(meal)}
-                          className="px-4 py-2 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-all hover:opacity-90 w-full"
-                          style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      {/* Image Section - Right */}
+                      <div className="w-36 sm:w-40 flex-shrink-0 p-3 flex items-center">
+                        <div
+                          className="w-full h-28 sm:h-32 rounded-xl overflow-hidden relative bg-center bg-cover"
+                          style={{
+                            border: '1px solid var(--border)',
+                            backgroundImage: meal.imageUrl
+                              ? `linear-gradient(145deg, rgba(10,10,15,0.22), rgba(10,10,15,0.18)), url('${meal.imageUrl}')`
+                              : 'linear-gradient(145deg, rgba(78,205,196,0.35), rgba(108,99,255,0.25), rgba(0,0,0,0.35))',
+                          }}
                         >
-                          <Eye size={14} />
-                          <span className="hidden sm:inline">View</span>
-                        </button>
-                        <button
-                          onClick={() => addToLibrary(meal)}
-                          className="px-4 py-2 rounded-xl text-xs font-semibold text-white inline-flex items-center justify-center gap-1.5 transition-all hover:opacity-90 w-full"
-                          style={{ backgroundColor: 'var(--accent-green)' }}
-                        >
-                          <Plus size={14} />
-                          <span className="hidden sm:inline">Add</span>
-                        </button>
+                          <div className="absolute top-2 left-2 px-2 py-1 rounded-md text-[10px] font-semibold" style={{ backgroundColor: 'rgba(10,10,15,0.55)', color: 'var(--text-primary)' }}>
+                            {meal.totalCaloriesKcal} kcal
+                          </div>
+
+                          {!meal.imageUrl && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Flame size={26} style={{ color: 'var(--accent-gold)' }} />
+                            </div>
+                          )}
+
+                          <button
+                            onClick={e => {
+                              e.stopPropagation();
+                              addToLibrary(meal);
+                            }}
+                            className="absolute left-1/2 -translate-x-1/2 -bottom-3 px-4 py-1.5 rounded-lg text-[11px] font-bold text-white shadow-md"
+                            style={{ backgroundColor: 'var(--accent-green)', border: '1px solid rgba(0,0,0,0.05)' }}
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              <Plus size={12} />
+                              Add
+                            </span>
+                          </button>
+                          </div>
                       </div>
                     </div>
                   ))}
@@ -557,21 +664,26 @@ export default function MealCatalogBrowse() {
       </div>
 
       {selectedMeal && (
-        <div className="fixed inset-0 z-50 p-4 flex items-end sm:items-center justify-center" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setSelectedMeal(null)}>
+        <div className="fixed inset-0 z-50" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onClick={() => setSelectedMeal(null)}>
           <div
-            className="w-full max-w-2xl rounded-3xl max-h-[88vh] overflow-auto"
+            className="absolute inset-x-0 bottom-0 mx-auto w-full max-w-3xl rounded-t-3xl max-h-[80vh] overflow-auto pb-6"
             style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
             onClick={e => e.stopPropagation()}
           >
+            <button
+              onClick={() => setSelectedMeal(null)}
+              className="absolute top-3 right-4 h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold"
+              style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+            >
+              <X size={16} />
+            </button>
+
             <div className="p-5 border-b" style={{ borderColor: 'var(--border)' }}>
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start justify-between gap-4 pr-10">
                 <div>
                   <p className="text-xs font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>{timingLabel(selectedMeal.timing)}</p>
                   <h3 className="text-xl font-bold mt-1" style={{ color: 'var(--text-primary)' }}>{selectedMeal.name}</h3>
                 </div>
-                <button onClick={() => setSelectedMeal(null)} className="px-3 py-1.5 rounded-xl text-xs font-semibold" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
-                  Close
-                </button>
               </div>
             </div>
 
