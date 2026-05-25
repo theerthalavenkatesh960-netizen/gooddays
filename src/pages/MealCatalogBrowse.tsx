@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, ChevronDown, Plus, ArrowLeft, Sparkles, Filter, Clock3, Flame } from 'lucide-react';
+import { Search, X, ChevronDown, Plus, ArrowLeft, Sparkles, Filter, Clock3, UtensilsCrossed } from 'lucide-react';
 import * as api from '../lib/api';
 
 type MasterMealTemplate = {
@@ -284,11 +284,17 @@ export default function MealCatalogBrowse() {
       className="pt-4 pb-nav px-4"
       style={{
         minHeight: '100vh',
-        background:
-          'radial-gradient(circle at 20% 0%, rgba(34,197,94,0.08), transparent 36%), radial-gradient(circle at 90% 20%, rgba(245,158,11,0.08), transparent 28%), var(--bg)',
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.015) 0%, rgba(255,255,255,0) 22%), var(--bg)',
       }}
     >
       <style>{`
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
         input[type='range'] {
           width: 100%;
           height: 6px;
@@ -557,102 +563,109 @@ export default function MealCatalogBrowse() {
                           setSelectedMeal(meal);
                         }
                       }}
-                      className="rounded-2xl overflow-hidden transition-all hover:shadow-lg flex items-stretch cursor-pointer"
+                      className="rounded-2xl overflow-visible transition-all hover:shadow-lg cursor-pointer"
                       style={{
                         background: 'linear-gradient(145deg, rgba(255,255,255,0.02), transparent), var(--surface)',
                         border: '1px solid var(--border)',
                         boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
                       }}
                     >
-                      {/* Content Section */}
-                      <div className="flex-1 p-4 flex flex-col justify-center">
-                        <div className="mb-2 flex flex-wrap gap-1.5">
+                      <div className="flex items-start">
+                        {/* Content Section */}
+                        <div className="flex-1 p-4 pb-2">
+                          <div className="mb-1.5 flex items-center gap-1 overflow-x-auto whitespace-nowrap no-scrollbar">
                           {extractTagsFromNotes(meal.plannerNotes).map(tag => (
                             <span
                               key={`${meal.id}-${tag}`}
-                              className="px-2 py-0.5 rounded-full text-[10px] font-semibold inline-flex items-center gap-1"
+                              className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold inline-flex items-center gap-1 shrink-0"
                               style={getTagTone(tag)}
                             >
                               <span
-                                className="inline-block h-1.5 w-1.5 rounded-full"
+                                className="inline-block h-1 w-1 rounded-full"
                                 style={{ backgroundColor: 'currentColor', opacity: 0.9 }}
                               />
                               {tag}
                             </span>
                           ))}
-                        </div>
+                          </div>
 
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <h3 className="text-sm font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <h3 className="text-sm font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
                             {meal.name}
-                          </h3>
+                            </h3>
+                          </div>
+
+                          {meal.estimatedTotalCost > 0 ? (
+                            <p className="text-sm font-bold mb-2" style={{ color: 'var(--accent-gold)' }}>
+                              ₹{meal.estimatedTotalCost.toFixed(0)}
+                            </p>
+                          ) : (
+                            <p className="text-sm font-bold mb-2" style={{ color: 'var(--accent-gold)' }}>
+                              ₹0
+                            </p>
+                          )}
+
+                          <div className="flex items-center gap-2 mb-1 text-[11px]">
+                            <span className="px-2 py-1 rounded-md" style={{ backgroundColor: 'rgba(78,205,196,0.12)', color: 'var(--accent-green)' }}>
+                              P {meal.totalProteinG.toFixed(1)}g
+                            </span>
+                            <span className="px-2 py-1 rounded-md" style={{ backgroundColor: 'rgba(255,107,107,0.12)', color: 'var(--accent-warm)' }}>
+                              C {meal.totalCarbsG.toFixed(1)}g
+                            </span>
+                            <span className="px-2 py-1 rounded-md" style={{ backgroundColor: 'rgba(108,99,255,0.14)', color: 'var(--accent)' }}>
+                              F {meal.totalFatsG.toFixed(1)}g
+                            </span>
+                          </div>
                         </div>
+                      
 
-                        {meal.estimatedTotalCost > 0 ? (
-                          <p className="text-sm font-bold mb-2" style={{ color: 'var(--accent-gold)' }}>
-                            ₹{meal.estimatedTotalCost.toFixed(0)}
-                          </p>
-                        ) : (
-                          <p className="text-sm font-bold mb-2" style={{ color: 'var(--accent-gold)' }}>
-                            ₹0
-                          </p>
-                        )}
+                        {/* Image Section - Right */}
+                        <div className="w-36 sm:w-40 flex-shrink-0 p-3 pt-3 self-start">
+                          <div className="relative w-full overflow-visible">
+                            <div
+                              className="w-full h-28 sm:h-32 rounded-xl overflow-hidden relative bg-center bg-cover"
+                              style={{
+                                border: '1px solid var(--border)',
+                                backgroundImage: meal.imageUrl
+                                  ? `linear-gradient(145deg, rgba(10,10,15,0.22), rgba(10,10,15,0.18)), url('${meal.imageUrl}')`
+                                  : 'linear-gradient(145deg, rgba(78,205,196,0.35), rgba(108,99,255,0.25), rgba(0,0,0,0.35))',
+                              }}
+                            >
+                              <div className="absolute top-2 left-2 px-2 py-1 rounded-md text-[10px] font-semibold" style={{ backgroundColor: 'rgba(10,10,15,0.55)', color: 'var(--text-primary)' }}>
+                                {meal.totalCaloriesKcal} kcal
+                              </div>
 
-                        <div className="flex items-center gap-2 mb-2 text-[11px]">
-                          <span className="px-2 py-1 rounded-md" style={{ backgroundColor: 'rgba(78,205,196,0.12)', color: 'var(--accent-green)' }}>
-                            P {meal.totalProteinG.toFixed(1)}g
-                          </span>
-                          <span className="px-2 py-1 rounded-md" style={{ backgroundColor: 'rgba(255,107,107,0.12)', color: 'var(--accent-warm)' }}>
-                            C {meal.totalCarbsG.toFixed(1)}g
-                          </span>
-                          <span className="px-2 py-1 rounded-md" style={{ backgroundColor: 'rgba(108,99,255,0.14)', color: 'var(--accent)' }}>
-                            F {meal.totalFatsG.toFixed(1)}g
-                          </span>
+                              {!meal.imageUrl && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <UtensilsCrossed size={24} style={{ color: 'var(--accent-gold)' }} />
+                                </div>
+                              )}
+                            </div>
+
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                addToLibrary(meal);
+                              }}
+                              className="absolute left-1/2 -translate-x-1/2 -bottom-3 px-4 py-1.5 rounded-lg text-[11px] font-bold text-white shadow-md z-20"
+                              style={{ backgroundColor: 'var(--accent-green)', border: '1px solid rgba(0,0,0,0.05)' }}
+                            >
+                              <span className="inline-flex items-center gap-1">
+                                <Plus size={12} />
+                                Add
+                              </span>
+                            </button>
+                          </div>
                         </div>
+                      </div>
 
+                      <div className="px-4 pb-4 pt-1">
                         <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                           {shortDescription(meal.plannerNotes)}
                         </p>
                         <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
                           {timingLabel(meal.timing)}
                         </p>
-                      </div>
-
-                      {/* Image Section - Right */}
-                      <div className="w-36 sm:w-40 flex-shrink-0 p-3 flex items-center">
-                        <div
-                          className="w-full h-28 sm:h-32 rounded-xl overflow-hidden relative bg-center bg-cover"
-                          style={{
-                            border: '1px solid var(--border)',
-                            backgroundImage: meal.imageUrl
-                              ? `linear-gradient(145deg, rgba(10,10,15,0.22), rgba(10,10,15,0.18)), url('${meal.imageUrl}')`
-                              : 'linear-gradient(145deg, rgba(78,205,196,0.35), rgba(108,99,255,0.25), rgba(0,0,0,0.35))',
-                          }}
-                        >
-                          <div className="absolute top-2 left-2 px-2 py-1 rounded-md text-[10px] font-semibold" style={{ backgroundColor: 'rgba(10,10,15,0.55)', color: 'var(--text-primary)' }}>
-                            {meal.totalCaloriesKcal} kcal
-                          </div>
-
-                          {!meal.imageUrl && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <Flame size={26} style={{ color: 'var(--accent-gold)' }} />
-                            </div>
-                          )}
-
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              addToLibrary(meal);
-                            }}
-                            className="absolute left-1/2 -translate-x-1/2 -bottom-3 px-4 py-1.5 rounded-lg text-[11px] font-bold text-white shadow-md"
-                            style={{ backgroundColor: 'var(--accent-green)', border: '1px solid rgba(0,0,0,0.05)' }}
-                          >
-                            <span className="inline-flex items-center gap-1">
-                              <Plus size={12} />
-                              Add
-                            </span>
-                          </button>
-                          </div>
                       </div>
                     </div>
                   ))}
