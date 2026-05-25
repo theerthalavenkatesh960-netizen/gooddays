@@ -98,31 +98,68 @@ public class OnboardingService : IOnboardingService
 
     private async Task GenerateMealPlanAsync(int userId, UserOnboarding onboarding, UserHealthProfile? profile, OnboardingGenerationPayload payload)
     {
-        var templates = await _db.MealTemplates
+        var userTemplates = await _db.MealTemplates
             .Where(t => t.UserId == userId)
+            .Include(t => t.MasterMealTemplate)
             .ToListAsync();
 
-        if (templates.Count == 0)
+        // Pull master catalog to supplement user templates (e.g. new user with empty library).
+        var masterTemplates = await _db.MasterMealTemplates.ToListAsync();
+
+        // If user has no templates at all and master catalog is empty, bail out.
+        if (userTemplates.Count == 0 && masterTemplates.Count == 0)
         {
             _logger.LogWarning("No meal templates available for user {UserId}", userId);
             return;
         }
 
+        // Ensure every master template that will be used in the plan exists as a user
+        // meal_template (linked via master_meal_template_id). Clone missing ones lazily.
+        var existingMasterLinks = userTemplates
+            .Where(t => t.MasterMealTemplateId.HasValue)
+            .ToDictionary(t => t.MasterMealTemplateId!.Value, t => t);
+
+        foreach (var master in masterTemplates)
+        {
+            if (!existingMasterLinks.ContainsKey(master.Id))
+            {
+                var cloned = new MealTemplate
+                {
+                    UserId = userId,
+                    Name = master.Name,
+                    Timing = master.Timing,
+                    TimeOfDay = master.TimeOfDay,
+                    IngredientsJson = master.IngredientsJson,
+                    Recipe = master.Recipe,
+                    ImageUrl = master.ImageUrl,
+                    MasterMealTemplateId = master.Id,
+                    CreatedAt = DateTime.UtcNow,
+                };
+                _db.MealTemplates.Add(cloned);
+                userTemplates.Add(cloned); // will get Id after SaveChanges
+            }
+        }
+
+        if (_db.ChangeTracker.HasChanges())
+            await _db.SaveChangesAsync(); // assign IDs to cloned templates
+
+        // Calculate meal slots based on goal, adherence, and activity level.
+        var mealTimings = CalculateMealTimings(profile, payload.AdherenceScore);
+
         var mealPlan = new Dictionary<string, List<object>>();
 
         if (string.Equals(onboarding.GenerationMode, "ai", StringComparison.OrdinalIgnoreCase))
         {
-            mealPlan = await TryBuildAiMealPlanAsync(userId, profile, payload, templates);
+            mealPlan = await TryBuildAiMealPlanAsync(userId, profile, payload, userTemplates, mealTimings);
             if (mealPlan.Count == 0)
             {
                 _logger.LogWarning("AI meal plan generation returned empty result for user {UserId}; falling back to normal generation", userId);
-                mealPlan = BuildNormalMealPlan(templates, onboarding.PreferredIngredientIds, onboarding.ExcludedIngredientIds, payload.MaxMealsPerDay);
+                mealPlan = BuildNormalMealPlan(userTemplates, masterTemplates, onboarding.PreferredIngredientIds, onboarding.ExcludedIngredientIds, mealTimings, (double?)profile?.BudgetPerWeek);
             }
         }
         else
         {
-            // Normal generation: rank templates by preferred/excluded ingredients.
-            mealPlan = BuildNormalMealPlan(templates, onboarding.PreferredIngredientIds, onboarding.ExcludedIngredientIds, payload.MaxMealsPerDay);
+            mealPlan = BuildNormalMealPlan(userTemplates, masterTemplates, onboarding.PreferredIngredientIds, onboarding.ExcludedIngredientIds, mealTimings, (double?)profile?.BudgetPerWeek);
         }
 
         // Persist the meal plan for next 7 days.
@@ -130,6 +167,88 @@ public class OnboardingService : IOnboardingService
         {
             await PersistMealPlanAsync(userId, mealPlan);
         }
+    }
+
+    /// <summary>
+    /// Calculate required meal timings based on user's goal, adherence level, and activity level.
+    /// 
+    /// Rules:
+    /// - Adherence 1-3 (Beginner): 3 core meals only (breakfast, lunch, dinner)
+    /// - Adherence 4-5 (Building) + (Bulk OR Maintain): 3 core + snack
+    /// - Adherence 6-7 (Moderate) + Bulk: 3 core + snack + pre-workout
+    /// - Adherence 8-10 (Advanced) + Bulk + Very Active: 3 core + snack + pre-workout + post-workout
+    /// - Adherence 8-10 + Cut + Very Active: 3 core + pre-workout (4 total, no post-workout when cutting)
+    /// - All other combinations: 3 core meals
+    /// </summary>
+    private static List<string> CalculateMealTimings(UserHealthProfile? profile, int? adherenceScore)
+    {
+        var timings = new List<string> { "breakfast", "lunch", "dinner" };
+
+        if (profile == null)
+            return timings;
+
+        var clamped = Math.Max(1, Math.Min(10, adherenceScore ?? 5));
+        var currentWeight = profile.WeightKg ?? 0;
+        var targetWeight = profile.TargetWeightKg ?? currentWeight;
+        var isVeryActive = profile.ActivityLevel?.Equals("very_active", StringComparison.OrdinalIgnoreCase) ?? false;
+
+        // Determine goal: bulk (target > current), cut (target < current), maintain (equal).
+        string goal = currentWeight < targetWeight ? "bulk" : currentWeight > targetWeight ? "cut" : "maintain";
+
+        // Adherence 1-3: only core meals.
+        if (clamped <= 3)
+            return timings;
+
+        // Adherence 4-5: add snack if bulk or maintain.
+        if (clamped <= 5 && (goal == "bulk" || goal == "maintain"))
+        {
+            timings.Add("snack");
+            return timings;
+        }
+
+        // Adherence 6-7: add snack + pre-workout if bulk.
+        if (clamped <= 7 && goal == "bulk")
+        {
+            timings.Add("snack");
+            timings.Add("pre-workout");
+            return timings;
+        }
+
+        // Adherence 8-10: advanced customization.
+        if (clamped >= 8)
+        {
+            if (goal == "bulk" && isVeryActive)
+            {
+                // Bulk + very active: full extras.
+                timings.Add("snack");
+                timings.Add("pre-workout");
+                timings.Add("post-workout");
+            }
+            else if (goal == "bulk")
+            {
+                // Bulk but not very active: snack + pre-workout.
+                timings.Add("snack");
+                timings.Add("pre-workout");
+            }
+            else if (goal == "cut" && isVeryActive)
+            {
+                // Cut + very active: add pre-workout for energy, but no post-workout (keep calories down).
+                timings.Add("pre-workout");
+            }
+            else if (goal == "maintain" && isVeryActive)
+            {
+                // Maintain + very active: add snack + pre-workout.
+                timings.Add("snack");
+                timings.Add("pre-workout");
+            }
+            else if (goal == "maintain")
+            {
+                // Maintain but not very active: add snack.
+                timings.Add("snack");
+            }
+        }
+
+        return timings;
     }
 
     private async Task GenerateWorkoutPlanAsync(int userId, UserOnboarding onboarding, UserHealthProfile? profile, OnboardingGenerationPayload payload)
@@ -171,13 +290,14 @@ public class OnboardingService : IOnboardingService
         int userId,
         UserHealthProfile? profile,
         OnboardingGenerationPayload payload,
-        List<MealTemplate> templates)
+        List<MealTemplate> templates,
+        List<string> mealTimings)
     {
         try
         {
             var settings = await _db.UserAiSettings.FirstOrDefaultAsync(s => s.UserId == userId);
             var startDate = DateOnly.FromDateTime(DateTime.UtcNow);
-            var prompt = BuildAiMealPrompt(startDate, payload, profile, templates);
+            var prompt = BuildAiMealPrompt(startDate, payload, profile, templates, mealTimings);
             var rawText = await _aiService.InvokeProvider(settings, prompt, "onboarding-meal-plan");
             var parsed = ParseAiMealPlan(ParseJsonObject(rawText));
 
@@ -252,27 +372,91 @@ public class OnboardingService : IOnboardingService
 
     private Dictionary<string, List<object>> BuildNormalMealPlan(
         List<MealTemplate> templates,
+        List<MasterMealTemplate> masterTemplates,
         int[]? preferredIds,
         int[]? excludedIds,
-        int maxMealsPerDay)
+        List<string> mealTimings,
+        double? budgetPerWeek)
     {
         var preferred = new HashSet<int>(preferredIds ?? Array.Empty<int>());
         var excluded = new HashSet<int>(excludedIds ?? Array.Empty<int>());
 
-        var ranked = templates
-            .Select(t => new
+        // Build a lookup of master template macros/cost by masterMealTemplateId for bonus scoring.
+        var masterById = masterTemplates.ToDictionary(m => m.Id);
+        double? dailyBudget = budgetPerWeek.HasValue ? budgetPerWeek.Value / 7.0 : null;
+
+        // Group templates by timing for easier selection.
+        var templatesByTiming = templates
+            .GroupBy(t => t.Timing ?? "unknown")
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Score all templates once.
+        var scoredTemplates = templates
+            .Select(t =>
             {
-                Template = t,
-                HasExcluded = ParseTemplateIngredientIds(t.IngredientsJson).Any(id => excluded.Contains(id)),
-                Score = ParseTemplateIngredientIds(t.IngredientsJson).Count(id => preferred.Contains(id)),
+                var ingredientIds = ParseTemplateIngredientIds(t.IngredientsJson);
+                bool hasExcluded = ingredientIds.Any(id => excluded.Contains(id));
+                int preferredScore = ingredientIds.Count(id => preferred.Contains(id));
+
+                // Cost fit: prefer templates whose estimated cost fits within daily budget.
+                double costScore = 0;
+                if (t.MasterMealTemplateId.HasValue && masterById.TryGetValue(t.MasterMealTemplateId.Value, out var master))
+                {
+                    double perMealBudget = dailyBudget.HasValue ? dailyBudget.Value / Math.Max(1, mealTimings.Count) : double.MaxValue;
+                    costScore = master.EstimatedTotalCost <= perMealBudget ? 1.0 : 0.0;
+                }
+
+                return new { Template = t, HasExcluded = hasExcluded, Score = preferredScore + costScore };
             })
-            .OrderBy(x => x.HasExcluded)
-            .ThenByDescending(x => x.Score)
-            .Select(x => x.Template)
             .ToList();
 
-        var picks = ranked.Take(Math.Max(1, maxMealsPerDay)).ToList();
+        // Pick best meal for each required timing, guaranteeing diversity.
+        var picks = new List<MealTemplate>();
+        var usedIds = new HashSet<int>();
 
+        foreach (var timing in mealTimings)
+        {
+            // Find templates matching this timing.
+            var candidatesForTiming = scoredTemplates
+                .Where(x => x.Template.Timing == timing && !usedIds.Contains(x.Template.Id))
+                .OrderBy(x => x.HasExcluded)
+                .ThenByDescending(x => x.Score)
+                .FirstOrDefault();
+
+            if (candidatesForTiming != null)
+            {
+                picks.Add(candidatesForTiming.Template);
+                usedIds.Add(candidatesForTiming.Template.Id);
+            }
+            else
+            {
+                // Fallback: if no template for this timing, pick any unused template.
+                var fallback = scoredTemplates
+                    .Where(x => !usedIds.Contains(x.Template.Id))
+                    .OrderBy(x => x.HasExcluded)
+                    .ThenByDescending(x => x.Score)
+                    .FirstOrDefault();
+
+                if (fallback != null)
+                {
+                    picks.Add(fallback.Template);
+                    usedIds.Add(fallback.Template.Id);
+                }
+            }
+        }
+
+        // If no picks found (shouldn't happen), take top 3 by score.
+        if (picks.Count == 0)
+        {
+            picks = scoredTemplates
+                .OrderBy(x => x.HasExcluded)
+                .ThenByDescending(x => x.Score)
+                .Take(3)
+                .Select(x => x.Template)
+                .ToList();
+        }
+
+        // Build plan for next 7 days.
         var result = new Dictionary<string, List<object>>();
         for (int i = 0; i < 7; i++)
         {
@@ -315,14 +499,46 @@ public class OnboardingService : IOnboardingService
         DateOnly start,
         OnboardingGenerationPayload payload,
         UserHealthProfile? profile,
-        List<MealTemplate> templates)
+        List<MealTemplate> templates,
+        List<string> mealTimings)
     {
-        var templateRows = templates.Select(t => $"- id={t.Id}, name={t.Name}, timing={t.Timing}, timeOfDay={t.TimeOfDay ?? ""}");
+        // Determine goal for prompt context.
+        var currentWeight = profile?.WeightKg ?? 0;
+        var targetWeight = profile?.TargetWeightKg ?? currentWeight;
+        string goal = currentWeight < targetWeight ? "bulk" : currentWeight > targetWeight ? "cut" : "maintain";
+        string goalDescription = goal switch
+        {
+            "bulk" => "build muscle, increase calories",
+            "cut" => "lose fat, reduce calories",
+            _ => "maintain weight, steady calories"
+        };
+
+        var templateRows = templates.Select(t =>
+        {
+            var macroInfo = t.MasterMealTemplate is not null
+                ? $", kcal={t.MasterMealTemplate.TotalCaloriesKcal}, protein={t.MasterMealTemplate.TotalProteinG:F1}g, carbs={t.MasterMealTemplate.TotalCarbsG:F1}g, fats={t.MasterMealTemplate.TotalFatsG:F1}g, estimatedCost={t.MasterMealTemplate.EstimatedTotalCost:F2}{(string.IsNullOrWhiteSpace(t.MasterMealTemplate.PlannerNotes) ? "" : $", notes={t.MasterMealTemplate.PlannerNotes}")}"
+                : string.Empty;
+            return $"- id={t.Id}, name={t.Name}, timing={t.Timing}, timeOfDay={t.TimeOfDay ?? ""}{macroInfo}";
+        });
         var sb = new StringBuilder();
         sb.AppendLine("Return STRICT JSON only.");
         sb.AppendLine($"Plan meals for 7 days from {start:yyyy-MM-dd}.");
-        sb.AppendLine($"Use up to {Math.Max(1, payload.MaxMealsPerDay)} meals per day.");
-        sb.AppendLine("Use ONLY these mealTemplateIds:");
+        sb.AppendLine();
+        sb.AppendLine("CRITICAL MEAL TIMING RULES:");
+        sb.AppendLine($"Required meal timings per day: {string.Join(", ", mealTimings)}");
+        sb.AppendLine($"Goal: {goal} ({goalDescription})");
+        sb.AppendLine($"Adherence level: {payload.AdherenceScore}/10");
+        sb.AppendLine();
+        sb.AppendLine("MEAL SELECTION RULES:");
+        sb.AppendLine("1. ALWAYS include exactly ONE meal for each timing in the required list above.");
+        sb.AppendLine("2. Never pick the same meal twice in one day (use different templates for each timing).");
+        sb.AppendLine("3. Breakfast, lunch, dinner are the core meals - prioritize variety for these.");
+        sb.AppendLine("4. If snack/pre-workout/post-workout timings are in the list, fit them in strategically.");
+        sb.AppendLine("5. For bulk goal: prefer higher-calorie, protein-rich meals to support muscle gain.");
+        sb.AppendLine("6. For cut goal: prefer lower-calorie options while maintaining protein for satiety.");
+        sb.AppendLine("7. Respect the weekly budget constraint when selecting meals.");
+        sb.AppendLine();
+        sb.AppendLine("Use ONLY these mealTemplateIds (each row includes macros and estimated cost where available):");
         sb.AppendLine(string.Join("\n", templateRows));
         sb.AppendLine();
         sb.AppendLine($"profileHeightCm={profile?.HeightCm?.ToString() ?? "null"}, profileWeightKg={profile?.WeightKg?.ToString() ?? "null"}, profileTargetWeightKg={profile?.TargetWeightKg?.ToString() ?? "null"}, profileCalories={profile?.DailyCaloriesTarget?.ToString() ?? "null"}, profileDiet={profile?.DietPreference ?? "null"}, profileBudget={profile?.BudgetPerWeek?.ToString() ?? "null"}, profileActivity={profile?.ActivityLevel ?? "null"}");
@@ -566,4 +782,5 @@ public class OnboardingService : IOnboardingService
 public record OnboardingGenerationPayload(
     int DaysPerWeek,
     int MaxMealsPerDay,
-    int MinutesPerSession);
+    int MinutesPerSession,
+    int? AdherenceScore);

@@ -137,12 +137,19 @@ function sanitizeAiMealPlan(
 }
 
 function getAdherenceAdjustedParams(score?: number, fallbackDays?: number, fallbackMinutes?: number) {
-  const clamped = Math.max(1, Math.min(5, Number(score || 3)));
-  const base = clamped <= 2
-    ? { daysPerWeek: 2, minutesPerSession: 30, maxMealsPerDay: 2 }
-    : clamped <= 4
-      ? { daysPerWeek: 4, minutesPerSession: 45, maxMealsPerDay: 3 }
-      : { daysPerWeek: 5, minutesPerSession: 60, maxMealsPerDay: 4 };
+  // Adherence scale: 1-10
+  // 1-3: Beginner/Inconsistent
+  // 4-5: Building/Trying
+  // 6-7: Moderate/Disciplined
+  // 8-10: Advanced/Athlete
+  const clamped = Math.max(1, Math.min(10, Number(score || 5)));
+  const base = clamped <= 3
+    ? { daysPerWeek: 2, minutesPerSession: 25, maxMealsPerDay: 3 }
+    : clamped <= 5
+      ? { daysPerWeek: 3, minutesPerSession: 35, maxMealsPerDay: 3 }
+      : clamped <= 7
+        ? { daysPerWeek: 4, minutesPerSession: 45, maxMealsPerDay: 3 }
+        : { daysPerWeek: 5, minutesPerSession: 60, maxMealsPerDay: 3 };
 
   const daysPerWeek = fallbackDays
     ? Math.max(1, Math.min(6, Math.round((fallbackDays + base.daysPerWeek) / 2)))
@@ -632,11 +639,16 @@ export default function Onboarding() {
 
   const preferredCount = (data.preferredIngredientIds?.length || 0) + (data.customPreferredIngredients?.length || 0);
   const adherenceOptions = [
-    { score: 1, title: 'Rarely follows', hint: 'Needs very low-friction plans' },
-    { score: 2, title: 'Sometimes follows', hint: 'Can follow simple structure' },
-    { score: 3, title: 'Usually follows', hint: 'Moderate consistency' },
-    { score: 4, title: 'Mostly follows', hint: 'Can handle stronger structure' },
-    { score: 5, title: 'Strictly follows', hint: 'High commitment and consistency' },
+    { score: 1, title: 'Rarely follows', hint: 'Just getting started' },
+    { score: 2, title: 'Inconsistent', hint: 'Beginner, needs low friction' },
+    { score: 3, title: 'Sometimes tries', hint: 'Struggling with consistency' },
+    { score: 4, title: 'Building habits', hint: 'Growing stronger each week' },
+    { score: 5, title: 'Fairly consistent', hint: 'Can handle good structure' },
+    { score: 6, title: 'Disciplined', hint: 'Moderate commitment' },
+    { score: 7, title: 'Very disciplined', hint: 'Strong routine established' },
+    { score: 8, title: 'Advanced', hint: 'High commitment, optimized' },
+    { score: 9, title: 'Athlete level', hint: 'Very serious, elite goals' },
+    { score: 10, title: 'Elite performer', hint: 'Maximum dedication & discipline' },
   ];
   const canNext = [
     true,

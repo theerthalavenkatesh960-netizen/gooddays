@@ -4,6 +4,17 @@ import { ArrowLeft, UtensilsCrossed } from 'lucide-react';
 import * as api from '../lib/api';
 import MacroVisualization from '../components/MacroVisualization';
 
+type MasterMealTemplate = {
+  id: number;
+  name: string;
+  totalCaloriesKcal: number;
+  totalProteinG: number;
+  totalCarbsG: number;
+  totalFatsG: number;
+  estimatedTotalCost: number;
+  plannerNotes?: string | null;
+};
+
 type MealTemplate = {
   id: number;
   name: string;
@@ -12,6 +23,8 @@ type MealTemplate = {
   ingredientsJson: string;
   recipe: string;
   imageUrl?: string;
+  masterMealTemplateId?: number | null;
+  masterMealTemplate?: MasterMealTemplate | null;
 };
 
 type IngSnap = {
@@ -180,7 +193,7 @@ export default function MealTemplateDetails() {
   if (!meal) {
     return (
       <div className="pt-4 pb-nav px-4" style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
-        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: 'var(--surface)' }}>
+        <button onClick={() => navigate('/settings/meals')} className="w-9 h-9 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: 'var(--surface)' }}>
           <ArrowLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
         <div className="rounded-2xl p-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -193,10 +206,17 @@ export default function MealTemplateDetails() {
   return (
     <div className="pt-4 pb-nav px-4" style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--surface)' }}>
+        <button onClick={() => navigate('/settings/meals')} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--surface)' }}>
           <ArrowLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
-        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Meal Detail</h1>
+        <div>
+          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Meal Detail</h1>
+          {meal?.masterMealTemplateId && !editing && (
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(99,102,241,0.12)', color: '#818cf8' }}>
+              From catalog
+            </span>
+          )}
+        </div>
         <div className="ml-auto flex items-center gap-2">
           {editing ? (
             <>
@@ -208,12 +228,27 @@ export default function MealTemplateDetails() {
               </button>
             </>
           ) : (
-            <button onClick={() => setEditing(true)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: 'var(--accent)' }}>
-              Edit
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => alert('Publish to master catalog — coming soon!')}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+                style={{ backgroundColor: 'var(--surface)', color: 'var(--text-muted)' }}
+              >
+                Publish
+              </button>
+              <button onClick={() => setEditing(true)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: 'var(--accent)' }}>
+                Edit
+              </button>
+            </div>
           )}
         </div>
       </div>
+
+      {editing && meal?.masterMealTemplateId && (
+        <div className="mb-3 px-3 py-2 rounded-xl text-xs" style={{ backgroundColor: 'rgba(251,191,36,0.1)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' }}>
+          This meal came from the shared catalog. Saving your changes will detach it — your version will be independent from the original.
+        </div>
+      )}
 
       {status && (
         <div className="mb-3 px-3 py-2 rounded-xl text-xs font-semibold" style={{ backgroundColor: 'rgba(78,205,196,0.1)', color: 'var(--accent-green)' }}>
@@ -341,6 +376,34 @@ export default function MealTemplateDetails() {
           </div>
         )}
       </div>
+
+      {meal?.masterMealTemplate && (
+        <div className="rounded-2xl p-4 mb-4" style={{ backgroundColor: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <p className="text-xs uppercase font-semibold" style={{ color: '#818cf8' }}>From Catalog</p>
+            {meal.masterMealTemplate.estimatedTotalCost > 0 && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(34,197,94,0.12)', color: '#22c55e' }}>
+                ₹{meal.masterMealTemplate.estimatedTotalCost.toFixed(0)}
+              </span>
+            )}
+          </div>
+          
+          {meal.masterMealTemplate.totalCaloriesKcal > 0 && (
+            <div className="mb-3 text-xs space-y-1" style={{ color: 'var(--text-secondary)' }}>
+              <p><span style={{ color: '#fbbf24' }}>Catalog macros:</span> {meal.masterMealTemplate.totalCaloriesKcal} kcal • {meal.masterMealTemplate.totalProteinG.toFixed(1)}g protein • {meal.masterMealTemplate.totalCarbsG.toFixed(1)}g carbs • {meal.masterMealTemplate.totalFatsG.toFixed(1)}g fat</p>
+              {totals.calories > 0 && (
+                <p style={{ color: 'var(--text-muted)' }}><span style={{ color: 'var(--accent-gold)' }}>Your version:</span> {totals.calories} kcal • {totals.protein.toFixed(1)}g protein • {totals.carbs.toFixed(1)}g carbs • {totals.fats.toFixed(1)}g fat</p>
+              )}
+            </div>
+          )}
+          
+          {meal.masterMealTemplate.plannerNotes && (
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+              "{meal.masterMealTemplate.plannerNotes}"
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <p className="text-xs uppercase font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Recipe</p>

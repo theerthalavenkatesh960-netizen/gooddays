@@ -11,4 +11,7 @@ public class MealIngredient
     public double CarbsG { get; set; }
     public double FatsG { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    // Optional pricing data for cost estimation
+    public double? PricePer100g { get; set; }
+    public double? ServingSizeG { get; set; }
 }

@@ -571,6 +571,36 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_meal_templates_user_name_ci
   ON meal_templates (user_id, lower(name));
 CREATE INDEX IF NOT EXISTS idx_weekly_meal_plans_user_id ON weekly_meal_plans(user_id);
 
+-- Master meal catalog (shared, no user_id – admin/seeded rows)
+CREATE TABLE IF NOT EXISTS master_meal_templates (
+  id                   SERIAL PRIMARY KEY,
+  name                 text NOT NULL,
+  timing               text NOT NULL DEFAULT 'breakfast',
+  time_of_day          text,
+  ingredients_json     text DEFAULT '[]',
+  recipe               text DEFAULT '',
+  image_url            text,
+  total_calories_kcal  integer NOT NULL DEFAULT 0,
+  total_protein_g      double precision NOT NULL DEFAULT 0,
+  total_carbs_g        double precision NOT NULL DEFAULT 0,
+  total_fats_g         double precision NOT NULL DEFAULT 0,
+  estimated_total_cost double precision NOT NULL DEFAULT 0,
+  planner_notes        text,
+  created_at           timestamptz DEFAULT now(),
+  updated_at           timestamptz DEFAULT now()
+);
+
+-- Nullable FK from user meal_templates to master catalog entry
+ALTER TABLE IF EXISTS meal_templates
+  ADD COLUMN IF NOT EXISTS master_meal_template_id integer REFERENCES master_meal_templates(id) ON DELETE SET NULL;
+
+-- Ingredient pricing to support cost estimation
+ALTER TABLE IF EXISTS meal_ingredients
+  ADD COLUMN IF NOT EXISTS price_per_100g double precision,
+  ADD COLUMN IF NOT EXISTS serving_size_g double precision;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_master_meal_templates_name ON master_meal_templates(lower(name));
+
 -- ===================================================================
 -- 003: DAILY ROUTINE SYSTEM
 -- ===================================================================

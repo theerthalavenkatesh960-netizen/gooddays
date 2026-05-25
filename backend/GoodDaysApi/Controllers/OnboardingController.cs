@@ -249,7 +249,8 @@ public class OnboardingController : ControllerBase
         var payload = new OnboardingGenerationPayload(
             DaysPerWeek: adherenceParams.DaysPerWeek,
             MaxMealsPerDay: adherenceParams.MaxMealsPerDay,
-            MinutesPerSession: adherenceParams.MinutesPerSession);
+            MinutesPerSession: adherenceParams.MinutesPerSession,
+            AdherenceScore: req.PlanAdherenceScore);
 
         _onboardingService.QueuePlanGeneration(userId, payload);
 
@@ -263,12 +264,19 @@ public class OnboardingController : ControllerBase
     private static (int DaysPerWeek, int MinutesPerSession, int MaxMealsPerDay) GetAdherenceAdjustedParams(
         int? score, int? fallbackDays, int? fallbackMinutes)
     {
-        var clamped = Math.Max(1, Math.Min(5, score ?? 3));
-        var baseParams = clamped <= 2
-            ? (DaysPerWeek: 2, MinutesPerSession: 30, MaxMealsPerDay: 2)
-            : clamped <= 4
-                ? (DaysPerWeek: 4, MinutesPerSession: 45, MaxMealsPerDay: 3)
-                : (DaysPerWeek: 5, MinutesPerSession: 60, MaxMealsPerDay: 4);
+        // Adherence scale: 1-10 (clamped)
+        // 1-3: Beginner/Inconsistent
+        // 4-5: Building/Trying
+        // 6-7: Moderate/Disciplined
+        // 8-10: Advanced/Athlete
+        var clamped = Math.Max(1, Math.Min(10, score ?? 5));
+        var baseParams = clamped <= 3
+            ? (DaysPerWeek: 2, MinutesPerSession: 25, MaxMealsPerDay: 3)
+            : clamped <= 5
+                ? (DaysPerWeek: 3, MinutesPerSession: 35, MaxMealsPerDay: 3)
+                : clamped <= 7
+                    ? (DaysPerWeek: 4, MinutesPerSession: 45, MaxMealsPerDay: 3)
+                    : (DaysPerWeek: 5, MinutesPerSession: 60, MaxMealsPerDay: 3);
 
         var daysPerWeek = fallbackDays.HasValue
             ? Math.Max(1, Math.Min(6, (int)Math.Round((fallbackDays.Value + baseParams.DaysPerWeek) / 2.0)))
