@@ -570,11 +570,11 @@ export default function MealCatalogBrowse() {
                         boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
                       }}
                     >
-                      <div className="flex items-start">
+                      <div className="flex flex-row gap-2 items-start min-w-0">
                         {/* Content Section */}
-                        <div className="flex-1 p-3 pb-1.5">
+                        <div className="flex-1 min-w-0 p-3 pb-1.5">
                           <div className="flex items-start justify-between gap-2 mb-0.5">
-                            <h3 className="text-sm font-bold leading-snug" style={{ color: 'var(--text-primary)' }}>
+                            <h3 className="text-sm font-bold leading-snug break-words" style={{ color: 'var(--text-primary)' }}>
                               {meal.name}
                             </h3>
                           </div>
@@ -626,7 +626,7 @@ export default function MealCatalogBrowse() {
                         </div>
 
                         {/* Image Section - Right */}
-                        <div className="w-36 sm:w-40 flex-shrink-0 p-2 self-start">
+                        <div className="w-32 sm:w-36 flex-shrink-0 p-2 self-start">
                           <div className="relative w-full">
                             <div
                               className="w-full h-28 sm:h-32 rounded-xl overflow-hidden relative bg-center bg-cover flex items-end justify-center pb-2"
