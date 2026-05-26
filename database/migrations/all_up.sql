@@ -624,7 +624,22 @@ CREATE TABLE IF NOT EXISTS routine_blocks (
   category   text,
   color      text,
   sort_order integer DEFAULT 0,
+  linked_workout_plan_id integer REFERENCES workout_day_plans(id) ON DELETE SET NULL,
+  meal_type  varchar(50),
   created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE IF EXISTS routine_blocks
+  ADD COLUMN IF NOT EXISTS linked_workout_plan_id integer REFERENCES workout_day_plans(id) ON DELETE SET NULL;
+ALTER TABLE IF EXISTS routine_blocks
+  ADD COLUMN IF NOT EXISTS meal_type varchar(50);
+
+CREATE TABLE IF NOT EXISTS routine_block_meal_links (
+  id              SERIAL PRIMARY KEY,
+  routine_block_id integer REFERENCES routine_blocks(id) ON DELETE CASCADE NOT NULL,
+  meal_template_id integer REFERENCES meal_templates(id) ON DELETE CASCADE NOT NULL,
+  created_at      timestamptz DEFAULT now(),
+  UNIQUE(routine_block_id, meal_template_id)
 );
 
 CREATE TABLE IF NOT EXISTS weekly_routine_schedule (
@@ -655,11 +670,47 @@ CREATE TABLE IF NOT EXISTS daily_routine_skips (
   UNIQUE(user_id, date)
 );
 
+CREATE TABLE IF NOT EXISTS daily_routine_block_overrides (
+  id                     SERIAL PRIMARY KEY,
+  user_id                integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  date                   date NOT NULL,
+  routine_id             integer REFERENCES daily_routines(id) ON DELETE CASCADE NOT NULL,
+  base_block_id          integer REFERENCES routine_blocks(id) ON DELETE CASCADE,
+  title                  text,
+  start_time             text,
+  end_time               text,
+  category               text,
+  color                  text,
+  sort_order             integer,
+  linked_workout_plan_id integer REFERENCES workout_day_plans(id) ON DELETE SET NULL,
+  meal_type              varchar(50),
+  is_deleted             boolean NOT NULL DEFAULT false,
+  created_at             timestamptz DEFAULT now(),
+  updated_at             timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS daily_routine_override_logs (
+  id          SERIAL PRIMARY KEY,
+  user_id     integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  override_id integer REFERENCES daily_routine_block_overrides(id) ON DELETE CASCADE NOT NULL,
+  date        date NOT NULL,
+  status      text NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('completed', 'skipped', 'missed')),
+  logged_at   timestamptz DEFAULT now(),
+  UNIQUE(user_id, override_id, date)
+);
+
 CREATE INDEX IF NOT EXISTS idx_daily_routines_user ON daily_routines(user_id);
 CREATE INDEX IF NOT EXISTS idx_routine_blocks_routine ON routine_blocks(routine_id);
+CREATE INDEX IF NOT EXISTS idx_routine_blocks_workout_plan ON routine_blocks(linked_workout_plan_id);
+CREATE INDEX IF NOT EXISTS idx_routine_block_meal_links_block ON routine_block_meal_links(routine_block_id);
+CREATE INDEX IF NOT EXISTS idx_routine_block_meal_links_meal ON routine_block_meal_links(meal_template_id);
 CREATE INDEX IF NOT EXISTS idx_weekly_routine_schedule_user ON weekly_routine_schedule(user_id);
 CREATE INDEX IF NOT EXISTS idx_daily_routine_logs_user_date ON daily_routine_logs(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_daily_routine_skips_user_date ON daily_routine_skips(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_daily_routine_block_overrides_user_date ON daily_routine_block_overrides(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_daily_routine_block_overrides_base ON daily_routine_block_overrides(base_block_id);
+CREATE INDEX IF NOT EXISTS idx_daily_routine_override_logs_user_date ON daily_routine_override_logs(user_id, date);
 
 -- ===================================================================
 -- 004: WATER TRACKING & QUICK LOG

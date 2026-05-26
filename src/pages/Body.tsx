@@ -5,7 +5,7 @@ import {
   Pencil, X, Scale,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as api from '../lib/api';
 
 type Tab = 'Workout' | 'Diet' | 'Progress';
@@ -924,7 +924,17 @@ function ProgressTab() {
 }
 
 export default function Body() {
-  const [tab, setTab] = useState<Tab>('Workout');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const initialTab: Tab = tabParam === 'Diet' || tabParam === 'Progress' || tabParam === 'Workout' ? tabParam : 'Workout';
+  const [tab, setTab] = useState<Tab>(initialTab);
+
+  useEffect(() => {
+    const nextTab = searchParams.get('tab');
+    if (nextTab === 'Diet' || nextTab === 'Progress' || nextTab === 'Workout') {
+      setTab(nextTab);
+    }
+  }, [searchParams]);
 
   return (
     <div className="pt-4 pb-nav" style={{ backgroundColor: 'var(--bg)' }}>

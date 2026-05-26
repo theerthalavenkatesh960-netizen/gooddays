@@ -105,12 +105,16 @@ DROP TABLE IF EXISTS daily_water_logs;
 DROP INDEX IF EXISTS idx_daily_routine_skips_user_date;
 DROP INDEX IF EXISTS idx_daily_routine_logs_user_date;
 DROP INDEX IF EXISTS idx_weekly_routine_schedule_user;
+DROP INDEX IF EXISTS idx_routine_block_meal_links_meal;
+DROP INDEX IF EXISTS idx_routine_block_meal_links_block;
+DROP INDEX IF EXISTS idx_routine_blocks_workout_plan;
 DROP INDEX IF EXISTS idx_routine_blocks_routine;
 DROP INDEX IF EXISTS idx_daily_routines_user;
 
 DROP TABLE IF EXISTS daily_routine_skips;
 DROP TABLE IF EXISTS daily_routine_logs;
 DROP TABLE IF EXISTS weekly_routine_schedule;
+DROP TABLE IF EXISTS routine_block_meal_links;
 DROP TABLE IF EXISTS routine_blocks;
 DROP TABLE IF EXISTS daily_routines;
 

@@ -106,15 +106,15 @@ function clamp(n: number, min: number, max: number) {
 }
 
 function momentumBand(score: number) {
-  if (score >= 90) return 'Legendary';
-  if (score >= 70) return 'Strong';
-  if (score >= 40) return 'Build';
-  return 'Recover';
+  if (score < 30) return 'Recover';
+  if (score < 60) return 'Build';
+  if (score < 85) return 'Strong';
+  return 'Legendary';
 }
 
-function pickVariant(items: string[], seed: number) {
-  if (items.length === 0) return '';
-  return items[Math.abs(seed) % items.length];
+function pickVariant(options: string[], seed: number) {
+  if (!options.length) return '';
+  return options[Math.abs(seed) % options.length];
 }
 
 function getHeroMessage(params: {
@@ -1032,7 +1032,7 @@ function TasksTab({ user }: { user: any }) {
 
       {/* Filters row */}
       <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-2 mb-3">
-        {(['all', 'today', 'overdue'] as const).map(v => (
+        {(['today', 'overdue'] as const).map(v => (
           <button key={v} onClick={() => setFilterView(v)}
             className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 press transition-all"
             style={{
@@ -1046,7 +1046,7 @@ function TasksTab({ user }: { user: any }) {
           <Filter size={12} style={{ color: 'var(--text-muted)' }} />
           <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
             className="text-xs outline-none bg-transparent" style={{ color: 'var(--text-secondary)' }}>
-            <option value="all">All</option>
+            <option value="all">All Categories</option>
             {CATEGORY_OPTIONS.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
         </div>
@@ -1340,6 +1340,12 @@ type TodayRoutineBlock = {
   color?: string;
   status: 'pending' | 'completed' | 'skipped' | 'missed';
   logId?: number;
+  mealType?: string | null;
+  linkedWorkoutPlanId?: number | null;
+  linkedWorkoutLabel?: string | null;
+  isOverride?: boolean;
+  overrideId?: number | null;
+  baseBlockId?: number | null;
 };
 
 type TodayRoutine = {
@@ -1351,19 +1357,31 @@ type TodayRoutine = {
   stats: { completed: number; skipped: number; total: number };
 };
 
+type BlockKind = 'general' | 'meal' | 'workout';
+
 function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
   const [data, setData] = useState<TodayRoutine | null>(null);
   const [loading, setLoading] = useState(true);
   const [skipping, setSkipping] = useState(false);
+  const [completionTimeModal, setCompletionTimeModal] = useState<{ blockId: number; isOpen: boolean } | null>(null);
+  const [completionTime, setCompletionTime] = useState<{ start: string; end: string }>({ start: '00:00', end: '01:00' });
+  const [addingBlock, setAddingBlock] = useState(false);
+  const [newBlockForm, setNewBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' as BlockKind });
+  const [savingBlock, setSavingBlock] = useState(false);
+  const [syncWithRoutine, setSyncWithRoutine] = useState(true);
+  const [editingBlockModal, setEditingBlockModal] = useState<{ blockId: number; isOpen: boolean } | null>(null);
+  const [editBlockForm, setEditBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' as BlockKind });
+  const [savingEditBlock, setSavingEditBlock] = useState(false);
+  const [deletingEditBlock, setDeletingEditBlock] = useState(false);
 
   const now = currentMinutes();
 
   async function load() {
     setLoading(true);
     try {
-      const res = await (api as any).getTodayRoutine();
+      const res = await (api as any).getTodayRoutine().catch(() => null);
       setData(res || null);
     } catch {
       setData(null);
@@ -1374,26 +1392,238 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
 
   useEffect(() => { load(); }, []);
 
+  function getLogPayload(block: TodayRoutineBlock): { routineBlockId?: number; overrideBlockId?: number } {
+    if (block.baseBlockId) return { routineBlockId: block.baseBlockId };
+    if (block.isOverride && block.overrideId) return { overrideBlockId: block.overrideId };
+    return { routineBlockId: block.id };
+  }
+
+  function findBlockById(blockId: number): TodayRoutineBlock | undefined {
+    return data?.blocks.find(b => b.id === blockId);
+  }
+
+  function getSuggestedWorkoutLinkId(excludeBlockId?: number): number | null {
+    const found = data?.blocks.find(b => b.id !== excludeBlockId && b.linkedWorkoutPlanId)?.linkedWorkoutPlanId;
+    return found ?? null;
+  }
+
+  function getPayloadByBlockKind(form: { blockKind: BlockKind; mealType?: string }, fallbackWorkoutLinkId?: number | null) {
+    const mealType = form.blockKind === 'meal' ? (form.mealType || null) : null;
+    const linkedWorkoutPlanId = form.blockKind === 'workout' ? (fallbackWorkoutLinkId ?? null) : null;
+    return { mealType, linkedWorkoutPlanId };
+  }
+
+  function getBlockKindMeta(block: TodayRoutineBlock): { kind: BlockKind; label: string; style: React.CSSProperties } {
+    if (block.linkedWorkoutPlanId) {
+      return {
+        kind: 'workout',
+        label: 'Workout',
+        style: {
+          backgroundColor: 'rgba(108,99,255,0.16)',
+          color: 'var(--accent)',
+          border: '1px solid rgba(108,99,255,0.3)',
+        },
+      };
+    }
+
+    if (block.mealType) {
+      return {
+        kind: 'meal',
+        label: 'Meal',
+        style: {
+          backgroundColor: 'rgba(34,197,94,0.14)',
+          color: 'var(--accent-green)',
+          border: '1px solid rgba(34,197,94,0.28)',
+        },
+      };
+    }
+
+    return {
+      kind: 'general',
+      label: 'General',
+      style: {
+        backgroundColor: 'var(--surface-elevated)',
+        color: 'var(--text-secondary)',
+        border: '1px solid var(--border)',
+      },
+    };
+  }
+
   async function toggleBlock(block: TodayRoutineBlock) {
-    const nextStatus = block.status === 'completed' ? 'pending' : 'completed';
-    // Optimistic update
+    if (block.status === 'completed') {
+      setData(prev => prev ? {
+        ...prev,
+        blocks: prev.blocks.map(b => b.id === block.id ? { ...b, status: 'pending' as any } : b),
+        stats: { ...prev.stats, completed: prev.stats.completed - 1 },
+      } : prev);
+      try {
+        await (api as any).logRoutineBlock({ ...getLogPayload(block), date: today, status: 'missed' });
+      } catch {
+        load();
+      }
+    } else {
+      // Check if marking done within the scheduled time window
+      const start = timeToMinutes(block.startTime);
+      const end = timeToMinutes(block.endTime);
+      const isWithinScheduledTime = now >= start && now <= end;
+
+      if (isWithinScheduledTime) {
+        // Mark complete immediately without time picker
+        setData(prev => prev ? {
+          ...prev,
+          blocks: prev.blocks.map(b => b.id === block.id ? { ...b, status: 'completed' as any } : b),
+          stats: { ...prev.stats, completed: prev.stats.completed + 1 },
+        } : prev);
+        try {
+          await (api as any).logRoutineBlock({
+            ...getLogPayload(block),
+            date: today,
+            status: 'completed',
+          });
+        } catch {
+          load();
+        }
+      } else {
+        // Show time picker for marking done at different time
+        setCompletionTime({ start: block.startTime, end: block.endTime });
+        setCompletionTimeModal({ blockId: block.id, isOpen: true });
+      }
+    }
+  }
+
+  async function confirmCompletion() {
+    if (!completionTimeModal) return;
+    const targetBlock = findBlockById(completionTimeModal.blockId);
+    if (!targetBlock) {
+      setCompletionTimeModal(null);
+      return;
+    }
     setData(prev => prev ? {
       ...prev,
-      blocks: prev.blocks.map(b => b.id === block.id ? { ...b, status: nextStatus as any } : b),
-      stats: {
-        ...prev.stats,
-        completed: prev.stats.completed + (nextStatus === 'completed' ? 1 : -1),
-      },
+      blocks: prev.blocks.map(b => b.id === completionTimeModal.blockId ? { ...b, status: 'completed' as any } : b),
+      stats: { ...prev.stats, completed: prev.stats.completed + 1 },
     } : prev);
     try {
-      if (nextStatus === 'pending') {
-        // No "un-log" endpoint — just re-log as missed to clear; simplest approach: reload
-        await (api as any).logRoutineBlock({ routineBlockId: block.id, date: today, status: 'missed' });
-      } else {
-        await (api as any).logRoutineBlock({ routineBlockId: block.id, date: today, status: nextStatus });
-      }
+      await (api as any).logRoutineBlock({
+        ...getLogPayload(targetBlock),
+        date: today,
+        status: 'completed',
+        actualStartTime: completionTime.start,
+        actualEndTime: completionTime.end,
+      });
     } catch {
-      load(); // revert on error
+      load();
+    }
+    setCompletionTimeModal(null);
+  }
+
+  async function addBlockToday() {
+    if (!newBlockForm.title.trim() || !data) return;
+    const payloadByKind = getPayloadByBlockKind(newBlockForm, getSuggestedWorkoutLinkId());
+    setSavingBlock(true);
+    try {
+      if (syncWithRoutine) {
+        await (api as any).addRoutineBlock(data.routine!.id, {
+          title: newBlockForm.title,
+          startTime: newBlockForm.startTime,
+          endTime: newBlockForm.endTime,
+          mealType: payloadByKind.mealType,
+          linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
+        });
+      } else {
+        await (api as any).addTodayRoutineOverrideBlock({
+          date: today,
+          routineId: data.routine!.id,
+          title: newBlockForm.title,
+          startTime: newBlockForm.startTime,
+          endTime: newBlockForm.endTime,
+          mealType: payloadByKind.mealType,
+          linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
+          sortOrder: (data.blocks?.length ?? 0) + 1,
+        });
+      }
+      setNewBlockForm({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' });
+      setAddingBlock(false);
+      await load();
+    } finally {
+      setSavingBlock(false);
+    }
+  }
+
+  function openEditBlock(block: TodayRoutineBlock) {
+    const blockKind: BlockKind = block.linkedWorkoutPlanId ? 'workout' : (block.mealType ? 'meal' : 'general');
+    setEditBlockForm({
+      title: block.title,
+      startTime: block.startTime,
+      endTime: block.endTime,
+      mealType: block.mealType ?? '',
+      blockKind,
+    });
+    setEditingBlockModal({ blockId: block.id, isOpen: true });
+  }
+
+  async function saveEditedBlock() {
+    if (!editingBlockModal || !editBlockForm.title.trim()) return;
+    const targetBlock = findBlockById(editingBlockModal.blockId);
+    if (!targetBlock) return;
+    const payloadByKind = getPayloadByBlockKind(editBlockForm, targetBlock.linkedWorkoutPlanId ?? getSuggestedWorkoutLinkId(targetBlock.id));
+    setSavingEditBlock(true);
+    try {
+      if (syncWithRoutine) {
+        await (api as any).updateRoutineBlock(targetBlock.baseBlockId ?? targetBlock.id, {
+          title: editBlockForm.title,
+          startTime: editBlockForm.startTime,
+          endTime: editBlockForm.endTime,
+          mealType: payloadByKind.mealType,
+          linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
+        });
+      } else if (targetBlock.baseBlockId) {
+        await (api as any).upsertTodayRoutineBaseOverride({
+          date: today,
+          baseBlockId: targetBlock.baseBlockId,
+          title: editBlockForm.title,
+          startTime: editBlockForm.startTime,
+          endTime: editBlockForm.endTime,
+          mealType: payloadByKind.mealType,
+          linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
+        });
+      } else if (targetBlock.overrideId) {
+        await (api as any).updateTodayRoutineOverride(targetBlock.overrideId, {
+          title: editBlockForm.title,
+          startTime: editBlockForm.startTime,
+          endTime: editBlockForm.endTime,
+          mealType: payloadByKind.mealType,
+          linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
+        });
+      }
+      setEditingBlockModal(null);
+      await load();
+    } finally {
+      setSavingEditBlock(false);
+    }
+  }
+
+  async function deleteEditedBlock() {
+    if (!editingBlockModal) return;
+    const targetBlock = findBlockById(editingBlockModal.blockId);
+    if (!targetBlock) return;
+    setDeletingEditBlock(true);
+    try {
+      if (syncWithRoutine) {
+        await (api as any).deleteRoutineBlock(targetBlock.baseBlockId ?? targetBlock.id);
+      } else if (targetBlock.baseBlockId) {
+        await (api as any).upsertTodayRoutineBaseOverride({
+          date: today,
+          baseBlockId: targetBlock.baseBlockId,
+          isDeleted: true,
+        });
+      } else if (targetBlock.overrideId) {
+        await (api as any).deleteTodayRoutineOverride(targetBlock.overrideId);
+      }
+      setEditingBlockModal(null);
+      await load();
+    } finally {
+      setDeletingEditBlock(false);
     }
   }
 
@@ -1403,7 +1633,19 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
       blocks: prev.blocks.map(b => b.id === block.id ? { ...b, status: 'skipped' as any } : b),
     } : prev);
     try {
-      await (api as any).logRoutineBlock({ routineBlockId: block.id, date: today, status: 'skipped' });
+      await (api as any).logRoutineBlock({ ...getLogPayload(block), date: today, status: 'skipped' });
+    } catch {
+      load();
+    }
+  }
+
+  async function unskipBlock(block: TodayRoutineBlock) {
+    setData(prev => prev ? {
+      ...prev,
+      blocks: prev.blocks.map(b => b.id === block.id ? { ...b, status: 'pending' as any } : b),
+    } : prev);
+    try {
+      await (api as any).logRoutineBlock({ ...getLogPayload(block), date: today, status: 'pending' });
     } catch {
       load();
     }
@@ -1488,90 +1730,375 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
         </div>
       </div>
 
-      {/* Time blocks */}
-      <div className="space-y-2">
-        {blocks.map(block => {
+      {/* Top controls (compact) */}
+      <div className="mb-3 flex items-center justify-end gap-2 flex-wrap">
+        {!isSkipped && data && data.routine && (
+          <button
+            onClick={() => setAddingBlock(b => !b)}
+            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold press"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            + Add Block
+          </button>
+        )}
+
+        {!isSkipped && data && data.routine && (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <span className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Sync</span>
+            <button
+              type="button"
+              onClick={() => setSyncWithRoutine(v => !v)}
+              className="w-9 h-5 rounded-full p-0.5 transition-colors"
+              style={{ backgroundColor: syncWithRoutine ? (routine.color || 'var(--accent)') : 'var(--surface-elevated)' }}
+              aria-label="Toggle sync with routine"
+              title={syncWithRoutine ? 'Sync ON: all assigned days' : 'Sync OFF: today only'}
+            >
+              <span
+                className="block w-4 h-4 rounded-full transition-transform"
+                style={{
+                  backgroundColor: '#fff',
+                  transform: syncWithRoutine ? 'translateX(16px)' : 'translateX(0px)',
+                }}
+              />
+            </button>
+          </div>
+        )}
+
+        <button
+          onClick={() => navigate('/settings/routines')}
+          className="px-2.5 py-1 rounded-lg text-[11px] font-semibold press"
+          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        >
+          Configure
+        </button>
+      </div>
+
+      {/* Time blocks — vertical timeline */}
+      <div className="relative">
+        <div className="space-y-2">
+          {blocks.map((block, idx) => {
           const start = timeToMinutes(block.startTime);
           const end = timeToMinutes(block.endTime);
           const isActive = now >= start && now < end;
           const isDone = block.status === 'completed';
           const isBlockSkipped = block.status === 'skipped';
+          const isLast = idx === blocks.length - 1;
+          const blockKindMeta = getBlockKindMeta(block);
 
           return (
-            <motion.div key={block.id} layout
-              className="rounded-xl overflow-hidden"
-              style={{ border: isActive ? `1px solid var(--accent)` : '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
-              <div className="flex items-center gap-3 p-3">
-                {/* Time */}
-                <div className="text-center flex-shrink-0 w-14">
-                  <p className="text-[10px] num font-semibold" style={{ color: 'var(--text-muted)' }}>{block.startTime}</p>
-                  <div className="w-px h-3 mx-auto my-0.5" style={{ backgroundColor: 'var(--border)' }} />
-                  <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>{block.endTime}</p>
-                </div>
-
-                {/* Active dot */}
-                {isActive && !isDone && !isBlockSkipped && (
-                  <div className="w-1.5 h-1.5 rounded-full animate-pulse-dot flex-shrink-0" style={{ backgroundColor: 'var(--accent)' }} />
+            <div key={block.id} className="relative flex items-start gap-1.5">
+              {/* Timeline rail + dot + horizontal connector */}
+              <div className="relative flex-shrink-0" style={{ width: 26 }}>
+                {!isLast && (
+                  <div
+                    className="absolute"
+                    style={{
+                      left: 8,
+                      top: 22,
+                      bottom: -10,
+                      width: 2,
+                      borderRadius: 999,
+                      backgroundColor: isDone ? (routine.color || 'var(--accent)') : 'var(--border)',
+                      opacity: isDone ? 0.95 : 0.5,
+                    }}
+                  />
                 )}
-
-                {/* Label */}
-                <p className="flex-1 text-sm font-medium" style={{
-                  color: isDone || isBlockSkipped ? 'var(--text-muted)' : 'var(--text-primary)',
-                  textDecoration: isDone ? 'line-through' : isBlockSkipped ? 'line-through' : 'none',
-                }}>
-                  {block.title}
-                  {isBlockSkipped && (
-                    <span className="ml-2 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>skipped</span>
-                  )}
-                </p>
-
-                {/* Now badge */}
-                {isActive && !isDone && !isBlockSkipped && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
-                    Now
-                  </span>
-                )}
-
-                {/* Skip button (only for pending) */}
-                {!isDone && !isBlockSkipped && !isSkipped && (
-                  <button onClick={() => skipBlock(block)}
-                    className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}
-                    title="Skip this block">
-                    <X size={13} />
-                  </button>
-                )}
-
-                {/* Check toggle */}
-                {!isSkipped && (
-                  <button onClick={() => toggleBlock(block)} className="press ml-0.5">
-                    {isDone
-                      ? <CheckCircle2 size={20} style={{ color: routine.color || 'var(--accent)' }} />
-                      : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--border)' }} />}
-                  </button>
-                )}
+                <div
+                  className="absolute w-3 h-3 rounded-full z-10"
+                  style={{
+                    left: 4.5,
+                    top: 17,
+                    backgroundColor: isDone ? (routine.color || 'var(--accent)') : 'var(--surface-elevated)',
+                    border: `2px solid ${isDone || isActive ? (routine.color || 'var(--accent)') : 'var(--border)'}`,
+                    boxShadow: isActive && !isDone ? `0 0 0 5px ${routine.color || 'var(--accent)'}32` : undefined,
+                  }}
+                />
+                <div
+                  className="absolute h-px"
+                  style={{
+                    left: 9.5,
+                    top: 21.5,
+                    width: 16,
+                    backgroundColor: isDone ? (routine.color || 'var(--accent)') : 'var(--border)',
+                    opacity: isDone || isActive ? 0.95 : 0.5,
+                  }}
+                />
               </div>
 
-              {/* Active progress bar */}
-              {isActive && !isDone && !isBlockSkipped && (
-                <div className="h-0.5 w-full" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                  <div className="h-full" style={{
-                    backgroundColor: routine.color || 'var(--accent)',
-                    width: `${Math.min(100, ((now - start) / (end - start)) * 100)}%`,
-                    transition: 'width 60s linear',
-                  }} />
+              {/* Card with status background */}
+              <motion.div layout
+                className="flex-1 rounded-xl overflow-hidden mb-0.5"
+                style={{
+                  border: isActive ? `1px solid ${routine.color || 'var(--accent)'}` : '1px solid var(--border)',
+                  backgroundColor: isDone ? 'rgba(34,197,94,0.05)' : isBlockSkipped ? 'rgba(217,119,6,0.08)' : 'var(--surface)',
+                }}>
+                <div className="flex items-center gap-3 p-3">
+                  {/* Time */}
+                  <div className="text-center flex-shrink-0 w-12">
+                    <p className="text-[10px] num font-semibold" style={{ color: 'var(--text-muted)' }}>{block.startTime}</p>
+                    <div className="w-px h-2 mx-auto my-0.5" style={{ backgroundColor: 'var(--border)' }} />
+                    <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>{block.endTime}</p>
+                  </div>
+
+                  {/* Active pulse dot */}
+                  {isActive && !isDone && !isBlockSkipped && (
+                    <div className="w-1.5 h-1.5 rounded-full animate-pulse-dot flex-shrink-0" style={{ backgroundColor: routine.color || 'var(--accent)' }} />
+                  )}
+
+                  {/* Label + linked chips */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium" style={{
+                      color: isDone || isBlockSkipped ? 'var(--text-muted)' : 'var(--text-primary)',
+                      textDecoration: isDone ? 'line-through' : isBlockSkipped ? 'line-through' : 'none',
+                    }}>
+                      {block.title}
+                      {isBlockSkipped && (
+                        <span className="ml-2 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>skipped</span>
+                      )}
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <span
+                        className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
+                        style={blockKindMeta.style}
+                      >
+                        {blockKindMeta.label}
+                      </span>
+                    </div>
+                    {(block.mealType || block.linkedWorkoutPlanId) && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {block.mealType && (
+                          <span
+                            className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
+                            style={{ backgroundColor: 'rgba(34,197,94,0.14)', color: 'var(--accent-green)', border: '1px solid rgba(34,197,94,0.28)' }}
+                          >
+                            🍽 {block.mealType}
+                          </span>
+                        )}
+                        {block.linkedWorkoutPlanId ? (
+                          <button
+                            type="button"
+                            onClick={() => navigate('/body?tab=Workout')}
+                            className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold press"
+                            style={{ backgroundColor: 'rgba(108,99,255,0.16)', color: 'var(--accent)', border: '1px solid rgba(108,99,255,0.3)' }}
+                          >
+                            {block.linkedWorkoutLabel ?? 'Today Workout'}
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Now badge */}
+                  {isActive && !isDone && !isBlockSkipped && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: routine.color || 'var(--accent)', color: '#fff' }}>
+                      Now
+                    </span>
+                  )}
+
+                  {/* Skip / Unskip button */}
+                  {!isDone && !isSkipped && (
+                    isBlockSkipped ? (
+                      <button onClick={() => unskipBlock(block)}
+                        className="p-1.5 rounded-lg press" style={{ color: 'rgba(217,119,6,0.7)' }}
+                        title="Undo skip">
+                        <RotateCcw size={13} />
+                      </button>
+                    ) : (
+                      <button onClick={() => skipBlock(block)}
+                        className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}
+                        title="Skip this block">
+                        <X size={13} />
+                      </button>
+                    )
+                  )}
+
+                  {/* Edit block */}
+                  {!isSkipped && (
+                    <button
+                      onClick={() => openEditBlock(block)}
+                      className="p-1.5 rounded-lg press"
+                      style={{ color: 'var(--text-muted)' }}
+                      title={syncWithRoutine ? 'Edit block for all routine days' : 'Edit block only for today'}
+                    >
+                      <Edit size={13} />
+                    </button>
+                  )}
+
+                  {/* Check toggle */}
+                  {!isSkipped && (
+                    <button onClick={() => toggleBlock(block)} className="press ml-0.5">
+                      {isDone
+                        ? <CheckCircle2 size={20} style={{ color: routine.color || 'var(--accent)' }} />
+                        : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--border)' }} />}
+                    </button>
+                  )}
                 </div>
-              )}
-            </motion.div>
+
+                {/* Active progress bar */}
+                {isActive && !isDone && !isBlockSkipped && (
+                  <div className="h-0.5 w-full" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                    <div className="h-full" style={{
+                      backgroundColor: routine.color || 'var(--accent)',
+                      width: `${Math.min(100, ((now - start) / (end - start)) * 100)}%`,
+                      transition: 'width 60s linear',
+                    }} />
+                  </div>
+                )}
+              </motion.div>
+            </div>
           );
         })}
+        </div>
       </div>
 
-      {/* Footer */}
-      <button onClick={() => navigate('/settings/routines')}
-        className="mt-4 w-full py-2.5 rounded-xl text-xs font-semibold press"
-        style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-        Configure Routines →
-      </button>
+      {/* Add block form */}
+      {!isSkipped && data && data.routine && (
+        <AnimatePresence>
+          {addingBlock && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+              className="rounded-xl p-3 space-y-2 mt-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <input type="text" value={newBlockForm.title} onChange={e => setNewBlockForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Block title" autoFocus
+                className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+              <div>
+                <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Block Type</p>
+                <div className="flex gap-1.5">
+                  {([
+                    { key: 'general', label: 'General' },
+                    { key: 'meal', label: 'Meal' },
+                    { key: 'workout', label: 'Workout' },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setNewBlockForm(prev => ({ ...prev, blockKind: opt.key }))}
+                      className="px-2 py-1 rounded-lg text-[10px] font-semibold press"
+                      style={{
+                        backgroundColor: newBlockForm.blockKind === opt.key ? 'var(--accent)' : 'var(--surface-elevated)',
+                        color: newBlockForm.blockKind === opt.key ? '#fff' : 'var(--text-secondary)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <input type="time" value={newBlockForm.startTime} onChange={e => setNewBlockForm(prev => ({ ...prev, startTime: e.target.value }))}
+                  className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                <input type="time" value={newBlockForm.endTime} onChange={e => setNewBlockForm(prev => ({ ...prev, endTime: e.target.value }))}
+                  className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+              </div>
+              {newBlockForm.blockKind === 'meal' && (
+                <select value={newBlockForm.mealType} onChange={e => setNewBlockForm(prev => ({ ...prev, mealType: e.target.value }))}
+                  className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                  <option value="">Select meal type</option>
+                  {['Breakfast', 'Pre-Workout', 'Post-Workout', 'Lunch', 'Snack', 'Dinner', 'Evening Snack'].map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => setAddingBlock(false)} className="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold press"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                  Cancel
+                </button>
+                <button onClick={addBlockToday} disabled={!newBlockForm.title.trim() || savingBlock} className="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white press disabled:opacity-40"
+                  style={{ backgroundColor: 'var(--accent)' }}>
+                  {savingBlock ? 'Adding...' : 'Add'}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
+
+      {/* Edit block modal */}
+      <AnimatePresence>
+        {editingBlockModal?.isOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 flex items-end z-50">
+            <motion.div initial={{ y: 64 }} animate={{ y: 0 }} exit={{ y: 64 }} className="w-full rounded-t-2xl p-4" style={{ backgroundColor: 'var(--surface)' }}>
+              <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Edit block</p>
+              <div className="space-y-2 mb-4">
+                <input type="text" value={editBlockForm.title} onChange={e => setEditBlockForm(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Block title"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                <div className="flex gap-2">
+                  <input type="time" value={editBlockForm.startTime} onChange={e => setEditBlockForm(prev => ({ ...prev, startTime: e.target.value }))}
+                    className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                  <input type="time" value={editBlockForm.endTime} onChange={e => setEditBlockForm(prev => ({ ...prev, endTime: e.target.value }))}
+                    className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                </div>
+                <select value={editBlockForm.mealType} onChange={e => setEditBlockForm(prev => ({ ...prev, mealType: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                  <option value="">No meal type</option>
+                  {['Breakfast', 'Pre-Workout', 'Post-Workout', 'Lunch', 'Snack', 'Dinner', 'Evening Snack'].map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={deleteEditedBlock} disabled={deletingEditBlock} className="px-4 py-2.5 rounded-lg text-xs font-semibold press disabled:opacity-40"
+                  style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}>
+                  {deletingEditBlock ? 'Deleting...' : 'Delete'}
+                </button>
+                <button onClick={() => setEditingBlockModal(null)} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold press"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                  Cancel
+                </button>
+                <button onClick={saveEditedBlock} disabled={!editBlockForm.title.trim() || savingEditBlock} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold text-white press disabled:opacity-40"
+                  style={{ backgroundColor: 'var(--accent)' }}>
+                  {savingEditBlock ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Completion time modal */}
+      <AnimatePresence>
+        {completionTimeModal?.isOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 flex items-end z-50">
+            <motion.div initial={{ y: 64 }} animate={{ y: 0 }} exit={{ y: 64 }} className="w-full rounded-t-2xl p-4" style={{ backgroundColor: 'var(--surface)' }}>
+              <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Mark as completed at</p>
+              <div className="space-y-2 mb-4">
+                <div>
+                  <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Start time</p>
+                  <input type="time" value={completionTime.start} onChange={e => setCompletionTime(prev => ({ ...prev, start: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>End time</p>
+                  <input type="time" value={completionTime.end} onChange={e => setCompletionTime(prev => ({ ...prev, end: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setCompletionTimeModal(null)} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold press"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                  Cancel
+                </button>
+                <button onClick={confirmCompletion} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold text-white press"
+                  style={{ backgroundColor: 'var(--accent)' }}>
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
