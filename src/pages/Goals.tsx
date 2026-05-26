@@ -57,7 +57,7 @@ export default function Goals() {
   return (
     <div className="pt-4 pb-nav px-4" style={{ backgroundColor: 'var(--bg)' }}>
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => navigate('/life')} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
+        <button onClick={() => navigate('/life?tab=Goals')} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
           <ChevronLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Goals</h1>

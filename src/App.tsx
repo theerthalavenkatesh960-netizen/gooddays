@@ -16,6 +16,7 @@ import CardCategoryTransactions from './pages/CardCategoryTransactions';
 import FinanceBudgetSettings from './pages/FinanceBudgetSettings';
 import BucketDetail from './pages/BucketDetail';
 import Tasks from './pages/Tasks';
+import Life from './pages/Life';
 import Goals from './pages/Goals';
 import GoalDetail from './pages/GoalDetail';
 import GoalCreate from './pages/GoalCreate';
@@ -113,6 +114,7 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/finance/bucket/:id" element={<PrivateRoute><Layout><BucketDetail /></Layout></PrivateRoute>} />
               <Route path="/finance/vehicles" element={<PrivateRoute><Layout><Vehicles /></Layout></PrivateRoute>} />
               <Route path="/finance/gmail-review" element={<PrivateRoute><Layout><FinanceGmailReview /></Layout></PrivateRoute>} />
+              <Route path="/life" element={<PrivateRoute><Layout><Life /></Layout></PrivateRoute>} />
               <Route path="/goals" element={<PrivateRoute><Layout><Goals /></Layout></PrivateRoute>} />
               <Route path="/goals/new" element={<PrivateRoute><Layout><GoalCreate /></Layout></PrivateRoute>} />
               <Route path="/goals/:id" element={<PrivateRoute><Layout><GoalDetail /></Layout></PrivateRoute>} />

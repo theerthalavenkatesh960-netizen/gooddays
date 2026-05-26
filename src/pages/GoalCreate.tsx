@@ -16,7 +16,7 @@ export default function GoalCreate() {
   const { id } = useParams();
   const goalId = id ? Number(id) : null;
   const isEdit = goalId !== null;
-  const backTarget = (location.state as { from?: string } | null)?.from || '/goals';
+  const backTarget = (location.state as { from?: string } | null)?.from || '/life?tab=Goals';
 
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);

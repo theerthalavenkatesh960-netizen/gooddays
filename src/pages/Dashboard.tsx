@@ -245,6 +245,7 @@ function DashboardTab({
   const [weeklyJournalDays, setWeeklyJournalDays] = useState(0);
   const [weeklySpend, setWeeklySpend] = useState(0);
   const [goalsInProgress, setGoalsInProgress] = useState(0);
+  const [nearestGoalDays, setNearestGoalDays] = useState<number | null>(null);
   const [monthlyNet, setMonthlyNet] = useState<number | null>(null);
   const [journalToday, setJournalToday] = useState(false);
   const [workoutToday, setWorkoutToday] = useState(false);
@@ -549,7 +550,15 @@ function DashboardTab({
       }
 
       const goals = Array.isArray(goalsData) ? goalsData : [];
-      setGoalsInProgress(goals.filter((g: any) => (g.status ?? '').toLowerCase() !== 'completed').length);
+      const activeGoals = goals.filter((g: any) => (g.status ?? '').toLowerCase() !== 'completed');
+      setGoalsInProgress(activeGoals.length);
+      const deadlines = activeGoals
+        .map((g: any) => g.deadlineDate ?? g.deadline_date)
+        .filter(Boolean)
+        .map((d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+        .filter((n: number) => n >= 0)
+        .sort((a: number, b: number) => a - b);
+      setNearestGoalDays(deadlines.length > 0 ? deadlines[0] : null);
 
       // Daily momentum model (0..100)
       const taskCompletionRatio = todayTasks.length > 0 ? todayTasks.filter(t => t.isCompleted ?? t.status === 'completed').length / todayTasks.length : 0.4;
@@ -717,7 +726,7 @@ function DashboardTab({
               <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                 {upcomingMeal.timeOfDay || 'No specific time'}
               </p>
-              <button onClick={() => navigate('/track?tab=meal')} className="mt-2 text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
+              <button onClick={() => navigate('/body?tab=Diet')} className="mt-2 text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
                 View →
               </button>
             </div>
@@ -731,7 +740,7 @@ function DashboardTab({
               <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                 {upcomingWorkout.plannedExercises?.split(',').length || 0} exercises
               </p>
-              <button onClick={() => navigate('/body/workout-log')} className="mt-2 text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
+              <button onClick={() => navigate('/body?tab=Workout')} className="mt-2 text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
                 Start →
               </button>
             </div>
@@ -823,10 +832,14 @@ function DashboardTab({
           <p className="text-base font-bold num" style={{ color: 'var(--text-primary)' }}>{reminders.length}</p>
           <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>today</p>
         </div>
-        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="rounded-xl p-3 cursor-pointer" onClick={() => navigate('/life?tab=Goals')} style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Goals in progress</p>
           <p className="text-base font-bold num" style={{ color: 'var(--text-primary)' }}>{goalsInProgress}</p>
-          <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>keep compounding</p>
+          {nearestGoalDays !== null ? (
+            <p className="text-[10px] mt-1" style={{ color: 'var(--accent)' }}>⏳ {nearestGoalDays}d to next deadline</p>
+          ) : (
+            <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>keep compounding</p>
+          )}
         </div>
       </div>
     </div>

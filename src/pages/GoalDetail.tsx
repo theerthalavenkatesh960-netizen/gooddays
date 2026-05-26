@@ -49,7 +49,7 @@ export default function GoalDetail() {
   const location = useLocation();
   const { id } = useParams();
   const goalId = Number(id);
-  const backTarget = (location.state as { from?: string } | null)?.from || '/goals';
+  const backTarget = (location.state as { from?: string } | null)?.from || '/life?tab=Goals';
 
   const [goal, setGoal] = useState<Goal | null>(null);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
