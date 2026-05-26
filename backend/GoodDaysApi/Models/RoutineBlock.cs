@@ -37,6 +37,10 @@ public class RoutineBlock
     [Column("meal_type")]
     public string? MealType { get; set; }
 
+    [Column("template_id")]
+    public int? TemplateId { get; set; }
+    public RoutineBlockTemplate? Template { get; set; }
+
     public List<RoutineBlockMealLink> MealLinks { get; set; } = new();
 
     [Column("created_at")]

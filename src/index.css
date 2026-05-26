@@ -7,6 +7,7 @@
 ═══════════════════════════════════════════════════════ */
 
 :root {
+  --app-height: 100dvh;
   --bg: #0A0A0F;
   --surface: #13131A;
   --surface-elevated: #1C1C26;
@@ -101,21 +102,23 @@
   }
 
   html {
-    height: 100%;
+    height: var(--app-height);
   }
 
   body {
     font-family: 'DM Sans', system-ui, sans-serif;
     background-color: var(--bg);
     color: var(--text-primary);
-    min-height: 100dvh;
+    min-height: var(--app-height);
+    height: var(--app-height);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
   }
 
   #root {
-    min-height: 100dvh;
+    min-height: var(--app-height);
+    height: var(--app-height);
   }
 }
 
@@ -246,7 +249,7 @@
   .page {
     max-width: 390px;
     margin: 0 auto;
-    min-height: 100dvh;
+    min-height: var(--app-height);
     padding-bottom: calc(80px + env(safe-area-inset-bottom));
     padding-top: env(safe-area-inset-top);
     background-color: var(--bg);
@@ -306,6 +309,10 @@
   .press   { transition: transform 0.1s ease; }
   .press:active { transform: scale(0.96); }
   .num     { font-family: 'DM Mono', monospace; }
+
+  .min-h-screen {
+    min-height: var(--app-height) !important;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════

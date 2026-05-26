@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import * as api from '../lib/api';
 
@@ -36,6 +36,7 @@ function StatusBadge({ goal }: { goal: Goal }) {
 
 export default function Goals() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -56,7 +57,7 @@ export default function Goals() {
   return (
     <div className="pt-4 pb-nav px-4" style={{ backgroundColor: 'var(--bg)' }}>
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => navigate('/life')} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
+        <button onClick={() => navigate('/life?tab=Goals')} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
           <ChevronLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Goals</h1>
@@ -81,7 +82,7 @@ export default function Goals() {
             return (
               <button
                 key={goal.id}
-                onClick={() => navigate(`/goals/${goal.id}`)}
+                onClick={() => navigate(`/goals/${goal.id}`, { state: { from: `${location.pathname}${location.search}` } })}
                 className="w-full text-left rounded-2xl p-4 press"
                 style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
               >

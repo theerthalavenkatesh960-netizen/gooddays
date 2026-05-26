@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Check, Edit2, Plus, Trash2 } from 'lucide-react';
 import * as api from '../lib/api';
 
@@ -46,8 +46,10 @@ function CountdownBadge({ goal }: { goal: Goal }) {
 
 export default function GoalDetail() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const goalId = Number(id);
+  const backTarget = (location.state as { from?: string } | null)?.from || '/life?tab=Goals';
 
   const [goal, setGoal] = useState<Goal | null>(null);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
@@ -113,7 +115,7 @@ export default function GoalDetail() {
 
   async function deleteGoal() {
     await api.deleteGoal(goalId);
-    navigate('/goals');
+    navigate(backTarget, { replace: true });
   }
 
   if (loading) {
@@ -132,7 +134,7 @@ export default function GoalDetail() {
     <div className="pt-4 pb-nav px-4" style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <button onClick={() => navigate('/goals')} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
+        <button onClick={() => navigate(backTarget, { replace: true })} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
           <ArrowLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
         <h1 className="text-xl font-bold flex-1 truncate" style={{ color: 'var(--text-primary)' }}>{goal.title}</h1>

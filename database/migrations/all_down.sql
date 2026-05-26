@@ -8,6 +8,15 @@
 BEGIN;
 
 -- ===================================================================
+-- 010 ROLLBACK: Routine block templates
+-- ===================================================================
+
+DROP INDEX IF EXISTS idx_routine_blocks_template;
+ALTER TABLE IF EXISTS routine_blocks DROP COLUMN IF EXISTS template_id;
+DROP INDEX IF EXISTS idx_routine_block_templates_user;
+DROP TABLE IF EXISTS routine_block_templates;
+
+-- ===================================================================
 -- 009 ROLLBACK: AI Planner
 -- ===================================================================
 

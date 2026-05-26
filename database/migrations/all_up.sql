@@ -713,6 +713,61 @@ CREATE INDEX IF NOT EXISTS idx_daily_routine_block_overrides_base ON daily_routi
 CREATE INDEX IF NOT EXISTS idx_daily_routine_override_logs_user_date ON daily_routine_override_logs(user_id, date);
 
 -- ===================================================================
+-- 010: ROUTINE BLOCK TEMPLATES
+-- ===================================================================
+
+CREATE TABLE IF NOT EXISTS routine_block_templates (
+  id                  SERIAL PRIMARY KEY,
+  user_id             integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  title               text NOT NULL,
+  category            text,
+  color               text,
+  default_start_time  text,
+  default_end_time    text,
+  created_at          timestamptz DEFAULT now(),
+  updated_at          timestamptz DEFAULT now(),
+  UNIQUE(user_id, title)
+);
+
+CREATE INDEX IF NOT EXISTS idx_routine_block_templates_user ON routine_block_templates(user_id);
+
+ALTER TABLE routine_blocks
+  ADD COLUMN IF NOT EXISTS template_id integer REFERENCES routine_block_templates(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_routine_blocks_template ON routine_blocks(template_id);
+
+INSERT INTO routine_block_templates (user_id, title, category, color, default_start_time, default_end_time)
+SELECT
+  dr.user_id,
+  rb.title,
+  rb.category,
+  rb.color,
+  rb.start_time,
+  rb.end_time
+FROM (
+  SELECT DISTINCT ON (dr2.user_id, rb2.title)
+    rb2.routine_id,
+    rb2.title,
+    rb2.category,
+    rb2.color,
+    rb2.start_time,
+    rb2.end_time
+  FROM routine_blocks rb2
+  JOIN daily_routines dr2 ON dr2.id = rb2.routine_id
+  ORDER BY dr2.user_id, rb2.title, rb2.id
+) rb
+JOIN daily_routines dr ON dr.id = rb.routine_id
+ON CONFLICT (user_id, title) DO NOTHING;
+
+UPDATE routine_blocks rb
+SET template_id = t.id
+FROM routine_block_templates t
+JOIN daily_routines dr ON dr.user_id = t.user_id
+WHERE rb.routine_id = dr.id
+  AND rb.title = t.title
+  AND rb.template_id IS NULL;
+
+-- ===================================================================
 -- 004: WATER TRACKING & QUICK LOG
 -- ===================================================================
 

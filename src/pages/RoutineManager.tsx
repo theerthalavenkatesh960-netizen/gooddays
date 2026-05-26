@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ChevronDown, ChevronUp, X, Check, ArrowLeft, Copy, GripVertical } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, X, Check, ArrowLeft, Copy, GripVertical, BarChart2 } from 'lucide-react';
+import BlockTemplateStatsModal from '../components/BlockTemplateStatsModal.tsx';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfWeek, addDays, getDay } from 'date-fns';
 import {
@@ -45,6 +46,15 @@ interface Routine {
   blocks: RoutineBlock[];
 }
 
+interface BlockTemplate {
+  id: number;
+  title: string;
+  category?: string | null;
+  color?: string | null;
+  defaultStartTime?: string | null;
+  defaultEndTime?: string | null;
+}
+
 interface ScheduleEntry {
   dayOfWeek: number;
   routineId: number | null;
@@ -85,6 +95,7 @@ function SortableBlockRow({
   editing,
   todayWorkoutOptions,
   workoutLabelMap,
+  templates,
   onEdit,
   onSaved,
   onCancelEdit,
@@ -95,6 +106,7 @@ function SortableBlockRow({
   editing: boolean;
   todayWorkoutOptions: WorkoutOption[];
   workoutLabelMap: Record<number, string>;
+  templates: BlockTemplate[];
   onEdit: () => void;
   onSaved: () => void;
   onCancelEdit: () => void;
@@ -116,6 +128,7 @@ function SortableBlockRow({
           routineId={routineId}
           initial={block}
           todayWorkoutOptions={todayWorkoutOptions}
+          templates={templates}
           onSave={onSaved}
           onCancel={onCancelEdit}
         />
@@ -184,12 +197,14 @@ function BlockForm({
   routineId,
   initial,
   todayWorkoutOptions,
+  templates,
   onSave,
   onCancel,
 }: {
   routineId: number;
   initial?: Partial<RoutineBlock>;
   todayWorkoutOptions: WorkoutOption[];
+  templates: BlockTemplate[];
   onSave: () => void;
   onCancel: () => void;
 }) {
@@ -200,8 +215,17 @@ function BlockForm({
   const [mealType, setMealType] = useState<string>(initial?.mealType ?? '');
   const [linkedWorkoutPlanId, setLinkedWorkoutPlanId] = useState<number | null>(initial?.linkedWorkoutPlanId ?? null);
   const [saving, setSaving] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [statsTemplateId, setStatsTemplateId] = useState<number | null>(null);
 
   const workoutValue = linkedWorkoutPlanId != null ? String(linkedWorkoutPlanId) : '';
+
+  function applyTemplate(tpl: BlockTemplate) {
+    setTitle(tpl.title);
+    if (tpl.defaultStartTime) setStartTime(tpl.defaultStartTime);
+    if (tpl.defaultEndTime) setEndTime(tpl.defaultEndTime);
+    setShowTemplatePicker(false);
+  }
 
   async function submit() {
     if (!title.trim()) return;
@@ -226,7 +250,59 @@ function BlockForm({
   }
 
   return (
+    <>
+    {statsTemplateId !== null && (
+      <BlockTemplateStatsModal templateId={statsTemplateId} onClose={() => setStatsTemplateId(null)} />
+    )}
     <div className="rounded-xl p-3 space-y-2.5 mt-2" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+      {/* Template picker */}
+      {!initial?.id && templates.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowTemplatePicker(v => !v)}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold press"
+            style={{ backgroundColor: 'rgba(108,99,255,0.08)', color: 'var(--accent)', border: '1px solid rgba(108,99,255,0.25)' }}
+          >
+            <span>✨ Choose from saved blocks</span>
+            {showTemplatePicker ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
+          {showTemplatePicker && (
+            <div className="mt-1.5 rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+              {templates.map(tpl => (
+                <div key={tpl.id} className="flex items-center justify-between px-3 py-2"
+                  style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
+                  <button
+                    type="button"
+                    className="flex-1 text-left text-xs font-medium press"
+                    style={{ color: 'var(--text-primary)' }}
+                    onClick={() => applyTemplate(tpl)}
+                  >
+                    {tpl.color && (
+                      <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ backgroundColor: tpl.color }} />
+                    )}
+                    {tpl.title}
+                    {tpl.defaultStartTime && (
+                      <span className="ml-1.5 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                        {tpl.defaultStartTime}–{tpl.defaultEndTime}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    title="View stats"
+                    className="ml-2 p-1 press"
+                    style={{ color: 'var(--text-muted)' }}
+                    onClick={() => setStatsTemplateId(tpl.id)}
+                  >
+                    <BarChart2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <input
         type="text"
         value={title}
@@ -325,6 +401,7 @@ function BlockForm({
         </button>
       </div>
     </div>
+    </>
   );
 }
 
@@ -334,11 +411,13 @@ function RoutineCard({
   routine,
   todayWorkoutOptions,
   workoutLabelMap,
+  templates,
   onRefresh,
 }: {
   routine: Routine;
   todayWorkoutOptions: WorkoutOption[];
   workoutLabelMap: Record<number, string>;
+  templates: BlockTemplate[];
   onRefresh: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -543,6 +622,7 @@ function RoutineCard({
                       editing={editingBlock === block.id}
                       todayWorkoutOptions={todayWorkoutOptions}
                       workoutLabelMap={workoutLabelMap}
+                      templates={templates}
                       onEdit={() => setEditingBlock(block.id)}
                       onSaved={() => { setEditingBlock(null); onRefresh(); }}
                       onCancelEdit={() => setEditingBlock(null)}
@@ -557,6 +637,7 @@ function RoutineCard({
                   routineId={routine.id}
                   initial={defaultForNextBlock}
                   todayWorkoutOptions={todayWorkoutOptions}
+                  templates={templates}
                   onSave={() => { setAddingBlock(false); onRefresh(); }}
                   onCancel={() => setAddingBlock(false)}
                 />
@@ -580,6 +661,7 @@ function RoutineCard({
 export default function RoutineManager() {
   const navigate = useNavigate();
   const [routines, setRoutines] = useState<Routine[]>([]);
+  const [templates, setTemplates] = useState<BlockTemplate[]>([]);
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
   const [todayWorkoutOptions, setTodayWorkoutOptions] = useState<WorkoutOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -599,12 +681,14 @@ export default function RoutineManager() {
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
 
-      const [r, s, workoutPlan] = await Promise.all([
+      const [r, s, workoutPlan, tpls] = await Promise.all([
         (api as any).getDailyRoutines(),
         (api as any).getWeeklyRoutineSchedule(),
         api.getWorkoutPlanByDate(today),
+        (api as any).getBlockTemplates(),
       ]);
       setRoutines(r);
+      setTemplates(Array.isArray(tpls) ? tpls : []);
 
       if ((workoutPlan as any)?.id) {
         setTodayWorkoutOptions([
@@ -725,6 +809,7 @@ export default function RoutineManager() {
             routine={r}
             todayWorkoutOptions={todayWorkoutOptions}
             workoutLabelMap={workoutLabelMap}
+            templates={templates}
             onRefresh={load}
           />
         ))}

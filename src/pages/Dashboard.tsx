@@ -3,6 +3,21 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Settings, CheckCircle2, Moon, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Clock, ChevronDown, GripVertical, LayoutDashboard, CheckSquare, Repeat, X } from 'lucide-react';
 import { format, isToday, parseISO, subDays, addDays, startOfWeek, isSameDay, isPast } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 
@@ -230,6 +245,7 @@ function DashboardTab({
   const [weeklyJournalDays, setWeeklyJournalDays] = useState(0);
   const [weeklySpend, setWeeklySpend] = useState(0);
   const [goalsInProgress, setGoalsInProgress] = useState(0);
+  const [nearestGoalDays, setNearestGoalDays] = useState<number | null>(null);
   const [monthlyNet, setMonthlyNet] = useState<number | null>(null);
   const [journalToday, setJournalToday] = useState(false);
   const [workoutToday, setWorkoutToday] = useState(false);
@@ -534,7 +550,15 @@ function DashboardTab({
       }
 
       const goals = Array.isArray(goalsData) ? goalsData : [];
-      setGoalsInProgress(goals.filter((g: any) => (g.status ?? '').toLowerCase() !== 'completed').length);
+      const activeGoals = goals.filter((g: any) => (g.status ?? '').toLowerCase() !== 'completed');
+      setGoalsInProgress(activeGoals.length);
+      const deadlines = activeGoals
+        .map((g: any) => g.deadlineDate ?? g.deadline_date)
+        .filter(Boolean)
+        .map((d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+        .filter((n: number) => n >= 0)
+        .sort((a: number, b: number) => a - b);
+      setNearestGoalDays(deadlines.length > 0 ? deadlines[0] : null);
 
       // Daily momentum model (0..100)
       const taskCompletionRatio = todayTasks.length > 0 ? todayTasks.filter(t => t.isCompleted ?? t.status === 'completed').length / todayTasks.length : 0.4;
@@ -702,7 +726,7 @@ function DashboardTab({
               <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                 {upcomingMeal.timeOfDay || 'No specific time'}
               </p>
-              <button onClick={() => navigate('/track?tab=meal')} className="mt-2 text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
+              <button onClick={() => navigate('/body?tab=Diet')} className="mt-2 text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
                 View →
               </button>
             </div>
@@ -716,7 +740,7 @@ function DashboardTab({
               <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                 {upcomingWorkout.plannedExercises?.split(',').length || 0} exercises
               </p>
-              <button onClick={() => navigate('/body/workout-log')} className="mt-2 text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
+              <button onClick={() => navigate('/body?tab=Workout')} className="mt-2 text-[10px] font-semibold px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
                 Start →
               </button>
             </div>
@@ -808,10 +832,14 @@ function DashboardTab({
           <p className="text-base font-bold num" style={{ color: 'var(--text-primary)' }}>{reminders.length}</p>
           <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>today</p>
         </div>
-        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="rounded-xl p-3 cursor-pointer" onClick={() => navigate('/life?tab=Goals')} style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Goals in progress</p>
           <p className="text-base font-bold num" style={{ color: 'var(--text-primary)' }}>{goalsInProgress}</p>
-          <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>keep compounding</p>
+          {nearestGoalDays !== null ? (
+            <p className="text-[10px] mt-1" style={{ color: 'var(--accent)' }}>⏳ {nearestGoalDays}d to next deadline</p>
+          ) : (
+            <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>keep compounding</p>
+          )}
         </div>
       </div>
     </div>
@@ -1331,6 +1359,32 @@ function TasksTab({ user }: { user: any }) {
 
 // ─── Daily Routine Tab ────────────────────────────────────────────────────────
 
+function SortableRoutineBlockRow({
+  id,
+  children,
+}: {
+  id: number;
+  children: (drag: { attributes: Record<string, any>; listeners: Record<string, any> }) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.75 : 1,
+        zIndex: isDragging ? 10 : undefined,
+      }}
+    >
+      {children({
+        attributes: (attributes ?? {}) as Record<string, any>,
+        listeners: (listeners ?? {}) as Record<string, any>,
+      })}
+    </div>
+  );
+}
+
 type TodayRoutineBlock = {
   id: number;
   title: string;
@@ -1362,6 +1416,7 @@ type BlockKind = 'general' | 'meal' | 'workout';
 function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
+  const syncPrefKey = `gd:routine-sync:${String(_userId)}`;
   const [data, setData] = useState<TodayRoutine | null>(null);
   const [loading, setLoading] = useState(true);
   const [skipping, setSkipping] = useState(false);
@@ -1376,7 +1431,29 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const [savingEditBlock, setSavingEditBlock] = useState(false);
   const [deletingEditBlock, setDeletingEditBlock] = useState(false);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
+
   const now = currentMinutes();
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(syncPrefKey);
+      if (raw === '0') setSyncWithRoutine(false);
+      if (raw === '1') setSyncWithRoutine(true);
+    } catch {
+      // ignore localStorage read issues
+    }
+  }, [syncPrefKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(syncPrefKey, syncWithRoutine ? '1' : '0');
+    } catch {
+      // ignore localStorage write issues
+    }
+  }, [syncPrefKey, syncWithRoutine]);
 
   async function load() {
     setLoading(true);
@@ -1387,6 +1464,62 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
       setData(null);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function normalizeRoutineOrderByTime(routineId: number) {
+    const routines = await (api as any).getDailyRoutines().catch(() => []);
+    const routine = Array.isArray(routines) ? routines.find((r: any) => Number(r.id) === Number(routineId)) : null;
+    if (!routine || !Array.isArray(routine.blocks)) return;
+    const ordered = [...routine.blocks].sort((a: any, b: any) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    await Promise.all(
+      ordered.map((block: any, index: number) => (api as any).updateRoutineBlock(block.id, {
+        title: block.title,
+        startTime: block.startTime,
+        endTime: block.endTime,
+        sortOrder: index + 1,
+        mealType: block.mealType ?? null,
+        linkedWorkoutPlanId: block.linkedWorkoutPlanId ?? null,
+      })),
+    );
+  }
+
+  async function reorderTodayByTime() {
+    const latest = await (api as any).getTodayRoutine().catch(() => null);
+    if (!latest || !Array.isArray(latest.blocks) || latest.blocks.length === 0) return;
+    const items = [...latest.blocks]
+      .sort((a: TodayRoutineBlock, b: TodayRoutineBlock) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
+      .map((b: TodayRoutineBlock, idx: number) => ({
+        overrideId: b.overrideId ?? undefined,
+        baseBlockId: b.baseBlockId ?? (b.isOverride ? undefined : b.id),
+        sortOrder: idx + 1,
+      }));
+    await (api as any).reorderTodayRoutineOverrides({ date: latest.date, items });
+  }
+
+  async function onDragEnd(event: DragEndEvent) {
+    if (!data || isSkipped) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = data.blocks.findIndex(b => b.id === active.id);
+    const newIndex = data.blocks.findIndex(b => b.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const reordered = arrayMove(data.blocks, oldIndex, newIndex);
+    setData(prev => prev ? { ...prev, blocks: reordered } : prev);
+
+    const items = reordered.map((b, idx) => ({
+      overrideId: b.overrideId ?? undefined,
+      baseBlockId: b.baseBlockId ?? (b.isOverride ? undefined : b.id),
+      sortOrder: idx + 1,
+    }));
+
+    try {
+      await (api as any).reorderTodayRoutineOverrides({ date: today, items });
+      await load();
+    } catch {
+      await load();
     }
   }
 
@@ -1530,6 +1663,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           mealType: payloadByKind.mealType,
           linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
         });
+        await normalizeRoutineOrderByTime(data.routine!.id);
       } else {
         await (api as any).addTodayRoutineOverrideBlock({
           date: today,
@@ -1541,6 +1675,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
           sortOrder: (data.blocks?.length ?? 0) + 1,
         });
+        await reorderTodayByTime();
       }
       setNewBlockForm({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' });
       setAddingBlock(false);
@@ -1577,6 +1712,9 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           mealType: payloadByKind.mealType,
           linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
         });
+        if (data?.routine?.id) {
+          await normalizeRoutineOrderByTime(data.routine.id);
+        }
       } else if (targetBlock.baseBlockId) {
         await (api as any).upsertTodayRoutineBaseOverride({
           date: today,
@@ -1595,6 +1733,9 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           mealType: payloadByKind.mealType,
           linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
         });
+      }
+      if (!syncWithRoutine) {
+        await reorderTodayByTime();
       }
       setEditingBlockModal(null);
       await load();
@@ -1775,8 +1916,10 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
 
       {/* Time blocks — vertical timeline */}
       <div className="relative">
-        <div className="space-y-2">
-          {blocks.map((block, idx) => {
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {blocks.map((block, idx) => {
           const start = timeToMinutes(block.startTime);
           const end = timeToMinutes(block.endTime);
           const isActive = now >= start && now < end;
@@ -1786,7 +1929,9 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           const blockKindMeta = getBlockKindMeta(block);
 
           return (
-            <div key={block.id} className="relative flex items-start gap-1.5">
+            <SortableRoutineBlockRow key={block.id} id={block.id}>
+              {({ attributes, listeners }) => (
+                <div className="relative flex items-start gap-1.5">
               {/* Timeline rail + dot + horizontal connector */}
               <div className="relative flex-shrink-0" style={{ width: 26 }}>
                 {!isLast && (
@@ -1912,6 +2057,20 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                     )
                   )}
 
+                  {/* Drag handle */}
+                  {!isSkipped && (
+                    <button
+                      type="button"
+                      className="p-1.5 rounded-lg press cursor-grab active:cursor-grabbing"
+                      style={{ color: 'var(--text-muted)' }}
+                      title="Drag to reorder"
+                      {...attributes}
+                      {...listeners}
+                    >
+                      <GripVertical size={13} />
+                    </button>
+                  )}
+
                   {/* Edit block */}
                   {!isSkipped && (
                     <button
@@ -1945,78 +2104,94 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                   </div>
                 )}
               </motion.div>
-            </div>
+                </div>
+              )}
+            </SortableRoutineBlockRow>
           );
-        })}
-        </div>
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       </div>
 
-      {/* Add block form */}
-      {!isSkipped && data && data.routine && (
-        <AnimatePresence>
-          {addingBlock && (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-              className="rounded-xl p-3 space-y-2 mt-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <input type="text" value={newBlockForm.title} onChange={e => setNewBlockForm(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Block title" autoFocus
-                className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
-              <div>
-                <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Block Type</p>
-                <div className="flex gap-1.5">
-                  {([
-                    { key: 'general', label: 'General' },
-                    { key: 'meal', label: 'Meal' },
-                    { key: 'workout', label: 'Workout' },
-                  ] as const).map(opt => (
-                    <button
-                      key={opt.key}
-                      type="button"
-                      onClick={() => setNewBlockForm(prev => ({ ...prev, blockKind: opt.key }))}
-                      className="px-2 py-1 rounded-lg text-[10px] font-semibold press"
-                      style={{
-                        backgroundColor: newBlockForm.blockKind === opt.key ? 'var(--accent)' : 'var(--surface-elevated)',
-                        color: newBlockForm.blockKind === opt.key ? '#fff' : 'var(--text-secondary)',
-                        border: '1px solid var(--border)',
-                      }}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+      {/* Add block modal */}
+      <AnimatePresence>
+        {addingBlock && !isSkipped && data && data.routine && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 flex items-end z-50">
+            <motion.div
+              initial={{ y: 64 }}
+              animate={{ y: 0 }}
+              exit={{ y: 64 }}
+              className="w-full rounded-t-2xl p-4 overflow-y-auto"
+              style={{ backgroundColor: 'var(--surface)', maxHeight: 'min(88dvh, calc(var(--app-height, 100dvh) - 12px))' }}
+            >
+              <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Add block</p>
+              <div className="space-y-2 mb-4">
+                <input type="text" value={newBlockForm.title} onChange={e => setNewBlockForm(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Block title" autoFocus
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+
+                <div>
+                  <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Block Type</p>
+                  <div className="flex gap-1.5">
+                    {([
+                      { key: 'general', label: 'General' },
+                      { key: 'meal', label: 'Meal' },
+                      { key: 'workout', label: 'Workout' },
+                    ] as const).map(opt => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => setNewBlockForm(prev => ({ ...prev, blockKind: opt.key }))}
+                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold press"
+                        style={{
+                          backgroundColor: newBlockForm.blockKind === opt.key ? 'var(--accent)' : 'var(--surface-elevated)',
+                          color: newBlockForm.blockKind === opt.key ? '#fff' : 'var(--text-secondary)',
+                          border: '1px solid var(--border)',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                <div className="flex gap-2">
+                  <input type="time" value={newBlockForm.startTime} onChange={e => setNewBlockForm(prev => ({ ...prev, startTime: e.target.value }))}
+                    className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                  <input type="time" value={newBlockForm.endTime} onChange={e => setNewBlockForm(prev => ({ ...prev, endTime: e.target.value }))}
+                    className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                </div>
+
+                {newBlockForm.blockKind === 'meal' && (
+                  <select value={newBlockForm.mealType} onChange={e => setNewBlockForm(prev => ({ ...prev, mealType: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                    <option value="">Select meal type</option>
+                    {['Breakfast', 'Pre-Workout', 'Post-Workout', 'Lunch', 'Snack', 'Dinner', 'Evening Snack'].map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                )}
               </div>
+
               <div className="flex gap-2">
-                <input type="time" value={newBlockForm.startTime} onChange={e => setNewBlockForm(prev => ({ ...prev, startTime: e.target.value }))}
-                  className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
-                <input type="time" value={newBlockForm.endTime} onChange={e => setNewBlockForm(prev => ({ ...prev, endTime: e.target.value }))}
-                  className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
-              </div>
-              {newBlockForm.blockKind === 'meal' && (
-                <select value={newBlockForm.mealType} onChange={e => setNewBlockForm(prev => ({ ...prev, mealType: e.target.value }))}
-                  className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
-                  <option value="">Select meal type</option>
-                  {['Breakfast', 'Pre-Workout', 'Post-Workout', 'Lunch', 'Snack', 'Dinner', 'Evening Snack'].map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              )}
-              <div className="flex gap-2">
-                <button onClick={() => setAddingBlock(false)} className="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold press"
+                <button onClick={() => setAddingBlock(false)} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold press"
                   style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
                   Cancel
                 </button>
-                <button onClick={addBlockToday} disabled={!newBlockForm.title.trim() || savingBlock} className="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white press disabled:opacity-40"
+                <button onClick={addBlockToday} disabled={!newBlockForm.title.trim() || savingBlock} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold text-white press disabled:opacity-40"
                   style={{ backgroundColor: 'var(--accent)' }}>
                   {savingBlock ? 'Adding...' : 'Add'}
                 </button>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Edit block modal */}
       <AnimatePresence>

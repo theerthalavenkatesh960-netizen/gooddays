@@ -6,7 +6,7 @@ import {
   ArrowRight, Star, Brain, TrendingUp, Sparkles
 } from 'lucide-react';
 import { format, parseISO, isToday, isThisWeek, isPast } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 
@@ -76,7 +76,7 @@ function GoalsTab() {
           const color = g.color ?? ICON_COLORS[i % ICON_COLORS.length];
           const pct = Math.min(100, Math.round((g.currentProgress ?? 0) / Math.max(1, g.targetValue ?? 100) * 100));
           return (
-            <button key={g.id} onClick={() => navigate(`/goals/${g.id}`)} className="w-full text-left rounded-2xl p-4 mb-3 press" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <button key={g.id} onClick={() => navigate(`/goals/${g.id}`, { state: { from: '/life?tab=Goals' } })} className="w-full text-left rounded-2xl p-4 mb-3 press" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style={{ backgroundColor: color + '22' }}>
                   {g.icon ?? '🎯'}
@@ -468,7 +468,28 @@ function TasksTab() {
 // Main Life Page
 // ─────────────────────────────────────────────
 export default function Life() {
-  const [tab, setTab] = useState<LifeTab>('Goals');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const initialTab = (searchParams.get('tab') as LifeTab | null);
+  const normalizedInitialTab: LifeTab = initialTab && ['Goals', 'Journal', 'Review'].includes(initialTab)
+    ? initialTab
+    : 'Goals';
+  const [tab, setTab] = useState<LifeTab>(normalizedInitialTab);
+
+  useEffect(() => {
+    const queryTab = searchParams.get('tab') as LifeTab | null;
+    if (queryTab && ['Goals', 'Journal', 'Review'].includes(queryTab) && queryTab !== tab) {
+      setTab(queryTab);
+    }
+    if (!queryTab) {
+      setSearchParams({ tab: 'Goals' }, { replace: true });
+    }
+  }, [searchParams, setSearchParams, tab]);
+
+  const onChangeTab = (nextTab: LifeTab) => {
+    setTab(nextTab);
+    setSearchParams({ tab: nextTab }, { replace: true });
+  };
 
   return (
     <div className="pt-4 pb-nav" style={{ backgroundColor: 'var(--bg)' }}>
@@ -479,7 +500,7 @@ export default function Life() {
       <PillTabs
         tabs={['Goals', 'Journal', 'Review']}
         active={tab}
-        onChange={t => setTab(t as LifeTab)}
+        onChange={t => onChangeTab(t as LifeTab)}
       />
 
       <AnimatePresence mode="wait">

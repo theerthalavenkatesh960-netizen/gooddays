@@ -43,6 +43,34 @@ public class DailyRoutineController : ControllerBase
             .ToListAsync();
     }
 
+    /// <summary>
+    /// Auto-upserts a routine_block_template for the given title, then returns its id.
+    /// Keyed on (user_id, title) — idempotent.
+    /// </summary>
+    private async Task<int> UpsertBlockTemplateAsync(int userId, string title, string? category, string? color, string? startTime, string? endTime)
+    {
+        var trimmed = title.Trim();
+        var existing = await _db.RoutineBlockTemplates
+            .FirstOrDefaultAsync(t => t.UserId == userId && t.Title == trimmed);
+
+        if (existing is not null) return existing.Id;
+
+        var template = new RoutineBlockTemplate
+        {
+            UserId = userId,
+            Title = trimmed,
+            Category = category,
+            Color = color,
+            DefaultStartTime = startTime,
+            DefaultEndTime = endTime,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+        _db.RoutineBlockTemplates.Add(template);
+        await _db.SaveChangesAsync();
+        return template.Id;
+    }
+
     private async Task SyncBlockMealLinksAsync(int blockId, List<int> validatedMealIds)
     {
         var existing = await _db.RoutineBlockMealLinks
@@ -220,6 +248,9 @@ public class DailyRoutineController : ControllerBase
         var validatedWorkoutPlanId = await GetValidatedWorkoutPlanIdAsync(userId, body.LinkedWorkoutPlanId);
         var validatedMealIds = await GetValidatedMealIdsAsync(userId, body.LinkedMealTemplateIds);
 
+        // Auto-upsert a block template so it's available for re-use and stats
+        var templateId = await UpsertBlockTemplateAsync(userId, body.Title, body.Category, body.Color, body.StartTime, body.EndTime);
+
         var block = new RoutineBlock
         {
             RoutineId = routineId,
@@ -231,6 +262,7 @@ public class DailyRoutineController : ControllerBase
             SortOrder = body.SortOrder ?? 0,
             LinkedWorkoutPlanId = validatedWorkoutPlanId,
             MealType = string.IsNullOrWhiteSpace(body.MealType) ? null : body.MealType.Trim(),
+            TemplateId = templateId,
             CreatedAt = DateTime.UtcNow,
         };
 
@@ -253,6 +285,7 @@ public class DailyRoutineController : ControllerBase
             block.CreatedAt,
             block.LinkedWorkoutPlanId,
             block.MealType,
+            block.TemplateId,
             LinkedMealTemplateIds = validatedMealIds,
         });
     }

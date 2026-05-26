@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Calendar } from 'lucide-react';
 import * as api from '../lib/api';
 
@@ -12,9 +12,11 @@ const GOAL_COLORS = [
 
 export default function GoalCreate() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const goalId = id ? Number(id) : null;
   const isEdit = goalId !== null;
+  const backTarget = (location.state as { from?: string } | null)?.from || '/life?tab=Goals';
 
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEdit);
@@ -68,10 +70,10 @@ export default function GoalCreate() {
 
       if (isEdit && goalId) {
         await api.updateGoal(goalId, body);
-        navigate(`/goals/${goalId}`);
+        navigate(`/goals/${goalId}`, { state: { from: backTarget } });
       } else {
         const created = await api.createGoal(body);
-        navigate(`/goals/${created.id}`);
+        navigate(`/goals/${created.id}`, { state: { from: backTarget } });
       }
     } finally {
       setSaving(false);
@@ -90,7 +92,7 @@ export default function GoalCreate() {
     <div className="pt-4 pb-nav px-4" style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={() => navigate(isEdit ? `/goals/${goalId}` : '/goals')} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
+        <button onClick={() => navigate(isEdit ? `/goals/${goalId}` : backTarget)} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
           <ArrowLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{isEdit ? 'Edit Goal' : 'New Goal'}</h1>
