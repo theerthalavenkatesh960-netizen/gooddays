@@ -1660,6 +1660,49 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
         </div>
       </div>
 
+      {/* Top controls (compact) */}
+      <div className="mb-3 flex items-center gap-2 flex-wrap">
+        {!isSkipped && data && data.routine && (
+          <button
+            onClick={() => setAddingBlock(b => !b)}
+            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold press"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+          >
+            + Add Block
+          </button>
+        )}
+
+        {!isSkipped && data && data.routine && (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <span className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Sync</span>
+            <button
+              type="button"
+              onClick={() => setSyncWithRoutine(v => !v)}
+              className="w-9 h-5 rounded-full p-0.5 transition-colors"
+              style={{ backgroundColor: syncWithRoutine ? (routine.color || 'var(--accent)') : 'var(--surface-elevated)' }}
+              aria-label="Toggle sync with routine"
+              title={syncWithRoutine ? 'Sync ON: all assigned days' : 'Sync OFF: today only'}
+            >
+              <span
+                className="block w-4 h-4 rounded-full transition-transform"
+                style={{
+                  backgroundColor: '#fff',
+                  transform: syncWithRoutine ? 'translateX(16px)' : 'translateX(0px)',
+                }}
+              />
+            </button>
+          </div>
+        )}
+
+        <button
+          onClick={() => navigate('/settings/routines')}
+          className="px-2.5 py-1 rounded-lg text-[11px] font-semibold press"
+          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+        >
+          Configure
+        </button>
+      </div>
+
       {/* Time blocks — vertical timeline */}
       <div className="relative">
         <div className="space-y-2">
@@ -1861,51 +1904,6 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           )}
         </AnimatePresence>
       )}
-
-      {/* Sync mode */}
-      {!isSkipped && data && data.routine && (
-        <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <label className="flex items-center justify-between gap-3 cursor-pointer">
-            <div>
-              <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Sync with routine</p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                ON: apply to routine and all assigned days. OFF: apply only to this day.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSyncWithRoutine(v => !v)}
-              className="w-11 h-6 rounded-full p-0.5 transition-colors"
-              style={{ backgroundColor: syncWithRoutine ? (routine.color || 'var(--accent)') : 'var(--surface-elevated)' }}
-              aria-label="Toggle sync with routine"
-            >
-              <span
-                className="block w-5 h-5 rounded-full transition-transform"
-                style={{
-                  backgroundColor: '#fff',
-                  transform: syncWithRoutine ? 'translateX(20px)' : 'translateX(0px)',
-                }}
-              />
-            </button>
-          </label>
-        </div>
-      )}
-
-      {/* Action buttons */}
-      <div className="flex gap-2 mt-4">
-        {!isSkipped && data && data.routine && (
-          <button onClick={() => setAddingBlock(b => !b)}
-            className="flex-1 py-2.5 rounded-xl text-xs font-semibold press"
-            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-            + Add Block
-          </button>
-        )}
-        <button onClick={() => navigate('/settings/routines')}
-          className="flex-1 py-2.5 rounded-xl text-xs font-semibold press"
-          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-          Configure →
-        </button>
-      </div>
 
       {/* Edit block modal */}
       <AnimatePresence>
