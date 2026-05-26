@@ -253,6 +253,12 @@ export default function AiPlannerSettings() {
         targetDate: targetDate || undefined,
       });
 
+      // Keep Body progress tab in sync — it reads from a separate bodymetrics endpoint
+      await api.updateBodyMetricsProfile({
+        heightCm: heightCm ? Number(heightCm) : null,
+        targetWeightKg: targetWeightKg ? Number(targetWeightKg) : null,
+      });
+
       setStatus('Saved');
       setTimeout(() => setStatus(''), 1800);
     } catch (e: any) {
