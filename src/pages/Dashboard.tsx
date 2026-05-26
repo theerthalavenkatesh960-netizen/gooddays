@@ -106,50 +106,6 @@ function clamp(n: number, min: number, max: number) {
 }
 
 function momentumBand(score: number) {
-                  <div>
-                    <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Block Type</p>
-                    <div className="flex gap-2">
-                      {([
-                        { key: 'general', label: 'General' },
-                        { key: 'meal', label: 'Meal' },
-                        { key: 'workout', label: 'Workout' },
-                      ] as const).map(opt => (
-                        <button
-                          key={opt.key}
-                          type="button"
-                          onClick={() => setEditBlockForm(prev => ({ ...prev, blockKind: opt.key }))}
-                          className="px-2.5 py-1.5 rounded-lg text-xs font-semibold"
-                          style={{
-                            backgroundColor: editBlockForm.blockKind === opt.key ? 'var(--accent)' : 'var(--surface-elevated)',
-                            color: editBlockForm.blockKind === opt.key ? '#fff' : 'var(--text-secondary)',
-                            border: '1px solid var(--border)',
-                          }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                    {editBlockForm.blockKind === 'meal' && (
-                      <div>
-                        <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Meal Type</p>
-                        <select
-                          value={editBlockForm.mealType}
-                          onChange={e => setEditBlockForm(prev => ({ ...prev, mealType: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                          style={{
-                            backgroundColor: 'var(--surface-elevated)',
-                            color: 'var(--text-primary)',
-                            border: '1px solid var(--border)',
-                          }}
-                        >
-                          <option value="">Select meal type</option>
-                          {['Breakfast', 'Pre-Workout', 'Post-Workout', 'Lunch', 'Snack', 'Dinner', 'Evening Snack'].map(type => (
-                            <option key={type} value={type}>{type}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
   const band = momentumBand(params.score);
   const scoreSeed = [...params.dayKey].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) + params.score;
 
