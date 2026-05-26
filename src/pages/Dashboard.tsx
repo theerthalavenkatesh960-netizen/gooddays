@@ -106,24 +106,50 @@ function clamp(n: number, min: number, max: number) {
 }
 
 function momentumBand(score: number) {
-  if (score >= 90) return 'Legendary';
-  if (score >= 70) return 'Strong';
-  if (score >= 40) return 'Build';
-  return 'Recover';
-}
-
-function pickVariant(items: string[], seed: number) {
-  if (items.length === 0) return '';
-  return items[Math.abs(seed) % items.length];
-}
-
-function getHeroMessage(params: {
-  score: number;
-  delta: number;
-  dayKey: string;
-  routinePendingCount: number;
-  tasksPendingCount: number;
-}) {
+                  <div>
+                    <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Block Type</p>
+                    <div className="flex gap-2">
+                      {([
+                        { key: 'general', label: 'General' },
+                        { key: 'meal', label: 'Meal' },
+                        { key: 'workout', label: 'Workout' },
+                      ] as const).map(opt => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => setEditBlockForm(prev => ({ ...prev, blockKind: opt.key }))}
+                          className="px-2.5 py-1.5 rounded-lg text-xs font-semibold"
+                          style={{
+                            backgroundColor: editBlockForm.blockKind === opt.key ? 'var(--accent)' : 'var(--surface-elevated)',
+                            color: editBlockForm.blockKind === opt.key ? '#fff' : 'var(--text-secondary)',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                    {editBlockForm.blockKind === 'meal' && (
+                      <div>
+                        <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>Meal Type</p>
+                        <select
+                          value={editBlockForm.mealType}
+                          onChange={e => setEditBlockForm(prev => ({ ...prev, mealType: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                          style={{
+                            backgroundColor: 'var(--surface-elevated)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          <option value="">Select meal type</option>
+                          {['Breakfast', 'Pre-Workout', 'Post-Workout', 'Lunch', 'Snack', 'Dinner', 'Evening Snack'].map(type => (
+                            <option key={type} value={type}>{type}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
   const band = momentumBand(params.score);
   const scoreSeed = [...params.dayKey].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) + params.score;
 
@@ -1357,6 +1383,8 @@ type TodayRoutine = {
   stats: { completed: number; skipped: number; total: number };
 };
 
+type BlockKind = 'general' | 'meal' | 'workout';
+
 function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -1366,11 +1394,11 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const [completionTimeModal, setCompletionTimeModal] = useState<{ blockId: number; isOpen: boolean } | null>(null);
   const [completionTime, setCompletionTime] = useState<{ start: string; end: string }>({ start: '00:00', end: '01:00' });
   const [addingBlock, setAddingBlock] = useState(false);
-  const [newBlockForm, setNewBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '' });
+  const [newBlockForm, setNewBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' as BlockKind });
   const [savingBlock, setSavingBlock] = useState(false);
   const [syncWithRoutine, setSyncWithRoutine] = useState(true);
   const [editingBlockModal, setEditingBlockModal] = useState<{ blockId: number; isOpen: boolean } | null>(null);
-  const [editBlockForm, setEditBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '' });
+  const [editBlockForm, setEditBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' as BlockKind });
   const [savingEditBlock, setSavingEditBlock] = useState(false);
   const [deletingEditBlock, setDeletingEditBlock] = useState(false);
 
@@ -1398,6 +1426,53 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
 
   function findBlockById(blockId: number): TodayRoutineBlock | undefined {
     return data?.blocks.find(b => b.id === blockId);
+  }
+
+  function getSuggestedWorkoutLinkId(excludeBlockId?: number): number | null {
+    const found = data?.blocks.find(b => b.id !== excludeBlockId && b.linkedWorkoutPlanId)?.linkedWorkoutPlanId;
+    return found ?? null;
+  }
+
+  function getPayloadByBlockKind(form: { blockKind: BlockKind; mealType?: string }, fallbackWorkoutLinkId?: number | null) {
+    const mealType = form.blockKind === 'meal' ? (form.mealType || null) : null;
+    const linkedWorkoutPlanId = form.blockKind === 'workout' ? (fallbackWorkoutLinkId ?? null) : null;
+    return { mealType, linkedWorkoutPlanId };
+  }
+
+  function getBlockKindMeta(block: TodayRoutineBlock): { kind: BlockKind; label: string; style: React.CSSProperties } {
+    if (block.linkedWorkoutPlanId) {
+      return {
+        kind: 'workout',
+        label: 'Workout',
+        style: {
+          backgroundColor: 'rgba(108,99,255,0.16)',
+          color: 'var(--accent)',
+          border: '1px solid rgba(108,99,255,0.3)',
+        },
+      };
+    }
+
+    if (block.mealType) {
+      return {
+        kind: 'meal',
+        label: 'Meal',
+        style: {
+          backgroundColor: 'rgba(34,197,94,0.14)',
+          color: 'var(--accent-green)',
+          border: '1px solid rgba(34,197,94,0.28)',
+        },
+      };
+    }
+
+    return {
+      kind: 'general',
+      label: 'General',
+      style: {
+        backgroundColor: 'var(--surface-elevated)',
+        color: 'var(--text-secondary)',
+        border: '1px solid var(--border)',
+      },
+    };
   }
 
   async function toggleBlock(block: TodayRoutineBlock) {
@@ -1470,6 +1545,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
 
   async function addBlockToday() {
     if (!newBlockForm.title.trim() || !data) return;
+    const payloadByKind = getPayloadByBlockKind(newBlockForm, getSuggestedWorkoutLinkId());
     setSavingBlock(true);
     try {
       if (syncWithRoutine) {
@@ -1477,7 +1553,8 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           title: newBlockForm.title,
           startTime: newBlockForm.startTime,
           endTime: newBlockForm.endTime,
-          mealType: newBlockForm.mealType || null,
+          mealType: payloadByKind.mealType,
+          linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
         });
       } else {
         await (api as any).addTodayRoutineOverrideBlock({
@@ -1486,11 +1563,12 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           title: newBlockForm.title,
           startTime: newBlockForm.startTime,
           endTime: newBlockForm.endTime,
-          mealType: newBlockForm.mealType || null,
+          mealType: payloadByKind.mealType,
+          linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
           sortOrder: (data.blocks?.length ?? 0) + 1,
         });
       }
-      setNewBlockForm({ title: '', startTime: '09:00', endTime: '10:00', mealType: '' });
+      setNewBlockForm({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' });
       setAddingBlock(false);
       await load();
     } finally {
@@ -1499,11 +1577,13 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   }
 
   function openEditBlock(block: TodayRoutineBlock) {
+    const blockKind: BlockKind = block.linkedWorkoutPlanId ? 'workout' : (block.mealType ? 'meal' : 'general');
     setEditBlockForm({
       title: block.title,
       startTime: block.startTime,
       endTime: block.endTime,
       mealType: block.mealType ?? '',
+      blockKind,
     });
     setEditingBlockModal({ blockId: block.id, isOpen: true });
   }
@@ -1512,6 +1592,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
     if (!editingBlockModal || !editBlockForm.title.trim()) return;
     const targetBlock = findBlockById(editingBlockModal.blockId);
     if (!targetBlock) return;
+    const payloadByKind = getPayloadByBlockKind(editBlockForm, targetBlock.linkedWorkoutPlanId ?? getSuggestedWorkoutLinkId(targetBlock.id));
     setSavingEditBlock(true);
     try {
       if (syncWithRoutine) {
@@ -1519,7 +1600,8 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           title: editBlockForm.title,
           startTime: editBlockForm.startTime,
           endTime: editBlockForm.endTime,
-          mealType: editBlockForm.mealType || null,
+          mealType: payloadByKind.mealType,
+          linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
         });
       } else if (targetBlock.baseBlockId) {
         await (api as any).upsertTodayRoutineBaseOverride({
@@ -1528,14 +1610,16 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           title: editBlockForm.title,
           startTime: editBlockForm.startTime,
           endTime: editBlockForm.endTime,
-          mealType: editBlockForm.mealType || null,
+          mealType: payloadByKind.mealType,
+          linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
         });
       } else if (targetBlock.overrideId) {
         await (api as any).updateTodayRoutineOverride(targetBlock.overrideId, {
           title: editBlockForm.title,
           startTime: editBlockForm.startTime,
           endTime: editBlockForm.endTime,
-          mealType: editBlockForm.mealType || null,
+          mealType: payloadByKind.mealType,
+          linkedWorkoutPlanId: payloadByKind.linkedWorkoutPlanId,
         });
       }
       setEditingBlockModal(null);
@@ -1661,7 +1745,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
       </div>
 
       {/* Top controls (compact) */}
-      <div className="mb-3 flex items-center gap-2 flex-wrap">
+      <div className="mb-3 flex items-center justify-end gap-2 flex-wrap">
         {!isSkipped && data && data.routine && (
           <button
             onClick={() => setAddingBlock(b => !b)}
@@ -1713,6 +1797,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           const isDone = block.status === 'completed';
           const isBlockSkipped = block.status === 'skipped';
           const isLast = idx === blocks.length - 1;
+          const blockKindMeta = getBlockKindMeta(block);
 
           return (
             <div key={block.id} className="relative flex items-start gap-1.5">
@@ -1785,6 +1870,14 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                         <span className="ml-2 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>skipped</span>
                       )}
                     </p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <span
+                        className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
+                        style={blockKindMeta.style}
+                      >
+                        {blockKindMeta.label}
+                      </span>
+                    </div>
                     {(block.mealType || block.linkedWorkoutPlanId) && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {block.mealType && (
@@ -1874,6 +1967,30 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                 placeholder="Block title" autoFocus
                 className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
                 style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+              <div>
+                <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Block Type</p>
+                <div className="flex gap-1.5">
+                  {([
+                    { key: 'general', label: 'General' },
+                    { key: 'meal', label: 'Meal' },
+                    { key: 'workout', label: 'Workout' },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      onClick={() => setNewBlockForm(prev => ({ ...prev, blockKind: opt.key }))}
+                      className="px-2 py-1 rounded-lg text-[10px] font-semibold press"
+                      style={{
+                        backgroundColor: newBlockForm.blockKind === opt.key ? 'var(--accent)' : 'var(--surface-elevated)',
+                        color: newBlockForm.blockKind === opt.key ? '#fff' : 'var(--text-secondary)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-2">
                 <input type="time" value={newBlockForm.startTime} onChange={e => setNewBlockForm(prev => ({ ...prev, startTime: e.target.value }))}
                   className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none"
@@ -1882,14 +1999,16 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                   className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none"
                   style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
               </div>
-              <select value={newBlockForm.mealType} onChange={e => setNewBlockForm(prev => ({ ...prev, mealType: e.target.value }))}
-                className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
-                <option value="">No meal type</option>
-                {['Breakfast', 'Pre-Workout', 'Post-Workout', 'Lunch', 'Snack', 'Dinner', 'Evening Snack'].map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
+              {newBlockForm.blockKind === 'meal' && (
+                <select value={newBlockForm.mealType} onChange={e => setNewBlockForm(prev => ({ ...prev, mealType: e.target.value }))}
+                  className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                  <option value="">Select meal type</option>
+                  {['Breakfast', 'Pre-Workout', 'Post-Workout', 'Lunch', 'Snack', 'Dinner', 'Evening Snack'].map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              )}
               <div className="flex gap-2">
                 <button onClick={() => setAddingBlock(false)} className="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold press"
                   style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
