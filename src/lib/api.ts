@@ -1347,6 +1347,40 @@ export async function getRoutineHistory(from: string, to: string) {
   return request(`dailyroutine/history?from=${from}&to=${to}`);
 }
 
+// ─── Routine Block Templates API ──────────────────────────────────────────────
+
+export async function getBlockTemplates() {
+  return request('routineblocktemplate');
+}
+
+export async function createBlockTemplate(body: {
+  title: string;
+  category?: string | null;
+  color?: string | null;
+  defaultStartTime?: string | null;
+  defaultEndTime?: string | null;
+}) {
+  return request('routineblocktemplate', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateBlockTemplate(id: number, body: {
+  title: string;
+  category?: string | null;
+  color?: string | null;
+  defaultStartTime?: string | null;
+  defaultEndTime?: string | null;
+}) {
+  return request(`routineblocktemplate/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteBlockTemplate(id: number) {
+  return request(`routineblocktemplate/${id}`, { method: 'DELETE' });
+}
+
+export async function getBlockTemplateStats(id: number, days = 90) {
+  return request(`routineblocktemplate/${id}/stats?days=${days}`);
+}
+
 // ─── Goals API ────────────────────────────────────────────────────────────────
 
 let DUMMY_GOALS = [

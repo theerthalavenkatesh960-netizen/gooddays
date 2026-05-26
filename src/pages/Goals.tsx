@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import * as api from '../lib/api';
 
@@ -36,6 +36,7 @@ function StatusBadge({ goal }: { goal: Goal }) {
 
 export default function Goals() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -81,7 +82,7 @@ export default function Goals() {
             return (
               <button
                 key={goal.id}
-                onClick={() => navigate(`/goals/${goal.id}`)}
+                onClick={() => navigate(`/goals/${goal.id}`, { state: { from: `${location.pathname}${location.search}` } })}
                 className="w-full text-left rounded-2xl p-4 press"
                 style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
               >
