@@ -1149,6 +1149,62 @@ export async function updateRoutineBlock(id: number, body: {
   return request(`dailyroutine/blocks/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
+export async function addTodayRoutineOverrideBlock(body: {
+  date: string;
+  routineId: number;
+  title: string;
+  startTime: string;
+  endTime: string;
+  category?: string;
+  color?: string;
+  sortOrder?: number;
+  linkedWorkoutPlanId?: number | null;
+  mealType?: string | null;
+}) {
+  return request('dailyroutine/today/overrides/add', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function upsertTodayRoutineBaseOverride(body: {
+  date: string;
+  baseBlockId: number;
+  title?: string;
+  startTime?: string;
+  endTime?: string;
+  category?: string;
+  color?: string;
+  sortOrder?: number;
+  linkedWorkoutPlanId?: number | null;
+  mealType?: string | null;
+  isDeleted?: boolean;
+}) {
+  return request('dailyroutine/today/overrides/base', { method: 'POST', body: JSON.stringify(body) });
+}
+
+export async function updateTodayRoutineOverride(id: number, body: {
+  title?: string;
+  startTime?: string;
+  endTime?: string;
+  category?: string;
+  color?: string;
+  sortOrder?: number;
+  linkedWorkoutPlanId?: number | null;
+  mealType?: string | null;
+  isDeleted?: boolean;
+}) {
+  return request(`dailyroutine/today/overrides/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+}
+
+export async function deleteTodayRoutineOverride(id: number) {
+  return request(`dailyroutine/today/overrides/${id}`, { method: 'DELETE' });
+}
+
+export async function reorderTodayRoutineOverrides(body: {
+  date: string;
+  items: Array<{ overrideId?: number; baseBlockId?: number; sortOrder: number }>;
+}) {
+  return request('dailyroutine/today/overrides/reorder', { method: 'PUT', body: JSON.stringify(body) });
+}
+
 export async function deleteRoutineBlock(id: number) {
   if (DUMMY_FLAGS.dailyRoutine) {
     for (const routine of _dummyDailyRoutineStore.routines) {
@@ -1245,10 +1301,13 @@ export async function getTodayRoutine() {
   return request('dailyroutine/today');
 }
 
-export async function logRoutineBlock(body: { routineBlockId: number; date: string; status: 'completed' | 'skipped' | 'missed' }) {
+export async function logRoutineBlock(body: { routineBlockId?: number; overrideBlockId?: number; date: string; status: 'completed' | 'skipped' | 'missed'; actualStartTime?: string; actualEndTime?: string }) {
   if (DUMMY_FLAGS.dailyRoutine) {
     if (!_dummyDailyRoutineStore.logsByDate[body.date]) _dummyDailyRoutineStore.logsByDate[body.date] = {};
-    _dummyDailyRoutineStore.logsByDate[body.date][body.routineBlockId] = body.status;
+    const key = body.routineBlockId ?? body.overrideBlockId;
+    if (typeof key === 'number') {
+      _dummyDailyRoutineStore.logsByDate[body.date][key] = body.status;
+    }
     return Promise.resolve({ id: Date.now(), ...body });
   }
   return request('dailyroutine/logs', { method: 'POST', body: JSON.stringify(body) });

@@ -90,6 +90,8 @@ public class AppDbContext : DbContext
     public DbSet<WeeklyRoutineSchedule> WeeklyRoutineSchedules { get; set; } = null!;
     public DbSet<DailyRoutineLog> DailyRoutineLogs { get; set; } = null!;
     public DbSet<DailyRoutineSkip> DailyRoutineSkips { get; set; } = null!;
+    public DbSet<DailyRoutineBlockOverride> DailyRoutineBlockOverrides { get; set; } = null!;
+    public DbSet<DailyRoutineOverrideLog> DailyRoutineOverrideLogs { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -199,6 +201,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<WeeklyRoutineSchedule>().ToTable("weekly_routine_schedule");
         modelBuilder.Entity<DailyRoutineLog>().ToTable("daily_routine_logs");
         modelBuilder.Entity<DailyRoutineSkip>().ToTable("daily_routine_skips");
+        modelBuilder.Entity<DailyRoutineBlockOverride>().ToTable("daily_routine_block_overrides");
+        modelBuilder.Entity<DailyRoutineOverrideLog>().ToTable("daily_routine_override_logs");
 
         modelBuilder.Entity<DailyRoutine>()
             .HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId).OnDelete(DeleteBehavior.Cascade);
@@ -228,6 +232,22 @@ public class AppDbContext : DbContext
             .HasOne(s => s.User).WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<DailyRoutineSkip>()
             .HasIndex(s => new { s.UserId, s.Date }).IsUnique();
+        modelBuilder.Entity<DailyRoutineBlockOverride>()
+            .HasOne(o => o.User).WithMany().HasForeignKey(o => o.UserId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<DailyRoutineBlockOverride>()
+            .HasOne(o => o.Routine).WithMany().HasForeignKey(o => o.RoutineId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<DailyRoutineBlockOverride>()
+            .HasOne(o => o.BaseBlock).WithMany().HasForeignKey(o => o.BaseBlockId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<DailyRoutineBlockOverride>()
+            .HasOne(o => o.LinkedWorkoutPlan).WithMany().HasForeignKey(o => o.LinkedWorkoutPlanId).OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<DailyRoutineBlockOverride>()
+            .HasIndex(o => new { o.UserId, o.Date, o.RoutineId, o.BaseBlockId });
+        modelBuilder.Entity<DailyRoutineOverrideLog>()
+            .HasOne(l => l.User).WithMany().HasForeignKey(l => l.UserId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<DailyRoutineOverrideLog>()
+            .HasOne(l => l.Override).WithMany().HasForeignKey(l => l.OverrideId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<DailyRoutineOverrideLog>()
+            .HasIndex(l => new { l.UserId, l.OverrideId, l.Date }).IsUnique();
 
         // Ensure emails are unique for login
         modelBuilder.Entity<User>(entity =>

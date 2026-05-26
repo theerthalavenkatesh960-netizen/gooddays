@@ -1343,6 +1343,9 @@ type TodayRoutineBlock = {
   mealType?: string | null;
   linkedWorkoutPlanId?: number | null;
   linkedWorkoutLabel?: string | null;
+  isOverride?: boolean;
+  overrideId?: number | null;
+  baseBlockId?: number | null;
 };
 
 type TodayRoutine = {
@@ -1369,6 +1372,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const [editingBlockModal, setEditingBlockModal] = useState<{ blockId: number; isOpen: boolean } | null>(null);
   const [editBlockForm, setEditBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '' });
   const [savingEditBlock, setSavingEditBlock] = useState(false);
+  const [deletingEditBlock, setDeletingEditBlock] = useState(false);
 
   const now = currentMinutes();
 
@@ -1386,6 +1390,16 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
 
   useEffect(() => { load(); }, []);
 
+  function getLogPayload(block: TodayRoutineBlock): { routineBlockId?: number; overrideBlockId?: number } {
+    if (block.baseBlockId) return { routineBlockId: block.baseBlockId };
+    if (block.isOverride && block.overrideId) return { overrideBlockId: block.overrideId };
+    return { routineBlockId: block.id };
+  }
+
+  function findBlockById(blockId: number): TodayRoutineBlock | undefined {
+    return data?.blocks.find(b => b.id === blockId);
+  }
+
   async function toggleBlock(block: TodayRoutineBlock) {
     if (block.status === 'completed') {
       setData(prev => prev ? {
@@ -1394,7 +1408,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
         stats: { ...prev.stats, completed: prev.stats.completed - 1 },
       } : prev);
       try {
-        await (api as any).logRoutineBlock({ routineBlockId: block.id, date: today, status: 'missed' });
+        await (api as any).logRoutineBlock({ ...getLogPayload(block), date: today, status: 'missed' });
       } catch {
         load();
       }
@@ -1413,7 +1427,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
         } : prev);
         try {
           await (api as any).logRoutineBlock({
-            routineBlockId: block.id,
+            ...getLogPayload(block),
             date: today,
             status: 'completed',
           });
@@ -1430,6 +1444,11 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
 
   async function confirmCompletion() {
     if (!completionTimeModal) return;
+    const targetBlock = findBlockById(completionTimeModal.blockId);
+    if (!targetBlock) {
+      setCompletionTimeModal(null);
+      return;
+    }
     setData(prev => prev ? {
       ...prev,
       blocks: prev.blocks.map(b => b.id === completionTimeModal.blockId ? { ...b, status: 'completed' as any } : b),
@@ -1437,7 +1456,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
     } : prev);
     try {
       await (api as any).logRoutineBlock({
-        routineBlockId: completionTimeModal.blockId,
+        ...getLogPayload(targetBlock),
         date: today,
         status: 'completed',
         actualStartTime: completionTime.start,
@@ -1451,15 +1470,26 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
 
   async function addBlockToday() {
     if (!newBlockForm.title.trim() || !data) return;
-    if (!syncWithRoutine) return;
     setSavingBlock(true);
     try {
-      await (api as any).addRoutineBlock(data.routine!.id, {
-        title: newBlockForm.title,
-        startTime: newBlockForm.startTime,
-        endTime: newBlockForm.endTime,
-        mealType: newBlockForm.mealType || null,
-      });
+      if (syncWithRoutine) {
+        await (api as any).addRoutineBlock(data.routine!.id, {
+          title: newBlockForm.title,
+          startTime: newBlockForm.startTime,
+          endTime: newBlockForm.endTime,
+          mealType: newBlockForm.mealType || null,
+        });
+      } else {
+        await (api as any).addTodayRoutineOverrideBlock({
+          date: today,
+          routineId: data.routine!.id,
+          title: newBlockForm.title,
+          startTime: newBlockForm.startTime,
+          endTime: newBlockForm.endTime,
+          mealType: newBlockForm.mealType || null,
+          sortOrder: (data.blocks?.length ?? 0) + 1,
+        });
+      }
       setNewBlockForm({ title: '', startTime: '09:00', endTime: '10:00', mealType: '' });
       setAddingBlock(false);
       await load();
@@ -1480,19 +1510,62 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
 
   async function saveEditedBlock() {
     if (!editingBlockModal || !editBlockForm.title.trim()) return;
-    if (!syncWithRoutine) return;
+    const targetBlock = findBlockById(editingBlockModal.blockId);
+    if (!targetBlock) return;
     setSavingEditBlock(true);
     try {
-      await (api as any).updateRoutineBlock(editingBlockModal.blockId, {
-        title: editBlockForm.title,
-        startTime: editBlockForm.startTime,
-        endTime: editBlockForm.endTime,
-        mealType: editBlockForm.mealType || null,
-      });
+      if (syncWithRoutine) {
+        await (api as any).updateRoutineBlock(targetBlock.baseBlockId ?? targetBlock.id, {
+          title: editBlockForm.title,
+          startTime: editBlockForm.startTime,
+          endTime: editBlockForm.endTime,
+          mealType: editBlockForm.mealType || null,
+        });
+      } else if (targetBlock.baseBlockId) {
+        await (api as any).upsertTodayRoutineBaseOverride({
+          date: today,
+          baseBlockId: targetBlock.baseBlockId,
+          title: editBlockForm.title,
+          startTime: editBlockForm.startTime,
+          endTime: editBlockForm.endTime,
+          mealType: editBlockForm.mealType || null,
+        });
+      } else if (targetBlock.overrideId) {
+        await (api as any).updateTodayRoutineOverride(targetBlock.overrideId, {
+          title: editBlockForm.title,
+          startTime: editBlockForm.startTime,
+          endTime: editBlockForm.endTime,
+          mealType: editBlockForm.mealType || null,
+        });
+      }
       setEditingBlockModal(null);
       await load();
     } finally {
       setSavingEditBlock(false);
+    }
+  }
+
+  async function deleteEditedBlock() {
+    if (!editingBlockModal) return;
+    const targetBlock = findBlockById(editingBlockModal.blockId);
+    if (!targetBlock) return;
+    setDeletingEditBlock(true);
+    try {
+      if (syncWithRoutine) {
+        await (api as any).deleteRoutineBlock(targetBlock.baseBlockId ?? targetBlock.id);
+      } else if (targetBlock.baseBlockId) {
+        await (api as any).upsertTodayRoutineBaseOverride({
+          date: today,
+          baseBlockId: targetBlock.baseBlockId,
+          isDeleted: true,
+        });
+      } else if (targetBlock.overrideId) {
+        await (api as any).deleteTodayRoutineOverride(targetBlock.overrideId);
+      }
+      setEditingBlockModal(null);
+      await load();
+    } finally {
+      setDeletingEditBlock(false);
     }
   }
 
@@ -1502,7 +1575,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
       blocks: prev.blocks.map(b => b.id === block.id ? { ...b, status: 'skipped' as any } : b),
     } : prev);
     try {
-      await (api as any).logRoutineBlock({ routineBlockId: block.id, date: today, status: 'skipped' });
+      await (api as any).logRoutineBlock({ ...getLogPayload(block), date: today, status: 'skipped' });
     } catch {
       load();
     }
@@ -1713,10 +1786,9 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                   {!isSkipped && (
                     <button
                       onClick={() => openEditBlock(block)}
-                      disabled={!syncWithRoutine}
-                      className="p-1.5 rounded-lg press disabled:opacity-40"
+                      className="p-1.5 rounded-lg press"
                       style={{ color: 'var(--text-muted)' }}
-                      title={syncWithRoutine ? 'Edit block for all routine days' : 'Turn on sync to edit'}
+                      title={syncWithRoutine ? 'Edit block for all routine days' : 'Edit block only for today'}
                     >
                       <Edit size={13} />
                     </button>
@@ -1780,7 +1852,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                   style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
                   Cancel
                 </button>
-                <button onClick={addBlockToday} disabled={!newBlockForm.title.trim() || savingBlock || !syncWithRoutine} className="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white press disabled:opacity-40"
+                <button onClick={addBlockToday} disabled={!newBlockForm.title.trim() || savingBlock} className="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white press disabled:opacity-40"
                   style={{ backgroundColor: 'var(--accent)' }}>
                   {savingBlock ? 'Adding...' : 'Add'}
                 </button>
@@ -1797,7 +1869,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
             <div>
               <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Sync with routine</p>
               <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                Apply block add/edit to the base routine and all assigned days.
+                ON: apply to routine and all assigned days. OFF: apply only to this day.
               </p>
             </div>
             <button
@@ -1816,11 +1888,6 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
               />
             </button>
           </label>
-          {!syncWithRoutine && (
-            <p className="text-[10px] mt-2" style={{ color: '#f59e0b' }}>
-              One-off day-only block changes are not supported yet. Turn sync on to save changes.
-            </p>
-          )}
         </div>
       )}
 
@@ -1868,17 +1935,16 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                   ))}
                 </select>
               </div>
-              {!syncWithRoutine && (
-                <p className="text-[10px] mb-3" style={{ color: '#f59e0b' }}>
-                  Turn on "Sync with routine" to save edits for all assigned days.
-                </p>
-              )}
               <div className="flex gap-2">
+                <button onClick={deleteEditedBlock} disabled={deletingEditBlock} className="px-4 py-2.5 rounded-lg text-xs font-semibold press disabled:opacity-40"
+                  style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)' }}>
+                  {deletingEditBlock ? 'Deleting...' : 'Delete'}
+                </button>
                 <button onClick={() => setEditingBlockModal(null)} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold press"
                   style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
                   Cancel
                 </button>
-                <button onClick={saveEditedBlock} disabled={!editBlockForm.title.trim() || savingEditBlock || !syncWithRoutine} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold text-white press disabled:opacity-40"
+                <button onClick={saveEditedBlock} disabled={!editBlockForm.title.trim() || savingEditBlock} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold text-white press disabled:opacity-40"
                   style={{ backgroundColor: 'var(--accent)' }}>
                   {savingEditBlock ? 'Saving...' : 'Save'}
                 </button>
