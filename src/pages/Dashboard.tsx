@@ -1032,7 +1032,7 @@ function TasksTab({ user }: { user: any }) {
 
       {/* Filters row */}
       <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-2 mb-3">
-        {(['all', 'today', 'overdue'] as const).map(v => (
+        {(['today', 'overdue'] as const).map(v => (
           <button key={v} onClick={() => setFilterView(v)}
             className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 press transition-all"
             style={{
@@ -1046,7 +1046,7 @@ function TasksTab({ user }: { user: any }) {
           <Filter size={12} style={{ color: 'var(--text-muted)' }} />
           <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
             className="text-xs outline-none bg-transparent" style={{ color: 'var(--text-secondary)' }}>
-            <option value="all">All</option>
+            <option value="all">All Categories</option>
             {CATEGORY_OPTIONS.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
         </div>
@@ -1360,6 +1360,15 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const [data, setData] = useState<TodayRoutine | null>(null);
   const [loading, setLoading] = useState(true);
   const [skipping, setSkipping] = useState(false);
+  const [completionTimeModal, setCompletionTimeModal] = useState<{ blockId: number; isOpen: boolean } | null>(null);
+  const [completionTime, setCompletionTime] = useState<{ start: string; end: string }>({ start: '00:00', end: '01:00' });
+  const [addingBlock, setAddingBlock] = useState(false);
+  const [newBlockForm, setNewBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '' });
+  const [savingBlock, setSavingBlock] = useState(false);
+  const [syncWithRoutine, setSyncWithRoutine] = useState(true);
+  const [editingBlockModal, setEditingBlockModal] = useState<{ blockId: number; isOpen: boolean } | null>(null);
+  const [editBlockForm, setEditBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '' });
+  const [savingEditBlock, setSavingEditBlock] = useState(false);
 
   const now = currentMinutes();
 
@@ -1378,25 +1387,112 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   useEffect(() => { load(); }, []);
 
   async function toggleBlock(block: TodayRoutineBlock) {
-    const nextStatus = block.status === 'completed' ? 'pending' : 'completed';
-    // Optimistic update
+    if (block.status === 'completed') {
+      setData(prev => prev ? {
+        ...prev,
+        blocks: prev.blocks.map(b => b.id === block.id ? { ...b, status: 'pending' as any } : b),
+        stats: { ...prev.stats, completed: prev.stats.completed - 1 },
+      } : prev);
+      try {
+        await (api as any).logRoutineBlock({ routineBlockId: block.id, date: today, status: 'missed' });
+      } catch {
+        load();
+      }
+    } else {
+      // Check if marking done within the scheduled time window
+      const start = timeToMinutes(block.startTime);
+      const end = timeToMinutes(block.endTime);
+      const isWithinScheduledTime = now >= start && now <= end;
+
+      if (isWithinScheduledTime) {
+        // Mark complete immediately without time picker
+        setData(prev => prev ? {
+          ...prev,
+          blocks: prev.blocks.map(b => b.id === block.id ? { ...b, status: 'completed' as any } : b),
+          stats: { ...prev.stats, completed: prev.stats.completed + 1 },
+        } : prev);
+        try {
+          await (api as any).logRoutineBlock({
+            routineBlockId: block.id,
+            date: today,
+            status: 'completed',
+          });
+        } catch {
+          load();
+        }
+      } else {
+        // Show time picker for marking done at different time
+        setCompletionTime({ start: block.startTime, end: block.endTime });
+        setCompletionTimeModal({ blockId: block.id, isOpen: true });
+      }
+    }
+  }
+
+  async function confirmCompletion() {
+    if (!completionTimeModal) return;
     setData(prev => prev ? {
       ...prev,
-      blocks: prev.blocks.map(b => b.id === block.id ? { ...b, status: nextStatus as any } : b),
-      stats: {
-        ...prev.stats,
-        completed: prev.stats.completed + (nextStatus === 'completed' ? 1 : -1),
-      },
+      blocks: prev.blocks.map(b => b.id === completionTimeModal.blockId ? { ...b, status: 'completed' as any } : b),
+      stats: { ...prev.stats, completed: prev.stats.completed + 1 },
     } : prev);
     try {
-      if (nextStatus === 'pending') {
-        // No "un-log" endpoint — just re-log as missed to clear; simplest approach: reload
-        await (api as any).logRoutineBlock({ routineBlockId: block.id, date: today, status: 'missed' });
-      } else {
-        await (api as any).logRoutineBlock({ routineBlockId: block.id, date: today, status: nextStatus });
-      }
+      await (api as any).logRoutineBlock({
+        routineBlockId: completionTimeModal.blockId,
+        date: today,
+        status: 'completed',
+        actualStartTime: completionTime.start,
+        actualEndTime: completionTime.end,
+      });
     } catch {
-      load(); // revert on error
+      load();
+    }
+    setCompletionTimeModal(null);
+  }
+
+  async function addBlockToday() {
+    if (!newBlockForm.title.trim() || !data) return;
+    if (!syncWithRoutine) return;
+    setSavingBlock(true);
+    try {
+      await (api as any).addRoutineBlock(data.routine!.id, {
+        title: newBlockForm.title,
+        startTime: newBlockForm.startTime,
+        endTime: newBlockForm.endTime,
+        mealType: newBlockForm.mealType || null,
+      });
+      setNewBlockForm({ title: '', startTime: '09:00', endTime: '10:00', mealType: '' });
+      setAddingBlock(false);
+      await load();
+    } finally {
+      setSavingBlock(false);
+    }
+  }
+
+  function openEditBlock(block: TodayRoutineBlock) {
+    setEditBlockForm({
+      title: block.title,
+      startTime: block.startTime,
+      endTime: block.endTime,
+      mealType: block.mealType ?? '',
+    });
+    setEditingBlockModal({ blockId: block.id, isOpen: true });
+  }
+
+  async function saveEditedBlock() {
+    if (!editingBlockModal || !editBlockForm.title.trim()) return;
+    if (!syncWithRoutine) return;
+    setSavingEditBlock(true);
+    try {
+      await (api as any).updateRoutineBlock(editingBlockModal.blockId, {
+        title: editBlockForm.title,
+        startTime: editBlockForm.startTime,
+        endTime: editBlockForm.endTime,
+        mealType: editBlockForm.mealType || null,
+      });
+      setEditingBlockModal(null);
+      await load();
+    } finally {
+      setSavingEditBlock(false);
     }
   }
 
@@ -1501,9 +1597,6 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           const isDone = block.status === 'completed';
           const isBlockSkipped = block.status === 'skipped';
           const isLast = idx === blocks.length - 1;
-          const reachedByCompletion = blocks.slice(0, idx + 1).every(b => b.status === 'completed');
-          const connectorColor = reachedByCompletion ? (routine.color || 'var(--accent)') : 'var(--border)';
-          const dotColor = isDone || isActive ? (routine.color || 'var(--accent)') : isBlockSkipped ? 'var(--border)' : 'var(--surface-elevated)';
 
           return (
             <div key={block.id} className="relative flex items-start gap-1.5">
@@ -1524,31 +1617,34 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                   />
                 )}
                 <div
-                  className="absolute w-2.5 h-2.5 rounded-full z-10"
+                  className="absolute w-3 h-3 rounded-full z-10"
                   style={{
-                    left: 5,
-                    top: 18,
-                    backgroundColor: dotColor,
-                    border: `2px solid ${isDone || isActive || reachedByCompletion ? (routine.color || 'var(--accent)') : 'var(--border)'}`,
-                    boxShadow: isActive && !isDone ? `0 0 0 4px ${routine.color || 'var(--accent)'}28` : undefined,
+                    left: 4.5,
+                    top: 17,
+                    backgroundColor: isDone ? (routine.color || 'var(--accent)') : 'var(--surface-elevated)',
+                    border: `2px solid ${isDone || isActive ? (routine.color || 'var(--accent)') : 'var(--border)'}`,
+                    boxShadow: isActive && !isDone ? `0 0 0 5px ${routine.color || 'var(--accent)'}32` : undefined,
                   }}
                 />
                 <div
                   className="absolute h-px"
                   style={{
-                    left: 10,
-                    top: 22,
-                    width: 14,
-                    backgroundColor: connectorColor,
-                    opacity: reachedByCompletion || isActive ? 0.95 : 0.55,
+                    left: 9.5,
+                    top: 21.5,
+                    width: 16,
+                    backgroundColor: isDone ? (routine.color || 'var(--accent)') : 'var(--border)',
+                    opacity: isDone || isActive ? 0.95 : 0.5,
                   }}
                 />
               </div>
 
-              {/* Card */}
+              {/* Card with status background */}
               <motion.div layout
                 className="flex-1 rounded-xl overflow-hidden mb-0.5"
-                style={{ border: isActive ? `1px solid ${routine.color || 'var(--accent)'}` : '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
+                style={{
+                  border: isActive ? `1px solid ${routine.color || 'var(--accent)'}` : '1px solid var(--border)',
+                  backgroundColor: isDone ? 'rgba(34,197,94,0.05)' : isBlockSkipped ? 'rgba(107,114,128,0.05)' : 'var(--surface)',
+                }}>
                 <div className="flex items-center gap-3 p-3">
                   {/* Time */}
                   <div className="text-center flex-shrink-0 w-12">
@@ -1613,6 +1709,19 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                     </button>
                   )}
 
+                  {/* Edit block */}
+                  {!isSkipped && (
+                    <button
+                      onClick={() => openEditBlock(block)}
+                      disabled={!syncWithRoutine}
+                      className="p-1.5 rounded-lg press disabled:opacity-40"
+                      style={{ color: 'var(--text-muted)' }}
+                      title={syncWithRoutine ? 'Edit block for all routine days' : 'Turn on sync to edit'}
+                    >
+                      <Edit size={13} />
+                    </button>
+                  )}
+
                   {/* Check toggle */}
                   {!isSkipped && (
                     <button onClick={() => toggleBlock(block)} className="press ml-0.5">
@@ -1640,12 +1749,179 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
         </div>
       </div>
 
-      {/* Footer */}
-      <button onClick={() => navigate('/settings/routines')}
-        className="mt-4 w-full py-2.5 rounded-xl text-xs font-semibold press"
-        style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-        Configure Routines →
-      </button>
+      {/* Add block form */}
+      {!isSkipped && data && data.routine && (
+        <AnimatePresence>
+          {addingBlock && (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+              className="rounded-xl p-3 space-y-2 mt-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <input type="text" value={newBlockForm.title} onChange={e => setNewBlockForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Block title" autoFocus
+                className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+              <div className="flex gap-2">
+                <input type="time" value={newBlockForm.startTime} onChange={e => setNewBlockForm(prev => ({ ...prev, startTime: e.target.value }))}
+                  className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                <input type="time" value={newBlockForm.endTime} onChange={e => setNewBlockForm(prev => ({ ...prev, endTime: e.target.value }))}
+                  className="flex-1 px-2 py-1.5 rounded-lg text-xs outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+              </div>
+              <select value={newBlockForm.mealType} onChange={e => setNewBlockForm(prev => ({ ...prev, mealType: e.target.value }))}
+                className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                <option value="">No meal type</option>
+                {['Breakfast', 'Pre-Workout', 'Post-Workout', 'Lunch', 'Snack', 'Dinner', 'Evening Snack'].map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+              <div className="flex gap-2">
+                <button onClick={() => setAddingBlock(false)} className="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold press"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                  Cancel
+                </button>
+                <button onClick={addBlockToday} disabled={!newBlockForm.title.trim() || savingBlock || !syncWithRoutine} className="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white press disabled:opacity-40"
+                  style={{ backgroundColor: 'var(--accent)' }}>
+                  {savingBlock ? 'Adding...' : 'Add'}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
+
+      {/* Sync mode */}
+      {!isSkipped && data && data.routine && (
+        <div className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <label className="flex items-center justify-between gap-3 cursor-pointer">
+            <div>
+              <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>Sync with routine</p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                Apply block add/edit to the base routine and all assigned days.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSyncWithRoutine(v => !v)}
+              className="w-11 h-6 rounded-full p-0.5 transition-colors"
+              style={{ backgroundColor: syncWithRoutine ? (routine.color || 'var(--accent)') : 'var(--surface-elevated)' }}
+              aria-label="Toggle sync with routine"
+            >
+              <span
+                className="block w-5 h-5 rounded-full transition-transform"
+                style={{
+                  backgroundColor: '#fff',
+                  transform: syncWithRoutine ? 'translateX(20px)' : 'translateX(0px)',
+                }}
+              />
+            </button>
+          </label>
+          {!syncWithRoutine && (
+            <p className="text-[10px] mt-2" style={{ color: '#f59e0b' }}>
+              One-off day-only block changes are not supported yet. Turn sync on to save changes.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex gap-2 mt-4">
+        {!isSkipped && data && data.routine && (
+          <button onClick={() => setAddingBlock(b => !b)}
+            className="flex-1 py-2.5 rounded-xl text-xs font-semibold press"
+            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+            + Add Block
+          </button>
+        )}
+        <button onClick={() => navigate('/settings/routines')}
+          className="flex-1 py-2.5 rounded-xl text-xs font-semibold press"
+          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+          Configure →
+        </button>
+      </div>
+
+      {/* Edit block modal */}
+      <AnimatePresence>
+        {editingBlockModal?.isOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 flex items-end z-50">
+            <motion.div initial={{ y: 64 }} animate={{ y: 0 }} exit={{ y: 64 }} className="w-full rounded-t-2xl p-4" style={{ backgroundColor: 'var(--surface)' }}>
+              <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Edit block</p>
+              <div className="space-y-2 mb-4">
+                <input type="text" value={editBlockForm.title} onChange={e => setEditBlockForm(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Block title"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                <div className="flex gap-2">
+                  <input type="time" value={editBlockForm.startTime} onChange={e => setEditBlockForm(prev => ({ ...prev, startTime: e.target.value }))}
+                    className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                  <input type="time" value={editBlockForm.endTime} onChange={e => setEditBlockForm(prev => ({ ...prev, endTime: e.target.value }))}
+                    className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                </div>
+                <select value={editBlockForm.mealType} onChange={e => setEditBlockForm(prev => ({ ...prev, mealType: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                  <option value="">No meal type</option>
+                  {['Breakfast', 'Pre-Workout', 'Post-Workout', 'Lunch', 'Snack', 'Dinner', 'Evening Snack'].map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              {!syncWithRoutine && (
+                <p className="text-[10px] mb-3" style={{ color: '#f59e0b' }}>
+                  Turn on "Sync with routine" to save edits for all assigned days.
+                </p>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => setEditingBlockModal(null)} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold press"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                  Cancel
+                </button>
+                <button onClick={saveEditedBlock} disabled={!editBlockForm.title.trim() || savingEditBlock || !syncWithRoutine} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold text-white press disabled:opacity-40"
+                  style={{ backgroundColor: 'var(--accent)' }}>
+                  {savingEditBlock ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Completion time modal */}
+      <AnimatePresence>
+        {completionTimeModal?.isOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 flex items-end z-50">
+            <motion.div initial={{ y: 64 }} animate={{ y: 0 }} exit={{ y: 64 }} className="w-full rounded-t-2xl p-4" style={{ backgroundColor: 'var(--surface)' }}>
+              <p className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Mark as completed at</p>
+              <div className="space-y-2 mb-4">
+                <div>
+                  <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Start time</p>
+                  <input type="time" value={completionTime.start} onChange={e => setCompletionTime(prev => ({ ...prev, start: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>End time</p>
+                  <input type="time" value={completionTime.end} onChange={e => setCompletionTime(prev => ({ ...prev, end: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setCompletionTimeModal(null)} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold press"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                  Cancel
+                </button>
+                <button onClick={confirmCompletion} className="flex-1 px-4 py-2.5 rounded-lg text-xs font-semibold text-white press"
+                  style={{ backgroundColor: 'var(--accent)' }}>
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
