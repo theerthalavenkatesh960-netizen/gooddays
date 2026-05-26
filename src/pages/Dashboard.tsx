@@ -106,6 +106,24 @@ function clamp(n: number, min: number, max: number) {
 }
 
 function momentumBand(score: number) {
+  if (score < 30) return 'Recover';
+  if (score < 60) return 'Build';
+  if (score < 85) return 'Strong';
+  return 'Legendary';
+}
+
+function pickVariant(options: string[], seed: number) {
+  if (!options.length) return '';
+  return options[Math.abs(seed) % options.length];
+}
+
+function getHeroMessage(params: {
+  score: number;
+  delta: number;
+  dayKey: string;
+  routinePendingCount: number;
+  tasksPendingCount: number;
+}) {
   const band = momentumBand(params.score);
   const scoreSeed = [...params.dayKey].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) + params.score;
 
