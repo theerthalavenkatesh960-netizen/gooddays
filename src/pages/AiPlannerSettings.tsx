@@ -187,20 +187,6 @@ export default function AiPlannerSettings() {
   const [showOptimizeWizard, setShowOptimizeWizard] = useState(false);
   const [appliedRecommendations, setAppliedRecommendations] = useState<AppliedRecommendations>({});
 
-  function adjustMetricValue(
-    current: string,
-    setter: (value: string) => void,
-    step: number,
-    min: number,
-    max: number,
-    decimals = 0,
-  ) {
-    const parsed = Number(current);
-    const base = Number.isFinite(parsed) ? parsed : min;
-    const next = Math.max(min, Math.min(max, base + step));
-    setter(next.toFixed(decimals));
-  }
-
   useEffect(() => {
     void load();
   }, []);
@@ -683,99 +669,51 @@ export default function AiPlannerSettings() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
               <div className="rounded-xl p-2" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Height (cm)</p>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    className="w-8 h-8 rounded-lg text-sm font-bold press"
-                    style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-                    onClick={() => adjustMetricValue(heightCm, setHeightCm, -1, 100, 250, 0)}
-                    aria-label="Decrease height"
-                  >
-                    -
-                  </button>
-                  <input
-                    value={heightCm}
-                    onChange={(e) => setHeightCm(e.target.value.replace(/[^0-9.]/g, ''))}
-                    inputMode="decimal"
-                    placeholder="e.g. 172"
-                    className="flex-1 px-2.5 py-2 rounded-lg text-sm outline-none text-center"
-                    style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                  />
-                  <button
-                    type="button"
-                    className="w-8 h-8 rounded-lg text-sm font-bold press"
-                    style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-                    onClick={() => adjustMetricValue(heightCm, setHeightCm, 1, 100, 250, 0)}
-                    aria-label="Increase height"
-                  >
-                    +
-                  </button>
-                </div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }} htmlFor="height-cm">Height (cm)</label>
+                <input
+                  id="height-cm"
+                  type="number"
+                  min={100}
+                  max={250}
+                  step={1}
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(e.target.value)}
+                  placeholder="172"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                />
               </div>
 
               <div className="rounded-xl p-2" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Weight (kg)</p>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    className="w-8 h-8 rounded-lg text-sm font-bold press"
-                    style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-                    onClick={() => adjustMetricValue(weightKg, setWeightKg, -0.1, 30, 200, 1)}
-                    aria-label="Decrease weight"
-                  >
-                    -
-                  </button>
-                  <input
-                    value={weightKg}
-                    onChange={(e) => setWeightKg(e.target.value.replace(/[^0-9.]/g, ''))}
-                    inputMode="decimal"
-                    placeholder="e.g. 74.5"
-                    className="flex-1 px-2.5 py-2 rounded-lg text-sm outline-none text-center"
-                    style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                  />
-                  <button
-                    type="button"
-                    className="w-8 h-8 rounded-lg text-sm font-bold press"
-                    style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-                    onClick={() => adjustMetricValue(weightKg, setWeightKg, 0.1, 30, 200, 1)}
-                    aria-label="Increase weight"
-                  >
-                    +
-                  </button>
-                </div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }} htmlFor="weight-kg">Weight (kg)</label>
+                <input
+                  id="weight-kg"
+                  type="number"
+                  min={30}
+                  max={200}
+                  step={0.1}
+                  value={weightKg}
+                  onChange={(e) => setWeightKg(e.target.value)}
+                  placeholder="74.5"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                />
               </div>
 
               <div className="rounded-xl p-2" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>Target (kg)</p>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    className="w-8 h-8 rounded-lg text-sm font-bold press"
-                    style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-                    onClick={() => adjustMetricValue(targetWeightKg, setTargetWeightKg, -0.1, 30, 200, 1)}
-                    aria-label="Decrease target weight"
-                  >
-                    -
-                  </button>
-                  <input
-                    value={targetWeightKg}
-                    onChange={(e) => setTargetWeightKg(e.target.value.replace(/[^0-9.]/g, ''))}
-                    inputMode="decimal"
-                    placeholder="e.g. 68.0"
-                    className="flex-1 px-2.5 py-2 rounded-lg text-sm outline-none text-center"
-                    style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                  />
-                  <button
-                    type="button"
-                    className="w-8 h-8 rounded-lg text-sm font-bold press"
-                    style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-                    onClick={() => adjustMetricValue(targetWeightKg, setTargetWeightKg, 0.1, 30, 200, 1)}
-                    aria-label="Increase target weight"
-                  >
-                    +
-                  </button>
-                </div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: 'var(--text-muted)' }} htmlFor="target-weight-kg">Target (kg)</label>
+                <input
+                  id="target-weight-kg"
+                  type="number"
+                  min={30}
+                  max={200}
+                  step={0.1}
+                  value={targetWeightKg}
+                  onChange={(e) => setTargetWeightKg(e.target.value)}
+                  placeholder="68.0"
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                />
               </div>
             </div>
 
