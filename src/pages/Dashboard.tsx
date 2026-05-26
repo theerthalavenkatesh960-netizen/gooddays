@@ -1639,6 +1639,18 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
     }
   }
 
+  async function unskipBlock(block: TodayRoutineBlock) {
+    setData(prev => prev ? {
+      ...prev,
+      blocks: prev.blocks.map(b => b.id === block.id ? { ...b, status: 'pending' as any } : b),
+    } : prev);
+    try {
+      await (api as any).logRoutineBlock({ ...getLogPayload(block), date: today, status: 'pending' });
+    } catch {
+      load();
+    }
+  }
+
   async function handleSkipDay() {
     setSkipping(true);
     try {
@@ -1818,7 +1830,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                 className="flex-1 rounded-xl overflow-hidden mb-0.5"
                 style={{
                   border: isActive ? `1px solid ${routine.color || 'var(--accent)'}` : '1px solid var(--border)',
-                  backgroundColor: isDone ? 'rgba(34,197,94,0.05)' : isBlockSkipped ? 'rgba(107,114,128,0.05)' : 'var(--surface)',
+                  backgroundColor: isDone ? 'rgba(34,197,94,0.05)' : isBlockSkipped ? 'rgba(217,119,6,0.08)' : 'var(--surface)',
                 }}>
                 <div className="flex items-center gap-3 p-3">
                   {/* Time */}
@@ -1883,13 +1895,21 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                     </span>
                   )}
 
-                  {/* Skip button */}
-                  {!isDone && !isBlockSkipped && !isSkipped && (
-                    <button onClick={() => skipBlock(block)}
-                      className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}
-                      title="Skip this block">
-                      <X size={13} />
-                    </button>
+                  {/* Skip / Unskip button */}
+                  {!isDone && !isSkipped && (
+                    isBlockSkipped ? (
+                      <button onClick={() => unskipBlock(block)}
+                        className="p-1.5 rounded-lg press" style={{ color: 'rgba(217,119,6,0.7)' }}
+                        title="Undo skip">
+                        <RotateCcw size={13} />
+                      </button>
+                    ) : (
+                      <button onClick={() => skipBlock(block)}
+                        className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}
+                        title="Skip this block">
+                        <X size={13} />
+                      </button>
+                    )
                   )}
 
                   {/* Edit block */}
