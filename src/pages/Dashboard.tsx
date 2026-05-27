@@ -1918,7 +1918,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
       <div className="relative">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
+            <div className="space-y-0">
               {blocks.map((block, idx) => {
           const start = timeToMinutes(block.startTime);
           const end = timeToMinutes(block.endTime);
@@ -1931,41 +1931,66 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           return (
             <SortableRoutineBlockRow key={block.id} id={block.id}>
               {({ attributes, listeners }) => (
-                <div className="relative flex items-start gap-1.5">
+                <div className="relative flex items-start gap-1.5 pb-2">
               {/* Timeline rail + dot + horizontal connector */}
               <div className="relative flex-shrink-0" style={{ width: 26 }}>
+                {/* Vertical connector line to NEXT block — colored if current block is done */}
                 {!isLast && (
                   <div
                     className="absolute"
                     style={{
-                      left: 8,
-                      top: 22,
+                      left: 9,
+                      top: 28,
                       bottom: -10,
                       width: 2,
                       borderRadius: 999,
-                      backgroundColor: isDone ? (routine.color || 'var(--accent)') : 'var(--border)',
-                      opacity: isDone ? 0.95 : 0.5,
+                      background: isDone
+                        ? (routine.color || 'var(--accent)')
+                        : isActive
+                        ? `linear-gradient(to bottom, ${routine.color || 'var(--accent)'}, var(--border))`
+                        : 'var(--border)',
+                      opacity: 1,
                     }}
                   />
                 )}
+                {/* Dot */}
                 <div
-                  className="absolute w-3 h-3 rounded-full z-10"
+                  className="absolute w-3.5 h-3.5 rounded-full z-10"
                   style={{
-                    left: 4.5,
+                    left: 3.5,
                     top: 17,
-                    backgroundColor: isDone ? (routine.color || 'var(--accent)') : 'var(--surface-elevated)',
-                    border: `2px solid ${isDone || isActive ? (routine.color || 'var(--accent)') : 'var(--border)'}`,
+                    backgroundColor: isDone
+                      ? (routine.color || 'var(--accent)')
+                      : isBlockSkipped
+                      ? 'rgba(217,119,6,0.3)'
+                      : isActive
+                      ? 'var(--surface)'
+                      : 'var(--surface-elevated)',
+                    border: `2.5px solid ${
+                      isDone
+                        ? (routine.color || 'var(--accent)')
+                        : isBlockSkipped
+                        ? 'rgba(217,119,6,0.8)'
+                        : isActive
+                        ? (routine.color || 'var(--accent)')
+                        : 'var(--border)'
+                    }`,
                     boxShadow: isActive && !isDone ? `0 0 0 5px ${routine.color || 'var(--accent)'}32` : undefined,
                   }}
                 />
+                {/* Horizontal connector to card */}
                 <div
                   className="absolute h-px"
                   style={{
-                    left: 9.5,
-                    top: 21.5,
-                    width: 16,
-                    backgroundColor: isDone ? (routine.color || 'var(--accent)') : 'var(--border)',
-                    opacity: isDone || isActive ? 0.95 : 0.5,
+                    left: 13,
+                    top: 23,
+                    width: 13,
+                    backgroundColor: isDone
+                      ? (routine.color || 'var(--accent)')
+                      : isActive
+                      ? (routine.color || 'var(--accent)')
+                      : 'var(--border)',
+                    opacity: isDone || isActive ? 1 : 0.5,
                   }}
                 />
               </div>
