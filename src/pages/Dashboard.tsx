@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Settings, CheckCircle2, Moon, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Clock, ChevronDown, GripVertical, LayoutDashboard, CheckSquare, Repeat, X } from 'lucide-react';
+import { Bell, Settings, CheckCircle2, Moon, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Clock, ChevronDown, GripVertical, LayoutDashboard, CheckSquare, Repeat, X, Pencil } from 'lucide-react';
 import { format, isToday, parseISO, subDays, addDays, startOfWeek, isSameDay, isPast } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -1426,6 +1426,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const [newBlockForm, setNewBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' as BlockKind });
   const [savingBlock, setSavingBlock] = useState(false);
   const [syncWithRoutine, setSyncWithRoutine] = useState(false);
+  const [clockTick, setClockTick] = useState(0);
   const [editingBlockModal, setEditingBlockModal] = useState<{ blockId: number; isOpen: boolean } | null>(null);
   const [editBlockForm, setEditBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' as BlockKind });
   const [savingEditBlock, setSavingEditBlock] = useState(false);
@@ -1435,7 +1436,12 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
 
-  const now = currentMinutes();
+  const now = useMemo(() => currentMinutes(), [clockTick]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockTick(t => t + 1), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     try {
@@ -1925,6 +1931,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           const isActive = now >= start && now < end;
           const isDone = block.status === 'completed';
           const isBlockSkipped = block.status === 'skipped';
+          const isCurrentBlock = isActive && !isDone && !isBlockSkipped;
           const isLast = idx === blocks.length - 1;
           const blockKindMeta = getBlockKindMeta(block);
 
@@ -2021,16 +2028,37 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
 
               {/* Card with status background */}
               <motion.div layout
-                className="flex-1 rounded-xl overflow-hidden mb-0.5"
+                className="relative flex-1 rounded-xl overflow-hidden mb-0.5"
                 style={{
                   border: isActive ? `1px solid ${routine.color || 'var(--accent)'}` : '1px solid var(--border)',
                   backgroundColor: isDone ? 'var(--status-completed-bg)' : isBlockSkipped ? 'rgba(217,119,6,0.08)' : 'var(--surface)',
                 }}>
-                <div className="flex items-center gap-3 p-3">
+                {isCurrentBlock && (
+                  <span
+                    className="absolute right-2 top-2 text-[10px] px-2 py-0.5 rounded-full font-semibold z-10"
+                    style={{ backgroundColor: routine.color || 'var(--accent)', color: '#fff' }}
+                  >
+                    Now
+                  </span>
+                )}
+                <div className="flex items-center gap-3 p-3 pr-10 pb-8">
                   {/* Time */}
                   <div className="text-center flex-shrink-0 w-12">
                     <p className="text-[10px] num font-semibold" style={{ color: 'var(--text-muted)' }}>{block.startTime}</p>
-                    <div className="w-px h-2 mx-auto my-0.5" style={{ backgroundColor: 'var(--border)' }} />
+                    {!isSkipped ? (
+                      <button
+                        type="button"
+                        className="mx-auto my-0.5 h-3 w-3 rounded-sm press cursor-grab active:cursor-grabbing flex items-center justify-center"
+                        style={{ color: 'var(--text-muted)', backgroundColor: 'var(--surface-elevated)' }}
+                        title="Drag to reorder"
+                        {...attributes}
+                        {...listeners}
+                      >
+                        <GripVertical size={8} />
+                      </button>
+                    ) : (
+                      <div className="w-px h-2 mx-auto my-0.5" style={{ backgroundColor: 'var(--border)' }} />
+                    )}
                     <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>{block.endTime}</p>
                   </div>
 
@@ -2082,44 +2110,6 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                     )}
                   </div>
 
-                  {/* Now badge */}
-                  {isActive && !isDone && !isBlockSkipped && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: routine.color || 'var(--accent)', color: '#fff' }}>
-                      Now
-                    </span>
-                  )}
-
-                  {/* Skip / Unskip button */}
-                  {!isDone && !isSkipped && (
-                    isBlockSkipped ? (
-                      <button onClick={() => unskipBlock(block)}
-                        className="p-1.5 rounded-lg press" style={{ color: 'var(--status-skipped-icon)' }}
-                        title="Undo skip">
-                        <RotateCcw size={13} />
-                      </button>
-                    ) : (
-                      <button onClick={() => skipBlock(block)}
-                        className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}
-                        title="Skip this block">
-                        <X size={13} />
-                      </button>
-                    )
-                  )}
-
-                  {/* Drag handle */}
-                  {!isSkipped && (
-                    <button
-                      type="button"
-                      className="p-1.5 rounded-lg press cursor-grab active:cursor-grabbing"
-                      style={{ color: 'var(--text-muted)' }}
-                      title="Drag to reorder"
-                      {...attributes}
-                      {...listeners}
-                    >
-                      <GripVertical size={13} />
-                    </button>
-                  )}
-
                   {/* Edit block */}
                   {!isSkipped && (
                     <button
@@ -2128,7 +2118,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                       style={{ color: 'var(--text-muted)' }}
                       title={syncWithRoutine ? 'Edit block for all routine days' : 'Edit block only for today'}
                     >
-                      <Edit size={13} />
+                      <Pencil size={13} />
                     </button>
                   )}
 
@@ -2141,6 +2131,41 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                     </button>
                   )}
                 </div>
+
+                {/* Skip / Unskip strip attached to block corner */}
+                {!isDone && !isSkipped && (
+                  isBlockSkipped ? (
+                    <button
+                      onClick={() => unskipBlock(block)}
+                      className="absolute right-0 bottom-0 h-6 px-1.5 rounded-tl-lg press flex items-center gap-1 text-[10px] font-medium"
+                      style={{
+                        color: 'var(--status-skipped-icon)',
+                        backgroundColor: 'color-mix(in srgb, var(--status-skipped-light) 60%, transparent)',
+                        borderLeft: '1px solid color-mix(in srgb, var(--status-skipped) 45%, transparent)',
+                        borderTop: '1px solid color-mix(in srgb, var(--status-skipped) 45%, transparent)',
+                      }}
+                      title="Undo skip"
+                    >
+                      <RotateCcw size={12} />
+                      <span>Undo</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => skipBlock(block)}
+                      className="absolute right-0 bottom-0 h-6 px-1.5 rounded-tl-lg press flex items-center gap-1 text-[10px] font-medium"
+                      style={{
+                        color: 'var(--text-secondary)',
+                        backgroundColor: 'color-mix(in srgb, var(--surface-elevated) 55%, transparent)',
+                        borderLeft: '1px solid color-mix(in srgb, var(--border) 80%, transparent)',
+                        borderTop: '1px solid color-mix(in srgb, var(--border) 80%, transparent)',
+                      }}
+                      title="Skip this block"
+                    >
+                      <X size={12} />
+                      <span>Skip</span>
+                    </button>
+                  )
+                )}
 
                 {/* Active progress bar */}
                 {isActive && !isDone && !isBlockSkipped && (
