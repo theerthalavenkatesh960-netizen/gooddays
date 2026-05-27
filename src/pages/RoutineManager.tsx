@@ -226,6 +226,12 @@ function BlockForm({
 
   const workoutValue = linkedWorkoutPlanId != null ? String(linkedWorkoutPlanId) : '';
 
+  useEffect(() => {
+    if (initial?.id) return;
+    setStartTime(initial?.startTime ?? '06:00');
+    setEndTime(initial?.endTime ?? '06:30');
+  }, [initial?.id, initial?.startTime, initial?.endTime]);
+
   function applyTemplate(tpl: BlockTemplate) {
     setTitle(tpl.title);
     setShowTemplatePicker(false);
@@ -566,7 +572,8 @@ function RoutineCard({
   }
 
   const defaultForNextBlock: Partial<RoutineBlock> = useMemo(() => {
-    const prev = blocks[blocks.length - 1];
+    const timeline = [...blocks].sort((a, b) => parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime));
+    const prev = timeline[timeline.length - 1];
     if (!prev) return { startTime: '06:00', endTime: '06:30' };
     return { startTime: prev.endTime, endTime: addMinutesToTime(prev.endTime, 30) };
   }, [blocks]);
