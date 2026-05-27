@@ -239,14 +239,24 @@ function WorkoutTab() {
     }
   }
 
-  async function updateSet(setId: number | undefined, patch: Partial<WorkoutSet>) {
+  function patchSetLocal(setId: number | undefined, patch: Partial<WorkoutSet>) {
+    if (!setId) return;
+    setLoggedSets(prev => prev.map(s => s.id === setId ? { ...s, ...patch } : s));
+  }
+
+  async function saveSet(setId: number | undefined, patch: Partial<WorkoutSet>) {
     if (!setId) return;
     setLoggedSets(prev => prev.map(s => s.id === setId ? { ...s, ...patch } : s));
     try {
       await api.updateWorkoutSet(setId, patch);
     } catch {
-      // no-op; optimistic update in body card
+      // no-op; optimistic state already applied
     }
+  }
+
+  async function toggleDone(s: WorkoutSet) {
+    const next = !s.isCompleted;
+    await saveSet(s.id, { reps: s.reps, weightKg: s.weightKg, isCompleted: next });
   }
 
   return (
@@ -313,31 +323,39 @@ function WorkoutTab() {
                 </div>
               </div>
 
-              <div className="px-3 pb-3 pt-2 space-y-2">
+              <div className="px-3 pb-3 pt-2 space-y-3">
                 {sets.map((s, idx) => (
-                  <div key={`${exercise.id}-${s.id ?? idx}`} className="grid grid-cols-[58px_1fr_1fr_52px] gap-2 items-center rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                    <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>Set #{s.setNumber}</span>
-                    <input
-                      type="number"
-                      value={s.reps ?? 0}
-                      onChange={e => updateSet(s.id, { reps: Number(e.target.value || 0) })}
-                      className="w-full h-7 px-2 rounded-md text-xs num outline-none"
-                      style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                    />
-                    <input
-                      type="number"
-                      value={s.weightKg ?? 0}
-                      onChange={e => updateSet(s.id, { weightKg: Number(e.target.value || 0) })}
-                      className="w-full h-7 px-2 rounded-md text-xs num outline-none"
-                      style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                    />
-                    <button
-                      onClick={() => updateSet(s.id, { isCompleted: !s.isCompleted })}
-                      className="h-7 rounded-md text-[10px] font-semibold"
-                      style={{ backgroundColor: s.isCompleted ? 'var(--accent-green)' : 'var(--surface)', color: s.isCompleted ? '#fff' : 'var(--text-muted)', border: '1px solid var(--border)' }}
-                    >
-                      {s.isCompleted ? 'Done' : 'Log'}
-                    </button>
+                  <div key={`${exercise.id}-${s.id ?? idx}`} className="rounded-lg px-2 py-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                    <p className="text-[10px] font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>Set #{s.setNumber}</p>
+                    <div className="grid grid-cols-[1fr_1fr_52px] gap-2 items-end">
+                      <div>
+                        <label className="text-[9px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Reps</label>
+                        <input
+                          type="number"
+                          value={s.reps ?? 0}
+                          onChange={e => patchSetLocal(s.id, { reps: Number(e.target.value || 0) })}
+                          className="w-full h-7 px-2 rounded-md text-xs num outline-none"
+                          style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Weight (kg)</label>
+                        <input
+                          type="number"
+                          value={s.weightKg ?? 0}
+                          onChange={e => patchSetLocal(s.id, { weightKg: Number(e.target.value || 0) })}
+                          className="w-full h-7 px-2 rounded-md text-xs num outline-none"
+                          style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => toggleDone(s)}
+                        className="h-7 rounded-md text-[10px] font-semibold"
+                        style={{ backgroundColor: s.isCompleted ? 'var(--accent-green)' : 'var(--surface)', color: s.isCompleted ? '#fff' : 'var(--text-muted)', border: '1px solid var(--border)' }}
+                      >
+                        {s.isCompleted ? 'Done' : 'Log'}
+                      </button>
+                    </div>
                   </div>
                 ))}
                 {sets.length === 0 && (
@@ -518,7 +536,7 @@ function DietTab() {
         <div className="flex items-center justify-between gap-3 mb-2">
           <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Today's Macros</p>
           <button
-            onClick={() => navigate('/track', { state: { tab: 'meal' } })}
+            onClick={() => navigate('/settings/meals/pick')}
             className="h-7 px-3 rounded-lg text-[11px] font-semibold"
             style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
           >
