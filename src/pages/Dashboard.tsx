@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Settings, CheckCircle2, Moon, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Clock, ChevronDown, GripVertical, LayoutDashboard, CheckSquare, Repeat, X, Pencil } from 'lucide-react';
+import { Bell, Settings, CheckCircle2, Moon, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Clock, ChevronDown, GripVertical, LayoutDashboard, CheckSquare, Repeat, X } from 'lucide-react';
 import { format, isToday, parseISO, subDays, addDays, startOfWeek, isSameDay, isPast } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -2035,101 +2035,105 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                 }}>
                 {isCurrentBlock && (
                   <span
-                    className="absolute right-2 top-2 text-[10px] px-2 py-0.5 rounded-full font-semibold z-10"
+                    className="absolute right-0 top-0 h-6 px-2 rounded-bl-lg text-[10px] font-semibold z-10 flex items-center"
                     style={{ backgroundColor: routine.color || 'var(--accent)', color: '#fff' }}
                   >
                     Now
                   </span>
                 )}
-                <div className="flex items-center gap-3 p-3 pr-10 pb-8">
-                  {/* Time */}
-                  <div className="text-center flex-shrink-0 w-12">
-                    <p className="text-[10px] num font-semibold" style={{ color: 'var(--text-muted)' }}>{block.startTime}</p>
-                    {!isSkipped ? (
-                      <button
-                        type="button"
-                        className="mx-auto my-0.5 h-3 w-3 rounded-sm press cursor-grab active:cursor-grabbing flex items-center justify-center"
-                        style={{ color: 'var(--text-muted)', backgroundColor: 'var(--surface-elevated)' }}
-                        title="Drag to reorder"
-                        {...attributes}
-                        {...listeners}
-                      >
-                        <GripVertical size={8} />
-                      </button>
-                    ) : (
-                      <div className="w-px h-2 mx-auto my-0.5" style={{ backgroundColor: 'var(--border)' }} />
-                    )}
-                    <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>{block.endTime}</p>
-                  </div>
-
-                  {/* Active pulse dot */}
-                  {isActive && !isDone && !isBlockSkipped && (
-                    <div className="w-1.5 h-1.5 rounded-full animate-pulse-dot flex-shrink-0" style={{ backgroundColor: routine.color || 'var(--accent)' }} />
-                  )}
-
-                  {/* Label + linked chips */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium" style={{
-                      color: isDone || isBlockSkipped ? 'var(--text-muted)' : 'var(--text-primary)',
-                      textDecoration: isDone ? 'line-through' : isBlockSkipped ? 'line-through' : 'none',
-                    }}>
-                      {block.title}
-                      {isBlockSkipped && (
-                        <span className="ml-2 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>skipped</span>
+                <div className="grid grid-cols-[1fr_auto] items-center gap-3 p-3 pr-11 pb-8">
+                  <div className="flex items-center justify-center gap-3 min-w-0">
+                    {/* Time */}
+                    <div className="text-center flex-shrink-0 w-12">
+                      <p className="text-[10px] num font-semibold" style={{ color: 'var(--text-muted)' }}>{block.startTime}</p>
+                      {!isSkipped ? (
+                        <button
+                          type="button"
+                          className="mx-auto my-0.5 h-4 w-4 rounded-sm press cursor-grab active:cursor-grabbing flex items-center justify-center"
+                          style={{ color: 'var(--text-muted)', backgroundColor: 'var(--surface-elevated)' }}
+                          title="Drag to reorder"
+                          {...attributes}
+                          {...listeners}
+                        >
+                          <GripVertical size={10} />
+                        </button>
+                      ) : (
+                        <div className="w-px h-2 mx-auto my-0.5" style={{ backgroundColor: 'var(--border)' }} />
                       )}
-                    </p>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      <span
-                        className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
-                        style={blockKindMeta.style}
-                      >
-                        {blockKindMeta.label}
-                      </span>
+                      <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>{block.endTime}</p>
                     </div>
-                    {(block.mealType || block.linkedWorkoutPlanId) && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {block.mealType && (
-                          <span
-                            className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
-                            style={{ backgroundColor: 'rgba(34,197,94,0.14)', color: 'var(--accent-green)', border: '1px solid rgba(34,197,94,0.28)' }}
-                          >
-                            🍽 {block.mealType}
-                          </span>
-                        )}
-                        {block.linkedWorkoutPlanId ? (
-                          <button
-                            type="button"
-                            onClick={() => navigate('/body?tab=Workout')}
-                            className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold press"
-                            style={{ backgroundColor: 'rgba(108,99,255,0.16)', color: 'var(--accent)', border: '1px solid rgba(108,99,255,0.3)' }}
-                          >
-                            {block.linkedWorkoutLabel ?? 'Today Workout'}
-                          </button>
-                        ) : null}
-                      </div>
+
+                    {/* Active pulse dot */}
+                    {isActive && !isDone && !isBlockSkipped && (
+                      <div className="w-1.5 h-1.5 rounded-full animate-pulse-dot flex-shrink-0" style={{ backgroundColor: routine.color || 'var(--accent)' }} />
                     )}
+
+                    {/* Label + linked chips */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium" style={{
+                        color: isDone || isBlockSkipped ? 'var(--text-muted)' : 'var(--text-primary)',
+                        textDecoration: isDone ? 'line-through' : isBlockSkipped ? 'line-through' : 'none',
+                      }}>
+                        {block.title}
+                        {isBlockSkipped && (
+                          <span className="ml-2 text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>skipped</span>
+                        )}
+                      </p>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        <span
+                          className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
+                          style={blockKindMeta.style}
+                        >
+                          {blockKindMeta.label}
+                        </span>
+                      </div>
+                      {(block.mealType || block.linkedWorkoutPlanId) && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {block.mealType && (
+                            <span
+                              className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold"
+                              style={{ backgroundColor: 'rgba(34,197,94,0.14)', color: 'var(--accent-green)', border: '1px solid rgba(34,197,94,0.28)' }}
+                            >
+                              🍽 {block.mealType}
+                            </span>
+                          )}
+                          {block.linkedWorkoutPlanId ? (
+                            <button
+                              type="button"
+                              onClick={() => navigate('/body?tab=Workout')}
+                              className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold press"
+                              style={{ backgroundColor: 'rgba(108,99,255,0.16)', color: 'var(--accent)', border: '1px solid rgba(108,99,255,0.3)' }}
+                            >
+                              {block.linkedWorkoutLabel ?? 'Today Workout'}
+                            </button>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Edit block */}
-                  {!isSkipped && (
-                    <button
-                      onClick={() => openEditBlock(block)}
-                      className="p-1.5 rounded-lg press"
-                      style={{ color: 'var(--text-muted)' }}
-                      title={syncWithRoutine ? 'Edit block for all routine days' : 'Edit block only for today'}
-                    >
-                      <Pencil size={13} />
-                    </button>
-                  )}
+                  <div className="w-8 mr-1 flex flex-col items-center justify-center gap-2">
+                    {/* Edit block */}
+                    {!isSkipped && (
+                      <button
+                        onClick={() => openEditBlock(block)}
+                        className="p-1.5 rounded-lg press"
+                        style={{ color: 'var(--text-muted)' }}
+                        title={syncWithRoutine ? 'Edit block for all routine days' : 'Edit block only for today'}
+                      >
+                        <Edit size={13} />
+                      </button>
+                    )}
 
-                  {/* Check toggle */}
-                  {!isSkipped && (
-                    <button onClick={() => toggleBlock(block)} className="press ml-0.5">
-                      {isDone
-                        ? <CheckCircle2 size={20} style={{ color: routine.color || 'var(--accent)' }} />
-                        : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--border)' }} />}
-                    </button>
-                  )}
+                    {/* Check toggle */}
+                    {!isSkipped && (
+                      <button onClick={() => toggleBlock(block)} className="press flex items-center justify-center">
+                        {isDone
+                          ? <CheckCircle2 size={20} style={{ color: routine.color || 'var(--accent)' }} />
+                          : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--border)' }} />}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Skip / Unskip strip attached to block corner */}
