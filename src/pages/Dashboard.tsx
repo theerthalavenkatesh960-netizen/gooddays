@@ -398,13 +398,17 @@ function DashboardTab({
 
       const settingsWeights = (settingsData as any)?.dashboardWeights;
       if (settingsWeights) {
+        const readWeight = (value: unknown, fallback: number) => {
+          const parsed = Number(value);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
         const normalized = {
-          tasks: clamp(Number(settingsWeights.tasks || DEFAULT_MOMENTUM_WEIGHTS.tasks), 0, 100),
-          routine: clamp(Number(settingsWeights.routine || DEFAULT_MOMENTUM_WEIGHTS.routine), 0, 100),
-          body: clamp(Number(settingsWeights.body || DEFAULT_MOMENTUM_WEIGHTS.body), 0, 100),
-          workout: clamp(Number(settingsWeights.workout || DEFAULT_MOMENTUM_WEIGHTS.workout), 0, 100),
-          finance: clamp(Number(settingsWeights.finance || DEFAULT_MOMENTUM_WEIGHTS.finance), 0, 100),
-          journal: clamp(Number(settingsWeights.journal || DEFAULT_MOMENTUM_WEIGHTS.journal), 0, 100),
+          tasks: clamp(readWeight(settingsWeights.tasks, DEFAULT_MOMENTUM_WEIGHTS.tasks), 0, 100),
+          routine: clamp(readWeight(settingsWeights.routine, DEFAULT_MOMENTUM_WEIGHTS.routine), 0, 100),
+          body: clamp(readWeight(settingsWeights.body, DEFAULT_MOMENTUM_WEIGHTS.body), 0, 100),
+          workout: clamp(readWeight(settingsWeights.workout, DEFAULT_MOMENTUM_WEIGHTS.workout), 0, 100),
+          finance: clamp(readWeight(settingsWeights.finance, DEFAULT_MOMENTUM_WEIGHTS.finance), 0, 100),
+          journal: clamp(readWeight(settingsWeights.journal, DEFAULT_MOMENTUM_WEIGHTS.journal), 0, 100),
         };
         const total = normalized.tasks + normalized.routine + normalized.body + normalized.workout + normalized.finance + normalized.journal;
         if (total > 0) {

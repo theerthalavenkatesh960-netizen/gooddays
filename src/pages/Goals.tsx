@@ -24,17 +24,25 @@ type Goal = {
 };
 
 function computeGoalProgress(goal: Goal): number {
-  if (goal.goalType === 'checklist') {
+  const goalType = String(goal.goalType || '').trim().toLowerCase();
+
+  if (goalType === 'checklist') {
     const total = Number(goal.checklistTotal ?? 0);
     const completed = Number(goal.checklistCompleted ?? 0);
     if (total <= 0) return 0;
     return (completed / total) * 100;
   }
 
-  const target = Number(goal.targetValue ?? 0);
-  const current = Number(goal.currentValue ?? 0);
-  if (target <= 0) return 0;
-  return (current / target) * 100;
+  if (goalType === 'milestone') {
+    const target = Number(goal.targetValue ?? 0);
+    const current = Number(goal.currentValue ?? 0);
+    if (target <= 0) return 0;
+    return (current / target) * 100;
+  }
+
+  const fallback = Number(goal.progressPercent ?? 0);
+  if (Number.isFinite(fallback)) return fallback;
+  return 0;
 }
 
 function StatusBadge({ goal }: { goal: Goal }) {

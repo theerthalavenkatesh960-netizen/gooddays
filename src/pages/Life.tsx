@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Target, BookOpen, BarChart2, Plus,
-  Brain, Sparkles
+  Brain, Sparkles, ChevronLeft
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -309,6 +309,7 @@ function ReviewTab() {
 // Main Life Page
 // ─────────────────────────────────────────────
 export default function Life() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const initialTab = (searchParams.get('tab') as LifeTab | null);
@@ -332,9 +333,20 @@ export default function Life() {
     setSearchParams({ tab: nextTab }, { replace: true });
   };
 
+  const goBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate('/dashboard');
+  };
+
   return (
     <div className="pt-4 pb-nav" style={{ backgroundColor: 'var(--bg)' }}>
-      <div className="px-4 mb-2">
+      <div className="px-4 mb-2 flex items-center gap-3">
+        <button onClick={goBack} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }} aria-label="Go back">
+          <ChevronLeft size={18} style={{ color: 'var(--text-secondary)' }} />
+        </button>
         <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Life</h1>
       </div>
 

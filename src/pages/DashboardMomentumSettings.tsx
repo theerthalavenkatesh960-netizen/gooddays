@@ -70,12 +70,16 @@ export default function DashboardMomentumSettings() {
     if (!hasChanges || saving) return;
     setSaving(true);
     try {
-      await api.updateUserSettings({
+      const saved = await api.updateUserSettings({
         dashboardPreset,
         dashboardWeights,
       });
-      setInitialPreset(dashboardPreset);
-      setInitialWeights(dashboardWeights);
+      const persistedPreset = (saved?.dashboardPreset ?? dashboardPreset) as DashboardPreset;
+      const persistedWeights = saved?.dashboardWeights ?? dashboardWeights;
+      setDashboardPreset(persistedPreset);
+      setDashboardWeights(persistedWeights);
+      setInitialPreset(persistedPreset);
+      setInitialWeights(persistedWeights);
     } catch {
       // Keep draft values; user can retry save.
     } finally {
