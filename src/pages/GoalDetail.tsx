@@ -62,7 +62,7 @@ export default function GoalDetail() {
     try {
       const goals: Goal[] = await api.getGoals();
       const found = Array.isArray(goals) ? goals.find(g => g.id === goalId) : null;
-      if (!found) { navigate('/goals'); return; }
+      if (!found) { navigate('/life?tab=Goals'); return; }
       setGoal(found);
       if (found.goalType === 'checklist') {
         const items = await api.getGoalChecklistItems(found.id);

@@ -456,17 +456,19 @@ export default function WorkoutLibrarySettings() {
                       <div className="grid grid-cols-2 gap-2 mb-3">
                         <button
                           onClick={() => setAiGenerateMode('profile')}
-                          className="py-2 rounded-xl text-sm font-semibold press"
-                          style={{ backgroundColor: aiGenerateMode === 'profile' ? 'var(--accent)' : 'var(--surface-elevated)', color: aiGenerateMode === 'profile' ? '#fff' : 'var(--text-secondary)' }}
+                          className="p-3 rounded-xl text-left press"
+                          style={{ backgroundColor: aiGenerateMode === 'profile' ? 'var(--accent)18' : 'var(--surface-elevated)', border: aiGenerateMode === 'profile' ? '2px solid var(--accent)' : '1px solid var(--border)' }}
                         >
-                          Use Profile
+                          <p className="text-xs font-bold flex items-center gap-1" style={{ color: aiGenerateMode === 'profile' ? 'var(--accent)' : 'var(--text-primary)' }}><Sparkles size={13} /> AI Generate</p>
+                          <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>Uses AI planner with your profile.</p>
                         </button>
                         <button
                           onClick={() => setAiGenerateMode('custom')}
-                          className="py-2 rounded-xl text-sm font-semibold press"
-                          style={{ backgroundColor: aiGenerateMode === 'custom' ? 'var(--accent)' : 'var(--surface-elevated)', color: aiGenerateMode === 'custom' ? '#fff' : 'var(--text-secondary)' }}
+                          className="p-3 rounded-xl text-left press"
+                          style={{ backgroundColor: aiGenerateMode === 'custom' ? 'var(--accent)18' : 'var(--surface-elevated)', border: aiGenerateMode === 'custom' ? '2px solid var(--accent)' : '1px solid var(--border)' }}
                         >
-                          Custom
+                          <p className="text-xs font-bold" style={{ color: aiGenerateMode === 'custom' ? 'var(--accent)' : 'var(--text-primary)' }}>Custom</p>
+                          <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>Override with custom rules.</p>
                         </button>
                       </div>
 

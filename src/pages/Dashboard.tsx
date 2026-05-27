@@ -1425,7 +1425,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const [addingBlock, setAddingBlock] = useState(false);
   const [newBlockForm, setNewBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' as BlockKind });
   const [savingBlock, setSavingBlock] = useState(false);
-  const [syncWithRoutine, setSyncWithRoutine] = useState(true);
+  const [syncWithRoutine, setSyncWithRoutine] = useState(false);
   const [editingBlockModal, setEditingBlockModal] = useState<{ blockId: number; isOpen: boolean } | null>(null);
   const [editBlockForm, setEditBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' as BlockKind });
   const [savingEditBlock, setSavingEditBlock] = useState(false);
@@ -1918,7 +1918,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
       <div className="relative">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
+            <div className="space-y-0">
               {blocks.map((block, idx) => {
           const start = timeToMinutes(block.startTime);
           const end = timeToMinutes(block.endTime);
@@ -1931,41 +1931,90 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           return (
             <SortableRoutineBlockRow key={block.id} id={block.id}>
               {({ attributes, listeners }) => (
-                <div className="relative flex items-start gap-1.5">
-              {/* Timeline rail + dot + horizontal connector */}
-              <div className="relative flex-shrink-0" style={{ width: 26 }}>
+                <div className="relative flex items-start gap-1.5 pb-2">
+              {/* Timeline column — holds dot, horizontal connector, and vertical rail */}
+              <div className="relative self-stretch flex-shrink-0" style={{ width: 26 }}>
+                {/* Vertical connector line ABOVE the dot (from top of row to center) */}
+                {idx > 0 && (
+                  <div
+                    className="absolute"
+                    style={{
+                      left: 9,
+                      top: 0,
+                      bottom: 'calc(50% + 7px)',
+                      width: 2,
+                      borderRadius: 999,
+                      background: isDone
+                        ? (routine.color || 'var(--accent)')
+                        : isBlockSkipped
+                        ? 'var(--status-skipped)'
+                        : isActive
+                        ? (routine.color || 'var(--accent)')
+                        : 'var(--status-pending)',
+                    }}
+                  />
+                )}
+                {/* Vertical connector line BELOW the dot to next block */}
                 {!isLast && (
                   <div
                     className="absolute"
                     style={{
-                      left: 8,
-                      top: 22,
-                      bottom: -10,
+                      left: 9,
+                      top: 'calc(50% + 7px)',
+                      bottom: 0,
                       width: 2,
                       borderRadius: 999,
-                      backgroundColor: isDone ? (routine.color || 'var(--accent)') : 'var(--border)',
-                      opacity: isDone ? 0.95 : 0.5,
+                      background: isDone
+                        ? (routine.color || 'var(--accent)')
+                        : isBlockSkipped
+                        ? 'var(--status-skipped)'
+                        : isActive
+                        ? `linear-gradient(to bottom, ${routine.color || 'var(--accent)'}, var(--status-pending))`
+                        : 'var(--status-pending)',
                     }}
                   />
                 )}
+                {/* Dot — centered vertically in the block row */}
                 <div
-                  className="absolute w-3 h-3 rounded-full z-10"
+                  className="absolute w-3.5 h-3.5 rounded-full z-10"
                   style={{
-                    left: 4.5,
-                    top: 17,
-                    backgroundColor: isDone ? (routine.color || 'var(--accent)') : 'var(--surface-elevated)',
-                    border: `2px solid ${isDone || isActive ? (routine.color || 'var(--accent)') : 'var(--border)'}`,
+                    left: 3.5,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    backgroundColor: isDone
+                      ? (routine.color || 'var(--accent)')
+                      : isBlockSkipped
+                      ? 'rgba(217,119,6,0.3)'
+                      : isActive
+                      ? 'var(--surface)'
+                      : 'var(--surface-elevated)',
+                    border: `2.5px solid ${
+                      isDone
+                        ? (routine.color || 'var(--accent)')
+                        : isBlockSkipped
+                        ? 'rgba(217,119,6,0.8)'
+                        : isActive
+                        ? (routine.color || 'var(--accent)')
+                        : 'var(--border)'
+                    }`,
                     boxShadow: isActive && !isDone ? `0 0 0 5px ${routine.color || 'var(--accent)'}32` : undefined,
                   }}
                 />
+                {/* Horizontal connector to card */}
                 <div
                   className="absolute h-px"
                   style={{
-                    left: 9.5,
-                    top: 21.5,
-                    width: 16,
-                    backgroundColor: isDone ? (routine.color || 'var(--accent)') : 'var(--border)',
-                    opacity: isDone || isActive ? 0.95 : 0.5,
+                    left: 13,
+                    top: '50%',
+                    width: 13,
+                    backgroundColor: isDone
+                      ? (routine.color || 'var(--accent)')
+                      : isBlockSkipped
+                      ? 'var(--status-skipped)'
+                      : isActive
+                      ? (routine.color || 'var(--accent)')
+                      : 'var(--status-pending)',
+                    opacity: 1,
                   }}
                 />
               </div>
@@ -1975,7 +2024,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                 className="flex-1 rounded-xl overflow-hidden mb-0.5"
                 style={{
                   border: isActive ? `1px solid ${routine.color || 'var(--accent)'}` : '1px solid var(--border)',
-                  backgroundColor: isDone ? 'rgba(34,197,94,0.05)' : isBlockSkipped ? 'rgba(217,119,6,0.08)' : 'var(--surface)',
+                  backgroundColor: isDone ? 'var(--status-completed-bg)' : isBlockSkipped ? 'rgba(217,119,6,0.08)' : 'var(--surface)',
                 }}>
                 <div className="flex items-center gap-3 p-3">
                   {/* Time */}
@@ -2044,7 +2093,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                   {!isDone && !isSkipped && (
                     isBlockSkipped ? (
                       <button onClick={() => unskipBlock(block)}
-                        className="p-1.5 rounded-lg press" style={{ color: 'rgba(217,119,6,0.7)' }}
+                        className="p-1.5 rounded-lg press" style={{ color: 'var(--status-skipped-icon)' }}
                         title="Undo skip">
                         <RotateCcw size={13} />
                       </button>

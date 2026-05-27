@@ -464,6 +464,18 @@ public class AiPlannerController : ControllerBase
                 sb.AppendLine("Use ONLY these mealTemplateIds:");
                 sb.AppendLine(string.Join("\n", templateRows));
                 sb.AppendLine();
+                var isCustomMode = req.Mode?.Equals("custom", StringComparison.OrdinalIgnoreCase) ?? false;
+                if (isCustomMode)
+                {
+                    sb.AppendLine("*** MODE: CUSTOM (user-defined overrides) ***");
+                    if (req.BudgetPerWeek.HasValue) sb.AppendLine($"PRIORITY: Use budget={req.BudgetPerWeek} per week (override profile)");
+                    if (!string.IsNullOrWhiteSpace(req.DietPreference)) sb.AppendLine($"PRIORITY: Use diet preference='{req.DietPreference}' (override profile)");
+                }
+                else
+                {
+                    sb.AppendLine("*** MODE: PROFILE (use saved user profile) ***");
+                }
+                sb.AppendLine();
                 sb.AppendLine($"mode={req.Mode ?? "profile"}, budgetOverride={req.BudgetPerWeek?.ToString() ?? "none"}, dietOverride={req.DietPreference ?? "none"}");
                 sb.AppendLine($"profileHeightCm={profile?.HeightCm?.ToString() ?? "null"}, profileWeightKg={profile?.WeightKg?.ToString() ?? "null"}, profileTargetWeightKg={profile?.TargetWeightKg?.ToString() ?? "null"}, profileCalories={profile?.DailyCaloriesTarget?.ToString() ?? "null"}, profileDiet={profile?.DietPreference ?? "null"}, profileBudget={profile?.BudgetPerWeek?.ToString() ?? "null"}, profileActivity={profile?.ActivityLevel ?? "null"}");
                 sb.AppendLine();
@@ -488,6 +500,20 @@ public class AiPlannerController : ControllerBase
                 sb.AppendLine("Build weekly routine for monday..sunday.");
                 sb.AppendLine("Use ONLY these exerciseIds:");
                 sb.AppendLine(string.Join("\n", exerciseRows));
+                sb.AppendLine();
+                var isCustomMode = req.Mode?.Equals("custom", StringComparison.OrdinalIgnoreCase) ?? false;
+                if (isCustomMode)
+                {
+                    sb.AppendLine("*** MODE: CUSTOM (user-defined overrides) ***");
+                    if (req.DaysPerWeek.HasValue) sb.AppendLine($"PRIORITY: Generate routine for {req.DaysPerWeek} days/week (override profile)");
+                    if (req.MinutesPerSession.HasValue) sb.AppendLine($"PRIORITY: Each session {req.MinutesPerSession} minutes (override profile)");
+                    if (req.SetsDefault.HasValue) sb.AppendLine($"PRIORITY: Default {req.SetsDefault} sets per exercise");
+                    if (req.RepsDefault.HasValue) sb.AppendLine($"PRIORITY: Default {req.RepsDefault} reps per set");
+                }
+                else
+                {
+                    sb.AppendLine("*** MODE: PROFILE (use saved user profile) ***");
+                }
                 sb.AppendLine();
                 sb.AppendLine($"mode={req.Mode ?? "profile"}, daysPerWeek={req.DaysPerWeek?.ToString() ?? "none"}, minutesPerSession={req.MinutesPerSession?.ToString() ?? "none"}, setsDefault={req.SetsDefault?.ToString() ?? "none"}, repsDefault={req.RepsDefault?.ToString() ?? "none"}");
                 sb.AppendLine($"profileHeightCm={profile?.HeightCm?.ToString() ?? "null"}, profileWeightKg={profile?.WeightKg?.ToString() ?? "null"}, profileTargetWeightKg={profile?.TargetWeightKg?.ToString() ?? "null"}, profileCalories={profile?.DailyCaloriesTarget?.ToString() ?? "null"}, profileActivity={profile?.ActivityLevel ?? "null"}");
