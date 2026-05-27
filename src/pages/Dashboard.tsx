@@ -86,6 +86,13 @@ function currentMinutes() {
   return n.getHours() * 60 + n.getMinutes();
 }
 
+function minutesToTime(minutes: number) {
+  const normalized = ((minutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+  const h = Math.floor(normalized / 60);
+  const m = normalized % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
 type MomentumWeights = {
   tasks: number;
   routine: number;
@@ -1400,7 +1407,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const [completionTimeModal, setCompletionTimeModal] = useState<{ blockId: number; isOpen: boolean } | null>(null);
   const [completionTime, setCompletionTime] = useState<{ start: string; end: string }>({ start: '00:00', end: '01:00' });
   const [addingBlock, setAddingBlock] = useState(false);
-  const [newBlockForm, setNewBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' as BlockKind });
+  const [newBlockForm, setNewBlockForm] = useState({ title: '', startTime: '06:00', endTime: '06:30', mealType: '', blockKind: 'general' as BlockKind });
   const [savingBlock, setSavingBlock] = useState(false);
   const [syncWithRoutine, setSyncWithRoutine] = useState(false);
   const [clockTick, setClockTick] = useState(0);
@@ -1527,6 +1534,21 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
     const mealType = form.blockKind === 'meal' ? (form.mealType || null) : null;
     const linkedWorkoutPlanId = form.blockKind === 'workout' ? (fallbackWorkoutLinkId ?? null) : null;
     return { mealType, linkedWorkoutPlanId };
+  }
+
+  function getDefaultNewBlockWindow() {
+    const timeline = [...(data?.blocks ?? [])].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    const previous = timeline[timeline.length - 1];
+    if (!previous) return { startTime: '06:00', endTime: '06:30' };
+    const start = previous.endTime;
+    const end = minutesToTime(timeToMinutes(start) + 30);
+    return { startTime: start, endTime: end };
+  }
+
+  function openAddBlockModal() {
+    const { startTime, endTime } = getDefaultNewBlockWindow();
+    setNewBlockForm({ title: '', startTime, endTime, mealType: '', blockKind: 'general' });
+    setAddingBlock(true);
   }
 
   function getBlockKindMeta(block: TodayRoutineBlock): { kind: BlockKind; label: string; style: React.CSSProperties } {
@@ -1660,7 +1682,8 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
         });
         await reorderTodayByTime();
       }
-      setNewBlockForm({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' });
+      const { startTime, endTime } = getDefaultNewBlockWindow();
+      setNewBlockForm({ title: '', startTime, endTime, mealType: '', blockKind: 'general' });
       setAddingBlock(false);
       await load();
     } finally {
@@ -1858,7 +1881,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
       <div className="mb-3 flex items-center justify-end gap-2 flex-wrap">
         {!isSkipped && data && data.routine && (
           <button
-            onClick={() => setAddingBlock(b => !b)}
+            onClick={() => (addingBlock ? setAddingBlock(false) : openAddBlockModal())}
             className="px-2.5 py-1 rounded-lg text-[11px] font-semibold press"
             style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
