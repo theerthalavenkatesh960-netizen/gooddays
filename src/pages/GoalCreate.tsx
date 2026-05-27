@@ -35,7 +35,7 @@ export default function GoalCreate() {
     if (!isEdit) return;
     api.getGoals().then((goals: any[]) => {
       const g = goals.find(g => g.id === goalId);
-      if (!g) { navigate('/goals'); return; }
+      if (!g) { navigate('/life?tab=Goals'); return; }
       setForm({
         title: g.title || '',
         category: g.category || '',
