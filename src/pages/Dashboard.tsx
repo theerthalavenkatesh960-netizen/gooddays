@@ -1932,6 +1932,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
           const isDone = block.status === 'completed';
           const isBlockSkipped = block.status === 'skipped';
           const isCurrentBlock = isActive && !isDone && !isBlockSkipped;
+          const isMissedBlock = now >= end && !isDone && !isBlockSkipped;
           const isLast = idx === blocks.length - 1;
           const blockKindMeta = getBlockKindMeta(block);
 
@@ -2033,14 +2034,21 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                   border: isActive ? `1px solid ${routine.color || 'var(--accent)'}` : '1px solid var(--border)',
                   backgroundColor: isDone ? 'var(--status-completed-bg)' : isBlockSkipped ? 'rgba(217,119,6,0.08)' : 'var(--surface)',
                 }}>
-                {isCurrentBlock && (
+                {isCurrentBlock ? (
                   <span
                     className="absolute right-0 top-0 h-6 w-16 rounded-bl-lg text-[10px] font-semibold z-10 flex items-center justify-center"
                     style={{ backgroundColor: routine.color || 'var(--accent)', color: '#fff' }}
                   >
                     Now
                   </span>
-                )}
+                ) : isMissedBlock ? (
+                  <span
+                    className="absolute right-0 top-0 h-6 w-16 rounded-bl-lg text-[10px] font-semibold z-10 flex items-center justify-center"
+                    style={{ backgroundColor: 'var(--accent-warm)', color: '#fff' }}
+                  >
+                    Missed
+                  </span>
+                ) : null}
                 <div className="relative pl-3 pr-16 py-5">
                   <div className="flex items-center justify-center gap-3 min-w-0">
                     {/* Time */}
@@ -2367,8 +2375,8 @@ export default function Dashboard() {
 
   const TABS: { id: TabId; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
     { id: 'routine', label: 'Daily Routine', icon: Repeat },
+    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
   ];
 
   return (
