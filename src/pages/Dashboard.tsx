@@ -1425,7 +1425,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const [addingBlock, setAddingBlock] = useState(false);
   const [newBlockForm, setNewBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' as BlockKind });
   const [savingBlock, setSavingBlock] = useState(false);
-  const [syncWithRoutine, setSyncWithRoutine] = useState(true);
+  const [syncWithRoutine, setSyncWithRoutine] = useState(false);
   const [editingBlockModal, setEditingBlockModal] = useState<{ blockId: number; isOpen: boolean } | null>(null);
   const [editBlockForm, setEditBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' as BlockKind });
   const [savingEditBlock, setSavingEditBlock] = useState(false);
