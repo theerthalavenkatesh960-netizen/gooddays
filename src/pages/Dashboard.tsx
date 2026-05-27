@@ -1934,14 +1934,14 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                 <div className="relative flex items-start gap-1.5 pb-2">
               {/* Timeline column — holds dot, horizontal connector, and vertical rail */}
               <div className="relative self-stretch flex-shrink-0" style={{ width: 26 }}>
-                {/* Vertical connector line ABOVE the dot (from top of row to dot) */}
+                {/* Vertical connector line ABOVE the dot (from top of row to center) */}
                 {idx > 0 && (
                   <div
                     className="absolute"
                     style={{
                       left: 9,
                       top: 0,
-                      height: 17,
+                      bottom: 'calc(50% + 7px)',
                       width: 2,
                       borderRadius: 999,
                       background: isDone
@@ -1958,7 +1958,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                     className="absolute"
                     style={{
                       left: 9,
-                      top: 28,
+                      top: 'calc(50% + 7px)',
                       bottom: 0,
                       width: 2,
                       borderRadius: 999,
@@ -1970,12 +1970,13 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                     }}
                   />
                 )}
-                {/* Dot */}
+                {/* Dot — centered vertically in the block row */}
                 <div
                   className="absolute w-3.5 h-3.5 rounded-full z-10"
                   style={{
                     left: 3.5,
-                    top: 17,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
                     backgroundColor: isDone
                       ? (routine.color || 'var(--accent)')
                       : isBlockSkipped
@@ -2000,7 +2001,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                   className="absolute h-px"
                   style={{
                     left: 13,
-                    top: 23,
+                    top: '50%',
                     width: 13,
                     backgroundColor: isDone
                       ? (routine.color || 'var(--accent)')
