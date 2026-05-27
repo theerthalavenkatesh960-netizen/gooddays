@@ -1946,6 +1946,8 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                       borderRadius: 999,
                       background: isDone
                         ? (routine.color || 'var(--accent)')
+                        : isBlockSkipped
+                        ? 'rgba(217,119,6,0.8)'
                         : isActive
                         ? (routine.color || 'var(--accent)')
                         : 'var(--border)',
@@ -1964,6 +1966,8 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                       borderRadius: 999,
                       background: isDone
                         ? (routine.color || 'var(--accent)')
+                        : isBlockSkipped
+                        ? 'rgba(217,119,6,0.8)'
                         : isActive
                         ? `linear-gradient(to bottom, ${routine.color || 'var(--accent)'}, var(--border))`
                         : 'var(--border)',
