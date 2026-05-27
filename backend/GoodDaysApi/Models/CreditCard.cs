@@ -1,11 +1,14 @@
 namespace GoodDaysApi.Models;
 
+using System.ComponentModel.DataAnnotations.Schema;
+
 public class CreditCard
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public int UserId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Issuer { get; set; } = "Other"; // HDFC, ICICI, SBI, Axis, Other
+    [Column("last4_digits")]
     public string? Last4Digits { get; set; }
     public decimal? CreditLimit { get; set; }
     public int? BillingCycleStartDate { get; set; } // 1-31
