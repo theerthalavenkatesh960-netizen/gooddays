@@ -1934,7 +1934,25 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                 <div className="relative flex items-start gap-1.5 pb-2">
               {/* Timeline column — holds dot, horizontal connector, and vertical rail */}
               <div className="relative self-stretch flex-shrink-0" style={{ width: 26 }}>
-                {/* Vertical connector line spanning full row height to next block */}
+                {/* Vertical connector line ABOVE the dot (from top of row to dot) */}
+                {idx > 0 && (
+                  <div
+                    className="absolute"
+                    style={{
+                      left: 9,
+                      top: 0,
+                      height: 17,
+                      width: 2,
+                      borderRadius: 999,
+                      background: isDone
+                        ? (routine.color || 'var(--accent)')
+                        : isActive
+                        ? (routine.color || 'var(--accent)')
+                        : 'var(--border)',
+                    }}
+                  />
+                )}
+                {/* Vertical connector line BELOW the dot to next block */}
                 {!isLast && (
                   <div
                     className="absolute"
