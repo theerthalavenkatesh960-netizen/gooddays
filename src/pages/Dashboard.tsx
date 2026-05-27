@@ -2041,7 +2041,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                     Now
                   </span>
                 )}
-                <div className="grid grid-cols-[1fr_auto] items-center gap-3 pl-3 pr-20 py-5">
+                <div className="relative pl-3 pr-16 py-5">
                   <div className="flex items-center justify-center gap-3 min-w-0">
                     {/* Time */}
                     <div className="text-center flex-shrink-0 w-12">
@@ -2112,7 +2112,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                     </div>
                   </div>
 
-                  <div className="w-20 flex items-center justify-end gap-2 self-center">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 w-8 flex flex-col items-center justify-center gap-2">
                     {/* Edit block */}
                     {!isSkipped && (
                       <button
