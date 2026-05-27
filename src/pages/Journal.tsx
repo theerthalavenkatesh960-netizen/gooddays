@@ -4,6 +4,12 @@ import { BookOpen, Plus, Trash2, Search, Image as ImageIcon } from 'lucide-react
 import { format } from 'date-fns';
 import * as api from '../lib/api';
 
+function stripHtmlTags(html: string): string {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  return div.textContent || div.innerText || '';
+}
+
 export default function Journal() {
   const [entries, setEntries] = useState<any[]>([]);
   const [memoryWall, setMemoryWall] = useState<any[]>([]);
@@ -107,7 +113,7 @@ export default function Journal() {
                       </div>
                       {entry.moodTag && <span className="text-2xl">{entry.moodTag === 'happy' ? '😊' : entry.moodTag === 'grateful' ? '🙏' : entry.moodTag === 'motivated' ? '💪' : entry.moodTag === 'tired' ? '😴' : '😐'}</span>}
                     </div>
-                    {entry.body && <p className="text-sm line-clamp-2 mt-2" style={{ color: 'var(--text-secondary)' }}>{entry.body}</p>}
+                    {entry.body && <p className="text-sm line-clamp-2 mt-2" style={{ color: 'var(--text-secondary)' }}>{stripHtmlTags(entry.body)}</p>}
                     <motion.button whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); deleteEntry(entry.id); }}
                       style={{ color: 'var(--text-muted)' }} className="mt-2 hover:text-red-400">
                       <Trash2 size={16} />
