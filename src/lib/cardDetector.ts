@@ -42,7 +42,7 @@ export function detectCardFromNarration(description: string): CardDetection {
 
   const upperDesc = description.toUpperCase();
 
-  for (const [issuer, data] of Object.entries(ISSUER_KEYWORDS)) {
+  for (const [, data] of Object.entries(ISSUER_KEYWORDS)) {
     for (const keyword of data.keywords) {
       if (upperDesc.includes(keyword)) {
         return {

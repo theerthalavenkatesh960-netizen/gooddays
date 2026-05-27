@@ -47,7 +47,7 @@ public class DailyRoutineController : ControllerBase
     /// Auto-upserts a routine_block_template for the given title, then returns its id.
     /// Keyed on (user_id, title) — idempotent.
     /// </summary>
-    private async Task<int> UpsertBlockTemplateAsync(int userId, string title, string? category, string? color, string? startTime, string? endTime)
+    private async Task<int> UpsertBlockTemplateAsync(int userId, string title, string? category, string? color)
     {
         var trimmed = title.Trim();
         var existing = await _db.RoutineBlockTemplates
@@ -61,8 +61,8 @@ public class DailyRoutineController : ControllerBase
             Title = trimmed,
             Category = category,
             Color = color,
-            DefaultStartTime = startTime,
-            DefaultEndTime = endTime,
+            DefaultStartTime = null,
+            DefaultEndTime = null,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -245,16 +245,26 @@ public class DailyRoutineController : ControllerBase
         var routine = await _db.DailyRoutines.FirstOrDefaultAsync(r => r.Id == routineId && r.UserId == userId);
         if (routine is null) return NotFound();
 
+        var normalizedTitle = (body.Title ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalizedTitle)) return BadRequest("Block title is required.");
+
+        var duplicateExists = await _db.RoutineBlocks
+            .AnyAsync(b => b.RoutineId == routineId && b.Title.ToLower() == normalizedTitle.ToLower());
+        if (duplicateExists)
+        {
+            return Conflict("A block with this name already exists in this routine.");
+        }
+
         var validatedWorkoutPlanId = await GetValidatedWorkoutPlanIdAsync(userId, body.LinkedWorkoutPlanId);
         var validatedMealIds = await GetValidatedMealIdsAsync(userId, body.LinkedMealTemplateIds);
 
         // Auto-upsert a block template so it's available for re-use and stats
-        var templateId = await UpsertBlockTemplateAsync(userId, body.Title, body.Category, body.Color, body.StartTime, body.EndTime);
+        var templateId = await UpsertBlockTemplateAsync(userId, normalizedTitle, body.Category, body.Color);
 
         var block = new RoutineBlock
         {
             RoutineId = routineId,
-            Title = body.Title,
+            Title = normalizedTitle,
             StartTime = body.StartTime,
             EndTime = body.EndTime,
             Category = body.Category,
@@ -299,10 +309,20 @@ public class DailyRoutineController : ControllerBase
             .FirstOrDefaultAsync(b => b.Id == id && b.Routine.UserId == userId);
         if (block is null) return NotFound();
 
+        var normalizedTitle = (body.Title ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalizedTitle)) return BadRequest("Block title is required.");
+
+        var duplicateExists = await _db.RoutineBlocks
+            .AnyAsync(b => b.RoutineId == block.RoutineId && b.Id != id && b.Title.ToLower() == normalizedTitle.ToLower());
+        if (duplicateExists)
+        {
+            return Conflict("A block with this name already exists in this routine.");
+        }
+
         var validatedWorkoutPlanId = await GetValidatedWorkoutPlanIdAsync(userId, body.LinkedWorkoutPlanId);
         var validatedMealIds = await GetValidatedMealIdsAsync(userId, body.LinkedMealTemplateIds);
 
-        block.Title = body.Title;
+        block.Title = normalizedTitle;
         block.StartTime = body.StartTime;
         block.EndTime = body.EndTime;
         block.Category = body.Category;
@@ -865,7 +885,7 @@ public class DailyRoutineController : ControllerBase
         var logs = await _db.DailyRoutineLogs
             .Include(l => l.RoutineBlock)
             .Where(l => l.UserId == userId && l.Date >= fromDate && l.Date <= toDate)
-            .OrderBy(l => l.Date).ThenBy(l => l.RoutineBlock.StartTime)
+            .OrderBy(l => l.Date).ThenBy(l => l.RoutineBlock != null ? l.RoutineBlock.StartTime : "99:99")
             .ToListAsync();
 
         var skips = await _db.DailyRoutineSkips
@@ -878,8 +898,8 @@ public class DailyRoutineController : ControllerBase
             {
                 l.Id,
                 l.RoutineBlockId,
-                blockTitle = l.RoutineBlock.Title,
-                blockStartTime = l.RoutineBlock.StartTime,
+                blockTitle = l.RoutineBlock != null ? l.RoutineBlock.Title : "Routine Block",
+                blockStartTime = l.RoutineBlock != null ? l.RoutineBlock.StartTime : null,
                 date = l.Date.ToString("yyyy-MM-dd"),
                 l.Status,
                 l.LoggedAt,

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, ChevronRight, AlertCircle, CheckCircle2, Copy } from 'lucide-react';
-import { parseStatement, getBankDisplayName } from '../../lib/bankStatementParser';
+import { Upload, X, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { parseStatement } from '../../lib/bankStatementParser';
 import { detectCardFromNarration } from '../../lib/cardDetector';
 import { autoCategory } from '../../lib/expenseCategorizer';
 import cardApi, { CreditCard } from '../../lib/cardApi';
@@ -38,7 +38,6 @@ export default function BankStatementImport({
   onSuccess,
 }: BankStatementImportProps) {
   const [step, setStep] = useState<'upload' | 'card-select' | 'preview' | 'importing' | 'complete'>('upload');
-  const [file, setFile] = useState<File | null>(null);
   const [transactions, setTransactions] = useState<ImportedTransaction[]>([]);
   const [cards, setCards] = useState<CreditCard[]>([]);
   const [selectedCard, setSelectedCard] = useState<string>('');
@@ -50,7 +49,6 @@ export default function BankStatementImport({
 
   const handleFileSelect = async (f: File) => {
     setError('');
-    setFile(f);
     setLoading(true);
 
     try {

@@ -22,7 +22,6 @@ import GoalCreate from './pages/GoalCreate';
 import Settings from './pages/Settings';
 import DashboardMomentumSettings from './pages/DashboardMomentumSettings';
 import JournalEditor from './pages/JournalEditor';
-import Vehicles from './pages/Vehicles';
 import WorkoutLibrarySettings from './pages/WorkoutLibrarySettings';
 import MealPlannerSettings from './pages/MealPlannerSettings';
 import MealCatalogBrowse from './pages/MealCatalogBrowse';
@@ -111,7 +110,7 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/finance/cards/:cardId/category/:category" element={<PrivateRoute><Layout><CardCategoryTransactions /></Layout></PrivateRoute>} />
               <Route path="/finance/settings" element={<PrivateRoute><Layout><FinanceBudgetSettings /></Layout></PrivateRoute>} />
               <Route path="/finance/bucket/:id" element={<PrivateRoute><Layout><BucketDetail /></Layout></PrivateRoute>} />
-              <Route path="/finance/vehicles" element={<PrivateRoute><Layout><Vehicles /></Layout></PrivateRoute>} />
+              <Route path="/finance/vehicles" element={<Navigate to="/settings/vehicles" replace />} />
               <Route path="/finance/gmail-review" element={<PrivateRoute><Layout><FinanceGmailReview /></Layout></PrivateRoute>} />
               <Route path="/life" element={<PrivateRoute><Layout><Life /></Layout></PrivateRoute>} />
               <Route path="/goals/new" element={<PrivateRoute><Layout><GoalCreate /></Layout></PrivateRoute>} />

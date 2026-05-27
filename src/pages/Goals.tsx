@@ -23,6 +23,28 @@ type Goal = {
   daysRemaining?: number | null;
 };
 
+function computeGoalProgress(goal: Goal): number {
+  const goalType = String(goal.goalType || '').trim().toLowerCase();
+
+  if (goalType === 'checklist') {
+    const total = Number(goal.checklistTotal ?? 0);
+    const completed = Number(goal.checklistCompleted ?? 0);
+    if (total <= 0) return 0;
+    return (completed / total) * 100;
+  }
+
+  if (goalType === 'milestone') {
+    const target = Number(goal.targetValue ?? 0);
+    const current = Number(goal.currentValue ?? 0);
+    if (target <= 0) return 0;
+    return (current / target) * 100;
+  }
+
+  const fallback = Number(goal.progressPercent ?? 0);
+  if (Number.isFinite(fallback)) return fallback;
+  return 0;
+}
+
 function StatusBadge({ goal }: { goal: Goal }) {
   if (goal.status === 'completed') {
     return <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'rgba(16,185,129,0.12)', color: '#10b981' }}>Done</span>;
@@ -40,10 +62,36 @@ export default function Goals() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api.getGoals().then((data: any) => {
+  async function loadGoals(showLoader = false) {
+    if (showLoader) setLoading(true);
+    try {
+      const data = await api.getGoals();
       setGoals(Array.isArray(data) ? data : []);
-    }).finally(() => setLoading(false));
+    } finally {
+      if (showLoader) setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadGoals(true);
+  }, []);
+
+  useEffect(() => {
+    loadGoals(false);
+  }, [location.key]);
+
+  useEffect(() => {
+    function handleFocusRefresh() {
+      loadGoals(false);
+    }
+
+    window.addEventListener('focus', handleFocusRefresh);
+    document.addEventListener('visibilitychange', handleFocusRefresh);
+
+    return () => {
+      window.removeEventListener('focus', handleFocusRefresh);
+      document.removeEventListener('visibilitychange', handleFocusRefresh);
+    };
   }, []);
 
   if (loading) {
@@ -78,7 +126,7 @@ export default function Goals() {
       ) : (
         <div className="grid gap-3">
           {goals.map(goal => {
-            const progress = Math.max(0, Math.min(100, Number(goal.progressPercent ?? 0)));
+            const progress = Math.max(0, Math.min(100, computeGoalProgress(goal)));
             return (
               <button
                 key={goal.id}

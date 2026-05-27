@@ -54,7 +54,7 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setLoadingHandler((active) => active ? startLoading() : stopLoading());
-    return () => setLoadingHandler((_) => {});
+    return () => setLoadingHandler(() => {});
   }, [startLoading, stopLoading]);
 
   return (

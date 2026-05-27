@@ -91,6 +91,7 @@ function addMinutesToTime(t: string, delta: number): string {
 
 function SortableBlockRow({
   block,
+  allBlocks,
   routineId,
   editing,
   todayWorkoutOptions,
@@ -102,6 +103,7 @@ function SortableBlockRow({
   onDelete,
 }: {
   block: RoutineBlock;
+  allBlocks: RoutineBlock[];
   routineId: number;
   editing: boolean;
   todayWorkoutOptions: WorkoutOption[];
@@ -127,6 +129,7 @@ function SortableBlockRow({
         <BlockForm
           routineId={routineId}
           initial={block}
+          existingBlocks={allBlocks}
           todayWorkoutOptions={todayWorkoutOptions}
           templates={templates}
           onSave={onSaved}
@@ -196,6 +199,7 @@ function SortableBlockRow({
 function BlockForm({
   routineId,
   initial,
+  existingBlocks,
   todayWorkoutOptions,
   templates,
   onSave,
@@ -203,6 +207,7 @@ function BlockForm({
 }: {
   routineId: number;
   initial?: Partial<RoutineBlock>;
+  existingBlocks: RoutineBlock[];
   todayWorkoutOptions: WorkoutOption[];
   templates: BlockTemplate[];
   onSave: () => void;
@@ -215,35 +220,65 @@ function BlockForm({
   const [mealType, setMealType] = useState<string>(initial?.mealType ?? '');
   const [linkedWorkoutPlanId, setLinkedWorkoutPlanId] = useState<number | null>(initial?.linkedWorkoutPlanId ?? null);
   const [saving, setSaving] = useState(false);
+  const [info, setInfo] = useState('');
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [statsTemplateId, setStatsTemplateId] = useState<number | null>(null);
 
   const workoutValue = linkedWorkoutPlanId != null ? String(linkedWorkoutPlanId) : '';
 
+  useEffect(() => {
+    if (initial?.id) return;
+    setStartTime(initial?.startTime ?? '06:00');
+    setEndTime(initial?.endTime ?? '06:30');
+  }, [initial?.id, initial?.startTime, initial?.endTime]);
+
   function applyTemplate(tpl: BlockTemplate) {
     setTitle(tpl.title);
-    if (tpl.defaultStartTime) setStartTime(tpl.defaultStartTime);
-    if (tpl.defaultEndTime) setEndTime(tpl.defaultEndTime);
     setShowTemplatePicker(false);
   }
 
   async function submit() {
-    if (!title.trim()) return;
+    const normalizedTitle = title.trim();
+    if (!normalizedTitle) return;
     setSaving(true);
+    setInfo('');
     try {
       const payload = {
-        title,
+        title: normalizedTitle,
         startTime,
         endTime,
         mealType: isMealBlock && mealType ? mealType : null,
         linkedWorkoutPlanId,
       };
+
+      const duplicate = existingBlocks.find(b =>
+        b.id !== initial?.id &&
+        b.title.trim().toLowerCase() === normalizedTitle.toLowerCase(),
+      );
+
+      if (!initial?.id && duplicate) {
+        await (api as any).updateRoutineBlock(duplicate.id, {
+          ...payload,
+          sortOrder: duplicate.sortOrder,
+        });
+        setInfo('Block exists for this routine. Updated existing block instead.');
+        onSave();
+        return;
+      }
+
       if (initial?.id) {
         await (api as any).updateRoutineBlock(initial.id, payload);
       } else {
         await (api as any).addRoutineBlock(routineId, payload);
       }
       onSave();
+    } catch (e: any) {
+      const message = String(e?.message || 'Could not save block');
+      if (message.toLowerCase().includes('already exists')) {
+        setInfo('Block name already exists in this routine. Use a different name.');
+      } else {
+        setInfo(message);
+      }
     } finally {
       setSaving(false);
     }
@@ -306,12 +341,18 @@ function BlockForm({
       <input
         type="text"
         value={title}
-        onChange={e => setTitle(e.target.value)}
+        onChange={e => {
+          setTitle(e.target.value);
+          if (info) setInfo('');
+        }}
         placeholder="e.g. Study DSA"
         autoFocus
         className="w-full px-3 py-2 rounded-lg text-sm outline-none"
         style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
       />
+      {info && (
+        <p className="text-[11px] font-semibold" style={{ color: 'var(--accent)' }}>{info}</p>
+      )}
       <div className="flex gap-2">
         <div className="flex-1">
           <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Start</p>
@@ -531,7 +572,8 @@ function RoutineCard({
   }
 
   const defaultForNextBlock: Partial<RoutineBlock> = useMemo(() => {
-    const prev = blocks[blocks.length - 1];
+    const timeline = [...blocks].sort((a, b) => parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime));
+    const prev = timeline[timeline.length - 1];
     if (!prev) return { startTime: '06:00', endTime: '06:30' };
     return { startTime: prev.endTime, endTime: addMinutesToTime(prev.endTime, 30) };
   }, [blocks]);
@@ -618,6 +660,7 @@ function RoutineCard({
                     <SortableBlockRow
                       key={block.id}
                       block={block}
+                      allBlocks={blocks}
                       routineId={routine.id}
                       editing={editingBlock === block.id}
                       todayWorkoutOptions={todayWorkoutOptions}
@@ -636,6 +679,7 @@ function RoutineCard({
                 <BlockForm
                   routineId={routine.id}
                   initial={defaultForNextBlock}
+                  existingBlocks={blocks}
                   todayWorkoutOptions={todayWorkoutOptions}
                   templates={templates}
                   onSave={() => { setAddingBlock(false); onRefresh(); }}

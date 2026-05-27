@@ -74,11 +74,9 @@ export default function WorkoutLibrarySettings() {
   const [tab, setTab] = useState<'routine' | 'library'>(((location.state as any)?.tab as 'routine' | 'library') ?? 'routine');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [split, setSplit] = useState<SplitPreset | null>(null);
   const [routine, setRoutine] = useState<RoutineMap>({});
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [filterMuscle, setFilterMuscle] = useState<string | null>(null);
   const [showExerciseFilters, setShowExerciseFilters] = useState(false);
@@ -124,7 +122,6 @@ export default function WorkoutLibrarySettings() {
       const found = activeSplit as SplitPreset | null;
       if (found) {
         splitRef.current = found;
-        setSplit(found);
         let parsed: RoutineMap = {};
         if (typeof found.dayConfigs === 'string') {
           try { parsed = normalizeRoutineMap(JSON.parse(found.dayConfigs) || {}); } catch { parsed = {}; }
@@ -150,11 +147,9 @@ export default function WorkoutLibrarySettings() {
     if (splitRef.current) {
       const updated = await api.updateSplit(splitRef.current.id, { name: splitRef.current.name || 'Weekly Routine', dayConfigs, isActive: true });
       splitRef.current = updated;
-      setSplit(updated);
     } else {
       const created = await api.createSplit({ name: 'Weekly Routine', dayConfigs, isActive: true });
       splitRef.current = created;
-      setSplit(created);
     }
   }
 
@@ -163,14 +158,11 @@ export default function WorkoutLibrarySettings() {
     if (existing.some(e => e.exerciseId === exerciseId)) return;
     const next = { ...routine, [day]: [...existing, { exerciseId, sets, reps }] };
     try {
-      setSaving(true);
       await persistRoutine(next);
       setRoutine(next);
       flash('Saved');
     } catch (e: any) {
       flash(e?.message || 'Failed to save');
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -182,13 +174,6 @@ export default function WorkoutLibrarySettings() {
     } catch (e: any) {
       flash(e?.message || 'Failed to save');
     }
-  }
-
-  async function copyLastWeek() {
-    // Workout routine is week-independent — the same template applies every week.
-    // "Copy last week" copies the current routine's day_configs back to itself (no-op)
-    // but we provide a shortcut: duplicate today's selected day config to the same day.
-    flash('Routine already applies to every week ✓');
   }
 
   async function generateWorkoutWithAi() {

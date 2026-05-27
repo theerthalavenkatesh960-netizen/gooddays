@@ -7,11 +7,9 @@ import { MacroChart } from './MacroChart';
 type AnalysisCardProps = {
   analysis: HealthRecommendationAnalysis;
   feasible?: boolean;
-  dailyCalories?: number;
-  activityLevel?: string;
 };
 
-export function AnalysisCard({ analysis, feasible, dailyCalories, activityLevel }: AnalysisCardProps) {
+export function AnalysisCard({ analysis, feasible }: AnalysisCardProps) {
   if (!analysis) {
     return null;
   }

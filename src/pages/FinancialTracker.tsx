@@ -6,7 +6,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Calendar,
-  X,
 } from 'lucide-react';
 import {
   BarChart,

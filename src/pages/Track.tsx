@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dumbbell, Apple, DollarSign, Droplets, Clock, Trash2, Plus, Check, TrendingUp, Filter, Search, Calendar, CheckCircle } from 'lucide-react';
+import { Dumbbell, Apple, DollarSign, Droplets, Clock, Trash2, Plus, Check, Search, CheckCircle } from 'lucide-react';
 import { format, subDays, parseISO } from 'date-fns';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 import MealCard from '../components/MealCard';
+import { useLocation } from 'react-router-dom';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,9 +17,9 @@ interface QuickLogEntry { id: number; date: string; type: 'workout' | 'meal' | '
 
 export default function Track() {
   const { user } = useAuth();
+  const location = useLocation();
   const today = format(new Date(), 'yyyy-MM-dd');
   const [activeTab, setActiveTab] = useState<'workout' | 'meal' | 'expense' | 'water' | 'task' | 'history'>('workout');
-  const [loading, setLoading] = useState(false);
   const [todayLogs, setTodayLogs] = useState<QuickLogEntry[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [meals, setMeals] = useState<MealTemplate[]>([]);
@@ -31,9 +32,15 @@ export default function Track() {
     return () => clearInterval(interval);
   }, [user]);
 
+  useEffect(() => {
+    const requested = (location.state as any)?.tab;
+    if (requested === 'workout' || requested === 'meal' || requested === 'expense' || requested === 'water' || requested === 'task' || requested === 'history') {
+      setActiveTab(requested);
+    }
+  }, [location.state]);
+
   const loadData = async () => {
     if (!user) return;
-    setLoading(true);
     try {
       const [exData, mData, tLogs] = await Promise.all([
         api.getExercises(),
@@ -45,8 +52,6 @@ export default function Track() {
       setTodayLogs(Array.isArray(tLogs) ? tLogs : []);
     } catch (err) {
       console.error('Failed to load data:', err);
-    } finally {
-      setLoading(false);
     }
   };
 

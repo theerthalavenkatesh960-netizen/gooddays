@@ -1,4 +1,5 @@
 using GoodDaysApi.Data;
+using GoodDaysApi.DTOs;
 using GoodDaysApi.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -55,26 +56,34 @@ public class JournalController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] JournalEntry body)
+    public async Task<IActionResult> Create([FromBody] JournalEntryDto dto)
     {
-        body.UserId = GetUserId();
-        body.CreatedAt = DateTime.UtcNow;
-        body.UpdatedAt = DateTime.UtcNow;
-        _db.JournalEntries.Add(body);
+        var entry = new JournalEntry
+        {
+            UserId = GetUserId(),
+            Date = dto.Date,
+            Title = dto.Title,
+            Body = dto.Body,
+            MoodTag = dto.MoodTag,
+            ImageUrl = dto.ImageUrl,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+        _db.JournalEntries.Add(entry);
         await _db.SaveChangesAsync();
-        return Ok(body);
+        return Ok(entry);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, [FromBody] JournalEntry body)
+    public async Task<IActionResult> Update(int id, [FromBody] JournalEntryDto dto)
     {
         var userId = GetUserId();
         var entry = await _db.JournalEntries.FirstOrDefaultAsync(j => j.Id == id && j.UserId == userId);
         if (entry is null) return NotFound();
-        entry.Title = body.Title;
-        entry.Body = body.Body;
-        entry.MoodTag = body.MoodTag;
-        entry.ImageUrl = body.ImageUrl;
+        entry.Title = dto.Title;
+        entry.Body = dto.Body;
+        entry.MoodTag = dto.MoodTag;
+        entry.ImageUrl = dto.ImageUrl;
         entry.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return Ok(entry);

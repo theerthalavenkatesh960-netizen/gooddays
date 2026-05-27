@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Settings, CheckCircle2, Moon, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Clock, ChevronDown, GripVertical, LayoutDashboard, CheckSquare, Repeat, X } from 'lucide-react';
+import { Bell, Settings, CheckCircle2, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, GripVertical, LayoutDashboard, CheckSquare, Repeat, X } from 'lucide-react';
 import { format, isToday, parseISO, subDays, addDays, startOfWeek, isSameDay, isPast } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -42,14 +42,6 @@ interface Task {
   updatedAt?: string;
 }
 
-interface RoutineBlock {
-  id: string;
-  startTime: string;
-  endTime: string;
-  label: string;
-  done: boolean;
-}
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORY_OPTIONS = [
@@ -69,19 +61,6 @@ const CATEGORY_OPTIONS = [
 ];
 
 const PRIORITIES = ['low', 'medium', 'high'];
-
-const DEFAULT_ROUTINE: RoutineBlock[] = [
-  { id: '1', startTime: '06:00', endTime: '07:00', label: 'Morning routine', done: false },
-  { id: '2', startTime: '07:00', endTime: '08:00', label: 'Exercise', done: false },
-  { id: '3', startTime: '08:00', endTime: '09:00', label: 'Breakfast & prep', done: false },
-  { id: '4', startTime: '09:00', endTime: '12:00', label: 'Deep work', done: false },
-  { id: '5', startTime: '12:00', endTime: '13:00', label: 'Lunch break', done: false },
-  { id: '6', startTime: '13:00', endTime: '17:00', label: 'Work / Study', done: false },
-  { id: '7', startTime: '17:00', endTime: '18:00', label: 'Wind down', done: false },
-  { id: '8', startTime: '18:00', endTime: '19:00', label: 'Dinner', done: false },
-  { id: '9', startTime: '20:00', endTime: '22:00', label: 'Evening leisure', done: false },
-  { id: '10', startTime: '22:00', endTime: '23:00', label: 'Sleep prep', done: false },
-];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -107,14 +86,30 @@ function currentMinutes() {
   return n.getHours() * 60 + n.getMinutes();
 }
 
-const DEFAULT_MOMENTUM_WEIGHTS = {
+function minutesToTime(minutes: number) {
+  const normalized = ((minutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+  const h = Math.floor(normalized / 60);
+  const m = normalized % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+type MomentumWeights = {
+  tasks: number;
+  routine: number;
+  body: number;
+  workout: number;
+  finance: number;
+  journal: number;
+};
+
+const DEFAULT_MOMENTUM_WEIGHTS: MomentumWeights = {
   tasks: 35,
   routine: 20,
   body: 15,
   workout: 15,
   finance: 10,
   journal: 5,
-} as const;
+};
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -184,7 +179,7 @@ function calculateMomentumScore(input: {
   workoutDone: boolean;
   financeTouched: boolean;
   journalDone: boolean;
-  weights: typeof DEFAULT_MOMENTUM_WEIGHTS;
+  weights: MomentumWeights;
 }) {
   const bodyScore =
     (input.sleepHours > 0 ? input.weights.body / 3 : 0) +
@@ -231,11 +226,9 @@ function DashboardTab({
   onOpenRoutine: () => void;
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [sleep, setSleep] = useState('');
   const [water, setWater] = useState(0);
   const [waterGoal] = useState(8);
   const [workoutStreak, setWorkoutStreak] = useState(0);
-  const [calToday, setCalToday] = useState(0);
   const [loading, setLoading] = useState(true);
   const [reminders, setReminders] = useState<any[]>([]);
   const [momentumScore, setMomentumScore] = useState(0);
@@ -405,13 +398,17 @@ function DashboardTab({
 
       const settingsWeights = (settingsData as any)?.dashboardWeights;
       if (settingsWeights) {
+        const readWeight = (value: unknown, fallback: number) => {
+          const parsed = Number(value);
+          return Number.isFinite(parsed) ? parsed : fallback;
+        };
         const normalized = {
-          tasks: clamp(Number(settingsWeights.tasks || DEFAULT_MOMENTUM_WEIGHTS.tasks), 0, 100),
-          routine: clamp(Number(settingsWeights.routine || DEFAULT_MOMENTUM_WEIGHTS.routine), 0, 100),
-          body: clamp(Number(settingsWeights.body || DEFAULT_MOMENTUM_WEIGHTS.body), 0, 100),
-          workout: clamp(Number(settingsWeights.workout || DEFAULT_MOMENTUM_WEIGHTS.workout), 0, 100),
-          finance: clamp(Number(settingsWeights.finance || DEFAULT_MOMENTUM_WEIGHTS.finance), 0, 100),
-          journal: clamp(Number(settingsWeights.journal || DEFAULT_MOMENTUM_WEIGHTS.journal), 0, 100),
+          tasks: clamp(readWeight(settingsWeights.tasks, DEFAULT_MOMENTUM_WEIGHTS.tasks), 0, 100),
+          routine: clamp(readWeight(settingsWeights.routine, DEFAULT_MOMENTUM_WEIGHTS.routine), 0, 100),
+          body: clamp(readWeight(settingsWeights.body, DEFAULT_MOMENTUM_WEIGHTS.body), 0, 100),
+          workout: clamp(readWeight(settingsWeights.workout, DEFAULT_MOMENTUM_WEIGHTS.workout), 0, 100),
+          finance: clamp(readWeight(settingsWeights.finance, DEFAULT_MOMENTUM_WEIGHTS.finance), 0, 100),
+          journal: clamp(readWeight(settingsWeights.journal, DEFAULT_MOMENTUM_WEIGHTS.journal), 0, 100),
         };
         const total = normalized.tasks + normalized.routine + normalized.body + normalized.workout + normalized.finance + normalized.journal;
         if (total > 0) {
@@ -441,13 +438,6 @@ function DashboardTab({
       }).slice(0, 5);
       setTasks(todayTasks);
 
-      const completedToday = allTasks.filter((t: any) => {
-        const done = t.isCompleted ?? t.status === 'completed';
-        if (!done) return false;
-        const updated = t.updatedAt ? format(new Date(t.updatedAt), 'yyyy-MM-dd') : null;
-        return updated === today;
-      }).length;
-
       const completedYesterday = allTasks.filter((t: any) => {
         const done = t.isCompleted ?? t.status === 'completed';
         if (!done) return false;
@@ -463,9 +453,7 @@ function DashboardTab({
       const ySleepHours = Number((yesterdayTracking.sleepHours ?? yesterdayTracking.sleep_hours) || 0);
       const yWaterCups = Number(yesterdayTracking.waterCups ?? 0);
       const yCalories = Number(yesterdayTracking.calories ?? 0);
-      setSleep(sleepHours > 0 ? sleepHours.toString() : '');
       setWater(waterCups);
-      setCalToday(calories);
 
       const remindersList = Array.isArray(reminderData) ? reminderData.filter((r: any) => r.isEnabled).slice(0, 3) : [];
       setReminders(remindersList);
@@ -1423,7 +1411,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
   const [completionTimeModal, setCompletionTimeModal] = useState<{ blockId: number; isOpen: boolean } | null>(null);
   const [completionTime, setCompletionTime] = useState<{ start: string; end: string }>({ start: '00:00', end: '01:00' });
   const [addingBlock, setAddingBlock] = useState(false);
-  const [newBlockForm, setNewBlockForm] = useState({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' as BlockKind });
+  const [newBlockForm, setNewBlockForm] = useState({ title: '', startTime: '06:00', endTime: '06:30', mealType: '', blockKind: 'general' as BlockKind });
   const [savingBlock, setSavingBlock] = useState(false);
   const [syncWithRoutine, setSyncWithRoutine] = useState(false);
   const [clockTick, setClockTick] = useState(0);
@@ -1550,6 +1538,21 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
     const mealType = form.blockKind === 'meal' ? (form.mealType || null) : null;
     const linkedWorkoutPlanId = form.blockKind === 'workout' ? (fallbackWorkoutLinkId ?? null) : null;
     return { mealType, linkedWorkoutPlanId };
+  }
+
+  function getDefaultNewBlockWindow() {
+    const timeline = [...(data?.blocks ?? [])].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+    const previous = timeline[timeline.length - 1];
+    if (!previous) return { startTime: '06:00', endTime: '06:30' };
+    const start = previous.endTime;
+    const end = minutesToTime(timeToMinutes(start) + 30);
+    return { startTime: start, endTime: end };
+  }
+
+  function openAddBlockModal() {
+    const { startTime, endTime } = getDefaultNewBlockWindow();
+    setNewBlockForm({ title: '', startTime, endTime, mealType: '', blockKind: 'general' });
+    setAddingBlock(true);
   }
 
   function getBlockKindMeta(block: TodayRoutineBlock): { kind: BlockKind; label: string; style: React.CSSProperties } {
@@ -1683,7 +1686,8 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
         });
         await reorderTodayByTime();
       }
-      setNewBlockForm({ title: '', startTime: '09:00', endTime: '10:00', mealType: '', blockKind: 'general' });
+      const { startTime, endTime } = getDefaultNewBlockWindow();
+      setNewBlockForm({ title: '', startTime, endTime, mealType: '', blockKind: 'general' });
       setAddingBlock(false);
       await load();
     } finally {
@@ -1881,7 +1885,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
       <div className="mb-3 flex items-center justify-end gap-2 flex-wrap">
         {!isSkipped && data && data.routine && (
           <button
-            onClick={() => setAddingBlock(b => !b)}
+            onClick={() => (addingBlock ? setAddingBlock(false) : openAddBlockModal())}
             className="px-2.5 py-1 rounded-lg text-[11px] font-semibold press"
             style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
           >
@@ -2373,7 +2377,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
 
-  const TABS: { id: TabId; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+  const TABS: { id: TabId; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'routine', label: 'Daily Routine', icon: Repeat },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare },
