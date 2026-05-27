@@ -1932,16 +1932,16 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
             <SortableRoutineBlockRow key={block.id} id={block.id}>
               {({ attributes, listeners }) => (
                 <div className="relative flex items-start gap-1.5 pb-2">
-              {/* Timeline rail + dot + horizontal connector */}
-              <div className="relative flex-shrink-0" style={{ width: 26 }}>
-                {/* Vertical connector line to NEXT block — colored if current block is done */}
+              {/* Timeline column — holds dot, horizontal connector, and vertical rail */}
+              <div className="relative self-stretch flex-shrink-0" style={{ width: 26 }}>
+                {/* Vertical connector line spanning full row height to next block */}
                 {!isLast && (
                   <div
                     className="absolute"
                     style={{
                       left: 9,
                       top: 28,
-                      bottom: -10,
+                      bottom: 0,
                       width: 2,
                       borderRadius: 999,
                       background: isDone
@@ -1949,7 +1949,6 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                         : isActive
                         ? `linear-gradient(to bottom, ${routine.color || 'var(--accent)'}, var(--border))`
                         : 'var(--border)',
-                      opacity: 1,
                     }}
                   />
                 )}
