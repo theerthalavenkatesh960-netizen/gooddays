@@ -56,7 +56,7 @@ function GoalsTab() {
     <div className="px-4 pb-nav space-y-3">
       <div className="flex items-center justify-between mb-4">
         <span className="text-xs font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Active Goals</span>
-        <button onClick={() => navigate('/goals/new')} className="press flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
+        <button onClick={() => navigate('/goals/new', { state: { from: '/settings/life' } })} className="press flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
           <Plus size={16} /> New Goal
         </button>
       </div>
@@ -74,7 +74,7 @@ function GoalsTab() {
           return (
             <button
               key={g.id}
-              onClick={() => navigate(`/goals/${g.id}`)}
+              onClick={() => navigate(`/goals/${g.id}`, { state: { from: '/settings/life' } })}
               className="w-full text-left p-4 rounded-2xl press"
               style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
             >
