@@ -13,6 +13,43 @@ const DASHBOARD_PRESETS: Array<{ id: DashboardPreset; label: string; weights: ap
   { id: 'custom', label: 'Custom', weights: { tasks: 35, routine: 20, body: 15, workout: 15, finance: 10, journal: 5 } },
 ];
 
+function normalizeDashboardWeights(input: api.UserSettings['dashboardWeights']): api.UserSettings['dashboardWeights'] {
+  const tasks = Math.max(0, Math.min(100, Math.round(Number(input.tasks) || 0)));
+  const routine = Math.max(0, Math.min(100, Math.round(Number(input.routine) || 0)));
+  const body = Math.max(0, Math.min(100, Math.round(Number(input.body) || 0)));
+  const workout = Math.max(0, Math.min(100, Math.round(Number(input.workout) || 0)));
+  const finance = Math.max(0, Math.min(100, Math.round(Number(input.finance) || 0)));
+  const journal = Math.max(0, Math.min(100, Math.round(Number(input.journal) || 0)));
+
+  const total = tasks + routine + body + workout + finance + journal;
+  if (total <= 0) {
+    return { tasks: 35, routine: 20, body: 15, workout: 15, finance: 10, journal: 5 };
+  }
+
+  const scale = 100 / total;
+  const nt = Math.round(tasks * scale);
+  const nr = Math.round(routine * scale);
+  const nb = Math.round(body * scale);
+  const nw = Math.round(workout * scale);
+  const nf = Math.round(finance * scale);
+  let nj = 100 - nt - nr - nb - nw - nf;
+
+  let adjTasks = nt;
+  if (nj < 0) {
+    nj = 0;
+    adjTasks = Math.max(0, 100 - nr - nb - nw - nf - nj);
+  }
+
+  return {
+    tasks: adjTasks,
+    routine: nr,
+    body: nb,
+    workout: nw,
+    finance: nf,
+    journal: nj,
+  };
+}
+
 export default function DashboardMomentumSettings() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -31,9 +68,9 @@ export default function DashboardMomentumSettings() {
       try {
         const settings = await api.getUserSettings();
         const nextPreset = (settings?.dashboardPreset ?? 'balanced') as DashboardPreset;
-        const nextWeights = settings?.dashboardWeights ?? {
+        const nextWeights = normalizeDashboardWeights(settings?.dashboardWeights ?? {
           tasks: 35, routine: 20, body: 15, workout: 15, finance: 10, journal: 5,
-        };
+        });
         setDashboardPreset(nextPreset);
         setDashboardWeights(nextWeights);
         setInitialPreset(nextPreset);
@@ -51,12 +88,12 @@ export default function DashboardMomentumSettings() {
     const selected = DASHBOARD_PRESETS.find(p => p.id === preset);
     if (!selected) return;
     setDashboardPreset(preset);
-    if (preset !== 'custom') setDashboardWeights(selected.weights);
+    if (preset !== 'custom') setDashboardWeights(normalizeDashboardWeights(selected.weights));
   };
 
   const updateDashboardWeight = (key: keyof api.UserSettings['dashboardWeights'], nextValue: number) => {
     const bounded = Math.max(0, Math.min(100, Math.round(nextValue)));
-    const next = { ...dashboardWeights, [key]: bounded };
+    const next = normalizeDashboardWeights({ ...dashboardWeights, [key]: bounded });
     setDashboardWeights(next);
     setDashboardPreset('custom');
   };
@@ -75,7 +112,7 @@ export default function DashboardMomentumSettings() {
         dashboardWeights,
       });
       const persistedPreset = (saved?.dashboardPreset ?? dashboardPreset) as DashboardPreset;
-      const persistedWeights = saved?.dashboardWeights ?? dashboardWeights;
+      const persistedWeights = normalizeDashboardWeights(saved?.dashboardWeights ?? dashboardWeights);
       setDashboardPreset(persistedPreset);
       setDashboardWeights(persistedWeights);
       setInitialPreset(persistedPreset);
@@ -134,6 +171,12 @@ export default function DashboardMomentumSettings() {
               />
             </div>
           ))}
+        </div>
+
+        <div className="mt-3 text-right">
+          <span className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+            Total: {(Object.values(dashboardWeights) as number[]).reduce((sum, value) => sum + Number(value || 0), 0)}%
+          </span>
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-2">
