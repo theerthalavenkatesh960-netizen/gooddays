@@ -83,16 +83,38 @@ export default function WorkoutLibrarySettings() {
   const [filterMuscle, setFilterMuscle] = useState<string | null>(null);
   const [showExerciseFilters, setShowExerciseFilters] = useState(false);
   const [showAiGenerateModal, setShowAiGenerateModal] = useState(false);
-  const [aiGenerateMode, setAiGenerateMode] = useState<'profile' | 'custom'>('profile');
-  const [customDaysPerWeek, setCustomDaysPerWeek] = useState('5');
-  const [customMinutesPerSession, setCustomMinutesPerSession] = useState('45');
-  const [customSets, setCustomSets] = useState('3');
-  const [customReps, setCustomReps] = useState('10');
   const [generatingAi, setGeneratingAi] = useState(false);
+  const [checkingProfile, setCheckingProfile] = useState(false);
   const lastAppliedPickRef = useRef<string>('');
   const splitRef = useRef<SplitPreset | null>(null);
 
   useEffect(() => { loadAll(); }, []);
+
+  async function openGenerateModal() {
+    setCheckingProfile(true);
+    try {
+      const profile = await api.getHealthProfile();
+      const missing: string[] = [];
+      if (!profile.heightCm)       missing.push('height');
+      if (!profile.weightKg)       missing.push('current weight');
+      if (!profile.targetWeightKg) missing.push('target weight');
+      if (!profile.age)            missing.push('age');
+      if (!profile.gender)         missing.push('gender');
+      if (!profile.activityLevel)  missing.push('activity level');
+      if (!profile.dietPreference) missing.push('diet preference');
+      if (!profile.budgetPerWeek)  missing.push('weekly budget');
+      if (missing.length > 0) {
+        flash(`Complete your health profile first (missing: ${missing.join(', ')})`);
+        navigate('/settings/ai-planner');
+        return;
+      }
+      setShowAiGenerateModal(true);
+    } catch {
+      flash('Could not load health profile. Please try again.');
+    } finally {
+      setCheckingProfile(false);
+    }
+  }
 
   async function loadAll() {
     setLoading(true);
@@ -173,11 +195,7 @@ export default function WorkoutLibrarySettings() {
     try {
       setGeneratingAi(true);
       const result = await api.generateAiWorkoutPlan({
-        mode: aiGenerateMode,
-        daysPerWeek: aiGenerateMode === 'custom' ? Number(customDaysPerWeek || 5) : undefined,
-        minutesPerSession: aiGenerateMode === 'custom' ? Number(customMinutesPerSession || 45) : undefined,
-        setsDefault: aiGenerateMode === 'custom' ? Number(customSets || 3) : undefined,
-        repsDefault: aiGenerateMode === 'custom' ? Number(customReps || 10) : undefined,
+        mode: 'profile',
       });
 
       const next = normalizeRoutineMap(result?.routine || {});
@@ -325,11 +343,12 @@ export default function WorkoutLibrarySettings() {
               headerRight={
                 <div className="flex items-center gap-1.5">
                   <button
-                    onClick={() => setShowAiGenerateModal(true)}
-                    className="px-2 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 press"
+                    onClick={openGenerateModal}
+                    disabled={checkingProfile}
+                    className="px-2 py-1 rounded-lg text-[11px] font-semibold flex items-center gap-1 press disabled:opacity-60"
                     style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}
                   >
-                    <Sparkles size={13} /> Generate with AI
+                    <Sparkles size={13} /> {checkingProfile ? 'Checking…' : 'Generate with AI'}
                   </button>
                   <button
                     onClick={() => openAddPicker(selectedDay)}
@@ -451,63 +470,7 @@ export default function WorkoutLibrarySettings() {
                   <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
                     <div className="w-full max-w-md rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
                       <p className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Generate Workouts with AI</p>
-                      <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>Use saved profile defaults or custom rules for this generation.</p>
-
-                      <div className="grid grid-cols-2 gap-2 mb-3">
-                        <button
-                          onClick={() => setAiGenerateMode('profile')}
-                          className="p-3 rounded-xl text-left press"
-                          style={{ backgroundColor: aiGenerateMode === 'profile' ? 'var(--accent)18' : 'var(--surface-elevated)', border: aiGenerateMode === 'profile' ? '2px solid var(--accent)' : '1px solid var(--border)' }}
-                        >
-                          <p className="text-xs font-bold flex items-center gap-1" style={{ color: aiGenerateMode === 'profile' ? 'var(--accent)' : 'var(--text-primary)' }}><Sparkles size={13} /> AI Generate</p>
-                          <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>Uses AI planner with your profile.</p>
-                        </button>
-                        <button
-                          onClick={() => setAiGenerateMode('custom')}
-                          className="p-3 rounded-xl text-left press"
-                          style={{ backgroundColor: aiGenerateMode === 'custom' ? 'var(--accent)18' : 'var(--surface-elevated)', border: aiGenerateMode === 'custom' ? '2px solid var(--accent)' : '1px solid var(--border)' }}
-                        >
-                          <p className="text-xs font-bold" style={{ color: aiGenerateMode === 'custom' ? 'var(--accent)' : 'var(--text-primary)' }}>Custom</p>
-                          <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>Override with custom rules.</p>
-                        </button>
-                      </div>
-
-                      {aiGenerateMode === 'custom' && (
-                        <div className="grid grid-cols-2 gap-2 mb-3">
-                          <input
-                            value={customDaysPerWeek}
-                            onChange={(e) => setCustomDaysPerWeek(e.target.value)}
-                            type="number"
-                            placeholder="Days/week"
-                            className="px-3 py-2 rounded-xl text-sm outline-none"
-                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                          />
-                          <input
-                            value={customMinutesPerSession}
-                            onChange={(e) => setCustomMinutesPerSession(e.target.value)}
-                            type="number"
-                            placeholder="Minutes/session"
-                            className="px-3 py-2 rounded-xl text-sm outline-none"
-                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                          />
-                          <input
-                            value={customSets}
-                            onChange={(e) => setCustomSets(e.target.value)}
-                            type="number"
-                            placeholder="Default sets"
-                            className="px-3 py-2 rounded-xl text-sm outline-none"
-                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                          />
-                          <input
-                            value={customReps}
-                            onChange={(e) => setCustomReps(e.target.value)}
-                            type="number"
-                            placeholder="Default reps"
-                            className="px-3 py-2 rounded-xl text-sm outline-none"
-                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                          />
-                        </div>
-                      )}
+                      <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>AI will generate a workout routine using your saved health profile.</p>
 
                       <div className="flex justify-end gap-2">
                         <button
