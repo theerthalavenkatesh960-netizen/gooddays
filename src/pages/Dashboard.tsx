@@ -2112,7 +2112,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                     </div>
                   </div>
 
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 w-8 flex flex-col items-center justify-center gap-2">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center gap-2">
                     {/* Edit block */}
                     {!isSkipped && (
                       <button
