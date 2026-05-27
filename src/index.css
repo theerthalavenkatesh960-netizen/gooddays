@@ -19,6 +19,11 @@
   --accent-warm: #FF6B6B;
   --accent-green: #4ECDC4;
   --accent-gold: #FFD93D;
+  --status-skipped: rgba(217, 119, 6, 0.8);
+  --status-skipped-light: rgba(217, 119, 6, 0.3);
+  --status-skipped-icon: rgba(217, 119, 6, 0.7);
+  --status-pending: rgba(200, 200, 200, 0.5);
+  --status-completed-bg: rgba(34, 197, 94, 0.05);
 }
 
 [data-theme="light"] {
@@ -33,6 +38,11 @@
   --accent-warm: #E85555;
   --accent-green: #3BBFB7;
   --accent-gold: #E5C430;
+  --status-skipped: rgba(217, 119, 6, 0.8);
+  --status-skipped-light: rgba(217, 119, 6, 0.3);
+  --status-skipped-icon: rgba(217, 119, 6, 0.7);
+  --status-pending: rgba(150, 150, 150, 0.5);
+  --status-completed-bg: rgba(34, 197, 94, 0.05);
 }
 
 [data-theme="blue"] {
@@ -47,6 +57,11 @@
   --accent-warm: #F87171;
   --accent-green: #34D399;
   --accent-gold: #FCD34D;
+  --status-skipped: rgba(217, 119, 6, 0.8);
+  --status-skipped-light: rgba(217, 119, 6, 0.3);
+  --status-skipped-icon: rgba(217, 119, 6, 0.7);
+  --status-pending: rgba(200, 200, 200, 0.5);
+  --status-completed-bg: rgba(34, 197, 94, 0.05);
 }
 
 [data-theme="green"] {
@@ -61,6 +76,11 @@
   --accent-warm: #F87171;
   --accent-green: #6EE7B7;
   --accent-gold: #FCD34D;
+  --status-skipped: rgba(217, 119, 6, 0.8);
+  --status-skipped-light: rgba(217, 119, 6, 0.3);
+  --status-skipped-icon: rgba(217, 119, 6, 0.7);
+  --status-pending: rgba(200, 200, 200, 0.5);
+  --status-completed-bg: rgba(34, 197, 94, 0.05);
 }
 
 [data-theme="ocean"] {
@@ -75,6 +95,11 @@
   --accent-warm: #FB7185;
   --accent-green: #2DD4BF;
   --accent-gold: #FCD34D;
+  --status-skipped: rgba(217, 119, 6, 0.8);
+  --status-skipped-light: rgba(217, 119, 6, 0.3);
+  --status-skipped-icon: rgba(217, 119, 6, 0.7);
+  --status-pending: rgba(200, 200, 200, 0.5);
+  --status-completed-bg: rgba(34, 197, 94, 0.05);
 }
 
 [data-theme="futuristic"] {
@@ -89,6 +114,11 @@
   --accent-warm: #FF6B6B;
   --accent-green: #4ECDC4;
   --accent-gold: #FFD93D;
+  --status-skipped: rgba(217, 119, 6, 0.8);
+  --status-skipped-light: rgba(217, 119, 6, 0.3);
+  --status-skipped-icon: rgba(217, 119, 6, 0.7);
+  --status-pending: rgba(200, 200, 200, 0.5);
+  --status-completed-bg: rgba(34, 197, 94, 0.05);
 }
 
 /* ═══════════════════════════════════════════════════════

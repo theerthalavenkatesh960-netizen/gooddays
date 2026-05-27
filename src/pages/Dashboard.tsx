@@ -1947,10 +1947,10 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                       background: isDone
                         ? (routine.color || 'var(--accent)')
                         : isBlockSkipped
-                        ? 'rgba(217,119,6,0.8)'
+                        ? 'var(--status-skipped)'
                         : isActive
                         ? (routine.color || 'var(--accent)')
-                        : 'var(--border)',
+                        : 'var(--status-pending)',
                     }}
                   />
                 )}
@@ -1967,10 +1967,10 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                       background: isDone
                         ? (routine.color || 'var(--accent)')
                         : isBlockSkipped
-                        ? 'rgba(217,119,6,0.8)'
+                        ? 'var(--status-skipped)'
                         : isActive
-                        ? `linear-gradient(to bottom, ${routine.color || 'var(--accent)'}, var(--border))`
-                        : 'var(--border)',
+                        ? `linear-gradient(to bottom, ${routine.color || 'var(--accent)'}, var(--status-pending))`
+                        : 'var(--status-pending)',
                     }}
                   />
                 )}
@@ -2009,10 +2009,12 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                     width: 13,
                     backgroundColor: isDone
                       ? (routine.color || 'var(--accent)')
+                      : isBlockSkipped
+                      ? 'var(--status-skipped)'
                       : isActive
                       ? (routine.color || 'var(--accent)')
-                      : 'var(--border)',
-                    opacity: isDone || isActive ? 1 : 0.5,
+                      : 'var(--status-pending)',
+                    opacity: 1,
                   }}
                 />
               </div>
@@ -2022,7 +2024,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                 className="flex-1 rounded-xl overflow-hidden mb-0.5"
                 style={{
                   border: isActive ? `1px solid ${routine.color || 'var(--accent)'}` : '1px solid var(--border)',
-                  backgroundColor: isDone ? 'rgba(34,197,94,0.05)' : isBlockSkipped ? 'rgba(217,119,6,0.08)' : 'var(--surface)',
+                  backgroundColor: isDone ? 'var(--status-completed-bg)' : isBlockSkipped ? 'rgba(217,119,6,0.08)' : 'var(--surface)',
                 }}>
                 <div className="flex items-center gap-3 p-3">
                   {/* Time */}
@@ -2091,7 +2093,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                   {!isDone && !isSkipped && (
                     isBlockSkipped ? (
                       <button onClick={() => unskipBlock(block)}
-                        className="p-1.5 rounded-lg press" style={{ color: 'rgba(217,119,6,0.7)' }}
+                        className="p-1.5 rounded-lg press" style={{ color: 'var(--status-skipped-icon)' }}
                         title="Undo skip">
                         <RotateCcw size={13} />
                       </button>
