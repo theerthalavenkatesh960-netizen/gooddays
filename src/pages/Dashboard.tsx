@@ -2035,13 +2035,13 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                 }}>
                 {isCurrentBlock && (
                   <span
-                    className="absolute right-0 top-0 h-6 px-2 rounded-bl-lg text-[10px] font-semibold z-10 flex items-center"
+                    className="absolute right-0 top-0 h-6 w-16 rounded-bl-lg text-[10px] font-semibold z-10 flex items-center justify-center"
                     style={{ backgroundColor: routine.color || 'var(--accent)', color: '#fff' }}
                   >
                     Now
                   </span>
                 )}
-                <div className="grid grid-cols-[1fr_auto] items-center gap-3 p-3 pr-11 pb-8">
+                <div className="grid grid-cols-[1fr_auto] items-center gap-3 pl-3 pr-20 py-5">
                   <div className="flex items-center justify-center gap-3 min-w-0">
                     {/* Time */}
                     <div className="text-center flex-shrink-0 w-12">
@@ -2112,12 +2112,12 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                     </div>
                   </div>
 
-                  <div className="w-8 mr-1 flex flex-col items-center justify-center gap-2">
+                  <div className="w-20 flex items-center justify-end gap-2 self-center">
                     {/* Edit block */}
                     {!isSkipped && (
                       <button
                         onClick={() => openEditBlock(block)}
-                        className="p-1.5 rounded-lg press"
+                        className="p-1.5 rounded-lg press flex items-center justify-center"
                         style={{ color: 'var(--text-muted)' }}
                         title={syncWithRoutine ? 'Edit block for all routine days' : 'Edit block only for today'}
                       >
@@ -2141,7 +2141,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                   isBlockSkipped ? (
                     <button
                       onClick={() => unskipBlock(block)}
-                      className="absolute right-0 bottom-0 h-6 px-1.5 rounded-tl-lg press flex items-center gap-1 text-[10px] font-medium"
+                      className="absolute right-0 bottom-0 h-6 w-16 rounded-tl-lg press flex items-center justify-center gap-1 text-[10px] font-medium"
                       style={{
                         color: 'var(--status-skipped-icon)',
                         backgroundColor: 'color-mix(in srgb, var(--status-skipped-light) 60%, transparent)',
@@ -2156,7 +2156,7 @@ function DailyRoutineTab({ userId: _userId }: { userId: string | number }) {
                   ) : (
                     <button
                       onClick={() => skipBlock(block)}
-                      className="absolute right-0 bottom-0 h-6 px-1.5 rounded-tl-lg press flex items-center gap-1 text-[10px] font-medium"
+                      className="absolute right-0 bottom-0 h-6 w-16 rounded-tl-lg press flex items-center justify-center gap-1 text-[10px] font-medium"
                       style={{
                         color: 'var(--text-secondary)',
                         backgroundColor: 'color-mix(in srgb, var(--surface-elevated) 55%, transparent)',
