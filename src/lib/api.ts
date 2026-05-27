@@ -2310,23 +2310,10 @@ export async function getJournalEntries(page?: number) { return request(`journal
 export async function getMemoryWall() { return request('journal/memory-wall'); }
 export async function getJournalEntry(id: number) { return request(`journal/${id}`); }
 export async function createJournalEntry(body: any) {
-  const payload = {
-    Title: body.title,
-    Body: body.body,
-    MoodTag: body.moodTag,
-    Date: body.date,
-    ImageUrl: body.imageUrl,
-  };
-  return request('journal', { method: 'POST', body: JSON.stringify(payload) });
+  return request('journal', { method: 'POST', body: JSON.stringify(body) });
 }
 export async function updateJournalEntry(id: number, body: any) {
-  const payload = {
-    Title: body.title,
-    Body: body.body,
-    MoodTag: body.moodTag,
-    ImageUrl: body.imageUrl,
-  };
-  return request(`journal/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+  return request(`journal/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 export async function deleteJournalEntry(id: number) { return request(`journal/${id}`, { method: 'DELETE' }); }
 
