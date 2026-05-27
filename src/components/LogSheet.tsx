@@ -19,6 +19,7 @@ type SubSheet = 'expense' | 'workout' | 'meal' | 'refill' | 'task' | 'journal' |
 
 type ExerciseOption = { id: number; name: string; muscleGroup?: string };
 type MealTemplateOption = { id: number; name: string; timing?: string; ingredientsJson?: string };
+type MasterMealOption = { id: number; name: string; timing?: string; totalCaloriesKcal?: number; totalProteinG?: number };
 
 function normalizePlannedExerciseIds(rawPlannedExercises: unknown): number[] {
   let parsed: unknown = rawPlannedExercises;
@@ -110,15 +111,21 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
   const [workoutPlanId, setWorkoutPlanId] = useState<number | null>(null);
 
   // Meal state
-  const [mealName, setMealName] = useState('');
-  const [mealCals, setMealCals] = useState('');
-  const [mealProtein, setMealProtein] = useState('');
   const [allMealTemplates, setAllMealTemplates] = useState<MealTemplateOption[]>([]);
   const [plannedMealsToday, setPlannedMealsToday] = useState<MealTemplateOption[]>([]);
   const [selectedMealId, setSelectedMealId] = useState<number | null>(null);
-  const [mealPickMode, setMealPickMode] = useState<'planned' | 'other'>('planned');
+  const [selectedCatalogMealId, setSelectedCatalogMealId] = useState<number | null>(null);
+  const [mealPickMode, setMealPickMode] = useState<'existing' | 'create'>('existing');
+  const [mealSearch, setMealSearch] = useState('');
+  const [catalogMeals, setCatalogMeals] = useState<MasterMealOption[]>([]);
+  const [loadingCatalogMeals, setLoadingCatalogMeals] = useState(false);
+  const [newMealName, setNewMealName] = useState('');
+  const [newMealTiming, setNewMealTiming] = useState('snack');
+  const [newMealCalories, setNewMealCalories] = useState('');
+  const [newMealProtein, setNewMealProtein] = useState('');
+  const [newMealCarbs, setNewMealCarbs] = useState('');
+  const [newMealFats, setNewMealFats] = useState('');
   const [todayMealIds, setTodayMealIds] = useState<number[]>([]);
-  const [showMealAdvanced, setShowMealAdvanced] = useState(false);
 
   // Refill state
   const [vehicles, setVehicles] = useState<api.Vehicle[]>([]);
@@ -129,6 +136,10 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
 
   // Task state
   const [taskTitle, setTaskTitle] = useState('');
+
+  // Journal state
+  const [journalTitle, setJournalTitle] = useState('');
+  const [journalBody, setJournalBody] = useState('');
 
   // Note state
   const [noteText, setNoteText] = useState('');
@@ -151,6 +162,23 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
     () => allMealTemplates.find(m => m.id === selectedMealId) || null,
     [allMealTemplates, selectedMealId]
   );
+
+  const selectedCatalogMeal = useMemo(
+    () => catalogMeals.find(m => m.id === selectedCatalogMealId) || null,
+    [catalogMeals, selectedCatalogMealId]
+  );
+
+  const searchableMeals = useMemo(() => {
+    const q = mealSearch.trim().toLowerCase();
+    const plannedSet = new Set(plannedMealsToday.map(m => m.id));
+    const combined = [...plannedMealsToday, ...allMealTemplates.filter(m => !plannedSet.has(m.id))];
+    if (!q) return combined;
+    return combined.filter(meal => {
+      const name = meal.name.toLowerCase();
+      const timing = (meal.timing || '').toLowerCase();
+      return name.includes(q) || timing.includes(q);
+    });
+  }, [mealSearch, plannedMealsToday, allMealTemplates]);
 
   useEffect(() => {
     if (!sub || userId == null) return;
@@ -224,14 +252,9 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
             setAllMealTemplates(templates);
             setPlannedMealsToday(plannedTodayList);
             setTodayMealIds(Array.isArray(todayLog?.mealIds) ? todayLog.mealIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id)) : []);
-
-            if (plannedTodayList.length > 0) {
-              setMealPickMode('planned');
-              setSelectedMealId(prev => prev ?? plannedTodayList[0].id);
-            } else {
-              setMealPickMode('other');
-              if (templates.length > 0) setSelectedMealId(prev => prev ?? templates[0].id);
-            }
+            const defaultMeal = plannedTodayList[0] ?? templates[0] ?? null;
+            setMealPickMode('existing');
+            setSelectedMealId(prev => prev ?? defaultMeal?.id ?? null);
           }
         }
 
@@ -265,10 +288,67 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
   }, [sub, userId, today, todayDayKey]);
 
   useEffect(() => {
+    if (sub !== 'meal' || mealPickMode !== 'existing') {
+      setCatalogMeals([]);
+      return;
+    }
+
+    const query = mealSearch.trim();
+    if (query.length < 2) {
+      setCatalogMeals([]);
+      return;
+    }
+
+    let cancelled = false;
+    async function loadCatalogMeals() {
+      setLoadingCatalogMeals(true);
+      try {
+        const data = await api.getMealCatalog({ search: query });
+        if (cancelled) return;
+        const mapped: MasterMealOption[] = Array.isArray(data)
+          ? data.map((m: any) => ({
+              id: Number(m.id),
+              name: String(m.name || 'Meal'),
+              timing: m.timing ? String(m.timing) : undefined,
+              totalCaloriesKcal: Number(m.totalCaloriesKcal ?? 0),
+              totalProteinG: Number(m.totalProteinG ?? 0),
+            }))
+            .filter((m: MasterMealOption) => Number.isFinite(m.id) && m.id > 0)
+          : [];
+        setCatalogMeals(mapped);
+      } catch {
+        if (!cancelled) setCatalogMeals([]);
+      } finally {
+        if (!cancelled) setLoadingCatalogMeals(false);
+      }
+    }
+
+    loadCatalogMeals();
+    return () => {
+      cancelled = true;
+    };
+  }, [sub, mealPickMode, mealSearch]);
+
+  useEffect(() => {
     setError('');
     setSaved(false);
     setShowWorkoutAdvanced(false);
-    setShowMealAdvanced(false);
+    if (sub === 'meal') {
+      setMealPickMode('existing');
+      setMealSearch('');
+      setCatalogMeals([]);
+      setSelectedCatalogMealId(null);
+      setNewMealName('');
+      setNewMealCalories('');
+      setNewMealProtein('');
+      setNewMealCarbs('');
+      setNewMealFats('');
+      setNewMealTiming('snack');
+    }
+    if (sub === 'journal') {
+      setJournalTitle('');
+      setJournalBody('');
+    }
   }, [sub]);
 
   const handleSave = async () => {
@@ -281,9 +361,20 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
     setSaving(true);
     try {
       if (sub === 'journal') {
-        onClose();
-        navigate('/journal/new', { state: { fromQuickLog: true } });
-        return;
+        const title = journalTitle.trim();
+        const body = journalBody.trim();
+
+        if (!title && !body) {
+          setError('Add a title or journal text');
+          return;
+        }
+
+        await api.createJournalEntry({
+          title,
+          body,
+          moodTag: 'neutral',
+          date: new Date().toISOString(),
+        });
       }
 
       if (sub === 'expense') {
@@ -369,24 +460,126 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
           return;
         }
       } else if (sub === 'meal') {
-        const mealId = selectedMealId;
-        if (!mealId) {
-          setError('Select a meal to log');
-          return;
+        if (mealPickMode === 'existing') {
+          let mealId = selectedMealId;
+          let mealName = selectedMeal?.name || 'Meal';
+          let source = plannedMealsToday.some(m => m.id === mealId) ? 'planned' : 'existing';
+
+          if (!mealId && selectedCatalogMealId) {
+            const cloned = await api.addMealFromCatalog(selectedCatalogMealId);
+            const clonedId = Number((cloned as any)?.id || 0);
+            if (!clonedId) {
+              setError('Could not add selected catalog meal to your library');
+              return;
+            }
+            mealId = clonedId;
+            mealName = String((cloned as any)?.name || selectedCatalogMeal?.name || 'Meal');
+            source = 'catalog';
+
+            setAllMealTemplates(prev => {
+              if (prev.some(p => p.id === clonedId)) return prev;
+              return [
+                {
+                  id: clonedId,
+                  name: mealName,
+                  timing: (cloned as any)?.timing ? String((cloned as any).timing) : undefined,
+                  ingredientsJson: typeof (cloned as any)?.ingredientsJson === 'string' ? (cloned as any).ingredientsJson : undefined,
+                },
+                ...prev,
+              ];
+            });
+            setSelectedMealId(clonedId);
+          }
+
+          if (!mealId) {
+            setError('Search and select a meal to log');
+            return;
+          }
+
+          const nextMealIds = Array.from(new Set([...(todayMealIds || []), mealId]));
+          await api.upsertDailyMealLog(today, nextMealIds);
+          setTodayMealIds(nextMealIds);
+
+          await api.logQuickEntry('meal', {
+            mealIds: [mealId],
+            mealId,
+            mealName,
+            source,
+          }, today);
+        } else {
+          const name = newMealName.trim();
+          const calories = Number(newMealCalories || 0);
+          const protein = Number(newMealProtein || 0);
+          const carbs = Number(newMealCarbs || 0);
+          const fats = Number(newMealFats || 0);
+
+          if (!name) {
+            setError('Enter a meal name');
+            return;
+          }
+
+          if (![calories, protein, carbs, fats].some(v => Number.isFinite(v) && v > 0)) {
+            setError('Add at least one nutrition value');
+            return;
+          }
+
+          const created = await api.createMealTemplate({
+            name,
+            timing: newMealTiming,
+            recipe: '',
+            imageUrl: null,
+            ingredientsJson: JSON.stringify([
+              {
+                id: 0,
+                name,
+                qty: 1,
+                baseQty: 1,
+                baseUnit: 'serving',
+                caloriesKcal: Number.isFinite(calories) ? calories : 0,
+                proteinG: Number.isFinite(protein) ? protein : 0,
+                carbsG: Number.isFinite(carbs) ? carbs : 0,
+                fatsG: Number.isFinite(fats) ? fats : 0,
+              },
+            ]),
+          });
+
+          const createdMealId = Number((created as any)?.id || 0);
+          if (!createdMealId) {
+            setError('Meal was created but could not be logged. Try again.');
+            return;
+          }
+
+          const nextMealIds = Array.from(new Set([...(todayMealIds || []), createdMealId]));
+          await api.upsertDailyMealLog(today, nextMealIds);
+          setTodayMealIds(nextMealIds);
+          setAllMealTemplates(prev => [
+            {
+              id: createdMealId,
+              name,
+              timing: newMealTiming,
+              ingredientsJson: JSON.stringify([
+                {
+                  caloriesKcal: Number.isFinite(calories) ? calories : 0,
+                  proteinG: Number.isFinite(protein) ? protein : 0,
+                  carbsG: Number.isFinite(carbs) ? carbs : 0,
+                  fatsG: Number.isFinite(fats) ? fats : 0,
+                },
+              ]),
+            },
+            ...prev,
+          ]);
+
+          await api.logQuickEntry('meal', {
+            mealIds: [createdMealId],
+            mealId: createdMealId,
+            mealName: name,
+            calories: Number.isFinite(calories) ? calories : 0,
+            proteinG: Number.isFinite(protein) ? protein : 0,
+            carbsG: Number.isFinite(carbs) ? carbs : 0,
+            fatsG: Number.isFinite(fats) ? fats : 0,
+            source: 'created',
+          }, today);
         }
-
-        const nextMealIds = Array.from(new Set([...(todayMealIds || []), mealId]));
-        await api.upsertDailyMealLog(today, nextMealIds);
-        setTodayMealIds(nextMealIds);
-
-        await api.logQuickEntry('meal', {
-          mealIds: [mealId],
-          mealId,
-          mealName: selectedMeal?.name || mealName || 'Meal',
-          calories: mealCals ? Number(mealCals) : undefined,
-          proteinG: mealProtein ? Number(mealProtein) : undefined,
-          source: plannedMealsToday.some(m => m.id === mealId) ? 'planned' : 'other',
-        }, today);
       } else if (sub === 'refill') {
         const vehicleId = Number(selectedVehicleId || 0);
         const litres = Number(refillLitres || 0);
@@ -471,10 +664,13 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
   const canSave =
     (sub === 'expense' && Number(expenseAmount) > 0) ||
     (sub === 'workout' && (selectedExerciseId !== null || workoutName.trim().length > 0)) ||
-    (sub === 'meal' && selectedMealId !== null) ||
+    (sub === 'meal' && (
+      (mealPickMode === 'existing' && (selectedMealId !== null || selectedCatalogMealId !== null)) ||
+      (mealPickMode === 'create' && newMealName.trim().length > 0)
+    )) ||
     (sub === 'refill' && selectedVehicleId !== null && Number(refillLitres) > 0 && Number(refillAmount) > 0 && Number(refillOdometer) > 0) ||
     (sub === 'task' && taskTitle.trim().length > 0) ||
-    (sub === 'journal') ||
+    (sub === 'journal' && (journalTitle.trim().length > 0 || journalBody.trim().length > 0)) ||
     (sub === 'note' && noteText.trim().length > 0) ||
     (sub === 'weight' && Number(weight) > 0) ||
     (sub === 'water' && Number(waterMl) > 0);
@@ -744,24 +940,24 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      onClick={() => setMealPickMode('planned')}
+                      onClick={() => setMealPickMode('existing')}
                       className="h-8 rounded-xl text-[11px] font-semibold"
                       style={{
-                        backgroundColor: mealPickMode === 'planned' ? 'var(--accent)' : 'var(--surface-elevated)',
-                        color: mealPickMode === 'planned' ? '#fff' : 'var(--text-secondary)'
+                        backgroundColor: mealPickMode === 'existing' ? 'var(--accent)' : 'var(--surface-elevated)',
+                        color: mealPickMode === 'existing' ? '#fff' : 'var(--text-secondary)'
                       }}
                     >
-                      Planned Today
+                      Existing Meal
                     </button>
                     <button
-                      onClick={() => setMealPickMode('other')}
+                      onClick={() => setMealPickMode('create')}
                       className="h-8 rounded-xl text-[11px] font-semibold"
                       style={{
-                        backgroundColor: mealPickMode === 'other' ? 'var(--accent)' : 'var(--surface-elevated)',
-                        color: mealPickMode === 'other' ? '#fff' : 'var(--text-secondary)'
+                        backgroundColor: mealPickMode === 'create' ? 'var(--accent)' : 'var(--surface-elevated)',
+                        color: mealPickMode === 'create' ? '#fff' : 'var(--text-secondary)'
                       }}
                     >
-                      Other Meal
+                      Create New
                     </button>
                   </div>
 
@@ -769,22 +965,34 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
                     <div className="text-xs p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
                       Loading meal options...
                     </div>
-                  ) : mealPickMode === 'planned' ? (
+                  ) : mealPickMode === 'existing' ? (
                     <div>
-                      <label className="section-label mb-2 block">Today's Planned Meals</label>
-                      {plannedMealsToday.length === 0 ? (
-                        <p className="text-xs p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
-                          No planned meals for today. Switch to "Other Meal".
-                        </p>
-                      ) : (
-                        <div className="space-y-1.5">
-                          {plannedMealsToday.map(meal => {
+                      <label className="section-label mb-2 block">Search Existing Meals</label>
+                      <input
+                        type="text"
+                        value={mealSearch}
+                        onChange={e => setMealSearch(e.target.value)}
+                        placeholder="Search by name or timing"
+                        className="w-full p-2.5 rounded-xl outline-none text-xs"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                      <div className="mt-2 max-h-56 overflow-y-auto space-y-1.5 pr-1">
+                        {searchableMeals.length === 0 ? (
+                          <p className="text-xs p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
+                            No meals found. Switch to Create New to add and log one now.
+                          </p>
+                        ) : (
+                          searchableMeals.map(meal => {
                             const meta = parseCaloriesAndProtein(meal.ingredientsJson);
                             const alreadyLogged = todayMealIds.includes(meal.id);
+                            const isPlanned = plannedMealsToday.some(p => p.id === meal.id);
                             return (
                               <button
                                 key={meal.id}
-                                onClick={() => setSelectedMealId(meal.id)}
+                                onClick={() => {
+                                  setSelectedMealId(meal.id);
+                                  setSelectedCatalogMealId(null);
+                                }}
                                 className="w-full text-left p-2.5 rounded-xl border"
                                 style={{
                                   backgroundColor: selectedMealId === meal.id ? 'var(--accent)22' : 'var(--surface-elevated)',
@@ -799,80 +1007,143 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
                                       {meal.timing || 'Meal'} • {Math.round(meta.calories)} kcal • {Math.round(meta.protein)}g protein
                                     </p>
                                   </div>
-                                  {alreadyLogged && <span className="text-[10px]" style={{ color: 'var(--accent-green)' }}>Logged</span>}
+                                  <div className="flex flex-col items-end gap-0.5">
+                                    {isPlanned && <span className="text-[10px]" style={{ color: 'var(--accent)' }}>Planned</span>}
+                                    {alreadyLogged && <span className="text-[10px]" style={{ color: 'var(--accent-green)' }}>Logged</span>}
+                                  </div>
                                 </div>
                               </button>
                             );
-                          })}
-                        </div>
-                      )}
+                          })
+                        )}
+
+                        {mealSearch.trim().length >= 2 && (
+                          <div className="pt-1">
+                            <p className="text-[10px] font-semibold px-1 mb-1" style={{ color: 'var(--text-muted)' }}>
+                              Catalog matches
+                            </p>
+                            {loadingCatalogMeals ? (
+                              <p className="text-xs p-2 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
+                                Searching catalog...
+                              </p>
+                            ) : catalogMeals.length === 0 ? (
+                              <p className="text-xs p-2 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
+                                No catalog matches
+                              </p>
+                            ) : (
+                              catalogMeals.map(meal => (
+                                <button
+                                  key={`catalog-${meal.id}`}
+                                  onClick={() => {
+                                    setSelectedCatalogMealId(meal.id);
+                                    setSelectedMealId(null);
+                                  }}
+                                  className="w-full text-left p-2.5 rounded-xl border mb-1.5"
+                                  style={{
+                                    backgroundColor: selectedCatalogMealId === meal.id ? 'var(--accent)22' : 'var(--surface-elevated)',
+                                    borderColor: selectedCatalogMealId === meal.id ? 'var(--accent)' : 'var(--border)',
+                                    color: 'var(--text-primary)',
+                                  }}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <p className="text-xs font-semibold">{meal.name}</p>
+                                      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                        {meal.timing || 'Meal'} • {Math.round(meal.totalCaloriesKcal || 0)} kcal • {Math.round(meal.totalProteinG || 0)}g protein
+                                      </p>
+                                    </div>
+                                    <span className="text-[10px]" style={{ color: 'var(--accent)' }}>Catalog</span>
+                                  </div>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ) : (
-                    <div>
-                      <label className="section-label mb-2 block">Meal Library</label>
-                      <select
-                        value={selectedMealId ?? ''}
-                        onChange={e => setSelectedMealId(e.target.value ? Number(e.target.value) : null)}
-                        className="w-full p-2.5 rounded-xl outline-none text-xs"
-                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-                      >
-                        <option value="">Select meal</option>
-                        {allMealTemplates.map(meal => (
-                          <option key={meal.id} value={meal.id}>
-                            {meal.name}{meal.timing ? ` • ${meal.timing}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => setShowMealAdvanced(v => !v)}
-                    className="text-[11px] font-semibold"
-                    style={{ color: 'var(--accent)' }}
-                  >
-                    {showMealAdvanced ? 'Hide details' : 'More options'}
-                  </button>
-
-                  {showMealAdvanced && (
-                    <>
+                    <div className="space-y-2">
                       <div>
-                        <label className="section-label mb-2 block">Quick Note (optional)</label>
+                        <label className="section-label mb-2 block">Meal Name</label>
                         <input
                           type="text"
-                          value={mealName}
-                          onChange={e => setMealName(e.target.value)}
-                          placeholder="Add note if this meal had variations"
-                          className="w-full p-3 rounded-xl outline-none text-sm font-semibold"
+                          value={newMealName}
+                          onChange={e => setNewMealName(e.target.value)}
+                          placeholder="e.g. Chicken Rice Bowl"
+                          className="w-full p-2.5 rounded-xl outline-none text-sm"
                           style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
                         />
                       </div>
                       <div>
-                        <label className="section-label mb-2 block">Calories Override (optional)</label>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          value={mealCals}
-                          onChange={e => setMealCals(e.target.value)}
-                          placeholder="500"
-                          className="w-full p-3 rounded-xl outline-none text-xl font-bold num"
+                        <label className="section-label mb-2 block">Timing</label>
+                        <select
+                          value={newMealTiming}
+                          onChange={e => setNewMealTiming(e.target.value)}
+                          className="w-full p-2.5 rounded-xl outline-none text-xs"
                           style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-                        />
+                        >
+                          <option value="breakfast">Breakfast</option>
+                          <option value="lunch">Lunch</option>
+                          <option value="dinner">Dinner</option>
+                          <option value="pre-workout">Pre-workout</option>
+                          <option value="post-workout">Post-workout</option>
+                          <option value="snack">Snack</option>
+                        </select>
                       </div>
-                      <div>
-                        <label className="section-label mb-2 block">Protein Override (g, optional)</label>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          value={mealProtein}
-                          onChange={e => setMealProtein(e.target.value)}
-                          placeholder="40"
-                          className="w-full p-2.5 rounded-xl outline-none text-xs num"
-                          style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-                        />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="section-label mb-2 block">Calories</label>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={newMealCalories}
+                            onChange={e => setNewMealCalories(e.target.value)}
+                            placeholder="500"
+                            className="w-full p-2.5 rounded-xl outline-none text-xs num"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="section-label mb-2 block">Protein (g)</label>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={newMealProtein}
+                            onChange={e => setNewMealProtein(e.target.value)}
+                            placeholder="35"
+                            className="w-full p-2.5 rounded-xl outline-none text-xs num"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="section-label mb-2 block">Carbs (g)</label>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={newMealCarbs}
+                            onChange={e => setNewMealCarbs(e.target.value)}
+                            placeholder="45"
+                            className="w-full p-2.5 rounded-xl outline-none text-xs num"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="section-label mb-2 block">Fats (g)</label>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={newMealFats}
+                            onChange={e => setNewMealFats(e.target.value)}
+                            placeholder="15"
+                            className="w-full p-2.5 rounded-xl outline-none text-xs num"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
                       </div>
-                    </>
+                      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                        This creates the meal in your library and logs it for today in one step.
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
@@ -985,21 +1256,39 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
 
               {sub === 'journal' && (
                 <div className="space-y-3">
-                  <div className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
-                    <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>Write in Journal</p>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      Journal opens the full editor so you can write with all features.
-                    </p>
+                  <div>
+                    <label className="section-label mb-2 block">Title (optional)</label>
+                    <input
+                      type="text"
+                      value={journalTitle}
+                      onChange={e => setJournalTitle(e.target.value)}
+                      placeholder="Today felt..."
+                      className="w-full p-2.5 rounded-xl outline-none text-xs"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                    />
                   </div>
+
+                  <div>
+                    <label className="section-label mb-2 block">Journal</label>
+                    <textarea
+                      value={journalBody}
+                      onChange={e => setJournalBody(e.target.value)}
+                      placeholder="Write your thoughts..."
+                      rows={5}
+                      className="w-full p-3 rounded-xl outline-none text-sm resize-none"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                    />
+                  </div>
+
                   <button
                     onClick={() => {
                       onClose();
                       navigate('/journal/new', { state: { fromQuickLog: true } });
                     }}
-                    className="w-full h-10 rounded-xl text-xs font-semibold text-white"
-                    style={{ backgroundColor: 'var(--accent)' }}
+                    className="w-full h-9 rounded-xl text-[11px] font-semibold"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
                   >
-                    Open Journal Editor
+                    Open Full Editor Instead
                   </button>
                 </div>
               )}

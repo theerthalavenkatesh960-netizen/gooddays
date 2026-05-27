@@ -17,7 +17,6 @@ export default function SettingsAnalytics() {
   const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [stats, setStats] = useState<MonthlyStats | null>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const start = startOfMonth(currentDate);
@@ -78,7 +77,7 @@ export default function SettingsAnalytics() {
         categoryBreakdown: {},
         budgetVsActual: {}
       });
-    }).finally(() => setLoading(false));
+    });
   }, [currentDate]);
 
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
@@ -108,7 +107,7 @@ export default function SettingsAnalytics() {
     .slice(0, 5);
 
   const overBudgetCategories = Object.entries(stats.budgetVsActual)
-    .filter(([_, v]: any) => v.actual > v.budgeted)
+    .filter(([, v]: any) => v.actual > v.budgeted)
     .sort((a, b) => (b[1].actual - b[1].budgeted) - (a[1].actual - a[1].budgeted));
 
   return (

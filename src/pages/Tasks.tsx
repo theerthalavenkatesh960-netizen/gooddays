@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, CheckCircle2, RotateCcw, Trash2, Filter, PencilLine, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Dumbbell, Bell } from 'lucide-react';
-import { format, isToday, isPast, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns';
+import { format, isToday, isPast, parseISO, isSameDay } from 'date-fns';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 import Reminders from './Reminders';
@@ -511,7 +511,7 @@ const renderOccurrences = (task: any) => {
           </motion.div>
         )}
         <AnimatePresence>
-          {filteredTasks.map((task, index) => (
+          {filteredTasks.map((task) => (
             <motion.div
               key={task.id}
               className={`bg-white rounded-xl p-2 sm:p-2.5 shadow-lg hover:shadow-xl transition-all ${

@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import {
   ChevronLeft, Target, BookOpen, BarChart2, Plus, Sparkles
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
 
 type LifeTab = 'Goals' | 'Journal' | 'Review';
@@ -265,7 +264,15 @@ function ReviewTab() {
 
 export default function SettingsLife() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [tab, setTab] = useState<LifeTab>('Goals');
+
+  useEffect(() => {
+    const requestedTab = (location.state as any)?.tab;
+    if (requestedTab === 'Goals' || requestedTab === 'Journal' || requestedTab === 'Review') {
+      setTab(requestedTab);
+    }
+  }, [location.state]);
 
   return (
     <div className="pt-4 pb-nav" style={{ backgroundColor: 'var(--bg)' }}>

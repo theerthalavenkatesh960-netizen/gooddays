@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Fuel, Wrench, AlertTriangle, Plus,
-  Check, TrendingUp, Gauge, Calendar, ChevronDown,
+  Check, TrendingUp, Gauge, Calendar,
   ChevronRight, MapPin, Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
-import type { Vehicle, Refill, ServiceLog, IssueLog } from '../lib/api';
+import type { Vehicle } from '../lib/api';
 
 type VehicleTab = 'Refills' | 'Services' | 'Issues';
 

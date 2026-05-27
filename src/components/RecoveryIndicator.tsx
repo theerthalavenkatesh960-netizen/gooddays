@@ -1,11 +1,10 @@
 interface RecoveryIndicatorProps {
   muscleGroup: string;
-  lastWorkout?: string;
   intensity: number; // 0-1 scale
   status: 'fresh' | 'ready' | 'active' | 'recovering';
 }
 
-export default function RecoveryIndicator({ muscleGroup, lastWorkout, intensity, status }: RecoveryIndicatorProps) {
+export default function RecoveryIndicator({ muscleGroup, intensity, status }: RecoveryIndicatorProps) {
   const statusConfig = {
     fresh: { color: 'var(--accent-green)', label: 'Fresh', bg: 'rgba(78, 205, 196, 0.1)' },
     ready: { color: 'var(--accent)', label: 'Ready', bg: 'rgba(108, 99, 255, 0.1)' },

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Dumbbell, Trophy, Settings as SettingsIcon, Leaf, TrendingUp, Check,
+  Dumbbell, Settings as SettingsIcon, Leaf, TrendingUp, Check,
   Pencil, X, Scale,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -27,7 +27,14 @@ type WorkoutSet = {
   isCompleted?: boolean;
 };
 
-type MealIngredient = { id: number; name: string; caloriesKcal: number };
+type MealIngredient = {
+  id: number;
+  name: string;
+  caloriesKcal: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatsG?: number;
+};
 type MealTemplate = {
   id: number;
   name: string;
@@ -44,11 +51,6 @@ type MealAssignment = {
 
 type WeeklyMealPlan = { planJson?: string; plan_json?: string } | null;
 type DailyMealLog = { date: string; mealIds: number[] };
-
-type WorkoutLog = {
-  date: string;
-  exercises: Array<{ exerciseId: number; name: string; sets: Array<{ setNumber: number; weight: number; reps: number; isCompleted?: boolean }> }>;
-};
 
 type PlannedExercise = {
   exerciseId: number;
@@ -477,11 +479,75 @@ function DietTab() {
       }, 0);
   }, [selected, plannedMeals]);
 
+  const consumedMacros = useMemo(() => {
+    return plannedMeals
+      .filter(m => selected.includes(m.id))
+      .reduce(
+        (acc, meal) => {
+          const ingredients = parseMealIngredients(meal.ingredientsJson);
+          for (const ing of ingredients) {
+            acc.protein += Number(ing.proteinG || 0);
+            acc.carbs += Number(ing.carbsG || 0);
+            acc.fats += Number(ing.fatsG || 0);
+          }
+          return acc;
+        },
+        { protein: 0, carbs: 0, fats: 0 },
+      );
+  }, [selected, plannedMeals]);
+
+  const macroTargets = useMemo(() => {
+    const caloriesTarget = Math.max(800, Number(goal || 0));
+    return {
+      calories: caloriesTarget,
+      protein: Math.round((caloriesTarget * 0.3) / 4),
+      carbs: Math.round((caloriesTarget * 0.4) / 4),
+      fats: Math.round((caloriesTarget * 0.3) / 9),
+    };
+  }, [goal]);
+
   const caloriePercentage = goal > 0 ? Math.min(100, Math.round((consumedCalories / goal) * 100)) : 0;
   const waterPercentage = waterGoalMl > 0 ? Math.min(100, Math.round((waterMl / waterGoalMl) * 100)) : 0;
 
   return (
     <div className="px-4 space-y-4">
+      <div
+        className="sticky top-2 z-20 p-3 rounded-2xl"
+        style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+      >
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Today's Macros</p>
+          <button
+            onClick={() => navigate('/track', { state: { tab: 'meal' } })}
+            className="h-7 px-3 rounded-lg text-[11px] font-semibold"
+            style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+          >
+            Log Meal
+          </button>
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Kcal</p>
+            <p className="text-xs font-bold num" style={{ color: 'var(--text-primary)' }}>{Math.round(consumedCalories)}/{macroTargets.calories}</p>
+          </div>
+          <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Protein</p>
+            <p className="text-xs font-bold num" style={{ color: 'var(--accent-green)' }}>{Math.round(consumedMacros.protein)}/{macroTargets.protein}g</p>
+          </div>
+          <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Carbs</p>
+            <p className="text-xs font-bold num" style={{ color: 'var(--accent-gold)' }}>{Math.round(consumedMacros.carbs)}/{macroTargets.carbs}g</p>
+          </div>
+          <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Fats</p>
+            <p className="text-xs font-bold num" style={{ color: 'var(--accent)' }}>{Math.round(consumedMacros.fats)}/{macroTargets.fats}g</p>
+          </div>
+        </div>
+        <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+          Targets are auto-derived from your daily calorie goal.
+        </p>
+      </div>
+
       {/* Calorie Progress */}
       <div className="p-5 rounded-2xl flex items-center gap-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="relative flex-shrink-0">

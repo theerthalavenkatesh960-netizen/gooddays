@@ -69,8 +69,6 @@ function parseRow(row: any[], headers: string[], format: BankFormat): RawTransac
     let debit: number | undefined;
     let credit: number | undefined;
 
-    const headerLower = headers.map(h => h.toLowerCase().trim());
-
     if (format === 'HDFC') {
       const dateIdx = findColumnIndex(headers, ['date', 'txn date']);
       const narrationIdx = findColumnIndex(headers, ['narration', 'description']);
@@ -164,14 +162,14 @@ function parseDate(dateStr: any): Date | null {
       try {
         if (fmt.source.includes('-') && match[0].split('-')[2].length === 4) {
           // YYYY-MM-DD or DD-MM-YYYY
-          const [_, p1, p2, p3] = match;
+          const [, p1, p2, p3] = match;
           const year = p3.length === 4 ? p3 : p1;
           const month = p3.length === 4 ? p2 : p2;
           const day = p3.length === 4 ? p1 : p3;
           return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
         }
         return new Date(str);
-      } catch (e) {
+      } catch {
         continue;
       }
     }

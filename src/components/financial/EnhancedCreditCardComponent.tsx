@@ -56,8 +56,6 @@ export default function EnhancedCreditCardComponent({
     maximumFractionDigits: 2
   }).format(value || 0)}`;
 
-  const containerClass = isLarge ? 'h-auto' : 'h-48';
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

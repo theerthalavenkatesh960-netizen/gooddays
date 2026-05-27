@@ -1,18 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Target, BookOpen, BarChart2, CheckSquare, Plus, ChevronRight,
-  Check, Circle, Flame, Calendar, Clock, Repeat, Trash2,
-  ArrowRight, Star, Brain, TrendingUp, Sparkles
+  Target, BookOpen, BarChart2, Plus,
+  Brain, Sparkles
 } from 'lucide-react';
-import { format, parseISO, isToday, isThisWeek, isPast } from 'date-fns';
+import { format } from 'date-fns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as api from '../lib/api';
-import { useAuth } from '../contexts/AuthContextApi';
 
 type LifeTab = 'Goals' | 'Journal' | 'Review';
 
-const LIFE_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+const LIFE_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Goals', label: 'Goals', icon: Target },
   { id: 'Journal', label: 'Journal', icon: BookOpen },
   { id: 'Review', label: 'Review', icon: BarChart2 },
@@ -303,163 +301,6 @@ function ReviewTab() {
           </div>
         ))
       )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// Tasks Tab
-// ─────────────────────────────────────────────
-type TaskFilter = 'All' | 'Today' | 'Overdue' | 'Someday';
-
-function TasksTab() {
-  const { user } = useAuth();
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [filter, setFilter] = useState<TaskFilter>('Today');
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-
-  useEffect(() => {
-    if (!user) return;
-    api.getTasks(user.id).then((data: any) => {
-      setTasks(Array.isArray(data) ? data : []);
-    }).catch(() => setTasks([])).finally(() => setLoading(false));
-  }, [user]);
-
-  const filtered = tasks.filter(t => {
-    const due = t.dueDate ?? t.due_date;
-    const done = t.isCompleted ?? t.status === 'completed';
-    if (filter === 'Today') return due && isToday(parseISO(due)) && !done;
-    if (filter === 'Overdue') return due && isPast(parseISO(due)) && !isToday(parseISO(due)) && !done;
-    if (filter === 'Someday') return !due && !done;
-    return !done;
-  });
-
-  const addTask = async () => {
-    if (!newTitle.trim() || !user) return;
-    const created = await api.createTask({
-      userId: user.id,
-      title: newTitle.trim(),
-      category: 'Personal',
-      priority: 'medium',
-      dueDate: new Date(),
-      recurring: false,
-    }).catch(() => null);
-    if (created) {
-      setTasks(prev => [created, ...prev]);
-    }
-    setNewTitle('');
-    setShowAdd(false);
-  };
-
-  const toggleTask = async (task: any) => {
-    const done = !(task.isCompleted ?? task.status === 'completed');
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, isCompleted: done } : t));
-    if (done && 'vibrate' in navigator) navigator.vibrate(40);
-    await api.updateTask(task.id, { isCompleted: done }).catch(() => {});
-  };
-
-  const FILTERS: TaskFilter[] = ['All','Today','Overdue','Someday'];
-
-  return (
-    <div className="px-4">
-      {/* Filter pills */}
-      <div className="h-scroll mb-4 gap-2">
-        {FILTERS.map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`pill-tab ${filter === f ? 'pill-tab-active' : 'pill-tab-inactive'}`}>
-            {f}
-          </button>
-        ))}
-      </div>
-
-      {/* Add form */}
-      <AnimatePresence>
-        {showAdd && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-3">
-            <div className="p-4 rounded-2xl space-y-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
-              <input
-                type="text"
-                value={newTitle}
-                onChange={e => setNewTitle(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addTask()}
-                placeholder="What needs to get done?"
-                className="w-full p-3 rounded-xl outline-none text-sm"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <button onClick={addTask} className="flex-1 h-10 rounded-xl text-sm font-medium press text-white" style={{ backgroundColor: 'var(--accent)' }}>Add</button>
-                <button onClick={() => setShowAdd(false)} className="h-10 px-4 rounded-xl text-sm press" style={{ border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>Cancel</button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Task list */}
-      {loading ? (
-        [1,2,3,4].map(i => (
-          <div key={i} className="flex items-center gap-3 p-3 mb-1" style={{ backgroundColor: 'var(--surface)', borderRadius: 12 }}>
-            <div className="skeleton w-5 h-5 rounded-md" />
-            <div className="skeleton h-3 flex-1 rounded" />
-          </div>
-        ))
-      ) : filtered.length === 0 ? (
-        <div className="py-10 text-center">
-          <Check size={32} className="mx-auto mb-2" style={{ color: 'var(--accent-green)' }} />
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            {filter === 'Today' ? 'All caught up for today!' : 'No tasks here'}
-          </p>
-        </div>
-      ) : (
-        <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          {filtered.map((task, i) => {
-            const done = task.isCompleted ?? task.status === 'completed';
-            const due = task.dueDate ?? task.due_date;
-            const overdue = due && isPast(parseISO(due)) && !isToday(parseISO(due)) && !done;
-            return (
-              <div
-                key={task.id}
-                className="task-row"
-                style={{ borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none' }}
-                onClick={() => toggleTask(task)}
-              >
-                <div className={`checkbox-custom ${done ? 'checked' : ''}`} style={{ borderColor: overdue ? 'var(--accent-warm)' : undefined }}>
-                  {done && <Check size={13} color="#fff" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="text-sm"
-                    style={{
-                      color: done ? 'var(--text-muted)' : overdue ? 'var(--accent-warm)' : 'var(--text-primary)',
-                      textDecoration: done ? 'line-through' : 'none',
-                    }}
-                  >
-                    {task.title}
-                  </p>
-                  {task.category && (
-                    <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{task.category}</p>
-                  )}
-                </div>
-                {due && (
-                  <span className="text-[10px] flex-shrink-0" style={{ color: overdue ? 'var(--accent-warm)' : 'var(--text-muted)' }}>
-                    {format(parseISO(due), 'd MMM')}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <button
-        onClick={() => setShowAdd(v => !v)}
-        className="w-full h-12 rounded-2xl text-sm font-medium press flex items-center justify-center gap-2 mt-3"
-        style={{ border: '1px dashed var(--border)', color: 'var(--text-muted)' }}
-      >
-        <Plus size={16} /> Add Task
-      </button>
     </div>
   );
 }

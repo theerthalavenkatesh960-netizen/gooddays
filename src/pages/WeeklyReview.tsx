@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, BookOpen, Dumbbell, CheckCircle2, Zap, Calendar } from 'lucide-react';
-import { format } from 'date-fns';
+import { BookOpen, Dumbbell, CheckCircle2, Zap, Calendar } from 'lucide-react';
 import * as api from '../lib/api';
 
 export default function WeeklyReview() {

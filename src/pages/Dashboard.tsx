@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Settings, CheckCircle2, Moon, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Clock, ChevronDown, GripVertical, LayoutDashboard, CheckSquare, Repeat, X } from 'lucide-react';
+import { Bell, Settings, CheckCircle2, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, GripVertical, LayoutDashboard, CheckSquare, Repeat, X } from 'lucide-react';
 import { format, isToday, parseISO, subDays, addDays, startOfWeek, isSameDay, isPast } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -42,14 +42,6 @@ interface Task {
   updatedAt?: string;
 }
 
-interface RoutineBlock {
-  id: string;
-  startTime: string;
-  endTime: string;
-  label: string;
-  done: boolean;
-}
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORY_OPTIONS = [
@@ -69,19 +61,6 @@ const CATEGORY_OPTIONS = [
 ];
 
 const PRIORITIES = ['low', 'medium', 'high'];
-
-const DEFAULT_ROUTINE: RoutineBlock[] = [
-  { id: '1', startTime: '06:00', endTime: '07:00', label: 'Morning routine', done: false },
-  { id: '2', startTime: '07:00', endTime: '08:00', label: 'Exercise', done: false },
-  { id: '3', startTime: '08:00', endTime: '09:00', label: 'Breakfast & prep', done: false },
-  { id: '4', startTime: '09:00', endTime: '12:00', label: 'Deep work', done: false },
-  { id: '5', startTime: '12:00', endTime: '13:00', label: 'Lunch break', done: false },
-  { id: '6', startTime: '13:00', endTime: '17:00', label: 'Work / Study', done: false },
-  { id: '7', startTime: '17:00', endTime: '18:00', label: 'Wind down', done: false },
-  { id: '8', startTime: '18:00', endTime: '19:00', label: 'Dinner', done: false },
-  { id: '9', startTime: '20:00', endTime: '22:00', label: 'Evening leisure', done: false },
-  { id: '10', startTime: '22:00', endTime: '23:00', label: 'Sleep prep', done: false },
-];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -107,14 +86,23 @@ function currentMinutes() {
   return n.getHours() * 60 + n.getMinutes();
 }
 
-const DEFAULT_MOMENTUM_WEIGHTS = {
+type MomentumWeights = {
+  tasks: number;
+  routine: number;
+  body: number;
+  workout: number;
+  finance: number;
+  journal: number;
+};
+
+const DEFAULT_MOMENTUM_WEIGHTS: MomentumWeights = {
   tasks: 35,
   routine: 20,
   body: 15,
   workout: 15,
   finance: 10,
   journal: 5,
-} as const;
+};
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -184,7 +172,7 @@ function calculateMomentumScore(input: {
   workoutDone: boolean;
   financeTouched: boolean;
   journalDone: boolean;
-  weights: typeof DEFAULT_MOMENTUM_WEIGHTS;
+  weights: MomentumWeights;
 }) {
   const bodyScore =
     (input.sleepHours > 0 ? input.weights.body / 3 : 0) +
@@ -231,11 +219,9 @@ function DashboardTab({
   onOpenRoutine: () => void;
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [sleep, setSleep] = useState('');
   const [water, setWater] = useState(0);
   const [waterGoal] = useState(8);
   const [workoutStreak, setWorkoutStreak] = useState(0);
-  const [calToday, setCalToday] = useState(0);
   const [loading, setLoading] = useState(true);
   const [reminders, setReminders] = useState<any[]>([]);
   const [momentumScore, setMomentumScore] = useState(0);
@@ -441,13 +427,6 @@ function DashboardTab({
       }).slice(0, 5);
       setTasks(todayTasks);
 
-      const completedToday = allTasks.filter((t: any) => {
-        const done = t.isCompleted ?? t.status === 'completed';
-        if (!done) return false;
-        const updated = t.updatedAt ? format(new Date(t.updatedAt), 'yyyy-MM-dd') : null;
-        return updated === today;
-      }).length;
-
       const completedYesterday = allTasks.filter((t: any) => {
         const done = t.isCompleted ?? t.status === 'completed';
         if (!done) return false;
@@ -463,9 +442,7 @@ function DashboardTab({
       const ySleepHours = Number((yesterdayTracking.sleepHours ?? yesterdayTracking.sleep_hours) || 0);
       const yWaterCups = Number(yesterdayTracking.waterCups ?? 0);
       const yCalories = Number(yesterdayTracking.calories ?? 0);
-      setSleep(sleepHours > 0 ? sleepHours.toString() : '');
       setWater(waterCups);
-      setCalToday(calories);
 
       const remindersList = Array.isArray(reminderData) ? reminderData.filter((r: any) => r.isEnabled).slice(0, 3) : [];
       setReminders(remindersList);
@@ -2373,7 +2350,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
 
-  const TABS: { id: TabId; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+  const TABS: { id: TabId; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'routine', label: 'Daily Routine', icon: Repeat },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare },

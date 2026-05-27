@@ -11,7 +11,6 @@ interface ConfigPanelProps {
 export default function ConfigPanel({
   isOpen,
   onClose,
-  onUpdate,
 }: ConfigPanelProps) {
   const [activeSection, setActiveSection] = useState<'buckets' | 'tasks' | 'rules'>('buckets');
 

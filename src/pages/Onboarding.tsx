@@ -16,10 +16,6 @@ import {
   upsertWeeklyMealPlan,
 } from '../lib/api';
 import {
-  ACTIVITY_LEVELS,
-  BUDGET_PRESETS,
-  CALORIE_PRESETS,
-  DIET_PREFERENCES,
   MEAL_PREFERENCES,
   ONBOARDING_FEATURES,
   WORKOUT_TYPES,
@@ -270,26 +266,6 @@ function ToggleCard({
         {desc && <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{desc}</p>}
       </div>
       {selected && <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: 'var(--accent)' }}><Check size={11} color="#fff" strokeWidth={3} /></div>}
-    </button>
-  );
-}
-
-function OptionPill({
-  emoji, label, desc, selected, onClick,
-}: { emoji?: string; label: string; desc?: string; selected: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-2xl transition-all text-center"
-      style={{
-        background: selected ? 'var(--accent)18' : 'var(--surface-elevated)',
-        border: selected ? '2px solid var(--accent)' : '1px solid var(--border)',
-        minWidth: 0,
-      }}
-    >
-      {emoji && <span className="text-lg">{emoji}</span>}
-      <p className="text-[11px] font-bold leading-tight" style={{ color: selected ? 'var(--accent)' : 'var(--text-primary)' }}>{label}</p>
-      {desc && <p className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{desc}</p>}
     </button>
   );
 }

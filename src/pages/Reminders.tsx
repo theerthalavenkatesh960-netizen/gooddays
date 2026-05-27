@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Plus, Trash2, X, Clock, ToggleLeft, ToggleRight, Calendar, CheckCircle2, Zap } from 'lucide-react';
-import { format, subDays, addDays } from 'date-fns';
+import { Bell, Plus, Trash2, X, Clock, ToggleLeft, ToggleRight, Calendar } from 'lucide-react';
+import { format, subDays } from 'date-fns';
 import * as api from '../lib/api';
 
-const CUSTOM_UNITS = ['days', 'weeks', 'months', 'yearly'] as const;
+type CustomUnit = 'days' | 'weeks' | 'months' | 'yearly';
 
 function parseCustomSchedule(activeDays?: string) {
   if (!activeDays) return { interval: 1, unit: 'days' as const };
@@ -12,7 +12,7 @@ function parseCustomSchedule(activeDays?: string) {
   if (!match) return { interval: 1, unit: 'days' as const };
   return {
     interval: Math.max(1, parseInt(match[1], 10) || 1),
-    unit: (match[2] as typeof CUSTOM_UNITS[number]),
+    unit: (match[2] as CustomUnit),
   };
 }
 
@@ -26,7 +26,6 @@ export default function Reminders() {
   const [reminders, setReminders] = useState<any[]>([]);
   const [reminderLogs, setReminderLogs] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [showHeatmap, setShowHeatmap] = useState(false);
   const [selectedReminder, setSelectedReminder] = useState<any | null>(null);
   const [newReminder, setNewReminder] = useState({ 
     title: '', 
@@ -38,7 +37,6 @@ export default function Reminders() {
     isEnabled: true 
   });
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<number | null>(null);
 
   useEffect(() => {
     loadReminders();
@@ -96,11 +94,6 @@ export default function Reminders() {
   async function toggleReminder(id: number, enabled: boolean) {
     await api.updateReminder(id, { isEnabled: !enabled });
     setReminders(p => p.map(r => r.id === id ? { ...r, isEnabled: !enabled } : r));
-  }
-
-  async function toggleDone(id: number) {
-    await api.toggleReminderDone(id);
-    loadReminders();
   }
 
   const get30DayData = (reminderId: number) => {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import {
-  ChevronLeft, Fuel, Gauge, MapPin, Wrench, AlertTriangle, Plus, Calendar, Trash2
+  ChevronLeft, Fuel, Gauge, MapPin, Plus, Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';

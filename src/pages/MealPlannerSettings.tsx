@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Calendar, BookOpen, UtensilsCrossed, Loader2, Filter, Search, Layers, ChefHat, Sparkles } from 'lucide-react';
-import { addDays, format, isSameDay, startOfWeek } from 'date-fns';
+import { addDays, format } from 'date-fns';
 import * as api from '../lib/api';
 import MacroVisualization from '../components/MacroVisualization';
 import MealCard from '../components/MealCard';

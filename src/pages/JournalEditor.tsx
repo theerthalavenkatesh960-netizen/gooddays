@@ -14,6 +14,7 @@ export default function JournalEditor() {
   const isEditMode = Number.isFinite(entryId) && entryId !== null;
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [entry, setEntry] = useState({
     title: '',
     body: '',
@@ -56,6 +57,7 @@ export default function JournalEditor() {
   async function saveEntry() {
     if (!entry.title && !entry.body) return;
     setSaving(true);
+    setError('');
     try {
       if (isEditMode && entryId) {
         await api.updateJournalEntry(entryId, entry);
@@ -65,8 +67,10 @@ export default function JournalEditor() {
           date: new Date().toISOString(),
         });
       }
-      navigate('/calendar');
-    } catch (e) {
+      navigate('/settings/life', { state: { tab: 'Journal' } });
+    } catch (e: any) {
+      const message = e?.message || 'Unable to save journal entry';
+      setError(message);
       console.error(e);
     } finally {
       setSaving(false);
@@ -77,11 +81,11 @@ export default function JournalEditor() {
     <div className="min-h-screen p-3 sm:p-6" style={{ backgroundColor: 'var(--bg)' }}>
       <div className="max-w-5xl mx-auto">
         <button
-          onClick={() => navigate('/calendar')}
+          onClick={() => navigate('/settings/life', { state: { tab: 'Journal' } })}
           className="mb-3 sm:mb-4 inline-flex items-center gap-2 font-semibold"
           style={{ color: 'var(--accent)' }}
         >
-          <ArrowLeft size={18} /> Back to Calendar
+          <ArrowLeft size={18} /> Back to Journal
         </button>
 
         <div className="rounded-2xl shadow-sm border p-4 sm:p-6" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
@@ -140,6 +144,10 @@ export default function JournalEditor() {
             >
               {saving ? 'Saving...' : isEditMode ? 'Update Entry' : 'Save Entry'}
             </motion.button>
+
+            {error && (
+              <p className="text-xs" style={{ color: '#ef4444' }}>{error}</p>
+            )}
           </div>
           )}
         </div>

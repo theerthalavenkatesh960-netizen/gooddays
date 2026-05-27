@@ -2231,6 +2231,26 @@ export async function deleteService(vehicleId: number, serviceId: number) {
   return request(`vehicles/${vehicleId}/services/${serviceId}`, { method: 'DELETE' });
 }
 
+// Backward-compatible aliases used by SettingsVehicles
+export async function addServiceLog(vehicleId: number, body: Partial<ServiceLog> & { type?: string; notes?: string; cost?: number; date?: string }) {
+  const items = body.items && body.items.length > 0
+    ? body.items
+    : body.type
+      ? [body.type]
+      : [];
+  return addService(vehicleId, {
+    date: body.date || new Date().toISOString(),
+    items,
+    cost: Number(body.cost || 0),
+    nextDue: body.nextDue,
+    odometer: body.odometer,
+  });
+}
+
+export async function deleteServiceLog(vehicleId: number, serviceId: number) {
+  return deleteService(vehicleId, serviceId);
+}
+
 export async function addIssue(vehicleId: number, body: Omit<IssueLog, 'id'>) {
   if (DUMMY_FLAGS.vehicles) {
     const v = findVehicle(vehicleId);
@@ -2259,6 +2279,19 @@ export async function deleteIssue(vehicleId: number, issueId: number) {
     return Promise.resolve({ success: true });
   }
   return request(`vehicles/${vehicleId}/issues/${issueId}`, { method: 'DELETE' });
+}
+
+// Backward-compatible aliases used by SettingsVehicles
+export async function addIssueLog(vehicleId: number, body: Partial<IssueLog> & { description: string; severity?: string; date?: string }) {
+  return addIssue(vehicleId, {
+    date: body.date || new Date().toISOString(),
+    description: body.description,
+    resolved: false,
+  });
+}
+
+export async function deleteIssueLog(vehicleId: number, issueId: number) {
+  return deleteIssue(vehicleId, issueId);
 }
 
 // ─── Reminders API ────────────────────────────────────────────────────────────

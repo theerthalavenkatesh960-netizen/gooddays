@@ -25,8 +25,7 @@ startOfWeek,
 endOfWeek,
 addMonths,
 subMonths,
-addDays,
-parseISO
+addDays
 } from 'date-fns';
 
 import * as api from '../lib/api';

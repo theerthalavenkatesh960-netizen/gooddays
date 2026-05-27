@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   DollarSign, TrendingUp, ChevronRight, ChevronLeft,
-  Plus, Wallet, BarChart3, Car,
+  Plus, Wallet, BarChart3,
   ArrowUpRight, ArrowDownRight, Trash2, Pencil, Mail, RefreshCw, Unplug
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
@@ -776,7 +776,6 @@ function AnalyticsTab() {
 // ──────────────────────────────────────────────────
 export default function Finance() {
   const [tab, setTab] = useState<Tab>('Transactions');
-  const navigate = useNavigate();
 
   return (
     <div className="pt-4 pb-nav" style={{ backgroundColor: 'var(--bg)' }}>
