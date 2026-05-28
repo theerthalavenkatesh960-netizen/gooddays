@@ -1,5 +1,7 @@
 namespace GoodDaysApi.Models;
 
+using System.ComponentModel.DataAnnotations.Schema;
+
 public class MealIngredient
 {
     public int Id { get; set; }
@@ -14,6 +16,7 @@ public class MealIngredient
     public string DefaultUnit { get; set; } = "unit"; // e.g., "egg", "tbsp", "g", "ml", "cup"
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     // Optional pricing data for cost estimation
+    [Column("price_per_100g")]
     public double? PricePer100g { get; set; }
     public double? ServingSizeG { get; set; }
 }
