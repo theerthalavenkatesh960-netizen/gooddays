@@ -105,6 +105,7 @@ function WorkoutTab() {
   const navigate = useNavigate();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [routine, setRoutine] = useState<RoutineMap>({});
+  const [splitId, setSplitId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [todayPlan, setTodayPlan] = useState<WorkoutPlan | null>(null);
   const [loggedSets, setLoggedSets] = useState<WorkoutSet[]>([]);
@@ -126,6 +127,8 @@ function WorkoutTab() {
         setLoggedSets(Array.isArray(normalizedPlan?.sets) ? normalizedPlan.sets : []);
 
         const split = activeSplit as SplitPreset | null;
+        if (split?.id) setSplitId(split.id);
+        
         if (!split?.dayConfigs) {
           setRoutine({});
           return;
@@ -148,6 +151,7 @@ function WorkoutTab() {
         setTodayPlan(null);
         setLoggedSets([]);
         setRoutine({});
+        setSplitId(null);
       })
       .finally(() => setLoading(false));
   }, [today]);
@@ -177,46 +181,16 @@ function WorkoutTab() {
     }
   }, [todayPlan?.plannedExercises]);
 
-  const apiExerciseCards = useMemo(() => {
-    return plannedExercises
-      .map((planned) => {
-        const exercise = exercises.find(ex => ex.id === planned.exerciseId);
-        if (!exercise) return null;
-        const sets = loggedSets
-          .filter(s => s.exerciseId === planned.exerciseId)
-          .sort((a, b) => a.setNumber - b.setNumber);
-        return {
-          exercise,
-          sets,
-          targetSets: planned.targetSets || 0,
-        };
-      })
-      .filter(Boolean) as Array<{ exercise: Exercise; sets: WorkoutSet[]; targetSets: number }>;
-  }, [plannedExercises, exercises, loggedSets]);
-
   const cardData = useMemo(() => {
-    const merged = new Map<number, { exercise: Exercise; sets: WorkoutSet[]; targetSets: number }>();
-
-    routineCards.forEach((item) => {
-      merged.set(item.exercise.id, item);
+    return routineCards.map((routineCard) => {
+      const loggedForExercise = loggedSets.filter(s => s.exerciseId === routineCard.exercise.id)
+        .sort((a, b) => a.setNumber - b.setNumber);
+      return {
+        ...routineCard,
+        sets: loggedForExercise,
+      };
     });
-
-    apiExerciseCards.forEach((item) => {
-      const existing = merged.get(item.exercise.id);
-      if (existing) {
-        merged.set(item.exercise.id, {
-          exercise: existing.exercise,
-          sets: item.sets,
-          targetSets: item.targetSets || existing.targetSets,
-        });
-        return;
-      }
-
-      merged.set(item.exercise.id, item);
-    });
-
-    return Array.from(merged.values());
-  }, [routineCards, apiExerciseCards]);
+  }, [routineCards, loggedSets]);
 
   async function ensureTodayPlan(seedExerciseId: number, seedTargetSets: number) {
     if (todayPlan?.id) return todayPlan;
@@ -256,8 +230,30 @@ function WorkoutTab() {
         isCompleted: true,
       });
       setLoggedSets(prev => [...prev, created]);
+      
+      // Also add to routine if not already there
+      await syncExerciseToRoutine(exerciseId, targetSets);
     } finally {
       setBusyExerciseId(null);
+    }
+  }
+
+  async function syncExerciseToRoutine(exerciseId: number, targetSets: number) {
+    if (!splitId) return;
+    
+    const existing = routine[dayKey] || [];
+    if (existing.some(e => e.exerciseId === exerciseId)) return; // Already in routine
+    
+    const nextRoutine = {
+      ...routine,
+      [dayKey]: [...existing, { exerciseId, sets: targetSets, reps: 10 }],
+    };
+    
+    setRoutine(nextRoutine);
+    try {
+      await api.updateSplit(splitId, { dayConfigs: JSON.stringify(nextRoutine), isActive: true });
+    } catch {
+      // Silently fail; local state is already updated
     }
   }
 
