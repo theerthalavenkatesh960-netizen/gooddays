@@ -350,7 +350,8 @@ function WorkoutTab() {
                         <label className="text-[9px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Reps</label>
                         <input
                           type="number"
-                          value={s.reps ?? 0}
+                          value={s.reps && s.reps > 0 ? s.reps : ''}
+                          placeholder="0"
                           onChange={e => patchSetLocal(s.id, { reps: Number(e.target.value || 0) })}
                           className="w-full h-7 px-2 rounded-md text-xs num outline-none"
                           style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
@@ -360,7 +361,8 @@ function WorkoutTab() {
                         <label className="text-[9px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Weight (kg)</label>
                         <input
                           type="number"
-                          value={s.weightKg ?? 0}
+                          value={s.weightKg && s.weightKg > 0 ? s.weightKg : ''}
+                          placeholder="0"
                           onChange={e => patchSetLocal(s.id, { weightKg: Number(e.target.value || 0) })}
                           className="w-full h-7 px-2 rounded-md text-xs num outline-none"
                           style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
