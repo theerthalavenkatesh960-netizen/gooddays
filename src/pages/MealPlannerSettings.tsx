@@ -422,7 +422,7 @@ export default function MealPlannerSettings() {
         const tb = parseTimeOfDayToMinutes(timeB);
         return ta !== tb ? ta - tb : a.meal.id - b.meal.id;
       })
-      .map(item => item?.meal)
+      .map(item => ({ ...item.meal, timeOfDay: item.overrideTime || item.meal.timeOfDay }))
       .filter((meal): meal is MealTemplate => meal !== null && meal !== undefined);
   }, [mealPlan, meals, selectedDayKey, selectedDate]);
 

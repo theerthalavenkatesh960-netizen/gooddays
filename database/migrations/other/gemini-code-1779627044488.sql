@@ -1217,3 +1217,32 @@ VALUES
  'GOAL: Muscle Building, Weight Loss. NOTES: Premium athletic restoration blueprint structure. Drives absolute lean mass preservation while avoiding heavy starches before sleeping pathways.')
 
 ON CONFLICT (lower(name)) DO NOTHING;
+
+-- =============================================================================
+-- Normalize master ingredients_json to include consistent keys:
+-- [{ "name", "qty", "unit", "caloriesKcal", "proteinG", "carbsG", "fatsG" }]
+-- =============================================================================
+WITH normalized_master AS (
+  SELECT
+    m.id,
+    jsonb_agg(
+      jsonb_strip_nulls(
+        jsonb_build_object(
+          'name', COALESCE(NULLIF(e->>'name', ''), 'Ingredient'),
+          'qty', COALESCE(CASE WHEN (e->>'qty') ~ '^[0-9]+(\.[0-9]+)?$' THEN (e->>'qty')::numeric END, 1),
+          'unit', COALESCE(NULLIF(e->>'unit', ''), NULLIF(e->>'baseUnit', ''), 'serving'),
+          'caloriesKcal', CASE WHEN (e->>'caloriesKcal') ~ '^[0-9]+(\.[0-9]+)?$' THEN (e->>'caloriesKcal')::numeric END,
+          'proteinG', CASE WHEN (e->>'proteinG') ~ '^[0-9]+(\.[0-9]+)?$' THEN (e->>'proteinG')::numeric END,
+          'carbsG', CASE WHEN (e->>'carbsG') ~ '^[0-9]+(\.[0-9]+)?$' THEN (e->>'carbsG')::numeric END,
+          'fatsG', CASE WHEN (e->>'fatsG') ~ '^[0-9]+(\.[0-9]+)?$' THEN (e->>'fatsG')::numeric END
+        )
+      )
+    ) AS normalized_json
+  FROM master_meal_templates m
+  CROSS JOIN LATERAL jsonb_array_elements(m.ingredients_json::jsonb) e
+  GROUP BY m.id
+)
+UPDATE master_meal_templates m
+SET ingredients_json = normalized_master.normalized_json::text
+FROM normalized_master
+WHERE m.id = normalized_master.id;

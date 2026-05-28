@@ -596,6 +596,8 @@ ALTER TABLE IF EXISTS meal_templates
 
 -- Ingredient pricing to support cost estimation
 ALTER TABLE IF EXISTS meal_ingredients
+  ADD COLUMN IF NOT EXISTS default_qty double precision DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS default_unit text DEFAULT 'unit',
   ADD COLUMN IF NOT EXISTS price_per_100g double precision,
   ADD COLUMN IF NOT EXISTS serving_size_g double precision;
 

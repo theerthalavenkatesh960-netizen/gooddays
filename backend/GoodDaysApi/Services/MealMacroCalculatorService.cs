@@ -7,8 +7,8 @@ using System.Text.Json;
 namespace GoodDaysApi.Services;
 
 /// <summary>
-/// Service for calculating meal macros based on ingredient quantities,
-/// parsing the new ingredients_json format with qty/unit support.
+/// Service for calculating meal macros based on ingredient quantities.
+/// Handles both new format { ingredientId, qty, unit } and legacy snapshot format { id, name, caloriesKcal, ... }.
 /// </summary>
 public class MealMacroCalculatorService
 {
@@ -19,104 +19,86 @@ public class MealMacroCalculatorService
         _db = db;
     }
 
-    /// <summary>
-    /// Parse ingredients_json string and return typed IngredientReference list.
-    /// Handles errors gracefully, returning empty list on parse failure.
-    /// </summary>
-    public List<IngredientReference> ParseIngredientsJson(string? json)
-    {
-        var result = new List<IngredientReference>();
-        if (string.IsNullOrWhiteSpace(json)) return result;
+    // Internal record covering both old and new ingredient formats
+    private record ParsedEntry(
+        int IngredientId, double Qty,
+        double? InlineCal, double? InlineProt, double? InlineCarbs, double? InlineFats);
 
+    private List<ParsedEntry> ParseAllFormats(string? json)
+    {
+        var result = new List<ParsedEntry>();
+        if (string.IsNullOrWhiteSpace(json)) return result;
         try
         {
             using var doc = JsonDocument.Parse(json);
             if (doc.RootElement.ValueKind != JsonValueKind.Array) return result;
-
-            foreach (var element in doc.RootElement.EnumerateArray())
+            foreach (var el in doc.RootElement.EnumerateArray())
             {
-                if (element.ValueKind != JsonValueKind.Object) continue;
-
-                var reference = new IngredientReference();
-
-                if (element.TryGetProperty("ingredientId", out var idProp) && idProp.ValueKind == JsonValueKind.Number)
-                {
-                    reference.IngredientId = idProp.GetInt32();
-                }
-                else
-                {
-                    continue; // Skip if no ingredientId
-                }
-
-                if (element.TryGetProperty("qty", out var qtyProp) && qtyProp.ValueKind == JsonValueKind.Number)
-                {
-                    reference.Qty = qtyProp.GetDouble();
-                }
-
-                if (element.TryGetProperty("unit", out var unitProp) && unitProp.ValueKind == JsonValueKind.String)
-                {
-                    reference.Unit = unitProp.GetString();
-                }
-
-                result.Add(reference);
+                if (el.ValueKind != JsonValueKind.Object) continue;
+                // Accept both "ingredientId" (new) and "id" (old snapshot format)
+                int id = 0;
+                if (el.TryGetProperty("ingredientId", out var newId) && newId.ValueKind == JsonValueKind.Number)
+                    id = newId.GetInt32();
+                else if (el.TryGetProperty("id", out var oldId) && oldId.ValueKind == JsonValueKind.Number)
+                    id = oldId.GetInt32();
+                double qty = 1;
+                if (el.TryGetProperty("qty", out var qp) && qp.ValueKind == JsonValueKind.Number)
+                    qty = qp.GetDouble();
+                // Old snapshot format stores pre-scaled macros directly
+                double? cal = null, prot = null, carbs = null, fats = null;
+                if (el.TryGetProperty("caloriesKcal", out var c) && c.ValueKind == JsonValueKind.Number) cal = c.GetDouble();
+                if (el.TryGetProperty("proteinG", out var p) && p.ValueKind == JsonValueKind.Number) prot = p.GetDouble();
+                if (el.TryGetProperty("carbsG", out var cb) && cb.ValueKind == JsonValueKind.Number) carbs = cb.GetDouble();
+                if (el.TryGetProperty("fatsG", out var f) && f.ValueKind == JsonValueKind.Number) fats = f.GetDouble();
+                // Skip only if we have neither a resolvable ID nor inline macros.
+                if (id <= 0 && cal is null && prot is null && carbs is null && fats is null) continue;
+                result.Add(new ParsedEntry(id, qty, cal, prot, carbs, fats));
             }
         }
-        catch
-        {
-            // Silently fail; return what we could parse
-        }
-
+        catch { }
         return result;
     }
 
+    public List<IngredientReference> ParseIngredientsJson(string? json) =>
+        ParseAllFormats(json).Select(p => new IngredientReference { IngredientId = p.IngredientId, Qty = p.Qty }).ToList();
+
     /// <summary>
-    /// Calculate total macros for a meal template by:
-    /// 1. Parsing ingredients_json to IngredientReference list
-    /// 2. Looking up each ingredient from meal_ingredients table
-    /// 3. Multiplying base macros by qty
-    /// 4. Summing totals
+    /// Calculate total macros. For new-format entries, looks up ingredient in DB and scales by qty.
+    /// For old-format entries with inline macros, uses those directly (they were pre-scaled at save time).
     /// </summary>
     public async Task<(int calories, double protein, double carbs, double fats)> CalculateMealMacrosAsync(
         string? ingredientsJson)
     {
-        var references = ParseIngredientsJson(ingredientsJson);
-        if (references.Count == 0)
-            return (0, 0, 0, 0);
+        var entries = ParseAllFormats(ingredientsJson);
+        if (entries.Count == 0) return (0, 0, 0, 0);
 
-        var ingredientIds = references
-            .Select(r => r.IngredientId)
-            .Where(id => id > 0)
-            .Distinct()
-            .ToList();
+        var idsToLookup = entries.Where(e => e.InlineCal == null).Select(e => e.IngredientId).Distinct().ToList();
+        var ingredients = idsToLookup.Count > 0
+            ? await _db.MealIngredients.Where(i => idsToLookup.Contains(i.Id)).ToDictionaryAsync(i => i.Id)
+            : new Dictionary<int, MealIngredient>();
 
-        if (ingredientIds.Count == 0)
-            return (0, 0, 0, 0);
-
-        var ingredients = await _db.MealIngredients
-            .Where(i => ingredientIds.Contains(i.Id))
-            .ToDictionaryAsync(i => i.Id, i => i);
-
-        var totalCalories = 0;
-        var totalProtein = 0.0;
-        var totalCarbs = 0.0;
-        var totalFats = 0.0;
-
-        foreach (var reference in references)
+        double totalCal = 0, totalProt = 0, totalCarbs = 0, totalFats = 0;
+        foreach (var e in entries)
         {
-            if (!ingredients.TryGetValue(reference.IngredientId, out var ingredient))
-                continue;
-
-            // Use override qty/unit if provided, else use ingredient defaults
-            var qty = reference.Qty ?? ingredient.DefaultQty;
-
-            // Macros are scaled by qty (e.g., 2 eggs = 2x single egg's macros)
-            totalCalories += (int)(ingredient.CaloriesKcal * qty);
-            totalProtein += ingredient.ProteinG * qty;
-            totalCarbs += ingredient.CarbsG * qty;
-            totalFats += ingredient.FatsG * qty;
+            if (ingredients.TryGetValue(e.IngredientId, out var ing))
+            {
+                // New format: scale DB macros by qty
+                var qty = e.Qty > 0 ? e.Qty : ing.DefaultQty;
+                totalCal += ing.CaloriesKcal * qty;
+                totalProt += ing.ProteinG * qty;
+                totalCarbs += ing.CarbsG * qty;
+                totalFats += ing.FatsG * qty;
+            }
+            else if (e.InlineCal.HasValue)
+            {
+                // Old snapshot format: already scaled at save time, use directly
+                totalCal += e.InlineCal.Value;
+                totalProt += e.InlineProt ?? 0;
+                totalCarbs += e.InlineCarbs ?? 0;
+                totalFats += e.InlineFats ?? 0;
+            }
         }
-
-        return (totalCalories, totalProtein, totalCarbs, totalFats);
+        return ((int)totalCal, totalProt, totalCarbs, totalFats);
     }
 
     /// <summary>

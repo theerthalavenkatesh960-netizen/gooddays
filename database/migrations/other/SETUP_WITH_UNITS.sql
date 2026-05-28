@@ -19,40 +19,40 @@ INSERT INTO meal_templates (user_id, name, timing, time_of_day, ingredients_json
 VALUES
   (5, 'Scrambled Eggs & Toast', 'breakfast', '08:00', 
    '[
-     {"ingredientId": 1, "qty": 2, "unit": "egg"},
-     {"ingredientId": 2, "qty": 0.5, "unit": "tbsp"}
+     {"ingredientId": 1, "name": "Eggs", "qty": 2, "unit": "egg"},
+     {"ingredientId": 2, "name": "Olive Oil", "qty": 0.5, "unit": "tbsp"}
    ]', 
    'Scramble 2 eggs with half tbsp olive oil'),
 
   (5, 'Grilled Chicken with Rice', 'lunch', '12:30',
    '[
-     {"ingredientId": 4, "qty": 150, "unit": "g"},
-     {"ingredientId": 3, "qty": 1, "unit": "serving"},
-     {"ingredientId": 5, "qty": 100, "unit": "g"}
+     {"ingredientId": 4, "name": "Chicken Breast", "qty": 150, "unit": "g"},
+     {"ingredientId": 3, "name": "Brown Rice", "qty": 1, "unit": "serving"},
+     {"ingredientId": 5, "name": "Broccoli", "qty": 100, "unit": "g"}
    ]',
    '1. Grill chicken 2. Cook rice 3. Steam broccoli'),
 
   (5, 'Egg Fried Rice', 'dinner', '19:00',
    '[
-     {"ingredientId": 3, "qty": 200, "unit": "g"},
-     {"ingredientId": 1, "qty": 3, "unit": "egg"},
-     {"ingredientId": 2, "qty": 1, "unit": "tbsp"}
+     {"ingredientId": 3, "name": "Brown Rice", "qty": 200, "unit": "g"},
+     {"ingredientId": 1, "name": "Eggs", "qty": 3, "unit": "egg"},
+     {"ingredientId": 2, "name": "Olive Oil", "qty": 1, "unit": "tbsp"}
    ]',
    'Fry rice with scrambled eggs and oil'),
 
   (5, 'Protein Bowl', 'lunch', '13:00',
    '[
-     {"ingredientId": 4, "qty": 200, "unit": "g"},
-     {"ingredientId": 5, "qty": 200, "unit": "g"},
-     {"ingredientId": 2, "qty": 0.25, "unit": "tbsp"}
+     {"ingredientId": 4, "name": "Chicken Breast", "qty": 200, "unit": "g"},
+     {"ingredientId": 5, "name": "Broccoli", "qty": 200, "unit": "g"},
+     {"ingredientId": 2, "name": "Olive Oil", "qty": 0.25, "unit": "tbsp"}
    ]',
    'Grill chicken, steam broccoli, drizzle oil'),
 
   (5, 'Egg & Veggie Breakfast', 'breakfast', '07:30',
    '[
-     {"ingredientId": 1, "qty": 3, "unit": "egg"},
-     {"ingredientId": 5, "qty": 50, "unit": "g"},
-     {"ingredientId": 2, "qty": 1, "unit": "tbsp"}
+     {"ingredientId": 1, "name": "Eggs", "qty": 3, "unit": "egg"},
+     {"ingredientId": 5, "name": "Broccoli", "qty": 50, "unit": "g"},
+     {"ingredientId": 2, "name": "Olive Oil", "qty": 1, "unit": "tbsp"}
    ]',
    'Scramble eggs with steamed broccoli')
 ON CONFLICT DO NOTHING;
@@ -124,23 +124,23 @@ ON CONFLICT (user_id) DO UPDATE SET plan_json = EXCLUDED.plan_json;
 INSERT INTO master_meal_templates (name, timing, time_of_day, ingredients_json, recipe, image_url)
 VALUES
   ('Quick Breakfast Eggs', 'breakfast', '08:00',
-   '[{"ingredientId": 1, "qty": 2, "unit": "egg"}, {"ingredientId": 2, "qty": 0.5, "unit": "tbsp"}]',
+  '[{"ingredientId": 1, "name": "Eggs", "qty": 2, "unit": "egg"}, {"ingredientId": 2, "name": "Olive Oil", "qty": 0.5, "unit": "tbsp"}]',
    '5-minute scrambled eggs', 'https://via.placeholder.com/300?text=Eggs'),
 
   ('Chicken & Rice Classic', 'lunch', '12:30',
-   '[{"ingredientId": 4, "qty": 150, "unit": "g"}, {"ingredientId": 3, "qty": 150, "unit": "g"}]',
+  '[{"ingredientId": 4, "name": "Chicken Breast", "qty": 150, "unit": "g"}, {"ingredientId": 3, "name": "Brown Rice", "qty": 150, "unit": "g"}]',
    'Grilled chicken with brown rice', 'https://via.placeholder.com/300?text=Chicken+Rice'),
 
   ('Fried Rice', 'dinner', '19:00',
-   '[{"ingredientId": 3, "qty": 200, "unit": "g"}, {"ingredientId": 1, "qty": 3, "unit": "egg"}]',
+  '[{"ingredientId": 3, "name": "Brown Rice", "qty": 200, "unit": "g"}, {"ingredientId": 1, "name": "Eggs", "qty": 3, "unit": "egg"}]',
    'Stir-fryer rice with eggs and veggies', 'https://via.placeholder.com/300?text=Fried+Rice'),
 
   ('Power Breakfast', 'breakfast', '07:30',
-   '[{"ingredientId": 1, "qty": 3, "unit": "egg"}, {"ingredientId": 5, "qty": 100, "unit": "g"}]',
+  '[{"ingredientId": 1, "name": "Eggs", "qty": 3, "unit": "egg"}, {"ingredientId": 5, "name": "Broccoli", "qty": 100, "unit": "g"}]',
    'Eggs with steamed broccoli', 'https://via.placeholder.com/300?text=Power+Breakfast'),
 
   ('Lean Protein Bowl', 'lunch', '13:00',
-   '[{"ingredientId": 4, "qty": 200, "unit": "g"}, {"ingredientId": 5, "qty": 200, "unit": "g"}]',
+  '[{"ingredientId": 4, "name": "Chicken Breast", "qty": 200, "unit": "g"}, {"ingredientId": 5, "name": "Broccoli", "qty": 200, "unit": "g"}]',
    'Double chicken and broccoli', 'https://via.placeholder.com/300?text=Protein+Bowl')
 ON CONFLICT DO NOTHING;
 
