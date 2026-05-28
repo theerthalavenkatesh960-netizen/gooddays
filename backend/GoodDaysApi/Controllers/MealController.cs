@@ -1,6 +1,7 @@
 using GoodDaysApi.Data;
 using GoodDaysApi.DTOs.Meal;
 using GoodDaysApi.Models;
+using GoodDaysApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,13 @@ namespace GoodDaysApi.Controllers;
 public class MealController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public MealController(AppDbContext db) => _db = db;
+    private readonly MealMacroCalculatorService _macroCalculator;
+
+    public MealController(AppDbContext db, MealMacroCalculatorService macroCalculator)
+    {
+        _db = db;
+        _macroCalculator = macroCalculator;
+    }
 
     private int GetUserId() => int.Parse(
         User.FindFirst("userId")?.Value
@@ -44,6 +51,8 @@ public class MealController : ControllerBase
             ProteinG = Math.Max(0, body.ProteinG),
             CarbsG = Math.Max(0, body.CarbsG),
             FatsG = Math.Max(0, body.FatsG),
+            DefaultQty = Math.Max(0.01, body.DefaultQty), // Ensure at least 0.01
+            DefaultUnit = string.IsNullOrWhiteSpace(body.DefaultUnit) ? "unit" : body.DefaultUnit.Trim(),
             CreatedAt = DateTime.UtcNow,
         };
 
@@ -65,6 +74,8 @@ public class MealController : ControllerBase
         item.ProteinG = Math.Max(0, body.ProteinG);
         item.CarbsG = Math.Max(0, body.CarbsG);
         item.FatsG = Math.Max(0, body.FatsG);
+        item.DefaultQty = Math.Max(0.01, body.DefaultQty);
+        item.DefaultUnit = string.IsNullOrWhiteSpace(body.DefaultUnit) ? "unit" : body.DefaultUnit.Trim();
 
         await _db.SaveChangesAsync();
         return Ok(item);
@@ -87,11 +98,14 @@ public class MealController : ControllerBase
     public async Task<IActionResult> GetTemplates()
     {
         var userId = GetUserId();
-        return Ok(await _db.MealTemplates
+        var templates = await _db.MealTemplates
             .Where(m => m.UserId == userId)
             .Include(m => m.MasterMealTemplate)
             .OrderBy(m => m.Name)
-            .ToListAsync());
+            .ToListAsync();
+
+        var withMacros = await _macroCalculator.ConvertManyToWithMacrosAsync(templates);
+        return Ok(withMacros);
     }
 
     [HttpPost("templates")]

@@ -1,15 +1,17 @@
 import { CheckCircle2, Circle, Dot, Trash2 } from 'lucide-react';
 
 type IngredientSnap = {
-  id: number;
+  id?: number;
+  ingredientId?: number;
   name: string;
-  qty: number;
-  baseQty: number;
-  baseUnit: string;
-  caloriesKcal: number;
-  proteinG: number;
-  carbsG: number;
-  fatsG: number;
+  qty?: number;
+  unit?: string;
+  baseQty?: number;
+  baseUnit?: string;
+  caloriesKcal?: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatsG?: number;
   description?: string;
 };
 
@@ -20,6 +22,11 @@ type MealCardProps = {
   timeOfDay?: string;
   imageUrl?: string;
   ingredients: IngredientSnap[];
+  // Pre-calculated totals from server (preferred). Falls back to summing ingredient macros.
+  totalCaloriesKcal?: number;
+  totalProteinG?: number;
+  totalCarbsG?: number;
+  totalFatsG?: number;
   onRemove?: (mealId: number) => void;
   done?: boolean;
   onToggleDone?: (mealId: number) => void;
@@ -41,15 +48,20 @@ export default function MealCard({
   timeOfDay,
   imageUrl,
   ingredients,
+  totalCaloriesKcal,
+  totalProteinG,
+  totalCarbsG,
+  totalFatsG,
   onRemove,
   done,
   onToggleDone,
 }: MealCardProps) {
   const timingColor = TIMING_COLORS[timing] || 'var(--text-muted)';
-  const calories = ingredients.reduce((sum, i) => sum + Number(i.caloriesKcal || 0), 0);
-  const protein = ingredients.reduce((sum, i) => sum + Number(i.proteinG || 0), 0);
-  const carbs = ingredients.reduce((sum, i) => sum + Number(i.carbsG || 0), 0);
-  const fats = ingredients.reduce((sum, i) => sum + Number(i.fatsG || 0), 0);
+  // Use server-calculated totals if provided, otherwise sum ingredient macros (legacy fallback)
+  const calories = totalCaloriesKcal ?? ingredients.reduce((sum, i) => sum + Number(i.caloriesKcal || 0), 0);
+  const protein = totalProteinG ?? ingredients.reduce((sum, i) => sum + Number(i.proteinG || 0), 0);
+  const carbs = totalCarbsG ?? ingredients.reduce((sum, i) => sum + Number(i.carbsG || 0), 0);
+  const fats = totalFatsG ?? ingredients.reduce((sum, i) => sum + Number(i.fatsG || 0), 0);
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
@@ -97,11 +109,13 @@ export default function MealCard({
         <div className="px-4 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Ingredients</p>
           <div className="space-y-1.5">
-            {ingredients.map((ing) => (
-              <div key={`${id}-${ing.id}-${ing.name}`} className="flex items-center justify-between gap-2 text-xs">
+            {ingredients.map((ing, idx) => (
+              <div key={`${id}-${ing.id ?? ing.ingredientId ?? idx}-${ing.name}`} className="flex items-center justify-between gap-2 text-xs">
                 <p className="flex-1 min-w-0" style={{ color: 'var(--text-primary)', whiteSpace: 'normal', wordBreak: 'break-word' }}>{ing.name}</p>
                 <p className="whitespace-nowrap flex-shrink-0 text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
-                  {Number(ing.qty || ing.baseQty || 1)}{ing.baseUnit || 'g'}
+                  {ing.unit
+                    ? `${Number(ing.qty ?? ing.baseQty ?? 1)} ${ing.unit}`
+                    : `${Number(ing.qty || ing.baseQty || 1)}${ing.baseUnit || ''}`}
                 </p>
               </div>
             ))}

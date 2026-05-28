@@ -67,6 +67,9 @@ builder.Services.AddHostedService<GmailSyncBackgroundWorker>();
 // Register AI Service
 builder.Services.AddScoped<AiService>();
 
+// Register Meal Services
+builder.Services.AddScoped<MealMacroCalculatorService>();
+
 // Register Onboarding Service
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 

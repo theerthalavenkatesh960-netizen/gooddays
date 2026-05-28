@@ -15,6 +15,11 @@ type MealTemplate = {
   ingredientsJson: string;
   recipe: string;
   imageUrl?: string;
+  // Server-calculated totals (from MealTemplateWithMacrosDto)
+  totalCaloriesKcal?: number;
+  totalProteinG?: number;
+  totalCarbsG?: number;
+  totalFatsG?: number;
 };
 
 type IngSnap = {
@@ -110,18 +115,20 @@ function parseIngredients(json: string): IngSnap[] {
   try {
     const parsed = JSON.parse(json) || [];
     if (!Array.isArray(parsed)) return [];
-    return parsed.map((item: any) => ({
-      id: Number(item.id || 0),
-      name: String(item.name || ''),
-      qty: Number(item.qty ?? 1),
-      baseQty: Number(item.baseQty ?? 1),
-      baseUnit: String(item.baseUnit || 'serving'),
-      caloriesKcal: Number(item.caloriesKcal || 0),
-      proteinG: Number(item.proteinG || 0),
-      carbsG: Number(item.carbsG || 0),
-      fatsG: Number(item.fatsG || 0),
-      description: item.description ? String(item.description) : undefined,
-    }));
+    return parsed
+      .filter((item: any) => item && typeof item === 'object' && item.name)
+      .map((item: any) => ({
+        id: Number(item.id || item.ingredientId || 0),
+        name: String(item.name || ''),
+        qty: Number(item.qty ?? 1),
+        baseQty: Number(item.baseQty ?? item.qty ?? 1),
+        baseUnit: String(item.unit || item.baseUnit || 'unit'),
+        caloriesKcal: Number(item.caloriesKcal || 0),
+        proteinG: Number(item.proteinG || 0),
+        carbsG: Number(item.carbsG || 0),
+        fatsG: Number(item.fatsG || 0),
+        description: item.description ? String(item.description) : undefined,
+      }));
   } catch {
     return [];
   }
@@ -420,6 +427,8 @@ export default function MealPlannerSettings() {
   }, [mealPlan, meals, selectedDayKey, selectedDate]);
 
   const selectedDayCalories = selectedMeals.reduce((sum, meal) => {
+    // Use server-calculated totals if available, otherwise fall back to summing ingredient macros
+    if (meal.totalCaloriesKcal !== undefined) return sum + meal.totalCaloriesKcal;
     const ingredientsForMeal = parseIngredients(meal.ingredientsJson);
     return sum + ingredientsForMeal.reduce((a, i) => a + i.caloriesKcal, 0);
   }, 0);
@@ -550,6 +559,10 @@ export default function MealPlannerSettings() {
                   timeOfDay={meal.timeOfDay}
                   imageUrl={meal.imageUrl}
                   ingredients={parseIngredients(meal.ingredientsJson)}
+                  totalCaloriesKcal={meal.totalCaloriesKcal}
+                  totalProteinG={meal.totalProteinG}
+                  totalCarbsG={meal.totalCarbsG}
+                  totalFatsG={meal.totalFatsG}
                   onRemove={() => removeMealFromDay(selectedDayKey, meal.id)}
                 />
               ))}
@@ -620,9 +633,12 @@ export default function MealPlannerSettings() {
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 {filteredMeals.map(meal => {
-                  const ings = parseIngredients(meal.ingredientsJson);
-                  const total = ings.reduce((s, i) => s + i.caloriesKcal, 0);
-                  const macros = { protein: ings.reduce((s, i) => s + i.proteinG, 0), carbs: ings.reduce((s, i) => s + i.carbsG, 0), fats: ings.reduce((s, i) => s + i.fatsG, 0) };
+                  const total = meal.totalCaloriesKcal ?? parseIngredients(meal.ingredientsJson).reduce((s, i) => s + i.caloriesKcal, 0);
+                  const macros = {
+                    protein: meal.totalProteinG ?? parseIngredients(meal.ingredientsJson).reduce((s, i) => s + i.proteinG, 0),
+                    carbs: meal.totalCarbsG ?? parseIngredients(meal.ingredientsJson).reduce((s, i) => s + i.carbsG, 0),
+                    fats: meal.totalFatsG ?? parseIngredients(meal.ingredientsJson).reduce((s, i) => s + i.fatsG, 0),
+                  };
                   return (
                     <div key={meal.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
                       <button onClick={() => navigate(`/settings/meals/template/${meal.id}`)} className="w-full text-left">
