@@ -46,6 +46,10 @@ const TIMING_COLORS: Record<string, string> = {
   snack: 'var(--text-muted)',
 };
 
+function normalizeTimingTag(value?: string): string {
+  return String(value || '').trim().toLowerCase();
+}
+
 function toDateKey(date: Date) {
   return format(date, 'yyyy-MM-dd');
 }
@@ -314,13 +318,14 @@ export default function MealPlannerSettings() {
     }
   }
 
-  async function addMealToDay(dayKey: string, mealTemplateId: number, timeOfDay?: string) {
+  async function addMealToDay(dayKey: string, mealTemplateId: number, timeOfDay?: string, slotTiming?: string) {
     if (!Number.isFinite(mealTemplateId) || mealTemplateId <= 0) {
       flash('Invalid meal template selected');
       return;
     }
 
-    if (!meals.some(m => m.id === mealTemplateId)) {
+    const pickedMeal = meals.find(m => m.id === mealTemplateId);
+    if (!pickedMeal) {
       flash('Meal template not found');
       return;
     }
@@ -330,11 +335,20 @@ export default function MealPlannerSettings() {
       flash('Meal already exists for this day');
       return;
     }
+
+    const timingKey = normalizeTimingTag(slotTiming || pickedMeal.timing);
+    const nextExisting = timingKey
+      ? existing.filter((a) => {
+        const assignedMeal = meals.find(m => m.id === a.mealTemplateId);
+        return normalizeTimingTag(assignedMeal?.timing) !== timingKey;
+      })
+      : existing;
+
     const newAssignment: MealAssignment = {
       mealTemplateId,
       timeOfDay: timeOfDay?.trim() || undefined,
     };
-    await savePlan({ ...mealPlan, [dayKey]: [...existing, newAssignment] });
+    await savePlan({ ...mealPlan, [dayKey]: [...nextExisting, newAssignment] });
   }
 
   useEffect(() => {
@@ -343,10 +357,10 @@ export default function MealPlannerSettings() {
     if (loading) return;
     const pickedId = Number(pick?.mealTemplateId);
     if (!pick?.dayKey || !Number.isFinite(pickedId) || pickedId <= 0) return;
-    const signature = `${pick.dayKey}-${pickedId}-${pick.timeOfDay || ''}`;
+    const signature = `${pick.dayKey}-${pickedId}-${pick.timeOfDay || ''}-${pick.slotTiming || ''}`;
     if (lastAppliedPickRef.current === signature) return;
     lastAppliedPickRef.current = signature;
-    addMealToDay(pick.dayKey, pickedId, pick.timeOfDay);
+    addMealToDay(pick.dayKey, pickedId, pick.timeOfDay, pick.slotTiming);
   }, [location.state, loading]);
 
   function openMealPicker(dayKey: string) {

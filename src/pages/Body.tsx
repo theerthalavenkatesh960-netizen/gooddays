@@ -194,7 +194,29 @@ function WorkoutTab() {
       .filter(Boolean) as Array<{ exercise: Exercise; sets: WorkoutSet[]; targetSets: number }>;
   }, [plannedExercises, exercises, loggedSets]);
 
-  const cardData = apiExerciseCards.length > 0 ? apiExerciseCards : routineCards;
+  const cardData = useMemo(() => {
+    const merged = new Map<number, { exercise: Exercise; sets: WorkoutSet[]; targetSets: number }>();
+
+    routineCards.forEach((item) => {
+      merged.set(item.exercise.id, item);
+    });
+
+    apiExerciseCards.forEach((item) => {
+      const existing = merged.get(item.exercise.id);
+      if (existing) {
+        merged.set(item.exercise.id, {
+          exercise: existing.exercise,
+          sets: item.sets,
+          targetSets: item.targetSets || existing.targetSets,
+        });
+        return;
+      }
+
+      merged.set(item.exercise.id, item);
+    });
+
+    return Array.from(merged.values());
+  }, [routineCards, apiExerciseCards]);
 
   async function ensureTodayPlan(seedExerciseId: number, seedTargetSets: number) {
     if (todayPlan?.id) return todayPlan;
@@ -536,7 +558,7 @@ function DietTab() {
         <div className="flex items-center justify-between gap-3 mb-2">
           <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Today's Macros</p>
           <button
-            onClick={() => navigate('/settings/meals/pick')}
+            onClick={() => navigate('/settings/meals/pick', { state: { dayKey: today, source: 'diet' } })}
             className="h-7 px-3 rounded-lg text-[11px] font-semibold"
             style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
           >
@@ -684,7 +706,7 @@ function DietTab() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
-                <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{meal.timing} · tap to {on ? 'unlog' : 'log'}</p>
+                <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{meal.timing} · Planned · tap to {on ? 'unlog' : 'log'}</p>
                 {meal.recipe && <p className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{meal.recipe}</p>}
               </div>
               <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{Math.round(total)}</span>
