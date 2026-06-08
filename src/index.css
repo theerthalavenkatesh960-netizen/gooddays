@@ -323,6 +323,15 @@
     gap: 0.5rem;
   }
   .h-scroll::-webkit-scrollbar { display: none; }
+
+  @media (max-width: 768px) {
+    .meal-ingredients-full-bleed {
+      width: 100dvw;
+      max-width: none;
+      margin-left: calc(50% - 50dvw);
+      margin-right: calc(50% - 50dvw);
+    }
+  }
 }
 
 /* ═══════════════════════════════════════════════════════

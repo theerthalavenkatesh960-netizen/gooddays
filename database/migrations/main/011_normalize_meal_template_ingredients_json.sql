@@ -34,14 +34,12 @@ WITH normalized AS (
     END
   ) e
   LEFT JOIN meal_ingredients mi_by_id
-    ON mi_by_id.user_id = mt.user_id
-   AND mi_by_id.id = COALESCE(
+    ON mi_by_id.id = COALESCE(
       CASE WHEN (e->>'ingredientId') ~ '^[0-9]+$' THEN (e->>'ingredientId')::int END,
       CASE WHEN (e->>'id') ~ '^[0-9]+$' THEN (e->>'id')::int END
     )
   LEFT JOIN meal_ingredients mi_by_name
-    ON mi_by_name.user_id = mt.user_id
-   AND lower(mi_by_name.name) = lower(COALESCE(e->>'name', ''))
+    ON lower(mi_by_name.name) = lower(COALESCE(e->>'name', ''))
   GROUP BY mt.id
 )
 UPDATE meal_templates mt

@@ -134,6 +134,8 @@ DROP TABLE IF EXISTS daily_routines;
 DROP INDEX IF EXISTS idx_weekly_meal_plans_user_id;
 DROP INDEX IF EXISTS idx_meal_templates_user_id;
 DROP INDEX IF EXISTS idx_meal_ingredients_user_id;
+DROP INDEX IF EXISTS ux_meal_ingredients_user_name_ci;
+DROP INDEX IF EXISTS ux_meal_ingredients_name_ci;
 
 DROP TABLE IF EXISTS weekly_meal_plans;
 DROP TABLE IF EXISTS meal_templates;

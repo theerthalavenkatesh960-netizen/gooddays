@@ -23,6 +23,10 @@ type MealTemplate = {
   ingredientsJson: string;
   recipe: string;
   imageUrl?: string;
+  totalCaloriesKcal?: number;
+  totalProteinG?: number;
+  totalCarbsG?: number;
+  totalFatsG?: number;
   masterMealTemplateId?: number | null;
   masterMealTemplate?: MasterMealTemplate | null;
 };
@@ -44,11 +48,11 @@ function parseIngredients(json: string): IngSnap[] {
     const parsed = JSON.parse(json) || [];
     if (!Array.isArray(parsed)) return [];
     return parsed.map((item: any) => ({
-      id: Number(item.id || 0),
+      id: Number(item.id || item.ingredientId || 0),
       name: String(item.name || ''),
       qty: Number(item.qty ?? 1),
-      baseQty: Number(item.baseQty ?? 1),
-      baseUnit: String(item.baseUnit || 'serving'),
+      baseQty: Number(item.baseQty ?? item.qty ?? 1),
+      baseUnit: String(item.unit || item.baseUnit || 'serving'),
       caloriesKcal: Number(item.caloriesKcal || 0),
       proteinG: Number(item.proteinG || 0),
       carbsG: Number(item.carbsG || 0),
@@ -65,7 +69,7 @@ export default function MealTemplateDetails() {
   const [meal, setMeal] = useState<MealTemplate | null>(null);
   const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState('');
-  const [ingredientOptions, setIngredientOptions] = useState<Array<{ id: number; name: string; caloriesKcal: number; proteinG: number; carbsG: number; fatsG: number; baseQty?: number; baseUnit?: string }>>([]);
+  const [ingredientOptions, setIngredientOptions] = useState<Array<{ id: number; name: string; caloriesKcal: number; proteinG: number; carbsG: number; fatsG: number; defaultQty?: number; defaultUnit?: string }>>([]);
   const [editableIngredients, setEditableIngredients] = useState<IngSnap[]>([]);
   const [selectedIngredientId, setSelectedIngredientId] = useState<number>(0);
   const [form, setForm] = useState({
@@ -85,7 +89,11 @@ export default function MealTemplateDetails() {
     async function loadIngredients() {
       try {
         const data = await api.getMealIngredients();
-        const list = Array.isArray(data) ? data : [];
+        const list = (Array.isArray(data) ? data : []).map((i: any) => ({
+          ...i,
+          defaultQty: Number(i.defaultQty ?? 1),
+          defaultUnit: String(i.defaultUnit || 'unit'),
+        }));
         setIngredientOptions(list);
       } catch {
         setIngredientOptions([]);
@@ -151,12 +159,38 @@ export default function MealTemplateDetails() {
   }
 
   const ingredients = useMemo(() => (meal ? parseIngredients(meal.ingredientsJson) : []), [meal]);
+  const displayIngredients = useMemo(() => {
+    if (ingredients.length === 0) return ingredients;
+
+    const byId = new Map(ingredientOptions.map((i) => [i.id, i]));
+    return ingredients.map((ing) => {
+      const hasInlineMacros = (ing.caloriesKcal > 0) || (ing.proteinG > 0) || (ing.carbsG > 0) || (ing.fatsG > 0);
+      if (hasInlineMacros) return ing;
+
+      const lib = byId.get(ing.id);
+      if (!lib) return ing;
+
+      const defaultQty = Math.max(0.01, Number(lib.defaultQty ?? ing.baseQty ?? 1));
+      const qty = Math.max(0.01, Number(ing.qty ?? defaultQty));
+      const factor = qty / defaultQty;
+
+      return {
+        ...ing,
+        baseUnit: ing.baseUnit || lib.defaultUnit || 'unit',
+        caloriesKcal: Number((Number(lib.caloriesKcal || 0) * factor).toFixed(2)),
+        proteinG: Number((Number(lib.proteinG || 0) * factor).toFixed(2)),
+        carbsG: Number((Number(lib.carbsG || 0) * factor).toFixed(2)),
+        fatsG: Number((Number(lib.fatsG || 0) * factor).toFixed(2)),
+      };
+    });
+  }, [ingredients, ingredientOptions]);
+
   const totals = useMemo(() => ({
-    calories: ingredients.reduce((s, i) => s + i.caloriesKcal, 0),
-    protein: ingredients.reduce((s, i) => s + i.proteinG, 0),
-    carbs: ingredients.reduce((s, i) => s + i.carbsG, 0),
-    fats: ingredients.reduce((s, i) => s + i.fatsG, 0),
-  }), [ingredients]);
+    calories: meal?.totalCaloriesKcal ?? displayIngredients.reduce((s, i) => s + i.caloriesKcal, 0),
+    protein: meal?.totalProteinG ?? displayIngredients.reduce((s, i) => s + i.proteinG, 0),
+    carbs: meal?.totalCarbsG ?? displayIngredients.reduce((s, i) => s + i.carbsG, 0),
+    fats: meal?.totalFatsG ?? displayIngredients.reduce((s, i) => s + i.fatsG, 0),
+  }), [displayIngredients, meal]);
 
   const addIngredient = () => {
     if (!selectedIngredientId) return;
@@ -169,9 +203,9 @@ export default function MealTemplateDetails() {
       {
         id: chosen.id,
         name: chosen.name,
-        qty: Number(chosen.baseQty || 100),
-        baseQty: Number(chosen.baseQty || 100),
-        baseUnit: chosen.baseUnit || 'g',
+        qty: Number(chosen.defaultQty || 1),
+        baseQty: Number(chosen.defaultQty || 1),
+        baseUnit: chosen.defaultUnit || 'unit',
         caloriesKcal: Number(chosen.caloriesKcal || 0),
         proteinG: Number(chosen.proteinG || 0),
         carbsG: Number(chosen.carbsG || 0),
@@ -362,15 +396,18 @@ export default function MealTemplateDetails() {
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No ingredients listed.</p>
         ) : (
           <div className="space-y-2">
-            {ingredients.map(ing => (
+            {displayIngredients.map(ing => (
               <div key={`${ing.id}-${ing.name}`} className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{ing.name}</p>
                   <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{ing.qty} {ing.baseUnit}</p>
                 </div>
-                <p className="text-xs" style={{ color: 'var(--accent-gold)' }}>
-                  {Math.round(ing.caloriesKcal)} kcal · {ing.proteinG.toFixed(1)}g P · {ing.carbsG.toFixed(1)}g C · {ing.fatsG.toFixed(1)}g F
-                </p>
+                <div className="text-xs flex items-center gap-2 flex-wrap">
+                  <span style={{ color: 'var(--accent-gold)' }}>{Math.round(ing.caloriesKcal)} kcal</span>
+                  <span style={{ color: '#f87171' }}>{ing.proteinG.toFixed(1)}g P</span>
+                  <span style={{ color: '#fbbf24' }}>{ing.carbsG.toFixed(1)}g C</span>
+                  <span style={{ color: '#60a5fa' }}>{ing.fatsG.toFixed(1)}g F</span>
+                </div>
               </div>
             ))}
           </div>

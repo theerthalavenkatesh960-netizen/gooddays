@@ -23,7 +23,7 @@ public class UserSeederService : IUserSeederService
     {
         try
         {
-            await SeedMealIngredientsAsync(userId);
+            await SeedGlobalMealIngredientsAsync();
             await SeedMealTemplatesAsync(userId);
             await SeedWorkoutPresetAsync(userId);
             _logger.LogInformation("Successfully seeded libraries for user {UserId}", userId);
@@ -44,10 +44,10 @@ public class UserSeederService : IUserSeederService
         public double FatsG { get; set; }
     }
 
-    private async Task SeedMealIngredientsAsync(int userId)
+    private async Task SeedGlobalMealIngredientsAsync()
     {
-        // Check if user already has ingredients (avoid re-seeding)
-        var existingCount = await _db.MealIngredients.CountAsync(i => i.UserId == userId);
+        // Global ingredients are shared by all users; seed once.
+        var existingCount = await _db.MealIngredients.CountAsync();
         if (existingCount > 0) return;
 
         var ingredients = new List<IngredientSeed>
@@ -83,14 +83,12 @@ public class UserSeederService : IUserSeederService
 
         foreach (var ing in ingredients)
         {
-            var exists = await _db.MealIngredients.AnyAsync(i =>
-                i.UserId == userId && i.Name.ToLower() == ing.Name.ToLower());
+            var exists = await _db.MealIngredients.AnyAsync(i => i.Name.ToLower() == ing.Name.ToLower());
 
             if (!exists)
             {
                 var ingredient = new Models.MealIngredient
                 {
-                    UserId = userId,
                     Name = ing.Name,
                     CaloriesKcal = ing.CaloriesKcal,
                     ProteinG = ing.ProteinG,

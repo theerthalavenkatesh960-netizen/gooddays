@@ -6,13 +6,13 @@ ADD COLUMN IF NOT EXISTS default_qty double precision DEFAULT 1,
 ADD COLUMN IF NOT EXISTS default_unit text DEFAULT 'unit';
 
 -- Examples of how to use:
--- INSERT INTO meal_ingredients (user_id, name, default_qty, default_unit, calories_kcal, protein_g, carbs_g, fats_g)
+-- INSERT INTO meal_ingredients (name, default_qty, default_unit, calories_kcal, protein_g, carbs_g, fats_g)
 -- VALUES 
---   (5, 'Eggs', 1, 'egg', 78, 6, 0.6, 5.5),
---   (5, 'Olive Oil', 1, 'tbsp', 119, 0, 0, 13.5),
---   (5, 'Brown Rice', 150, 'g', 195, 4.5, 43, 1.5),
---   (5, 'Chicken Breast', 100, 'g', 165, 31, 0, 3.6),
---   (5, 'Broccoli', 100, 'g', 34, 2.8, 7, 0.4);
+--   ('Eggs', 1, 'egg', 78, 6, 0.6, 5.5),
+--   ('Olive Oil', 1, 'tbsp', 119, 0, 0, 13.5),
+--   ('Brown Rice', 150, 'g', 195, 4.5, 43, 1.5),
+--   ('Chicken Breast', 100, 'g', 165, 31, 0, 3.6),
+--   ('Broccoli', 100, 'g', 34, 2.8, 7, 0.4);
 
 -- Then in meal_templates ingredients_json, reference with overridable qty:
 -- ingredients_json: [

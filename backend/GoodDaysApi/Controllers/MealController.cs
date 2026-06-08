@@ -34,8 +34,7 @@ public class MealController : ControllerBase
     [HttpGet("ingredients")]
     public async Task<IActionResult> GetIngredients()
     {
-        var userId = GetUserId();
-        return Ok(await _db.MealIngredients.Where(i => i.UserId == userId).OrderBy(i => i.Name).ToListAsync());
+        return Ok(await _db.MealIngredients.OrderBy(i => i.Name).ToListAsync());
     }
 
     [HttpPost("ingredients")]
@@ -45,7 +44,6 @@ public class MealController : ControllerBase
 
         var entity = new MealIngredient
         {
-            UserId = GetUserId(),
             Name = body.Name.Trim(),
             CaloriesKcal = Math.Max(0, body.CaloriesKcal),
             ProteinG = Math.Max(0, body.ProteinG),
@@ -57,15 +55,21 @@ public class MealController : ControllerBase
         };
 
         _db.MealIngredients.Add(entity);
-        await _db.SaveChangesAsync();
-        return Ok(entity);
+        try
+        {
+            await _db.SaveChangesAsync();
+            return Ok(entity);
+        }
+        catch (DbUpdateException ex) when (IsDuplicateIngredientNameError(ex))
+        {
+            return Conflict("Ingredient already exists.");
+        }
     }
 
     [HttpPut("ingredients/{id}")]
     public async Task<IActionResult> UpdateIngredient(int id, [FromBody] MealIngredientUpsertRequest body)
     {
-        var userId = GetUserId();
-        var item = await _db.MealIngredients.FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId);
+        var item = await _db.MealIngredients.FirstOrDefaultAsync(i => i.Id == id);
         if (item is null) return NotFound();
         if (string.IsNullOrWhiteSpace(body.Name)) return BadRequest("Ingredient name is required.");
 
@@ -77,15 +81,21 @@ public class MealController : ControllerBase
         item.DefaultQty = Math.Max(0.01, body.DefaultQty);
         item.DefaultUnit = string.IsNullOrWhiteSpace(body.DefaultUnit) ? "unit" : body.DefaultUnit.Trim();
 
-        await _db.SaveChangesAsync();
-        return Ok(item);
+        try
+        {
+            await _db.SaveChangesAsync();
+            return Ok(item);
+        }
+        catch (DbUpdateException ex) when (IsDuplicateIngredientNameError(ex))
+        {
+            return Conflict("Ingredient already exists.");
+        }
     }
 
     [HttpDelete("ingredients/{id}")]
     public async Task<IActionResult> DeleteIngredient(int id)
     {
-        var userId = GetUserId();
-        var item = await _db.MealIngredients.FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId);
+        var item = await _db.MealIngredients.FirstOrDefaultAsync(i => i.Id == id);
         if (item is null) return NotFound();
         _db.MealIngredients.Remove(item);
         await _db.SaveChangesAsync();
@@ -115,7 +125,7 @@ public class MealController : ControllerBase
         var userId = GetUserId();
         var ingredientsJson = string.IsNullOrWhiteSpace(body.IngredientsJson) ? "[]" : body.IngredientsJson;
 
-        await EnsureMissingIngredientsFromJsonAsync(userId, ingredientsJson);
+        await EnsureMissingIngredientsFromJsonAsync(ingredientsJson);
 
         var entity = new MealTemplate
         {
@@ -143,7 +153,7 @@ public class MealController : ControllerBase
         if (string.IsNullOrWhiteSpace(body.Name)) return BadRequest("Template name is required.");
 
         var ingredientsJson = string.IsNullOrWhiteSpace(body.IngredientsJson) ? "[]" : body.IngredientsJson;
-        await EnsureMissingIngredientsFromJsonAsync(userId, ingredientsJson);
+        await EnsureMissingIngredientsFromJsonAsync(ingredientsJson);
 
         item.Name = body.Name.Trim();
         item.Timing = string.IsNullOrWhiteSpace(body.Timing) ? "breakfast" : body.Timing.Trim();
@@ -232,7 +242,7 @@ public class MealController : ControllerBase
         if (existing is not null)
             return BadRequest("This meal is already in your library.");
 
-        await EnsureMissingIngredientsFromJsonAsync(userId, master.IngredientsJson ?? "[]");
+        await EnsureMissingIngredientsFromJsonAsync(master.IngredientsJson ?? "[]");
 
         // Clone the master meal to user's library
         var cloned = new MealTemplate
@@ -259,7 +269,7 @@ public class MealController : ControllerBase
         return Ok(cloned);
     }
 
-    private async Task EnsureMissingIngredientsFromJsonAsync(int userId, string? ingredientsJson)
+    private async Task EnsureMissingIngredientsFromJsonAsync(string? ingredientsJson)
     {
         var parsedNames = ExtractIngredientNames(ingredientsJson);
         if (parsedNames.Count == 0) return;
@@ -273,7 +283,6 @@ public class MealController : ControllerBase
         if (normalizedRequested.Count == 0) return;
 
         var existingNames = await _db.MealIngredients
-            .Where(i => i.UserId == userId)
             .Select(i => i.Name)
             .ToListAsync();
 
@@ -292,7 +301,6 @@ public class MealController : ControllerBase
         {
             _db.MealIngredients.Add(new MealIngredient
             {
-                UserId = userId,
                 Name = name,
                 CaloriesKcal = 0,
                 ProteinG = 0,
@@ -336,6 +344,22 @@ public class MealController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(name)) return string.Empty;
         return name.Trim().ToLowerInvariant();
+    }
+
+    private static bool IsDuplicateIngredientNameError(Exception ex)
+    {
+        for (var current = ex; current is not null; current = current.InnerException!)
+        {
+            var msg = current.Message ?? string.Empty;
+            if (msg.Contains("ux_meal_ingredients_name_ci", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ─── Weekly Meal Plan ─────────────────────────────────────────────────

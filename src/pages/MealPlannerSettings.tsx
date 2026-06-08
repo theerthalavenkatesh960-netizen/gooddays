@@ -22,6 +22,16 @@ type MealTemplate = {
   totalFatsG?: number;
 };
 
+type IngredientOption = {
+  id: number;
+  caloriesKcal: number;
+  proteinG: number;
+  carbsG: number;
+  fatsG: number;
+  defaultQty?: number;
+  defaultUnit?: string;
+};
+
 type IngSnap = {
   id: number;
   name: string;
@@ -197,6 +207,7 @@ export default function MealPlannerSettings() {
   const [tab, setTab] = useState<'weekly' | 'library'>((location.state as any)?.tab ?? 'weekly');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [meals, setMeals] = useState<MealTemplate[]>([]);
+  const [ingredientLookup, setIngredientLookup] = useState<Record<number, IngredientOption>>({});
   const [mealPlan, setMealPlan] = useState<MealPlanMap>({});
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
@@ -247,12 +258,29 @@ export default function MealPlannerSettings() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [mealData, planData] = await Promise.all([
+      const [mealData, planData, ingredientsData] = await Promise.all([
         api.getMealTemplates(),
         api.getWeeklyMealPlan(),
+        api.getMealIngredients(),
       ]);
 
       setMeals(Array.isArray(mealData) ? mealData : []);
+      const ingredientsRaw = Array.isArray(ingredientsData) ? ingredientsData : [];
+      const lookup = (Array.isArray(ingredientsRaw) ? ingredientsRaw : []).reduce((acc: Record<number, IngredientOption>, item: any) => {
+        const id = Number(item?.id || 0);
+        if (!id) return acc;
+        acc[id] = {
+          id,
+          caloriesKcal: Number(item?.caloriesKcal || 0),
+          proteinG: Number(item?.proteinG || 0),
+          carbsG: Number(item?.carbsG || 0),
+          fatsG: Number(item?.fatsG || 0),
+          defaultQty: Number(item?.defaultQty || 1),
+          defaultUnit: String(item?.defaultUnit || 'unit'),
+        };
+        return acc;
+      }, {});
+      setIngredientLookup(lookup);
       if (planData?.planJson) {
         try {
           const parsed = typeof planData.planJson === 'string' ? JSON.parse(planData.planJson) : planData.planJson;
@@ -422,15 +450,54 @@ export default function MealPlannerSettings() {
         const tb = parseTimeOfDayToMinutes(timeB);
         return ta !== tb ? ta - tb : a.meal.id - b.meal.id;
       })
-      .map(item => ({ ...item.meal, timeOfDay: item.overrideTime || item.meal.timeOfDay }))
-      .filter((meal): meal is MealTemplate => meal !== null && meal !== undefined);
+      .map(item => ({ ...item.meal, timeOfDay: item.overrideTime || item.meal.timeOfDay })) as MealTemplate[];
   }, [mealPlan, meals, selectedDayKey, selectedDate]);
 
+  function getMealMacros(meal: MealTemplate) {
+    if (
+      meal.totalCaloriesKcal !== undefined ||
+      meal.totalProteinG !== undefined ||
+      meal.totalCarbsG !== undefined ||
+      meal.totalFatsG !== undefined
+    ) {
+      return {
+        calories: Number(meal.totalCaloriesKcal || 0),
+        protein: Number(meal.totalProteinG || 0),
+        carbs: Number(meal.totalCarbsG || 0),
+        fats: Number(meal.totalFatsG || 0),
+      };
+    }
+
+    const ing = parseIngredients(meal.ingredientsJson);
+    return ing.reduce(
+      (acc, item) => {
+        const hasInline = Number(item.caloriesKcal || 0) > 0 || Number(item.proteinG || 0) > 0 || Number(item.carbsG || 0) > 0 || Number(item.fatsG || 0) > 0;
+        if (hasInline) {
+          acc.calories += Number(item.caloriesKcal || 0);
+          acc.protein += Number(item.proteinG || 0);
+          acc.carbs += Number(item.carbsG || 0);
+          acc.fats += Number(item.fatsG || 0);
+          return acc;
+        }
+
+        const lib = ingredientLookup[item.id];
+        if (!lib) return acc;
+        const baseQty = Math.max(0.01, Number(lib.defaultQty || item.baseQty || 1));
+        const qty = Math.max(0.01, Number(item.qty || 1));
+        const factor = qty / baseQty;
+        acc.calories += Number(lib.caloriesKcal || 0) * factor;
+        acc.protein += Number(lib.proteinG || 0) * factor;
+        acc.carbs += Number(lib.carbsG || 0) * factor;
+        acc.fats += Number(lib.fatsG || 0) * factor;
+        return acc;
+      },
+      { calories: 0, protein: 0, carbs: 0, fats: 0 }
+    );
+  }
+
   const selectedDayCalories = selectedMeals.reduce((sum, meal) => {
-    // Use server-calculated totals if available, otherwise fall back to summing ingredient macros
-    if (meal.totalCaloriesKcal !== undefined) return sum + meal.totalCaloriesKcal;
-    const ingredientsForMeal = parseIngredients(meal.ingredientsJson);
-    return sum + ingredientsForMeal.reduce((a, i) => a + i.caloriesKcal, 0);
+    const macros = getMealMacros(meal);
+    return sum + macros.calories;
   }, 0);
 
   const filteredMeals = useMemo(() => {
@@ -633,11 +700,12 @@ export default function MealPlannerSettings() {
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 {filteredMeals.map(meal => {
-                  const total = meal.totalCaloriesKcal ?? parseIngredients(meal.ingredientsJson).reduce((s, i) => s + i.caloriesKcal, 0);
+                  const computed = getMealMacros(meal);
+                  const total = computed.calories;
                   const macros = {
-                    protein: meal.totalProteinG ?? parseIngredients(meal.ingredientsJson).reduce((s, i) => s + i.proteinG, 0),
-                    carbs: meal.totalCarbsG ?? parseIngredients(meal.ingredientsJson).reduce((s, i) => s + i.carbsG, 0),
-                    fats: meal.totalFatsG ?? parseIngredients(meal.ingredientsJson).reduce((s, i) => s + i.fatsG, 0),
+                    protein: computed.protein,
+                    carbs: computed.carbs,
+                    fats: computed.fats,
                   };
                   return (
                     <div key={meal.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>

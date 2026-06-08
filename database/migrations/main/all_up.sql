@@ -529,7 +529,6 @@ CREATE INDEX IF NOT EXISTS idx_weekly_reviews_user_week ON weekly_reviews(user_i
 
 CREATE TABLE IF NOT EXISTS meal_ingredients (
   id SERIAL PRIMARY KEY,
-  user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
   name text NOT NULL,
   calories_kcal integer NOT NULL DEFAULT 0,
   protein_g double precision NOT NULL DEFAULT 0,
@@ -563,9 +562,8 @@ CREATE TABLE IF NOT EXISTS weekly_meal_plans (
   updated_at timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_meal_ingredients_user_id ON meal_ingredients(user_id);
-CREATE UNIQUE INDEX IF NOT EXISTS ux_meal_ingredients_user_name_ci
-  ON meal_ingredients (user_id, lower(name));
+CREATE UNIQUE INDEX IF NOT EXISTS ux_meal_ingredients_name_ci
+  ON meal_ingredients (lower(name));
 CREATE INDEX IF NOT EXISTS idx_meal_templates_user_id ON meal_templates(user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_meal_templates_user_name_ci
   ON meal_templates (user_id, lower(name));

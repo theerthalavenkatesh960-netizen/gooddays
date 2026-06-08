@@ -106,13 +106,12 @@ public class OnboardingController : ControllerBase
             if (trimmed.Length == 0) continue;
 
             var existing = await _db.MealIngredients
-                .FirstOrDefaultAsync(i => i.UserId == userId && i.Name.ToLower() == trimmed.ToLower());
+                .FirstOrDefaultAsync(i => i.Name.ToLower() == trimmed.ToLower());
 
             if (existing is null)
             {
                 existing = new MealIngredient
                 {
-                    UserId = userId,
                     Name = trimmed,
                     CaloriesKcal = 0,
                     ProteinG = 0,
