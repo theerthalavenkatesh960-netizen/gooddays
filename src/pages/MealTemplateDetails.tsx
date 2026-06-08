@@ -198,6 +198,21 @@ export default function MealTemplateDetails() {
 
     const byId = new Map(ingredientOptions.map((i) => [i.id, i]));
     return editableIngredients.map((ing) => {
+      const hasInlineMacros = (ing.caloriesKcal > 0) || (ing.proteinG > 0) || (ing.carbsG > 0) || (ing.fatsG > 0);
+
+      if (hasInlineMacros) {
+        const baseQty = Math.max(0.01, Number(ing.baseQty || ing.qty || 1));
+        const qty = Math.max(0.01, Number(ing.qty || baseQty));
+        const factor = qty / baseQty;
+        return {
+          ...ing,
+          caloriesKcal: Number((Number(ing.caloriesKcal || 0) * factor).toFixed(2)),
+          proteinG: Number((Number(ing.proteinG || 0) * factor).toFixed(2)),
+          carbsG: Number((Number(ing.carbsG || 0) * factor).toFixed(2)),
+          fatsG: Number((Number(ing.fatsG || 0) * factor).toFixed(2)),
+        };
+      }
+
       const lib = byId.get(ing.id);
       if (lib) {
         const defaultQty = Math.max(0.01, Number(lib.defaultQty ?? ing.baseQty ?? 1));
@@ -214,16 +229,7 @@ export default function MealTemplateDetails() {
         };
       }
 
-      const baseQty = Math.max(0.01, Number(ing.baseQty || 1));
-      const qty = Math.max(0.01, Number(ing.qty || baseQty));
-      const factor = qty / baseQty;
-      return {
-        ...ing,
-        caloriesKcal: Number((Number(ing.caloriesKcal || 0) * factor).toFixed(2)),
-        proteinG: Number((Number(ing.proteinG || 0) * factor).toFixed(2)),
-        carbsG: Number((Number(ing.carbsG || 0) * factor).toFixed(2)),
-        fatsG: Number((Number(ing.fatsG || 0) * factor).toFixed(2)),
-      };
+      return ing;
     });
   }, [editableIngredients, ingredientOptions]);
 
