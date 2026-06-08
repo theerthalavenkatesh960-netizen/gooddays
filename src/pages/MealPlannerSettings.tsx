@@ -15,6 +15,11 @@ type MealTemplate = {
   ingredientsJson: string;
   recipe: string;
   imageUrl?: string;
+  // Server-calculated totals (from MealTemplateWithMacrosDto)
+  totalCaloriesKcal?: number;
+  totalProteinG?: number;
+  totalCarbsG?: number;
+  totalFatsG?: number;
 };
 
 type IngSnap = {
@@ -45,6 +50,10 @@ const TIMING_COLORS: Record<string, string> = {
   'post-workout': '#4ECDC4',
   snack: 'var(--text-muted)',
 };
+
+function normalizeTimingTag(value?: string): string {
+  return String(value || '').trim().toLowerCase();
+}
 
 function toDateKey(date: Date) {
   return format(date, 'yyyy-MM-dd');
@@ -106,18 +115,20 @@ function parseIngredients(json: string): IngSnap[] {
   try {
     const parsed = JSON.parse(json) || [];
     if (!Array.isArray(parsed)) return [];
-    return parsed.map((item: any) => ({
-      id: Number(item.id || 0),
-      name: String(item.name || ''),
-      qty: Number(item.qty ?? 1),
-      baseQty: Number(item.baseQty ?? 1),
-      baseUnit: String(item.baseUnit || 'serving'),
-      caloriesKcal: Number(item.caloriesKcal || 0),
-      proteinG: Number(item.proteinG || 0),
-      carbsG: Number(item.carbsG || 0),
-      fatsG: Number(item.fatsG || 0),
-      description: item.description ? String(item.description) : undefined,
-    }));
+    return parsed
+      .filter((item: any) => item && typeof item === 'object' && item.name)
+      .map((item: any) => ({
+        id: Number(item.id || item.ingredientId || 0),
+        name: String(item.name || ''),
+        qty: Number(item.qty ?? 1),
+        baseQty: Number(item.baseQty ?? item.qty ?? 1),
+        baseUnit: String(item.unit || item.baseUnit || 'unit'),
+        caloriesKcal: Number(item.caloriesKcal || 0),
+        proteinG: Number(item.proteinG || 0),
+        carbsG: Number(item.carbsG || 0),
+        fatsG: Number(item.fatsG || 0),
+        description: item.description ? String(item.description) : undefined,
+      }));
   } catch {
     return [];
   }
@@ -314,13 +325,14 @@ export default function MealPlannerSettings() {
     }
   }
 
-  async function addMealToDay(dayKey: string, mealTemplateId: number, timeOfDay?: string) {
+  async function addMealToDay(dayKey: string, mealTemplateId: number, timeOfDay?: string, slotTiming?: string) {
     if (!Number.isFinite(mealTemplateId) || mealTemplateId <= 0) {
       flash('Invalid meal template selected');
       return;
     }
 
-    if (!meals.some(m => m.id === mealTemplateId)) {
+    const pickedMeal = meals.find(m => m.id === mealTemplateId);
+    if (!pickedMeal) {
       flash('Meal template not found');
       return;
     }
@@ -330,11 +342,20 @@ export default function MealPlannerSettings() {
       flash('Meal already exists for this day');
       return;
     }
+
+    const timingKey = normalizeTimingTag(slotTiming || pickedMeal.timing);
+    const nextExisting = timingKey
+      ? existing.filter((a) => {
+        const assignedMeal = meals.find(m => m.id === a.mealTemplateId);
+        return normalizeTimingTag(assignedMeal?.timing) !== timingKey;
+      })
+      : existing;
+
     const newAssignment: MealAssignment = {
       mealTemplateId,
       timeOfDay: timeOfDay?.trim() || undefined,
     };
-    await savePlan({ ...mealPlan, [dayKey]: [...existing, newAssignment] });
+    await savePlan({ ...mealPlan, [dayKey]: [...nextExisting, newAssignment] });
   }
 
   useEffect(() => {
@@ -343,10 +364,10 @@ export default function MealPlannerSettings() {
     if (loading) return;
     const pickedId = Number(pick?.mealTemplateId);
     if (!pick?.dayKey || !Number.isFinite(pickedId) || pickedId <= 0) return;
-    const signature = `${pick.dayKey}-${pickedId}-${pick.timeOfDay || ''}`;
+    const signature = `${pick.dayKey}-${pickedId}-${pick.timeOfDay || ''}-${pick.slotTiming || ''}`;
     if (lastAppliedPickRef.current === signature) return;
     lastAppliedPickRef.current = signature;
-    addMealToDay(pick.dayKey, pickedId, pick.timeOfDay);
+    addMealToDay(pick.dayKey, pickedId, pick.timeOfDay, pick.slotTiming);
   }, [location.state, loading]);
 
   function openMealPicker(dayKey: string) {
@@ -401,11 +422,13 @@ export default function MealPlannerSettings() {
         const tb = parseTimeOfDayToMinutes(timeB);
         return ta !== tb ? ta - tb : a.meal.id - b.meal.id;
       })
-      .map(item => item?.meal)
+      .map(item => ({ ...item.meal, timeOfDay: item.overrideTime || item.meal.timeOfDay }))
       .filter((meal): meal is MealTemplate => meal !== null && meal !== undefined);
   }, [mealPlan, meals, selectedDayKey, selectedDate]);
 
   const selectedDayCalories = selectedMeals.reduce((sum, meal) => {
+    // Use server-calculated totals if available, otherwise fall back to summing ingredient macros
+    if (meal.totalCaloriesKcal !== undefined) return sum + meal.totalCaloriesKcal;
     const ingredientsForMeal = parseIngredients(meal.ingredientsJson);
     return sum + ingredientsForMeal.reduce((a, i) => a + i.caloriesKcal, 0);
   }, 0);
@@ -536,6 +559,10 @@ export default function MealPlannerSettings() {
                   timeOfDay={meal.timeOfDay}
                   imageUrl={meal.imageUrl}
                   ingredients={parseIngredients(meal.ingredientsJson)}
+                  totalCaloriesKcal={meal.totalCaloriesKcal}
+                  totalProteinG={meal.totalProteinG}
+                  totalCarbsG={meal.totalCarbsG}
+                  totalFatsG={meal.totalFatsG}
                   onRemove={() => removeMealFromDay(selectedDayKey, meal.id)}
                 />
               ))}
@@ -606,9 +633,12 @@ export default function MealPlannerSettings() {
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 {filteredMeals.map(meal => {
-                  const ings = parseIngredients(meal.ingredientsJson);
-                  const total = ings.reduce((s, i) => s + i.caloriesKcal, 0);
-                  const macros = { protein: ings.reduce((s, i) => s + i.proteinG, 0), carbs: ings.reduce((s, i) => s + i.carbsG, 0), fats: ings.reduce((s, i) => s + i.fatsG, 0) };
+                  const total = meal.totalCaloriesKcal ?? parseIngredients(meal.ingredientsJson).reduce((s, i) => s + i.caloriesKcal, 0);
+                  const macros = {
+                    protein: meal.totalProteinG ?? parseIngredients(meal.ingredientsJson).reduce((s, i) => s + i.proteinG, 0),
+                    carbs: meal.totalCarbsG ?? parseIngredients(meal.ingredientsJson).reduce((s, i) => s + i.carbsG, 0),
+                    fats: meal.totalFatsG ?? parseIngredients(meal.ingredientsJson).reduce((s, i) => s + i.fatsG, 0),
+                  };
                   return (
                     <div key={meal.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
                       <button onClick={() => navigate(`/settings/meals/template/${meal.id}`)} className="w-full text-left">

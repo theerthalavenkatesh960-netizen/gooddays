@@ -7,4 +7,6 @@ public class MealIngredientUpsertRequest
     public double ProteinG { get; set; }
     public double CarbsG { get; set; }
     public double FatsG { get; set; }
+    public double DefaultQty { get; set; } = 1;
+    public string DefaultUnit { get; set; } = "unit";
 }

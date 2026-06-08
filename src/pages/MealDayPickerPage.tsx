@@ -14,7 +14,32 @@ type MealTemplate = {
 
 type PickerState = {
   dayKey?: string;
+  slotTiming?: string;
+  source?: string;
 };
+
+type WeeklyMealPlan = { planJson?: string; plan_json?: string } | null;
+type MealAssignment = { mealTemplateId?: number; timeOfDay?: string };
+
+const TIMING_OPTIONS = ['breakfast', 'lunch', 'dinner', 'pre-workout', 'post-workout', 'snack'] as const;
+
+function normalizeTiming(value?: string): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeAssignments(dayValue: unknown): MealAssignment[] {
+  if (!Array.isArray(dayValue)) return [];
+  return dayValue
+    .map((item) => {
+      if (item && typeof item === 'object' && 'mealTemplateId' in item) {
+        const id = Number((item as MealAssignment).mealTemplateId);
+        return Number.isFinite(id) && id > 0 ? { mealTemplateId: id, timeOfDay: (item as MealAssignment).timeOfDay } : null;
+      }
+      const id = Number(item);
+      return Number.isFinite(id) && id > 0 ? { mealTemplateId: id } : null;
+    })
+    .filter((x): x is MealAssignment => !!x);
+}
 
 function parseIngredients(json: string) {
   try {
@@ -31,49 +56,85 @@ export default function MealDayPickerPage() {
   const location = useLocation();
   const { dayKey } = ((location.state || {}) as PickerState);
   const [meals, setMeals] = useState<MealTemplate[]>([]);
+  const [dayAssignments, setDayAssignments] = useState<MealAssignment[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState('');
-  const [timing, setTiming] = useState<'all' | 'breakfast' | 'lunch' | 'dinner' | 'pre-workout' | 'post-workout' | 'snack'>('all');
+  const [slotTiming, setSlotTiming] = useState<string>(((location.state || {}) as PickerState).slotTiming || '');
   const [pickTime, setPickTime] = useState('');
   const [status, setStatus] = useState('');
+
+  const resolvedDayKey = dayKey || new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
     if (loaded) return;
     setLoaded(true);
-    api.getMealTemplates().then((data: any) => {
-      setMeals(Array.isArray(data) ? data : []);
+    Promise.all([
+      api.getMealTemplates(),
+      api.getWeeklyMealPlan() as Promise<WeeklyMealPlan>,
+    ]).then(([data, plan]) => {
+      const nextMeals = Array.isArray(data) ? data : [];
+      setMeals(nextMeals);
+
+      let map: Record<string, unknown> = {};
+      try {
+        const raw = plan?.planJson ?? plan?.plan_json;
+        map = raw ? JSON.parse(raw) : {};
+      } catch {
+        map = {};
+      }
+
+      setDayAssignments(normalizeAssignments(map?.[resolvedDayKey]));
     });
   }, [loaded]);
 
   const filtered = useMemo(() => {
+    if (!slotTiming) return [];
     let list = meals;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(m => m.name.toLowerCase().includes(q));
     }
-    if (timing !== 'all') list = list.filter(m => m.timing === timing);
+    list = list.filter(m => normalizeTiming(m.timing) === normalizeTiming(slotTiming));
     return list;
-  }, [meals, search, timing]);
+  }, [meals, search, slotTiming]);
+
+  const currentSlotMeal = useMemo(() => {
+    if (!slotTiming) return null;
+    const normalized = normalizeTiming(slotTiming);
+    for (const assignment of dayAssignments) {
+      const meal = meals.find(m => m.id === Number(assignment.mealTemplateId));
+      if (meal && normalizeTiming(meal.timing) === normalized) {
+        return meal;
+      }
+    }
+    return null;
+  }, [slotTiming, dayAssignments, meals]);
 
   function pickMeal(meal: MealTemplate) {
+    if (!slotTiming) {
+      setStatus('Select a timing slot first');
+      return;
+    }
+
     const pickedId = Number((meal as any).id ?? (meal as any).mealTemplateId ?? (meal as any).templateId);
     if (!Number.isFinite(pickedId) || pickedId <= 0) {
       setStatus('Invalid meal template selected');
       return;
     }
 
-    if (!dayKey) {
-      navigate('/settings/meals', { state: { tab: 'weekly' } });
-      return;
+    if (currentSlotMeal && currentSlotMeal.id !== pickedId) {
+      const ok = window.confirm(`Replace ${currentSlotMeal.name} (${slotTiming}) with ${meal.name}?`);
+      if (!ok) return;
     }
 
     navigate('/settings/meals', {
       state: {
         tab: 'weekly',
         mealPick: {
-          dayKey,
+          dayKey: resolvedDayKey,
           mealTemplateId: pickedId,
           timeOfDay: pickTime.trim() || meal.timeOfDay || undefined,
+          slotTiming,
         },
         reloadAt: Date.now(),
       },
@@ -86,7 +147,7 @@ export default function MealDayPickerPage() {
         <button onClick={() => navigate('/settings/meals', { state: { tab: 'weekly' } })} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--surface)' }}>
           <ArrowLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
-        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Pick Meal for {dayKey || 'Day'}</h1>
+        <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Pick Meal for {resolvedDayKey}</h1>
       </div>
 
       {status && (
@@ -103,9 +164,9 @@ export default function MealDayPickerPage() {
             className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)' }} />
         </div>
 
-        <select value={timing} onChange={e => setTiming(e.target.value as any)} className="w-full px-3 py-2 text-sm rounded-xl outline-none mb-2"
+        <select value={slotTiming} onChange={e => setSlotTiming(e.target.value)} className="w-full px-3 py-2 text-sm rounded-xl outline-none mb-2"
           style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
-          <option value="all">All timings</option>
+          <option value="">Select timing slot...</option>
           <option value="breakfast">Breakfast</option>
           <option value="lunch">Lunch</option>
           <option value="dinner">Dinner</option>
@@ -117,6 +178,22 @@ export default function MealDayPickerPage() {
         <input value={pickTime} onChange={e => setPickTime(e.target.value)} placeholder="Override time HH:MM (optional)"
           className="w-full px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
       </div>
+
+      {slotTiming && (
+        <div className="rounded-xl px-3 py-2 mb-3 text-xs"
+          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+          {currentSlotMeal
+            ? `Current ${slotTiming}: ${currentSlotMeal.name}`
+            : `No ${slotTiming} planned yet. Pick one below.`}
+        </div>
+      )}
+
+      {slotTiming && !TIMING_OPTIONS.includes(slotTiming as typeof TIMING_OPTIONS[number]) && (
+        <div className="rounded-xl px-3 py-2 mb-3 text-xs"
+          style={{ backgroundColor: 'rgba(255,107,107,0.1)', color: 'var(--accent-warm)' }}>
+          Please choose a valid timing slot.
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         {filtered.map(meal => {

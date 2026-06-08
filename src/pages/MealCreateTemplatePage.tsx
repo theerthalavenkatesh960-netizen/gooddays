@@ -11,14 +11,14 @@ type Ingredient = {
   proteinG: number;
   carbsG: number;
   fatsG: number;
-  baseQty?: number;
-  baseUnit?: string;
+  defaultQty?: number;
+  defaultUnit?: string;
 };
 
-type MealSelection = { ingredientId: number; qty: number };
+type MealSelection = { ingredientId: number; qty: number; unit: string };
 
 function calcScaled(ing: Ingredient, qty: number) {
-  const baseQty = Math.max(1, Number(ing.baseQty || 100));
+  const baseQty = Math.max(0.01, Number(ing.defaultQty || 1));
   const factor = qty / baseQty;
   return {
     caloriesKcal: Number((ing.caloriesKcal * factor).toFixed(2)),
@@ -40,7 +40,7 @@ export default function MealCreateTemplatePage() {
     recipe: '',
     imageUrl: '',
     selectedIngredientId: '',
-    selectedQty: '100',
+    selectedQty: '',
     selectedIngredients: [] as MealSelection[],
   });
 
@@ -50,16 +50,18 @@ export default function MealCreateTemplatePage() {
     const data = await api.getMealIngredients();
     const list: Ingredient[] = (Array.isArray(data) ? data : []).map((i: any) => ({
       ...i,
-      baseQty: Number(i.baseQty || 100),
-      baseUnit: i.baseUnit || 'g',
+      defaultQty: Number(i.defaultQty || 1),
+      defaultUnit: i.defaultUnit || 'unit',
     }));
     setIngredients(list);
   }
 
   function addIngredientToMeal() {
     const ingredientId = Number(form.selectedIngredientId);
-    const qty = Math.max(1, Number(form.selectedQty) || 1);
-    if (!ingredientId) return;
+    const ing = ingredients.find(i => i.id === ingredientId);
+    if (!ingredientId || !ing) return;
+    const qty = Math.max(0.01, Number(form.selectedQty) || ing.defaultQty || 1);
+    const unit = ing.defaultUnit || 'unit';
 
     setForm(prev => {
       const existing = prev.selectedIngredients.find(x => x.ingredientId === ingredientId);
@@ -73,7 +75,7 @@ export default function MealCreateTemplatePage() {
       }
       return {
         ...prev,
-        selectedIngredients: [...prev.selectedIngredients, { ingredientId, qty }],
+        selectedIngredients: [...prev.selectedIngredients, { ingredientId, qty, unit }],
       };
     });
   }
@@ -86,14 +88,13 @@ export default function MealCreateTemplatePage() {
         .map(sel => {
           const ing = ingredients.find(i => i.id === sel.ingredientId);
           if (!ing) return null;
-          const scaled = calcScaled(ing, sel.qty);
+          // New format: ingredientId + qty/unit for server-side macro calculation
+          // Also store name so MealCard can display ingredient names without extra lookups
           return {
-            id: ing.id,
+            ingredientId: ing.id,
             name: ing.name,
             qty: sel.qty,
-            baseQty: Number(ing.baseQty || 100),
-            baseUnit: ing.baseUnit || 'g',
-            ...scaled,
+            unit: sel.unit || ing.defaultUnit || 'unit',
           };
         })
         .filter(Boolean);
@@ -165,14 +166,23 @@ export default function MealCreateTemplatePage() {
         </div>
 
         <div className="grid grid-cols-12 gap-2">
-          <select value={form.selectedIngredientId} onChange={e => setForm(p => ({ ...p, selectedIngredientId: e.target.value }))}
+          <select value={form.selectedIngredientId} onChange={e => {
+              const id = e.target.value;
+              const ing = ingredients.find(i => String(i.id) === id);
+              setForm(p => ({ ...p, selectedIngredientId: id, selectedQty: ing ? String(ing.defaultQty ?? 1) : '' }));
+            }}
             className="col-span-7 px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
             <option value="">Pick ingredient</option>
-            {ingredients.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+            {ingredients.map(i => <option key={i.id} value={i.id}>{i.name} ({i.defaultQty} {i.defaultUnit})</option>)}
           </select>
 
-          <input type="number" value={form.selectedQty} onChange={e => setForm(p => ({ ...p, selectedQty: e.target.value }))}
-            className="col-span-3 px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} placeholder="Qty" />
+          <input type="number" value={form.selectedQty}
+            onChange={e => setForm(p => ({ ...p, selectedQty: e.target.value }))}
+            className="col-span-3 px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+            placeholder={(() => {
+              const ing = ingredients.find(i => String(i.id) === form.selectedIngredientId);
+              return ing ? `${ing.defaultQty} ${ing.defaultUnit}` : 'Qty';
+            })()} />
 
           <button onClick={addIngredientToMeal} className="col-span-2 h-10 rounded-xl text-white text-sm font-semibold" style={{ backgroundColor: 'var(--accent)' }}>Add</button>
         </div>
@@ -186,7 +196,7 @@ export default function MealCreateTemplatePage() {
                 onClick={() => setForm(p => ({ ...p, selectedIngredients: p.selectedIngredients.filter(x => x.ingredientId !== row.ingredientId) }))}
                 className="px-2.5 py-1.5 rounded-lg text-xs font-medium"
                 style={{ backgroundColor: 'rgba(108, 99, 255, 0.15)', color: 'var(--accent)' }}>
-                {ing.name} ({row.qty}{ing.baseUnit || 'g'}) ×
+                {ing.name} ({row.qty} {row.unit}) ×
               </button>
             );
           })}

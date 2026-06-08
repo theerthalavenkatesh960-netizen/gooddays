@@ -632,3 +632,38 @@ SELECT 1,'Full Day Budget Meal Plan - Rest Day','dinner',
 'REFERENCE PLAN - Rest Day (~1880 kcal | 134g protein). Slight calorie deficit on non-training days. Breakfast: Egg omelette + oats. Lunch: Soya curry + rice. Snack: Sprouts/peanuts. Dinner: Rajma + roti + curd. Full vegetarian day cost under ₹130.',
 NULL,now()
 WHERE NOT EXISTS (SELECT 1 FROM meal_templates WHERE user_id=1 AND lower(name)=lower('Full Day Budget Meal Plan - Rest Day'));
+
+-- ================================================================
+-- Normalize ingredient JSON to the new format after seeding:
+-- [{ "ingredientId", "name", "qty", "unit" }]
+-- ================================================================
+WITH normalized AS (
+	SELECT
+		mt.id AS meal_template_id,
+		jsonb_agg(
+			jsonb_build_object(
+				'ingredientId', COALESCE(
+					CASE WHEN (e->>'ingredientId') ~ '^[0-9]+$' THEN (e->>'ingredientId')::int END,
+					CASE WHEN (e->>'id') ~ '^[0-9]+$' THEN (e->>'id')::int END,
+					mi.id
+				),
+				'name', COALESCE(NULLIF(e->>'name', ''), mi.name),
+				'qty', COALESCE(CASE WHEN (e->>'qty') ~ '^[0-9]+(\.[0-9]+)?$' THEN (e->>'qty')::numeric END, 1),
+				'unit', COALESCE(NULLIF(e->>'unit', ''), NULLIF(e->>'baseUnit', ''), mi.default_unit, 'unit')
+			)
+		) AS normalized_json
+	FROM meal_templates mt
+	CROSS JOIN LATERAL jsonb_array_elements(mt.ingredients_json::jsonb) e
+	LEFT JOIN meal_ingredients mi
+		ON mi.user_id = mt.user_id
+	 AND mi.id = COALESCE(
+			CASE WHEN (e->>'ingredientId') ~ '^[0-9]+$' THEN (e->>'ingredientId')::int END,
+			CASE WHEN (e->>'id') ~ '^[0-9]+$' THEN (e->>'id')::int END
+	 )
+	WHERE mt.user_id = 1
+	GROUP BY mt.id
+)
+UPDATE meal_templates mt
+SET ingredients_json = normalized.normalized_json::text
+FROM normalized
+WHERE mt.id = normalized.meal_template_id;

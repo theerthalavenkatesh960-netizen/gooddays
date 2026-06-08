@@ -22,9 +22,9 @@ export default function MealIngredientLibraryPage() {
   const [search, setSearch] = useState('');
   const [macroFocus, setMacroFocus] = useState<'all' | 'protein' | 'carbs' | 'fats'>('all');
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editing, setEditing] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '' });
+  const [editing, setEditing] = useState({ name: '', calories: '', protein: '', carbs: '', fats: '', defaultQty: '1', defaultUnit: 'unit' });
   const [form, setForm] = useState({
-    name: '', calories: '', protein: '', carbs: '', fats: '', baseQty: '100', baseUnit: 'g',
+    name: '', calories: '', protein: '', carbs: '', fats: '', defaultQty: '1', defaultUnit: 'unit',
   });
 
   useEffect(() => { load(); }, []);
@@ -48,13 +48,15 @@ export default function MealIngredientLibraryPage() {
         proteinG: Math.max(0, Number(form.protein) || 0),
         carbsG: Math.max(0, Number(form.carbs) || 0),
         fatsG: Math.max(0, Number(form.fats) || 0),
+        defaultQty: Math.max(0.01, Number(form.defaultQty) || 1),
+        defaultUnit: form.defaultUnit.trim() || 'unit',
       });
       setIngredients(prev => [...prev, {
         ...item,
-        baseQty: Math.max(1, Number(form.baseQty) || 100),
-        baseUnit: form.baseUnit || 'g',
+        baseQty: item.defaultQty ?? Math.max(1, Number(form.defaultQty) || 1),
+        baseUnit: (item.defaultUnit ?? form.defaultUnit) || 'unit',
       }]);
-      setForm({ name: '', calories: '', protein: '', carbs: '', fats: '', baseQty: '100', baseUnit: 'g' });
+      setForm({ name: '', calories: '', protein: '', carbs: '', fats: '', defaultQty: '1', defaultUnit: 'unit' });
     } catch (e: any) {
       setStatus(e?.message || 'Failed to add ingredient');
     }
@@ -73,6 +75,8 @@ export default function MealIngredientLibraryPage() {
       protein: String(item.proteinG ?? 0),
       carbs: String(item.carbsG ?? 0),
       fats: String(item.fatsG ?? 0),
+      defaultQty: String(item.baseQty ?? 1),
+      defaultUnit: item.baseUnit ?? 'unit',
     });
   }
 
@@ -85,6 +89,8 @@ export default function MealIngredientLibraryPage() {
         proteinG: Math.max(0, Number(editing.protein) || 0),
         carbsG: Math.max(0, Number(editing.carbs) || 0),
         fatsG: Math.max(0, Number(editing.fats) || 0),
+        defaultQty: Math.max(0.01, Number(editing.defaultQty) || 1),
+        defaultUnit: editing.defaultUnit.trim() || 'unit',
       });
       setIngredients(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i));
       setEditingId(null);
@@ -135,10 +141,10 @@ export default function MealIngredientLibraryPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <input type="number" value={form.baseQty} onChange={e => setForm(p => ({ ...p, baseQty: e.target.value }))}
-            placeholder="Base qty" className="px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
-          <input value={form.baseUnit} onChange={e => setForm(p => ({ ...p, baseUnit: e.target.value }))}
-            placeholder="Unit (g, ml, serving)" className="px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+          <input type="number" value={form.defaultQty} onChange={e => setForm(p => ({ ...p, defaultQty: e.target.value }))}
+            placeholder="Default qty (e.g. 1, 150)" className="px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+          <input value={form.defaultUnit} onChange={e => setForm(p => ({ ...p, defaultUnit: e.target.value }))}
+            placeholder="Unit (egg, tbsp, g, ml...)" className="px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
         </div>
 
         <button onClick={add} className="w-full h-10 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2" style={{ backgroundColor: 'var(--accent)' }}>
@@ -193,6 +199,10 @@ export default function MealIngredientLibraryPage() {
                       placeholder="Carbs" className="px-2.5 py-2 text-xs rounded-lg outline-none" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }} />
                     <input type="number" value={editing.fats} onChange={e => setEditing(p => ({ ...p, fats: e.target.value }))}
                       placeholder="Fats" className="px-2.5 py-2 text-xs rounded-lg outline-none" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }} />
+                    <input type="number" value={editing.defaultQty} onChange={e => setEditing(p => ({ ...p, defaultQty: e.target.value }))}
+                      placeholder="Default qty" className="px-2.5 py-2 text-xs rounded-lg outline-none" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }} />
+                    <input value={editing.defaultUnit} onChange={e => setEditing(p => ({ ...p, defaultUnit: e.target.value }))}
+                      placeholder="Unit (egg, tbsp, g...)" className="px-2.5 py-2 text-xs rounded-lg outline-none" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }} />
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => saveEdit(i.id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: 'var(--accent-green)' }}>
@@ -212,7 +222,7 @@ export default function MealIngredientLibraryPage() {
                       <button onClick={() => remove(i.id)} className="p-1 rounded-lg" style={{ color: 'var(--accent-warm)' }}><Trash2 size={14} /></button>
                     </div>
                   </div>
-                  <p className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>per {Number(i.baseQty || 100)} {i.baseUnit || 'g'}</p>
+                  <p className="text-xs mb-1.5" style={{ color: 'var(--text-secondary)' }}>default: {Number(i.baseQty || 1)} {i.baseUnit || 'unit'}</p>
                   <div className="flex items-center gap-3 text-xs font-semibold">
                     <span style={{ color: '#B7791F' }}>{i.caloriesKcal} kcal</span>
                     <span style={{ color: '#DC2626' }}>{i.proteinG}g P</span>
