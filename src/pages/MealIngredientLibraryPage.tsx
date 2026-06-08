@@ -114,7 +114,7 @@ export default function MealIngredientLibraryPage() {
   }, [ingredients, search, macroFocus]);
 
   return (
-    <div className="pt-4 pb-nav px-4" style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
+    <div className="meal-ingredients-full-bleed pt-4 pb-nav px-4 flex flex-col" style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
       <div className="flex items-center gap-3 mb-4">
         <button onClick={() => navigate('/settings/meals', { state: { tab: 'library' } })} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--surface)' }}>
           <ArrowLeft size={18} style={{ color: 'var(--text-secondary)' }} />
@@ -152,7 +152,7 @@ export default function MealIngredientLibraryPage() {
         </button>
       </div>
 
-      <div className="rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <div className="flex flex-col flex-1 min-h-0">
         <div className="flex items-center justify-between mb-3">
           <p className="section-label">Ingredients</p>
           <button onClick={() => setShowFilters(v => !v)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: showFilters ? 'var(--accent)' : 'var(--surface-elevated)', color: showFilters ? '#fff' : 'var(--text-secondary)' }}>
@@ -183,7 +183,7 @@ export default function MealIngredientLibraryPage() {
           </div>
         )}
 
-        <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+        <div className="space-y-2 flex-1 min-h-0 overflow-y-auto pb-2">
           {filtered.map(i => (
             <div key={i.id} className="p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
               {editingId === i.id ? (
