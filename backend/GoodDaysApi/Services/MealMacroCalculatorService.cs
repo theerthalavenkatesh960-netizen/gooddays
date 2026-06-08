@@ -21,8 +21,34 @@ public class MealMacroCalculatorService
 
     // Internal record covering both old and new ingredient formats
     private record ParsedEntry(
-        int IngredientId, double Qty,
-        double? InlineCal, double? InlineProt, double? InlineCarbs, double? InlineFats);
+        int IngredientId,
+        string Name,
+        double Qty,
+        double BaseQty,
+        string BaseUnit,
+        double? InlineCal,
+        double? InlineProt,
+        double? InlineCarbs,
+        double? InlineFats);
+
+    private static bool TryReadNumber(JsonElement element, out double value)
+    {
+        if (element.ValueKind == JsonValueKind.Number)
+        {
+            value = element.GetDouble();
+            return true;
+        }
+
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            return double.TryParse(element.GetString(), out value);
+        }
+
+        value = 0;
+        return false;
+    }
+
+    private static double Round2(double value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
 
     private List<ParsedEntry> ParseAllFormats(string? json)
     {
@@ -47,21 +73,45 @@ public class MealMacroCalculatorService
                     if (oldId.ValueKind == JsonValueKind.Number) id = oldId.GetInt32();
                     else if (oldId.ValueKind == JsonValueKind.String) int.TryParse(oldId.GetString(), out id);
                 }
+                var name = string.Empty;
+                if (el.TryGetProperty("name", out var nameProp) && nameProp.ValueKind == JsonValueKind.String)
+                {
+                    name = nameProp.GetString()?.Trim() ?? string.Empty;
+                }
+
                 double qty = 1;
                 if (el.TryGetProperty("qty", out var qp))
                 {
-                    if (qp.ValueKind == JsonValueKind.Number) qty = qp.GetDouble();
-                    else if (qp.ValueKind == JsonValueKind.String) double.TryParse(qp.GetString(), out qty);
+                    if (!TryReadNumber(qp, out qty)) qty = 1;
                 }
+
+                double baseQty = qty > 0 ? qty : 1;
+                if (el.TryGetProperty("baseQty", out var bq) || el.TryGetProperty("defaultQty", out bq))
+                {
+                    if (!TryReadNumber(bq, out baseQty)) baseQty = qty > 0 ? qty : 1;
+                }
+
+                var baseUnit = "unit";
+                if (el.TryGetProperty("baseUnit", out var bu) ||
+                    el.TryGetProperty("unit", out bu) ||
+                    el.TryGetProperty("defaultUnit", out bu))
+                {
+                    if (bu.ValueKind == JsonValueKind.String)
+                    {
+                        var unit = bu.GetString()?.Trim();
+                        if (!string.IsNullOrWhiteSpace(unit)) baseUnit = unit;
+                    }
+                }
+
                 // Old snapshot format stores pre-scaled macros directly
                 double? cal = null, prot = null, carbs = null, fats = null;
-                if (el.TryGetProperty("caloriesKcal", out var c) && c.ValueKind == JsonValueKind.Number) cal = c.GetDouble();
-                if (el.TryGetProperty("proteinG", out var p) && p.ValueKind == JsonValueKind.Number) prot = p.GetDouble();
-                if (el.TryGetProperty("carbsG", out var cb) && cb.ValueKind == JsonValueKind.Number) carbs = cb.GetDouble();
-                if (el.TryGetProperty("fatsG", out var f) && f.ValueKind == JsonValueKind.Number) fats = f.GetDouble();
+                if (el.TryGetProperty("caloriesKcal", out var c) && TryReadNumber(c, out var calVal)) cal = calVal;
+                if (el.TryGetProperty("proteinG", out var p) && TryReadNumber(p, out var protVal)) prot = protVal;
+                if (el.TryGetProperty("carbsG", out var cb) && TryReadNumber(cb, out var carbsVal)) carbs = carbsVal;
+                if (el.TryGetProperty("fatsG", out var f) && TryReadNumber(f, out var fatsVal)) fats = fatsVal;
                 // Skip only if we have neither a resolvable ID nor inline macros.
                 if (id <= 0 && cal is null && prot is null && carbs is null && fats is null) continue;
-                result.Add(new ParsedEntry(id, qty, cal, prot, carbs, fats));
+                result.Add(new ParsedEntry(id, name, qty, baseQty, baseUnit, cal, prot, carbs, fats));
             }
         }
         catch { }
@@ -81,7 +131,7 @@ public class MealMacroCalculatorService
         var entries = ParseAllFormats(ingredientsJson);
         if (entries.Count == 0) return (0, 0, 0, 0);
 
-        var idsToLookup = entries.Where(e => e.InlineCal == null).Select(e => e.IngredientId).Distinct().ToList();
+        var idsToLookup = entries.Where(e => e.IngredientId > 0).Select(e => e.IngredientId).Distinct().ToList();
         var ingredients = idsToLookup.Count > 0
             ? await _db.MealIngredients.Where(i => idsToLookup.Contains(i.Id)).ToDictionaryAsync(i => i.Id)
             : new Dictionary<int, MealIngredient>();
@@ -91,23 +141,89 @@ public class MealMacroCalculatorService
         {
             if (ingredients.TryGetValue(e.IngredientId, out var ing))
             {
-                // New format: scale DB macros by qty
-                var qty = e.Qty > 0 ? e.Qty : ing.DefaultQty;
-                totalCal += ing.CaloriesKcal * qty;
-                totalProt += ing.ProteinG * qty;
-                totalCarbs += ing.CarbsG * qty;
-                totalFats += ing.FatsG * qty;
+                // Source-of-truth: scale DB macros by (qty / defaultQty)
+                var defaultQty = Math.Max(0.01, ing.DefaultQty);
+                var qty = e.Qty > 0 ? e.Qty : defaultQty;
+                var factor = qty / defaultQty;
+                totalCal += ing.CaloriesKcal * factor;
+                totalProt += ing.ProteinG * factor;
+                totalCarbs += ing.CarbsG * factor;
+                totalFats += ing.FatsG * factor;
             }
             else if (e.InlineCal.HasValue)
             {
-                // Old snapshot format: already scaled at save time, use directly
-                totalCal += e.InlineCal.Value;
-                totalProt += e.InlineProt ?? 0;
-                totalCarbs += e.InlineCarbs ?? 0;
-                totalFats += e.InlineFats ?? 0;
+                // Legacy fallback: keep snapshot-compatible scaling.
+                var baseQty = e.BaseQty > 0 ? e.BaseQty : (e.Qty > 0 ? e.Qty : 1);
+                var qty = e.Qty > 0 ? e.Qty : baseQty;
+                var factor = qty / Math.Max(0.01, baseQty);
+                totalCal += (e.InlineCal ?? 0) * factor;
+                totalProt += (e.InlineProt ?? 0) * factor;
+                totalCarbs += (e.InlineCarbs ?? 0) * factor;
+                totalFats += (e.InlineFats ?? 0) * factor;
             }
         }
         return ((int)totalCal, totalProt, totalCarbs, totalFats);
+    }
+
+    /// <summary>
+    /// Canonicalize ingredient JSON so stored rows always contain computed macros
+    /// derived from ingredient source-of-truth when resolvable by id.
+    /// </summary>
+    public async Task<string> CanonicalizeIngredientsJsonAsync(string? ingredientsJson)
+    {
+        var entries = ParseAllFormats(ingredientsJson);
+        if (entries.Count == 0) return "[]";
+
+        var ids = entries.Where(e => e.IngredientId > 0).Select(e => e.IngredientId).Distinct().ToList();
+        var ingredients = ids.Count > 0
+            ? await _db.MealIngredients.Where(i => ids.Contains(i.Id)).ToDictionaryAsync(i => i.Id)
+            : new Dictionary<int, MealIngredient>();
+
+        var result = new List<object>(entries.Count);
+        foreach (var e in entries)
+        {
+            if (ingredients.TryGetValue(e.IngredientId, out var ing))
+            {
+                var defaultQty = Math.Max(0.01, ing.DefaultQty);
+                var qty = e.Qty > 0 ? e.Qty : defaultQty;
+                var factor = qty / defaultQty;
+
+                result.Add(new
+                {
+                    ingredientId = ing.Id,
+                    id = ing.Id,
+                    name = ing.Name,
+                    qty,
+                    baseQty = defaultQty,
+                    baseUnit = string.IsNullOrWhiteSpace(ing.DefaultUnit) ? "unit" : ing.DefaultUnit,
+                    caloriesKcal = Round2(ing.CaloriesKcal * factor),
+                    proteinG = Round2(ing.ProteinG * factor),
+                    carbsG = Round2(ing.CarbsG * factor),
+                    fatsG = Round2(ing.FatsG * factor),
+                });
+                continue;
+            }
+
+            var baseQtyFallback = e.BaseQty > 0 ? e.BaseQty : (e.Qty > 0 ? e.Qty : 1);
+            var qtyFallback = e.Qty > 0 ? e.Qty : baseQtyFallback;
+            var factorFallback = qtyFallback / Math.Max(0.01, baseQtyFallback);
+
+            result.Add(new
+            {
+                ingredientId = e.IngredientId,
+                id = e.IngredientId,
+                name = e.Name,
+                qty = qtyFallback,
+                baseQty = baseQtyFallback,
+                baseUnit = string.IsNullOrWhiteSpace(e.BaseUnit) ? "unit" : e.BaseUnit,
+                caloriesKcal = Round2((e.InlineCal ?? 0) * factorFallback),
+                proteinG = Round2((e.InlineProt ?? 0) * factorFallback),
+                carbsG = Round2((e.InlineCarbs ?? 0) * factorFallback),
+                fatsG = Round2((e.InlineFats ?? 0) * factorFallback),
+            });
+        }
+
+        return JsonSerializer.Serialize(result);
     }
 
     /// <summary>
@@ -115,7 +231,8 @@ public class MealMacroCalculatorService
     /// </summary>
     public async Task<MealTemplateWithMacrosDto> ConvertToWithMacrosAsync(MealTemplate template)
     {
-        var (calories, protein, carbs, fats) = await CalculateMealMacrosAsync(template.IngredientsJson);
+        var canonicalIngredientsJson = await CanonicalizeIngredientsJsonAsync(template.IngredientsJson);
+        var (calories, protein, carbs, fats) = await CalculateMealMacrosAsync(canonicalIngredientsJson);
 
         return new MealTemplateWithMacrosDto
         {
@@ -124,7 +241,7 @@ public class MealMacroCalculatorService
             Name = template.Name,
             Timing = template.Timing,
             TimeOfDay = template.TimeOfDay,
-            IngredientsJson = template.IngredientsJson,
+            IngredientsJson = canonicalIngredientsJson,
             Recipe = template.Recipe,
             ImageUrl = template.ImageUrl,
             CreatedAt = template.CreatedAt,
