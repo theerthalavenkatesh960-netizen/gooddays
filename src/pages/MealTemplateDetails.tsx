@@ -193,12 +193,57 @@ export default function MealTemplateDetails() {
     });
   }, [ingredients, ingredientOptions]);
 
-  const totals = useMemo(() => ({
-    calories: meal?.totalCaloriesKcal ?? displayIngredients.reduce((s, i) => s + i.caloriesKcal, 0),
-    protein: meal?.totalProteinG ?? displayIngredients.reduce((s, i) => s + i.proteinG, 0),
-    carbs: meal?.totalCarbsG ?? displayIngredients.reduce((s, i) => s + i.carbsG, 0),
-    fats: meal?.totalFatsG ?? displayIngredients.reduce((s, i) => s + i.fatsG, 0),
-  }), [displayIngredients, meal]);
+  const editableDisplayIngredients = useMemo(() => {
+    if (editableIngredients.length === 0) return editableIngredients;
+
+    const byId = new Map(ingredientOptions.map((i) => [i.id, i]));
+    return editableIngredients.map((ing) => {
+      const lib = byId.get(ing.id);
+      if (lib) {
+        const defaultQty = Math.max(0.01, Number(lib.defaultQty ?? ing.baseQty ?? 1));
+        const qty = Math.max(0.01, Number(ing.qty ?? defaultQty));
+        const factor = qty / defaultQty;
+
+        return {
+          ...ing,
+          baseUnit: ing.baseUnit || lib.defaultUnit || 'unit',
+          caloriesKcal: Number((Number(lib.caloriesKcal || 0) * factor).toFixed(2)),
+          proteinG: Number((Number(lib.proteinG || 0) * factor).toFixed(2)),
+          carbsG: Number((Number(lib.carbsG || 0) * factor).toFixed(2)),
+          fatsG: Number((Number(lib.fatsG || 0) * factor).toFixed(2)),
+        };
+      }
+
+      const baseQty = Math.max(0.01, Number(ing.baseQty || 1));
+      const qty = Math.max(0.01, Number(ing.qty || baseQty));
+      const factor = qty / baseQty;
+      return {
+        ...ing,
+        caloriesKcal: Number((Number(ing.caloriesKcal || 0) * factor).toFixed(2)),
+        proteinG: Number((Number(ing.proteinG || 0) * factor).toFixed(2)),
+        carbsG: Number((Number(ing.carbsG || 0) * factor).toFixed(2)),
+        fatsG: Number((Number(ing.fatsG || 0) * factor).toFixed(2)),
+      };
+    });
+  }, [editableIngredients, ingredientOptions]);
+
+  const totals = useMemo(() => {
+    if (editing) {
+      return {
+        calories: editableDisplayIngredients.reduce((s, i) => s + i.caloriesKcal, 0),
+        protein: editableDisplayIngredients.reduce((s, i) => s + i.proteinG, 0),
+        carbs: editableDisplayIngredients.reduce((s, i) => s + i.carbsG, 0),
+        fats: editableDisplayIngredients.reduce((s, i) => s + i.fatsG, 0),
+      };
+    }
+
+    return {
+      calories: meal?.totalCaloriesKcal ?? displayIngredients.reduce((s, i) => s + i.caloriesKcal, 0),
+      protein: meal?.totalProteinG ?? displayIngredients.reduce((s, i) => s + i.proteinG, 0),
+      carbs: meal?.totalCarbsG ?? displayIngredients.reduce((s, i) => s + i.carbsG, 0),
+      fats: meal?.totalFatsG ?? displayIngredients.reduce((s, i) => s + i.fatsG, 0),
+    };
+  }, [displayIngredients, editableDisplayIngredients, editing, meal]);
 
   const addIngredient = () => {
     if (!selectedIngredientId) return;
@@ -414,7 +459,14 @@ export default function MealTemplateDetails() {
                       min="0.1"
                       step="0.1"
                       value={qtyInputValues[ing.id] ?? String(ing.qty)}
-                      onChange={(e) => setQtyInputValues(prev => ({ ...prev, [ing.id]: e.target.value }))}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setQtyInputValues(prev => ({ ...prev, [ing.id]: raw }));
+                        const val = Number(raw);
+                        if (raw !== '' && val > 0) {
+                          updateIngredientQty(ing.id, val);
+                        }
+                      }}
                       onBlur={(e) => {
                         const val = Number(e.target.value);
                         if (val > 0) updateIngredientQty(ing.id, val);
