@@ -33,8 +33,8 @@ export default function MealIngredientLibraryPage() {
     const data = await api.getMealIngredients();
     const list: Ingredient[] = (Array.isArray(data) ? data : []).map((i: any) => ({
       ...i,
-      baseQty: Number(i.baseQty || 100),
-      baseUnit: i.baseUnit || 'g',
+      baseQty: Number(i.defaultQty ?? i.baseQty ?? 1),
+      baseUnit: i.defaultUnit ?? i.baseUnit ?? 'unit',
     }));
     setIngredients(list);
   }
@@ -92,7 +92,14 @@ export default function MealIngredientLibraryPage() {
         defaultQty: Math.max(0.01, Number(editing.defaultQty) || 1),
         defaultUnit: editing.defaultUnit.trim() || 'unit',
       });
-      setIngredients(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i));
+      setIngredients(prev => prev.map(i => i.id === id
+        ? {
+            ...i,
+            ...updated,
+            baseQty: Number(updated?.defaultQty ?? updated?.baseQty ?? editing.defaultQty ?? i.baseQty ?? 1),
+            baseUnit: updated?.defaultUnit ?? updated?.baseUnit ?? editing.defaultUnit ?? i.baseUnit ?? 'unit',
+          }
+        : i));
       setEditingId(null);
       setStatus('Ingredient updated');
       setTimeout(() => setStatus(''), 1200);
