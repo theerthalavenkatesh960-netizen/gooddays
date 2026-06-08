@@ -55,8 +55,15 @@ public class MealController : ControllerBase
         };
 
         _db.MealIngredients.Add(entity);
-        await _db.SaveChangesAsync();
-        return Ok(entity);
+        try
+        {
+            await _db.SaveChangesAsync();
+            return Ok(entity);
+        }
+        catch (DbUpdateException ex) when (IsDuplicateIngredientNameError(ex))
+        {
+            return Conflict("Ingredient already exists.");
+        }
     }
 
     [HttpPut("ingredients/{id}")]
@@ -74,8 +81,15 @@ public class MealController : ControllerBase
         item.DefaultQty = Math.Max(0.01, body.DefaultQty);
         item.DefaultUnit = string.IsNullOrWhiteSpace(body.DefaultUnit) ? "unit" : body.DefaultUnit.Trim();
 
-        await _db.SaveChangesAsync();
-        return Ok(item);
+        try
+        {
+            await _db.SaveChangesAsync();
+            return Ok(item);
+        }
+        catch (DbUpdateException ex) when (IsDuplicateIngredientNameError(ex))
+        {
+            return Conflict("Ingredient already exists.");
+        }
     }
 
     [HttpDelete("ingredients/{id}")]
@@ -330,6 +344,22 @@ public class MealController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(name)) return string.Empty;
         return name.Trim().ToLowerInvariant();
+    }
+
+    private static bool IsDuplicateIngredientNameError(Exception ex)
+    {
+        for (var current = ex; current is not null; current = current.InnerException!)
+        {
+            var msg = current.Message ?? string.Empty;
+            if (msg.Contains("ux_meal_ingredients_name_ci", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ─── Weekly Meal Plan ─────────────────────────────────────────────────

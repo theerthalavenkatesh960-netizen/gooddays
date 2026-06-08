@@ -217,9 +217,19 @@ async function request(path: string, opts: RequestInit = {}) {
 }
 
 function resolveErrorMessage(payload: any, fallback: string): string {
-  if (typeof payload === 'string' && payload.trim().length > 0) return payload;
-  if (payload && typeof payload.message === 'string' && payload.message.trim().length > 0) return payload.message;
-  if (payload && typeof payload.error === 'string' && payload.error.trim().length > 0) return payload.error;
+  const raw =
+    (typeof payload === 'string' && payload.trim().length > 0 ? payload : '') ||
+    (payload && typeof payload.message === 'string' && payload.message.trim().length > 0 ? payload.message : '') ||
+    (payload && typeof payload.error === 'string' && payload.error.trim().length > 0 ? payload.error : '');
+
+  if (raw) {
+    const lower = raw.toLowerCase();
+    if (lower.includes('ux_meal_ingredients_name_ci') || lower.includes('duplicate key') || lower.includes('already exists')) {
+      return 'Ingredient already exists.';
+    }
+    return raw;
+  }
+
   return fallback;
 }
 
