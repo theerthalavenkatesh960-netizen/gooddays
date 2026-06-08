@@ -72,6 +72,8 @@ export default function MealTemplateDetails() {
   const [ingredientOptions, setIngredientOptions] = useState<Array<{ id: number; name: string; caloriesKcal: number; proteinG: number; carbsG: number; fatsG: number; defaultQty?: number; defaultUnit?: string }>>([]);
   const [editableIngredients, setEditableIngredients] = useState<IngSnap[]>([]);
   const [selectedIngredientId, setSelectedIngredientId] = useState<number>(0);
+  const [pendingQty, setPendingQty] = useState<string>('');
+  const [qtyInputValues, setQtyInputValues] = useState<Record<number, string>>({});
   const [form, setForm] = useState({
     name: '',
     timing: 'breakfast',
@@ -106,6 +108,12 @@ export default function MealTemplateDetails() {
     if (!editing) return;
     setForm((prev) => ({ ...prev, ingredientsJson: JSON.stringify(editableIngredients) }));
   }, [editableIngredients, editing]);
+
+  useEffect(() => {
+    setQtyInputValues(
+      Object.fromEntries(editableIngredients.map(i => [i.id, String(i.qty)]))
+    );
+  }, [editableIngredients]);
 
   async function load() {
     const mealId = Number(id);
@@ -198,12 +206,13 @@ export default function MealTemplateDetails() {
     if (!chosen) return;
     if (editableIngredients.some((i) => i.id === chosen.id)) return;
 
+    const qty = Math.max(0.1, Number(pendingQty) || Number(chosen.defaultQty) || 1);
     setEditableIngredients((prev) => [
       ...prev,
       {
         id: chosen.id,
         name: chosen.name,
-        qty: Number(chosen.defaultQty || 1),
+        qty,
         baseQty: Number(chosen.defaultQty || 1),
         baseUnit: chosen.defaultUnit || 'unit',
         caloriesKcal: Number(chosen.caloriesKcal || 0),
@@ -213,6 +222,7 @@ export default function MealTemplateDetails() {
       },
     ]);
     setSelectedIngredientId(0);
+    setPendingQty('');
   };
 
   const updateIngredientQty = (idToUpdate: number, nextQty: number) => {
@@ -336,10 +346,15 @@ export default function MealTemplateDetails() {
         <p className="text-xs uppercase font-semibold mb-3" style={{ color: 'var(--text-muted)' }}>Ingredients</p>
         {editing ? (
           <div className="space-y-2">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <select
                 value={selectedIngredientId || ''}
-                onChange={(e) => setSelectedIngredientId(Number(e.target.value || 0))}
+                onChange={(e) => {
+                  const newId = Number(e.target.value || 0);
+                  setSelectedIngredientId(newId);
+                  const chosen = ingredientOptions.find(i => i.id === newId);
+                  setPendingQty(chosen ? String(chosen.defaultQty ?? 1) : '');
+                }}
                 className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
                 style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
               >
@@ -350,6 +365,23 @@ export default function MealTemplateDetails() {
                     <option key={opt.id} value={opt.id}>{opt.name}</option>
                   ))}
               </select>
+              {selectedIngredientId > 0 && (
+                <>
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={pendingQty}
+                    onChange={(e) => setPendingQty(e.target.value)}
+                    placeholder="Qty"
+                    className="w-20 px-2.5 py-1.5 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                  />
+                  <span className="text-xs flex items-center whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
+                    {ingredientOptions.find(i => i.id === selectedIngredientId)?.defaultUnit || 'unit'}
+                  </span>
+                </>
+              )}
               <button
                 type="button"
                 onClick={addIngredient}
@@ -381,8 +413,13 @@ export default function MealTemplateDetails() {
                       type="number"
                       min="0.1"
                       step="0.1"
-                      value={ing.qty}
-                      onChange={(e) => updateIngredientQty(ing.id, Number(e.target.value))}
+                      value={qtyInputValues[ing.id] ?? String(ing.qty)}
+                      onChange={(e) => setQtyInputValues(prev => ({ ...prev, [ing.id]: e.target.value }))}
+                      onBlur={(e) => {
+                        const val = Number(e.target.value);
+                        if (val > 0) updateIngredientQty(ing.id, val);
+                        else setQtyInputValues(prev => ({ ...prev, [ing.id]: String(ing.qty) }));
+                      }}
                       className="w-28 px-2.5 py-1.5 rounded-lg text-sm outline-none"
                       style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
                     />
