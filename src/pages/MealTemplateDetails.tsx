@@ -69,7 +69,7 @@ export default function MealTemplateDetails() {
   const [meal, setMeal] = useState<MealTemplate | null>(null);
   const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState('');
-  const [ingredientOptions, setIngredientOptions] = useState<Array<{ id: number; name: string; caloriesKcal: number; proteinG: number; carbsG: number; fatsG: number; baseQty?: number; baseUnit?: string }>>([]);
+  const [ingredientOptions, setIngredientOptions] = useState<Array<{ id: number; name: string; caloriesKcal: number; proteinG: number; carbsG: number; fatsG: number; defaultQty?: number; defaultUnit?: string }>>([]);
   const [editableIngredients, setEditableIngredients] = useState<IngSnap[]>([]);
   const [selectedIngredientId, setSelectedIngredientId] = useState<number>(0);
   const [form, setForm] = useState({
@@ -89,7 +89,11 @@ export default function MealTemplateDetails() {
     async function loadIngredients() {
       try {
         const data = await api.getMealIngredients();
-        const list = Array.isArray(data) ? data : [];
+        const list = (Array.isArray(data) ? data : []).map((i: any) => ({
+          ...i,
+          defaultQty: Number(i.defaultQty ?? 1),
+          defaultUnit: String(i.defaultUnit || 'unit'),
+        }));
         setIngredientOptions(list);
       } catch {
         setIngredientOptions([]);
@@ -155,12 +159,38 @@ export default function MealTemplateDetails() {
   }
 
   const ingredients = useMemo(() => (meal ? parseIngredients(meal.ingredientsJson) : []), [meal]);
+  const displayIngredients = useMemo(() => {
+    if (ingredients.length === 0) return ingredients;
+
+    const byId = new Map(ingredientOptions.map((i) => [i.id, i]));
+    return ingredients.map((ing) => {
+      const hasInlineMacros = (ing.caloriesKcal > 0) || (ing.proteinG > 0) || (ing.carbsG > 0) || (ing.fatsG > 0);
+      if (hasInlineMacros) return ing;
+
+      const lib = byId.get(ing.id);
+      if (!lib) return ing;
+
+      const defaultQty = Math.max(0.01, Number(lib.defaultQty ?? ing.baseQty ?? 1));
+      const qty = Math.max(0.01, Number(ing.qty ?? defaultQty));
+      const factor = qty / defaultQty;
+
+      return {
+        ...ing,
+        baseUnit: ing.baseUnit || lib.defaultUnit || 'unit',
+        caloriesKcal: Number((Number(lib.caloriesKcal || 0) * factor).toFixed(2)),
+        proteinG: Number((Number(lib.proteinG || 0) * factor).toFixed(2)),
+        carbsG: Number((Number(lib.carbsG || 0) * factor).toFixed(2)),
+        fatsG: Number((Number(lib.fatsG || 0) * factor).toFixed(2)),
+      };
+    });
+  }, [ingredients, ingredientOptions]);
+
   const totals = useMemo(() => ({
-    calories: meal?.totalCaloriesKcal ?? ingredients.reduce((s, i) => s + i.caloriesKcal, 0),
-    protein: meal?.totalProteinG ?? ingredients.reduce((s, i) => s + i.proteinG, 0),
-    carbs: meal?.totalCarbsG ?? ingredients.reduce((s, i) => s + i.carbsG, 0),
-    fats: meal?.totalFatsG ?? ingredients.reduce((s, i) => s + i.fatsG, 0),
-  }), [ingredients, meal]);
+    calories: meal?.totalCaloriesKcal ?? displayIngredients.reduce((s, i) => s + i.caloriesKcal, 0),
+    protein: meal?.totalProteinG ?? displayIngredients.reduce((s, i) => s + i.proteinG, 0),
+    carbs: meal?.totalCarbsG ?? displayIngredients.reduce((s, i) => s + i.carbsG, 0),
+    fats: meal?.totalFatsG ?? displayIngredients.reduce((s, i) => s + i.fatsG, 0),
+  }), [displayIngredients, meal]);
 
   const addIngredient = () => {
     if (!selectedIngredientId) return;
@@ -173,9 +203,9 @@ export default function MealTemplateDetails() {
       {
         id: chosen.id,
         name: chosen.name,
-        qty: Number(chosen.baseQty || 100),
-        baseQty: Number(chosen.baseQty || 100),
-        baseUnit: chosen.baseUnit || 'g',
+        qty: Number(chosen.defaultQty || 1),
+        baseQty: Number(chosen.defaultQty || 1),
+        baseUnit: chosen.defaultUnit || 'unit',
         caloriesKcal: Number(chosen.caloriesKcal || 0),
         proteinG: Number(chosen.proteinG || 0),
         carbsG: Number(chosen.carbsG || 0),
@@ -366,7 +396,7 @@ export default function MealTemplateDetails() {
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No ingredients listed.</p>
         ) : (
           <div className="space-y-2">
-            {ingredients.map(ing => (
+            {displayIngredients.map(ing => (
               <div key={`${ing.id}-${ing.name}`} className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                 <div className="flex items-center justify-between mb-1.5">
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{ing.name}</p>
