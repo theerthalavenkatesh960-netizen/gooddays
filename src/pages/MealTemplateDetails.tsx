@@ -72,6 +72,8 @@ export default function MealTemplateDetails() {
   const [ingredientOptions, setIngredientOptions] = useState<Array<{ id: number; name: string; caloriesKcal: number; proteinG: number; carbsG: number; fatsG: number; defaultQty?: number; defaultUnit?: string }>>([]);
   const [editableIngredients, setEditableIngredients] = useState<IngSnap[]>([]);
   const [selectedIngredientId, setSelectedIngredientId] = useState<number>(0);
+  const [pendingQty, setPendingQty] = useState<string>('');
+  const [qtyInputValues, setQtyInputValues] = useState<Record<number, string>>({});
   const [form, setForm] = useState({
     name: '',
     timing: 'breakfast',
@@ -106,6 +108,12 @@ export default function MealTemplateDetails() {
     if (!editing) return;
     setForm((prev) => ({ ...prev, ingredientsJson: JSON.stringify(editableIngredients) }));
   }, [editableIngredients, editing]);
+
+  useEffect(() => {
+    setQtyInputValues(
+      Object.fromEntries(editableIngredients.map(i => [i.id, String(i.qty)]))
+    );
+  }, [editableIngredients]);
 
   async function load() {
     const mealId = Number(id);
@@ -185,12 +193,57 @@ export default function MealTemplateDetails() {
     });
   }, [ingredients, ingredientOptions]);
 
-  const totals = useMemo(() => ({
-    calories: meal?.totalCaloriesKcal ?? displayIngredients.reduce((s, i) => s + i.caloriesKcal, 0),
-    protein: meal?.totalProteinG ?? displayIngredients.reduce((s, i) => s + i.proteinG, 0),
-    carbs: meal?.totalCarbsG ?? displayIngredients.reduce((s, i) => s + i.carbsG, 0),
-    fats: meal?.totalFatsG ?? displayIngredients.reduce((s, i) => s + i.fatsG, 0),
-  }), [displayIngredients, meal]);
+  const editableDisplayIngredients = useMemo(() => {
+    if (editableIngredients.length === 0) return editableIngredients;
+
+    const byId = new Map(ingredientOptions.map((i) => [i.id, i]));
+    return editableIngredients.map((ing) => {
+      const lib = byId.get(ing.id);
+      if (lib) {
+        const defaultQty = Math.max(0.01, Number(lib.defaultQty ?? ing.baseQty ?? 1));
+        const qty = Math.max(0.01, Number(ing.qty ?? defaultQty));
+        const factor = qty / defaultQty;
+
+        return {
+          ...ing,
+          baseUnit: ing.baseUnit || lib.defaultUnit || 'unit',
+          caloriesKcal: Number((Number(lib.caloriesKcal || 0) * factor).toFixed(2)),
+          proteinG: Number((Number(lib.proteinG || 0) * factor).toFixed(2)),
+          carbsG: Number((Number(lib.carbsG || 0) * factor).toFixed(2)),
+          fatsG: Number((Number(lib.fatsG || 0) * factor).toFixed(2)),
+        };
+      }
+
+      const baseQty = Math.max(0.01, Number(ing.baseQty || 1));
+      const qty = Math.max(0.01, Number(ing.qty || baseQty));
+      const factor = qty / baseQty;
+      return {
+        ...ing,
+        caloriesKcal: Number((Number(ing.caloriesKcal || 0) * factor).toFixed(2)),
+        proteinG: Number((Number(ing.proteinG || 0) * factor).toFixed(2)),
+        carbsG: Number((Number(ing.carbsG || 0) * factor).toFixed(2)),
+        fatsG: Number((Number(ing.fatsG || 0) * factor).toFixed(2)),
+      };
+    });
+  }, [editableIngredients, ingredientOptions]);
+
+  const totals = useMemo(() => {
+    if (editing) {
+      return {
+        calories: editableDisplayIngredients.reduce((s, i) => s + i.caloriesKcal, 0),
+        protein: editableDisplayIngredients.reduce((s, i) => s + i.proteinG, 0),
+        carbs: editableDisplayIngredients.reduce((s, i) => s + i.carbsG, 0),
+        fats: editableDisplayIngredients.reduce((s, i) => s + i.fatsG, 0),
+      };
+    }
+
+    return {
+      calories: meal?.totalCaloriesKcal ?? displayIngredients.reduce((s, i) => s + i.caloriesKcal, 0),
+      protein: meal?.totalProteinG ?? displayIngredients.reduce((s, i) => s + i.proteinG, 0),
+      carbs: meal?.totalCarbsG ?? displayIngredients.reduce((s, i) => s + i.carbsG, 0),
+      fats: meal?.totalFatsG ?? displayIngredients.reduce((s, i) => s + i.fatsG, 0),
+    };
+  }, [displayIngredients, editableDisplayIngredients, editing, meal]);
 
   const addIngredient = () => {
     if (!selectedIngredientId) return;
@@ -198,12 +251,13 @@ export default function MealTemplateDetails() {
     if (!chosen) return;
     if (editableIngredients.some((i) => i.id === chosen.id)) return;
 
+    const qty = Math.max(0.1, Number(pendingQty) || Number(chosen.defaultQty) || 1);
     setEditableIngredients((prev) => [
       ...prev,
       {
         id: chosen.id,
         name: chosen.name,
-        qty: Number(chosen.defaultQty || 1),
+        qty,
         baseQty: Number(chosen.defaultQty || 1),
         baseUnit: chosen.defaultUnit || 'unit',
         caloriesKcal: Number(chosen.caloriesKcal || 0),
@@ -213,6 +267,7 @@ export default function MealTemplateDetails() {
       },
     ]);
     setSelectedIngredientId(0);
+    setPendingQty('');
   };
 
   const updateIngredientQty = (idToUpdate: number, nextQty: number) => {
@@ -336,10 +391,15 @@ export default function MealTemplateDetails() {
         <p className="text-xs uppercase font-semibold mb-3" style={{ color: 'var(--text-muted)' }}>Ingredients</p>
         {editing ? (
           <div className="space-y-2">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <select
                 value={selectedIngredientId || ''}
-                onChange={(e) => setSelectedIngredientId(Number(e.target.value || 0))}
+                onChange={(e) => {
+                  const newId = Number(e.target.value || 0);
+                  setSelectedIngredientId(newId);
+                  const chosen = ingredientOptions.find(i => i.id === newId);
+                  setPendingQty(chosen ? String(chosen.defaultQty ?? 1) : '');
+                }}
                 className="flex-1 px-3 py-2 rounded-lg text-sm outline-none"
                 style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
               >
@@ -350,6 +410,23 @@ export default function MealTemplateDetails() {
                     <option key={opt.id} value={opt.id}>{opt.name}</option>
                   ))}
               </select>
+              {selectedIngredientId > 0 && (
+                <>
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={pendingQty}
+                    onChange={(e) => setPendingQty(e.target.value)}
+                    placeholder="Qty"
+                    className="w-20 px-2.5 py-1.5 rounded-lg text-sm outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                  />
+                  <span className="text-xs flex items-center whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
+                    {ingredientOptions.find(i => i.id === selectedIngredientId)?.defaultUnit || 'unit'}
+                  </span>
+                </>
+              )}
               <button
                 type="button"
                 onClick={addIngredient}
@@ -381,8 +458,20 @@ export default function MealTemplateDetails() {
                       type="number"
                       min="0.1"
                       step="0.1"
-                      value={ing.qty}
-                      onChange={(e) => updateIngredientQty(ing.id, Number(e.target.value))}
+                      value={qtyInputValues[ing.id] ?? String(ing.qty)}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setQtyInputValues(prev => ({ ...prev, [ing.id]: raw }));
+                        const val = Number(raw);
+                        if (raw !== '' && val > 0) {
+                          updateIngredientQty(ing.id, val);
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const val = Number(e.target.value);
+                        if (val > 0) updateIngredientQty(ing.id, val);
+                        else setQtyInputValues(prev => ({ ...prev, [ing.id]: String(ing.qty) }));
+                      }}
                       className="w-28 px-2.5 py-1.5 rounded-lg text-sm outline-none"
                       style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
                     />
