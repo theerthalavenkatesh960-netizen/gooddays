@@ -23,6 +23,10 @@ type MealTemplate = {
   ingredientsJson: string;
   recipe: string;
   imageUrl?: string;
+  totalCaloriesKcal?: number;
+  totalProteinG?: number;
+  totalCarbsG?: number;
+  totalFatsG?: number;
   masterMealTemplateId?: number | null;
   masterMealTemplate?: MasterMealTemplate | null;
 };
@@ -44,11 +48,11 @@ function parseIngredients(json: string): IngSnap[] {
     const parsed = JSON.parse(json) || [];
     if (!Array.isArray(parsed)) return [];
     return parsed.map((item: any) => ({
-      id: Number(item.id || 0),
+      id: Number(item.id || item.ingredientId || 0),
       name: String(item.name || ''),
       qty: Number(item.qty ?? 1),
-      baseQty: Number(item.baseQty ?? 1),
-      baseUnit: String(item.baseUnit || 'serving'),
+      baseQty: Number(item.baseQty ?? item.qty ?? 1),
+      baseUnit: String(item.unit || item.baseUnit || 'serving'),
       caloriesKcal: Number(item.caloriesKcal || 0),
       proteinG: Number(item.proteinG || 0),
       carbsG: Number(item.carbsG || 0),
@@ -152,11 +156,11 @@ export default function MealTemplateDetails() {
 
   const ingredients = useMemo(() => (meal ? parseIngredients(meal.ingredientsJson) : []), [meal]);
   const totals = useMemo(() => ({
-    calories: ingredients.reduce((s, i) => s + i.caloriesKcal, 0),
-    protein: ingredients.reduce((s, i) => s + i.proteinG, 0),
-    carbs: ingredients.reduce((s, i) => s + i.carbsG, 0),
-    fats: ingredients.reduce((s, i) => s + i.fatsG, 0),
-  }), [ingredients]);
+    calories: meal?.totalCaloriesKcal ?? ingredients.reduce((s, i) => s + i.caloriesKcal, 0),
+    protein: meal?.totalProteinG ?? ingredients.reduce((s, i) => s + i.proteinG, 0),
+    carbs: meal?.totalCarbsG ?? ingredients.reduce((s, i) => s + i.carbsG, 0),
+    fats: meal?.totalFatsG ?? ingredients.reduce((s, i) => s + i.fatsG, 0),
+  }), [ingredients, meal]);
 
   const addIngredient = () => {
     if (!selectedIngredientId) return;

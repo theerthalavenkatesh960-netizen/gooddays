@@ -37,13 +37,22 @@ public class MealMacroCalculatorService
                 if (el.ValueKind != JsonValueKind.Object) continue;
                 // Accept both "ingredientId" (new) and "id" (old snapshot format)
                 int id = 0;
-                if (el.TryGetProperty("ingredientId", out var newId) && newId.ValueKind == JsonValueKind.Number)
-                    id = newId.GetInt32();
-                else if (el.TryGetProperty("id", out var oldId) && oldId.ValueKind == JsonValueKind.Number)
-                    id = oldId.GetInt32();
+                if (el.TryGetProperty("ingredientId", out var newId))
+                {
+                    if (newId.ValueKind == JsonValueKind.Number) id = newId.GetInt32();
+                    else if (newId.ValueKind == JsonValueKind.String) int.TryParse(newId.GetString(), out id);
+                }
+                else if (el.TryGetProperty("id", out var oldId))
+                {
+                    if (oldId.ValueKind == JsonValueKind.Number) id = oldId.GetInt32();
+                    else if (oldId.ValueKind == JsonValueKind.String) int.TryParse(oldId.GetString(), out id);
+                }
                 double qty = 1;
-                if (el.TryGetProperty("qty", out var qp) && qp.ValueKind == JsonValueKind.Number)
-                    qty = qp.GetDouble();
+                if (el.TryGetProperty("qty", out var qp))
+                {
+                    if (qp.ValueKind == JsonValueKind.Number) qty = qp.GetDouble();
+                    else if (qp.ValueKind == JsonValueKind.String) double.TryParse(qp.GetString(), out qty);
+                }
                 // Old snapshot format stores pre-scaled macros directly
                 double? cal = null, prot = null, carbs = null, fats = null;
                 if (el.TryGetProperty("caloriesKcal", out var c) && c.ValueKind == JsonValueKind.Number) cal = c.GetDouble();
