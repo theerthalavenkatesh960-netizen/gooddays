@@ -123,9 +123,10 @@ public class MealController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(body.Name)) return BadRequest("Template name is required.");
         var userId = GetUserId();
-        var ingredientsJson = string.IsNullOrWhiteSpace(body.IngredientsJson) ? "[]" : body.IngredientsJson;
+        var rawIngredientsJson = string.IsNullOrWhiteSpace(body.IngredientsJson) ? "[]" : body.IngredientsJson;
 
-        await EnsureMissingIngredientsFromJsonAsync(ingredientsJson);
+        await EnsureMissingIngredientsFromJsonAsync(rawIngredientsJson);
+        var ingredientsJson = await _macroCalculator.CanonicalizeIngredientsJsonAsync(rawIngredientsJson);
 
         var entity = new MealTemplate
         {
@@ -152,8 +153,9 @@ public class MealController : ControllerBase
         if (item is null) return NotFound();
         if (string.IsNullOrWhiteSpace(body.Name)) return BadRequest("Template name is required.");
 
-        var ingredientsJson = string.IsNullOrWhiteSpace(body.IngredientsJson) ? "[]" : body.IngredientsJson;
-        await EnsureMissingIngredientsFromJsonAsync(ingredientsJson);
+        var rawIngredientsJson = string.IsNullOrWhiteSpace(body.IngredientsJson) ? "[]" : body.IngredientsJson;
+        await EnsureMissingIngredientsFromJsonAsync(rawIngredientsJson);
+        var ingredientsJson = await _macroCalculator.CanonicalizeIngredientsJsonAsync(rawIngredientsJson);
 
         item.Name = body.Name.Trim();
         item.Timing = string.IsNullOrWhiteSpace(body.Timing) ? "breakfast" : body.Timing.Trim();
@@ -242,7 +244,9 @@ public class MealController : ControllerBase
         if (existing is not null)
             return BadRequest("This meal is already in your library.");
 
-        await EnsureMissingIngredientsFromJsonAsync(master.IngredientsJson ?? "[]");
+        var rawIngredientsJson = master.IngredientsJson ?? "[]";
+        await EnsureMissingIngredientsFromJsonAsync(rawIngredientsJson);
+        var ingredientsJson = await _macroCalculator.CanonicalizeIngredientsJsonAsync(rawIngredientsJson);
 
         // Clone the master meal to user's library
         var cloned = new MealTemplate
@@ -251,7 +255,7 @@ public class MealController : ControllerBase
             Name = master.Name,
             Timing = master.Timing,
             TimeOfDay = master.TimeOfDay,
-            IngredientsJson = master.IngredientsJson ?? "[]",
+            IngredientsJson = ingredientsJson,
             Recipe = master.Recipe ?? string.Empty,
             ImageUrl = master.ImageUrl,
             MasterMealTemplateId = master.Id,

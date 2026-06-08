@@ -105,11 +105,6 @@ export default function MealTemplateDetails() {
   }, []);
 
   useEffect(() => {
-    if (!editing) return;
-    setForm((prev) => ({ ...prev, ingredientsJson: JSON.stringify(editableIngredients) }));
-  }, [editableIngredients, editing]);
-
-  useEffect(() => {
     setQtyInputValues(
       Object.fromEntries(editableIngredients.map(i => [i.id, String(i.qty)]))
     );
@@ -141,7 +136,7 @@ export default function MealTemplateDetails() {
   async function save() {
     if (!meal || !form.name.trim()) return;
     try {
-      JSON.parse(form.ingredientsJson || '[]');
+      JSON.parse(serializedEditableIngredientsJson || '[]');
     } catch {
       setStatus('Ingredients JSON is invalid');
       return;
@@ -152,7 +147,7 @@ export default function MealTemplateDetails() {
         name: form.name.trim(),
         timing: form.timing,
         timeOfDay: form.timeOfDay.trim() || null,
-        ingredientsJson: form.ingredientsJson,
+        ingredientsJson: serializedEditableIngredientsJson,
         recipe: form.recipe,
         imageUrl: form.imageUrl.trim() || null,
       });
@@ -172,23 +167,33 @@ export default function MealTemplateDetails() {
 
     const byId = new Map(ingredientOptions.map((i) => [i.id, i]));
     return ingredients.map((ing) => {
-      const hasInlineMacros = (ing.caloriesKcal > 0) || (ing.proteinG > 0) || (ing.carbsG > 0) || (ing.fatsG > 0);
-      if (hasInlineMacros) return ing;
-
       const lib = byId.get(ing.id);
-      if (!lib) return ing;
+      if (lib) {
+        const defaultQty = Math.max(0.01, Number(lib.defaultQty ?? 1));
+        const qty = Math.max(0.01, Number(ing.qty ?? defaultQty));
+        const factor = qty / defaultQty;
 
-      const defaultQty = Math.max(0.01, Number(lib.defaultQty ?? ing.baseQty ?? 1));
-      const qty = Math.max(0.01, Number(ing.qty ?? defaultQty));
-      const factor = qty / defaultQty;
+        return {
+          ...ing,
+          baseQty: defaultQty,
+          baseUnit: ing.baseUnit || lib.defaultUnit || 'unit',
+          caloriesKcal: Number((Number(lib.caloriesKcal || 0) * factor).toFixed(2)),
+          proteinG: Number((Number(lib.proteinG || 0) * factor).toFixed(2)),
+          carbsG: Number((Number(lib.carbsG || 0) * factor).toFixed(2)),
+          fatsG: Number((Number(lib.fatsG || 0) * factor).toFixed(2)),
+        };
+      }
 
+      // Fallback for legacy rows whose ingredient id no longer exists in library.
+      const baseQty = Math.max(0.01, Number(ing.baseQty || 1));
+      const qty = Math.max(0.01, Number(ing.qty || baseQty));
+      const factor = qty / baseQty;
       return {
         ...ing,
-        baseUnit: ing.baseUnit || lib.defaultUnit || 'unit',
-        caloriesKcal: Number((Number(lib.caloriesKcal || 0) * factor).toFixed(2)),
-        proteinG: Number((Number(lib.proteinG || 0) * factor).toFixed(2)),
-        carbsG: Number((Number(lib.carbsG || 0) * factor).toFixed(2)),
-        fatsG: Number((Number(lib.fatsG || 0) * factor).toFixed(2)),
+        caloriesKcal: Number((Number(ing.caloriesKcal || 0) * factor).toFixed(2)),
+        proteinG: Number((Number(ing.proteinG || 0) * factor).toFixed(2)),
+        carbsG: Number((Number(ing.carbsG || 0) * factor).toFixed(2)),
+        fatsG: Number((Number(ing.fatsG || 0) * factor).toFixed(2)),
       };
     });
   }, [ingredients, ingredientOptions]);
@@ -198,29 +203,15 @@ export default function MealTemplateDetails() {
 
     const byId = new Map(ingredientOptions.map((i) => [i.id, i]));
     return editableIngredients.map((ing) => {
-      const hasInlineMacros = (ing.caloriesKcal > 0) || (ing.proteinG > 0) || (ing.carbsG > 0) || (ing.fatsG > 0);
-
-      if (hasInlineMacros) {
-        const baseQty = Math.max(0.01, Number(ing.baseQty || ing.qty || 1));
-        const qty = Math.max(0.01, Number(ing.qty || baseQty));
-        const factor = qty / baseQty;
-        return {
-          ...ing,
-          caloriesKcal: Number((Number(ing.caloriesKcal || 0) * factor).toFixed(2)),
-          proteinG: Number((Number(ing.proteinG || 0) * factor).toFixed(2)),
-          carbsG: Number((Number(ing.carbsG || 0) * factor).toFixed(2)),
-          fatsG: Number((Number(ing.fatsG || 0) * factor).toFixed(2)),
-        };
-      }
-
       const lib = byId.get(ing.id);
       if (lib) {
-        const defaultQty = Math.max(0.01, Number(lib.defaultQty ?? ing.baseQty ?? 1));
+        const defaultQty = Math.max(0.01, Number(lib.defaultQty ?? 1));
         const qty = Math.max(0.01, Number(ing.qty ?? defaultQty));
         const factor = qty / defaultQty;
 
         return {
           ...ing,
+          baseQty: defaultQty,
           baseUnit: ing.baseUnit || lib.defaultUnit || 'unit',
           caloriesKcal: Number((Number(lib.caloriesKcal || 0) * factor).toFixed(2)),
           proteinG: Number((Number(lib.proteinG || 0) * factor).toFixed(2)),
@@ -229,27 +220,36 @@ export default function MealTemplateDetails() {
         };
       }
 
-      return ing;
+      // Fallback for legacy rows whose ingredient id no longer exists in library.
+      const baseQty = Math.max(0.01, Number(ing.baseQty || 1));
+      const qty = Math.max(0.01, Number(ing.qty || baseQty));
+      const factor = qty / baseQty;
+      return {
+        ...ing,
+        caloriesKcal: Number((Number(ing.caloriesKcal || 0) * factor).toFixed(2)),
+        proteinG: Number((Number(ing.proteinG || 0) * factor).toFixed(2)),
+        carbsG: Number((Number(ing.carbsG || 0) * factor).toFixed(2)),
+        fatsG: Number((Number(ing.fatsG || 0) * factor).toFixed(2)),
+      };
     });
   }, [editableIngredients, ingredientOptions]);
 
-  const totals = useMemo(() => {
-    if (editing) {
-      return {
-        calories: editableDisplayIngredients.reduce((s, i) => s + i.caloriesKcal, 0),
-        protein: editableDisplayIngredients.reduce((s, i) => s + i.proteinG, 0),
-        carbs: editableDisplayIngredients.reduce((s, i) => s + i.carbsG, 0),
-        fats: editableDisplayIngredients.reduce((s, i) => s + i.fatsG, 0),
-      };
-    }
+  const serializedEditableIngredientsJson = useMemo(() => JSON.stringify(editableDisplayIngredients), [editableDisplayIngredients]);
 
+  useEffect(() => {
+    if (!editing) return;
+    setForm((prev) => ({ ...prev, ingredientsJson: serializedEditableIngredientsJson }));
+  }, [editing, serializedEditableIngredientsJson]);
+
+  const totals = useMemo(() => {
+    const source = editing ? editableDisplayIngredients : displayIngredients;
     return {
-      calories: meal?.totalCaloriesKcal ?? displayIngredients.reduce((s, i) => s + i.caloriesKcal, 0),
-      protein: meal?.totalProteinG ?? displayIngredients.reduce((s, i) => s + i.proteinG, 0),
-      carbs: meal?.totalCarbsG ?? displayIngredients.reduce((s, i) => s + i.carbsG, 0),
-      fats: meal?.totalFatsG ?? displayIngredients.reduce((s, i) => s + i.fatsG, 0),
+      calories: source.reduce((s, i) => s + i.caloriesKcal, 0),
+      protein: source.reduce((s, i) => s + i.proteinG, 0),
+      carbs: source.reduce((s, i) => s + i.carbsG, 0),
+      fats: source.reduce((s, i) => s + i.fatsG, 0),
     };
-  }, [displayIngredients, editableDisplayIngredients, editing, meal]);
+  }, [displayIngredients, editableDisplayIngredients, editing]);
 
   const addIngredient = () => {
     if (!selectedIngredientId) return;
