@@ -402,9 +402,12 @@ export default function MealTemplateDetails() {
                   <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{ing.name}</p>
                   <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{ing.qty} {ing.baseUnit}</p>
                 </div>
-                <p className="text-xs" style={{ color: 'var(--accent-gold)' }}>
-                  {Math.round(ing.caloriesKcal)} kcal · {ing.proteinG.toFixed(1)}g P · {ing.carbsG.toFixed(1)}g C · {ing.fatsG.toFixed(1)}g F
-                </p>
+                <div className="text-xs flex items-center gap-2 flex-wrap">
+                  <span style={{ color: 'var(--accent-gold)' }}>{Math.round(ing.caloriesKcal)} kcal</span>
+                  <span style={{ color: '#f87171' }}>{ing.proteinG.toFixed(1)}g P</span>
+                  <span style={{ color: '#fbbf24' }}>{ing.carbsG.toFixed(1)}g C</span>
+                  <span style={{ color: '#60a5fa' }}>{ing.fatsG.toFixed(1)}g F</span>
+                </div>
               </div>
             ))}
           </div>
