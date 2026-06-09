@@ -37,6 +37,7 @@ export default function MealCreateTemplatePage() {
   const [form, setForm] = useState({
     name: '',
     timing: 'breakfast',
+    timeOfDay: '',
     recipe: '',
     imageUrl: '',
     selectedIngredientId: '',
@@ -102,6 +103,7 @@ export default function MealCreateTemplatePage() {
       await api.createMealTemplate({
         name: form.name.trim(),
         timing: form.timing,
+        timeOfDay: form.timeOfDay.trim() || null,
         recipe: form.recipe.trim(),
         imageUrl: form.imageUrl.trim() || null,
         ingredientsJson: JSON.stringify(snapshots),
@@ -161,9 +163,12 @@ export default function MealCreateTemplatePage() {
             <option value="post-workout">Post-workout</option>
             <option value="snack">Snack</option>
           </select>
-          <input value={form.imageUrl} onChange={e => setForm(p => ({ ...p, imageUrl: e.target.value }))} placeholder="Image URL"
+          <input type="time" value={form.timeOfDay} onChange={e => setForm(p => ({ ...p, timeOfDay: e.target.value }))}
             className="px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
         </div>
+
+        <input value={form.imageUrl} onChange={e => setForm(p => ({ ...p, imageUrl: e.target.value }))} placeholder="Image URL"
+            className="px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
 
         <div className="grid grid-cols-12 gap-2">
           <select value={form.selectedIngredientId} onChange={e => {
