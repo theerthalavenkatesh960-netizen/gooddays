@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dumbbell, Settings as SettingsIcon, Leaf, TrendingUp, Check,
-  Pencil, X, Scale,
+  Pencil, X, Scale, ChevronDown, ChevronUp, Trash2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -110,6 +110,7 @@ function WorkoutTab() {
   const [todayPlan, setTodayPlan] = useState<WorkoutPlan | null>(null);
   const [loggedSets, setLoggedSets] = useState<WorkoutSet[]>([]);
   const [busyExerciseId, setBusyExerciseId] = useState<number | null>(null);
+  const [expandedExercises, setExpandedExercises] = useState<Set<number>>(new Set());
 
   const dayKey = format(new Date(), 'EEEE').toLowerCase();
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -200,7 +201,7 @@ function WorkoutTab() {
 
     const planned = plannedSource.map(item => ({
       exerciseId: item.exercise.id,
-      targetSets: item.targetSets || 3,
+      targetSets: item.targetSets || 4,
       targetReps: 10,
       targetWeightKg: null,
     }));
@@ -277,6 +278,26 @@ function WorkoutTab() {
     await saveSet(s.id, { reps: s.reps, weightKg: s.weightKg, isCompleted: next });
   }
 
+  async function deleteSet(setId: number | undefined) {
+    if (!setId) return;
+    setLoggedSets(prev => prev.filter(s => s.id !== setId));
+    try {
+      await api.deleteWorkoutSet(setId);
+    } catch {
+      // Optimistic delete already applied
+    }
+  }
+
+  function toggleExerciseExpanded(exerciseId: number) {
+    const next = new Set(expandedExercises);
+    if (next.has(exerciseId)) {
+      next.delete(exerciseId);
+    } else {
+      next.add(exerciseId);
+    }
+    setExpandedExercises(next);
+  }
+
   return (
     <div className="px-4">
       <div className="p-4 rounded-2xl mb-4" style={{ background: 'linear-gradient(135deg, var(--accent)22, var(--surface))', border: '1px solid var(--accent)33' }}>
@@ -314,9 +335,12 @@ function WorkoutTab() {
       ) : (
         cardData.map(({ exercise, sets, targetSets }) => {
           const completed = sets.filter(s => s.isCompleted).length;
+          const isExpanded = expandedExercises.has(exercise.id);
           return (
             <div key={exercise.id} className="rounded-2xl overflow-hidden mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <div className="flex items-center gap-3 p-4" style={{ borderBottom: '1px solid var(--border)' }}>
+              <button
+                onClick={() => toggleExerciseExpanded(exercise.id)}
+                className="w-full flex items-center gap-3 p-4" style={{ borderBottom: isExpanded ? '1px solid var(--border)' : 'none' }}>
                 {exercise.imageUrl ? (
                   <img src={exercise.imageUrl} alt={exercise.name} className="w-10 h-10 rounded-xl object-cover" />
                 ) : (
@@ -324,66 +348,105 @@ function WorkoutTab() {
                     <Dumbbell size={16} style={{ color: 'var(--accent)' }} />
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 text-left">
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{exercise.name}</p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{exercise.muscleGroup || exercise.category || 'General'}</p>
                 </div>
-                <button
-                  onClick={() => addSet(exercise.id, targetSets || 3)}
-                  className="h-7 px-2 rounded-lg text-[11px] font-semibold"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}
-                  disabled={busyExerciseId === exercise.id}
-                >
-                  {busyExerciseId === exercise.id ? '...' : '+ Set'}
-                </button>
-                <div className="text-right">
-                  <span className="text-xs block" style={{ color: 'var(--text-muted)' }}>{completed}/{targetSets || sets.length || 0}</span>
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <span className="text-xs block" style={{ color: 'var(--text-muted)' }}>{completed}/{targetSets || sets.length || 0}</span>
+                  </div>
+                  {isExpanded ? <ChevronUp size={20} style={{ color: 'var(--accent)' }} /> : <ChevronDown size={20} style={{ color: 'var(--text-muted)' }} />}
                 </div>
-              </div>
+              </button>
 
-              <div className="px-3 pb-3 pt-2 space-y-3">
-                {sets.map((s, idx) => (
-                  <div key={`${exercise.id}-${s.id ?? idx}`} className="rounded-lg px-2 py-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                    <p className="text-[10px] font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>Set #{s.setNumber}</p>
-                    <div className="grid grid-cols-[1fr_1fr_52px] gap-2 items-end">
-                      <div>
-                        <label className="text-[9px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Reps</label>
-                        <input
-                          type="number"
-                          value={s.reps && s.reps > 0 ? s.reps : ''}
-                          placeholder="0"
-                          onChange={e => patchSetLocal(s.id, { reps: Number(e.target.value || 0) })}
-                          className="w-full h-7 px-2 rounded-md text-xs num outline-none"
-                          style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Weight (kg)</label>
-                        <input
-                          type="number"
-                          value={s.weightKg && s.weightKg > 0 ? s.weightKg : ''}
-                          placeholder="0"
-                          onChange={e => patchSetLocal(s.id, { weightKg: Number(e.target.value || 0) })}
-                          className="w-full h-7 px-2 rounded-md text-xs num outline-none"
-                          style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                        />
-                      </div>
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}>
+                    <div className="px-3 pb-3 pt-2 space-y-3">
+                      {sets.map((s, idx) => (
+                        <div key={`${exercise.id}-${s.id ?? idx}`} className="rounded-lg px-2 py-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Set #{s.setNumber}</p>
+                            <button
+                              onClick={() => deleteSet(s.id)}
+                              className="p-1.5 hover:opacity-70 transition-opacity"
+                              style={{ color: 'var(--text-muted)' }}
+                              title="Delete set">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-[1fr_1fr_52px] gap-2 items-end">
+                            <div>
+                              <label className="text-[9px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Reps</label>
+                              <input
+                                type="number"
+                                value={s.reps && s.reps > 0 ? s.reps : ''}
+                                placeholder="0"
+                                onChange={e => patchSetLocal(s.id, { reps: Number(e.target.value || 0) })}
+                                onBlur={() => s.id && saveSet(s.id, { reps: s.reps, weightKg: s.weightKg, isCompleted: s.isCompleted })}
+                                className="w-full h-7 px-2 rounded-md text-xs num outline-none"
+                                style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Weight (kg)</label>
+                              <input
+                                type="number"
+                                value={s.weightKg && s.weightKg > 0 ? s.weightKg : ''}
+                                placeholder="0"
+                                onChange={e => patchSetLocal(s.id, { weightKg: Number(e.target.value || 0) })}
+                                onBlur={() => s.id && saveSet(s.id, { reps: s.reps, weightKg: s.weightKg, isCompleted: s.isCompleted })}
+                                className="w-full h-7 px-2 rounded-md text-xs num outline-none"
+                                style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                              />
+                            </div>
+                            <button
+                              onClick={() => toggleDone(s)}
+                              className="h-7 rounded-md text-[10px] font-semibold"
+                              style={{ backgroundColor: s.isCompleted ? 'var(--accent-green)' : 'var(--surface)', color: s.isCompleted ? '#fff' : 'var(--text-muted)', border: '1px solid var(--border)' }}
+                            >
+                              {s.isCompleted ? 'Done' : 'Log'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {sets.length === 0 && (
+                        <p className="text-xs px-1" style={{ color: 'var(--text-muted)' }}>
+                          No sets logged yet. Tap + Set to log directly here.
+                        </p>
+                      )}
+                    </div>
+                    <div className="px-3 pb-3">
                       <button
-                        onClick={() => toggleDone(s)}
-                        className="h-7 rounded-md text-[10px] font-semibold"
-                        style={{ backgroundColor: s.isCompleted ? 'var(--accent-green)' : 'var(--surface)', color: s.isCompleted ? '#fff' : 'var(--text-muted)', border: '1px solid var(--border)' }}
+                        onClick={() => addSet(exercise.id, targetSets || 4)}
+                        className="w-full h-8 rounded-lg text-[11px] font-semibold"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}
+                        disabled={busyExerciseId === exercise.id}
                       >
-                        {s.isCompleted ? 'Done' : 'Log'}
+                        {busyExerciseId === exercise.id ? '...' : '+ Add Set'}
                       </button>
                     </div>
-                  </div>
-                ))}
-                {sets.length === 0 && (
-                  <p className="text-xs px-1" style={{ color: 'var(--text-muted)' }}>
-                    No sets logged yet. Tap + Set to log directly here.
-                  </p>
+                  </motion.div>
                 )}
-              </div>
+              </AnimatePresence>
+
+              {!isExpanded && sets.length === 0 && (
+                <div className="px-4 py-2" style={{ borderTop: '1px solid var(--border)' }}>
+                  <button
+                    onClick={() => addSet(exercise.id, targetSets || 4)}
+                    className="h-7 w-full rounded-lg text-[11px] font-semibold"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}
+                    disabled={busyExerciseId === exercise.id}
+                  >
+                    {busyExerciseId === exercise.id ? '...' : '+ Set'}
+                  </button>
+                </div>
+              )}
             </div>
           );
         })
@@ -424,8 +487,6 @@ function DietTab() {
   const [plannedMeals, setPlannedMeals] = useState<MealTemplate[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [goal, setGoal] = useState(2400);
-  const [waterMl, setWaterMl] = useState(0);
-  const [waterGoalMl, setWaterGoalMl] = useState(2000);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -436,11 +497,10 @@ function DietTab() {
     async function load() {
       setLoading(true);
       try {
-        const [templates, weeklyPlan, todayLog, waterLog, settings] = await Promise.all([
+        const [templates, weeklyPlan, todayLog, settings] = await Promise.all([
           api.getMealTemplates(),
           api.getWeeklyMealPlan() as Promise<WeeklyMealPlan>,
           (api as any).getDailyMealLog(today) as Promise<DailyMealLog | null>,
-          (api as any).getDailyWaterLog(today),
           api.getUserSettings(),
         ]);
 
@@ -457,16 +517,15 @@ function DietTab() {
           plannedIds = [];
         }
 
-        const planned = plannedIds
+        // Combine weekly planned meals with daily logged meals
+        const loggedIds = Array.isArray(todayLog?.mealIds) ? todayLog!.mealIds : [];
+        const allMealIds = Array.from(new Set([...plannedIds, ...loggedIds]));
+        const planned = allMealIds
           .map(id => list.find(m => m.id === id))
           .filter((m): m is MealTemplate => !!m);
         setPlannedMeals(planned);
-        setSelected(Array.isArray(todayLog?.mealIds) ? todayLog!.mealIds : []);
+        setSelected(loggedIds);
         
-        if (waterLog) {
-          setWaterMl(waterLog.mlConsumed || 0);
-          setWaterGoalMl(waterLog.goalMl || 2000);
-        }
         if (Number.isFinite(settings?.calorieGoal)) {
           setGoal(Number(settings.calorieGoal));
         }
@@ -488,25 +547,7 @@ function DietTab() {
     }
   }
 
-  async function addWater(ml: number = 250) {
-    const next = waterMl + ml;
-    setWaterMl(next);
-    try {
-      await (api as any).incrementWaterIntake(today, ml);
-    } catch {
-      // Optimistic update
-    }
-  }
 
-  async function removeWater(ml: number = 250) {
-    const next = Math.max(0, waterMl - ml);
-    setWaterMl(next);
-    try {
-      await (api as any).incrementWaterIntake(today, -ml);
-    } catch {
-      // Optimistic update
-    }
-  }
 
   const consumedCalories = useMemo(() => {
     return plannedMeals
@@ -545,7 +586,6 @@ function DietTab() {
   }, [goal]);
 
   const caloriePercentage = goal > 0 ? Math.min(100, Math.round((consumedCalories / goal) * 100)) : 0;
-  const waterPercentage = waterGoalMl > 0 ? Math.min(100, Math.round((waterMl / waterGoalMl) * 100)) : 0;
 
   return (
     <div className="px-4 space-y-4">
@@ -586,93 +626,23 @@ function DietTab() {
         </p>
       </div>
 
-      {/* Calorie Progress */}
-      <div className="p-5 rounded-2xl flex items-center gap-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="relative flex-shrink-0">
-          <svg width="88" height="88" className="-rotate-90">
-            <circle cx="44" cy="44" r="36" stroke="var(--surface-elevated)" strokeWidth="8" fill="none" />
-            <circle
-              cx="44" cy="44" r="36"
-              stroke="var(--accent-warm)"
-              strokeWidth="8"
-              fill="none"
-              strokeDasharray={`${2 * Math.PI * 36}`}
-              strokeDashoffset={`${2 * Math.PI * 36 * (1 - caloriePercentage / 100)}`}
-              strokeLinecap="round"
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-lg font-bold num" style={{ color: 'var(--text-primary)' }}>{caloriePercentage}%</span>
-          </div>
+      {/* Calorie Consumption Progress Bar */}
+      <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Daily Consumption</p>
+          <p className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{caloriePercentage}%</p>
         </div>
-        <div>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Consumed</p>
-          <p className="text-2xl font-bold num" style={{ color: 'var(--text-primary)' }}>{Math.round(consumedCalories)}</p>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>of {goal} kcal</p>
+        <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+          <div className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(100, caloriePercentage)}%`, backgroundColor: 'var(--accent-warm)' }} />
         </div>
-      </div>
-
-      {/* Water Intake */}
-      <div className="p-4 rounded-2xl space-y-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center gap-5">
-          {/* Mini ring */}
-          <div className="relative flex-shrink-0" style={{ width: 96, height: 96 }}>
-            <svg width="96" height="96" style={{ transform: 'rotate(-90deg)' }}>
-              <circle cx="48" cy="48" r="38" stroke="var(--surface-elevated)" strokeWidth="9" fill="none" />
-              <circle cx="48" cy="48" r="38"
-                stroke={waterPercentage >= 100 ? '#f59e0b' : 'var(--accent)'}
-                strokeWidth="9" fill="none" strokeLinecap="round"
-                strokeDasharray={2 * Math.PI * 38}
-                strokeDashoffset={2 * Math.PI * 38 * (1 - Math.min(1, waterPercentage / 100))}
-                style={{ transition: 'stroke-dashoffset 0.6s ease' }}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-lg font-black leading-none" style={{ color: 'var(--text-primary)' }}>
-                {waterMl >= 1000 ? `${(waterMl/1000).toFixed(1)}L` : `${waterMl}`}
-              </span>
-              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>ml</span>
-            </div>
-          </div>
-          <div className="flex-1 space-y-1">
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>💧 Water Intake</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{waterMl} / {waterGoalMl} ml</p>
-            <div className="h-1.5 rounded-full overflow-hidden mt-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-              <div className="h-full rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, waterPercentage)}%`, backgroundColor: waterPercentage >= 100 ? '#f59e0b' : 'var(--accent)' }} />
-            </div>
-            <p className="text-xs font-bold" style={{ color: waterPercentage >= 100 ? '#f59e0b' : 'var(--accent)' }}>
-              {waterPercentage >= 100 ? `Goal smashed! 🔥` : `${waterGoalMl - waterMl}ml remaining`}
-            </p>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Add</p>
-          <div className="grid grid-cols-4 gap-2">
-            {[{ label: '💧 100', ml: 100 }, { label: '🥛 250', ml: 250 }, { label: '🍶 500', ml: 500 }, { label: '🫙 1L', ml: 1000 }].map(p => (
-              <button key={p.ml} onClick={() => addWater(p.ml)}
-                className="py-2 rounded-xl text-xs font-bold transition-all"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Remove</p>
-          <div className="grid grid-cols-4 gap-2">
-            {[{ label: '−100', ml: 100 }, { label: '−250', ml: 250 }, { label: '−500', ml: 500 }, { label: '−1L', ml: 1000 }].map(p => (
-              <button key={p.ml} onClick={() => removeWater(p.ml)}
-                disabled={waterMl === 0}
-                className="py-2 rounded-xl text-xs font-bold transition-all"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: '#f87171', opacity: waterMl === 0 ? 0.4 : 1 }}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{Math.round(consumedCalories)}</span> of {goal} kcal
+        </p>
       </div>
 
       <div className="flex items-center justify-between mb-2">
-        <span className="section-label">Planned Meals Today</span>
+        <span className="section-label">Today's Meals</span>
         <button onClick={() => navigate('/settings/meals')} className="text-xs" style={{ color: 'var(--accent)' }}>Manage</button>
       </div>
 
