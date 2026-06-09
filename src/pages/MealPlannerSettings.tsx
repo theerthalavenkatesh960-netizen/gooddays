@@ -61,10 +61,6 @@ const TIMING_COLORS: Record<string, string> = {
   snack: 'var(--text-muted)',
 };
 
-function normalizeTimingTag(value?: string): string {
-  return String(value || '').trim().toLowerCase();
-}
-
 function toDateKey(date: Date) {
   return format(date, 'yyyy-MM-dd');
 }
@@ -353,7 +349,7 @@ export default function MealPlannerSettings() {
     }
   }
 
-  async function addMealToDay(dayKey: string, mealTemplateId: number, timeOfDay?: string, slotTiming?: string) {
+  async function addMealToDay(dayKey: string, mealTemplateId: number, timeOfDay?: string) {
     if (!Number.isFinite(mealTemplateId) || mealTemplateId <= 0) {
       flash('Invalid meal template selected');
       return;
@@ -371,19 +367,11 @@ export default function MealPlannerSettings() {
       return;
     }
 
-    const timingKey = normalizeTimingTag(slotTiming || pickedMeal.timing);
-    const nextExisting = timingKey
-      ? existing.filter((a) => {
-        const assignedMeal = meals.find(m => m.id === a.mealTemplateId);
-        return normalizeTimingTag(assignedMeal?.timing) !== timingKey;
-      })
-      : existing;
-
     const newAssignment: MealAssignment = {
       mealTemplateId,
       timeOfDay: timeOfDay?.trim() || undefined,
     };
-    await savePlan({ ...mealPlan, [dayKey]: [...nextExisting, newAssignment] });
+    await savePlan({ ...mealPlan, [dayKey]: [...existing, newAssignment] });
   }
 
   useEffect(() => {
@@ -395,7 +383,7 @@ export default function MealPlannerSettings() {
     const signature = `${pick.dayKey}-${pickedId}-${pick.timeOfDay || ''}-${pick.slotTiming || ''}`;
     if (lastAppliedPickRef.current === signature) return;
     lastAppliedPickRef.current = signature;
-    addMealToDay(pick.dayKey, pickedId, pick.timeOfDay, pick.slotTiming);
+    addMealToDay(pick.dayKey, pickedId, pick.timeOfDay);
   }, [location.state, loading]);
 
   function openMealPicker(dayKey: string) {
