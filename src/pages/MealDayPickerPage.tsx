@@ -16,6 +16,7 @@ type PickerState = {
   dayKey?: string;
   slotTiming?: string;
   source?: string;
+  [key: string]: unknown;
 };
 
 type WeeklyMealPlan = { planJson?: string; plan_json?: string } | null;
@@ -31,9 +32,15 @@ function normalizeAssignments(dayValue: unknown): MealAssignment[] {
   if (!Array.isArray(dayValue)) return [];
   return dayValue
     .map((item) => {
-      if (item && typeof item === 'object' && 'mealTemplateId' in item) {
-        const id = Number((item as MealAssignment).mealTemplateId);
-        return Number.isFinite(id) && id > 0 ? { mealTemplateId: id, timeOfDay: (item as MealAssignment).timeOfDay } : null;
+      if (item && typeof item === 'object') {
+        const entry = item as Record<string, any>;
+        const id = Number(
+          entry.mealTemplateId ?? entry.MealTemplateId ?? entry.meal_template_id
+        );
+        const timeOfDay = entry.timeOfDay ?? entry.TimeOfDay ?? entry.time_of_day;
+        return Number.isFinite(id) && id > 0
+          ? { mealTemplateId: id, timeOfDay: timeOfDay ? String(timeOfDay) : undefined }
+          : null;
       }
       const id = Number(item);
       return Number.isFinite(id) && id > 0 ? { mealTemplateId: id } : null;
@@ -127,9 +134,11 @@ export default function MealDayPickerPage() {
       if (!ok) return;
     }
 
+    const { source } = (location.state || {}) as PickerState;
     navigate('/settings/meals', {
       state: {
         tab: 'weekly',
+        source,
         mealPick: {
           dayKey: resolvedDayKey,
           mealTemplateId: pickedId,

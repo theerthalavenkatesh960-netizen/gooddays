@@ -49,7 +49,7 @@ type MealAssignment = {
   timeOfDay?: string;
 };
 
-type WeeklyMealPlan = { planJson?: string; plan_json?: string } | null;
+type WeeklyMealPlan = { planJson?: string; PlanJson?: string; plan_json?: string } | null;
 type DailyMealLog = { date: string; mealIds: number[] };
 
 type PlannedExercise = {
@@ -465,18 +465,69 @@ function parseMealIngredients(json: string): MealIngredient[] {
 }
 
 function normalizePlannedMealIdsForDay(dayValue: unknown): number[] {
-  if (!Array.isArray(dayValue)) return [];
+  if (Array.isArray(dayValue)) {
+    return dayValue
+      .map(item => {
+        if (typeof item === 'number') return item;
+        if (!item || typeof item !== 'object') return null;
 
-  return dayValue
-    .map(item => {
-      if (typeof item === 'number') return item;
-      if (item && typeof item === 'object' && 'mealTemplateId' in item) {
-        const id = Number((item as MealAssignment).mealTemplateId);
-        return Number.isFinite(id) ? id : null;
-      }
-      return null;
-    })
-    .filter((id): id is number => Number.isFinite(id));
+        const entry = item as Record<string, unknown>;
+        const id = Number(
+          entry.mealTemplateId
+          ?? entry.MealTemplateId
+          ?? entry.meal_template_id
+          ?? entry.mealId
+          ?? entry.meal_id,
+        );
+
+        return Number.isFinite(id) && id > 0 ? id : null;
+      })
+      .filter((id): id is number => Number.isFinite(id) && id > 0);
+  }
+
+  // Backward-compatibility: support { mealIds: [...] }
+  if (dayValue && typeof dayValue === 'object' && Array.isArray((dayValue as any).mealIds)) {
+    return normalizePlannedMealIdsForDay((dayValue as any).mealIds);
+  }
+
+  return [];
+}
+
+function normalizePlanKey(rawKey: string): string {
+  const key = String(rawKey || '').trim();
+  if (!key) return key;
+
+  const maybeDate = new Date(key);
+  if (!Number.isNaN(maybeDate.getTime())) {
+    return format(maybeDate, 'yyyy-MM-dd');
+  }
+
+  return key.toLowerCase();
+}
+
+function resolvePlannedMealIds(map: unknown, today: string, utcToday: string, todayKey: string): number[] {
+  if (!map || typeof map !== 'object') return [];
+
+  const planMap = map as Record<string, unknown>;
+  const byExact = [
+    ...normalizePlannedMealIdsForDay(planMap[today]),
+    ...normalizePlannedMealIdsForDay(planMap[utcToday]),
+    ...normalizePlannedMealIdsForDay(planMap[todayKey]),
+  ];
+  if (byExact.length > 0) {
+    return Array.from(new Set(byExact));
+  }
+
+  const normalizedTargets = new Set([today, utcToday, todayKey].map(normalizePlanKey));
+  const merged: number[] = [];
+
+  for (const key of Object.keys(planMap)) {
+    const normalizedKey = normalizePlanKey(key);
+    if (!normalizedTargets.has(normalizedKey)) continue;
+    merged.push(...normalizePlannedMealIdsForDay(planMap[key]));
+  }
+
+  return Array.from(new Set(merged));
 }
 
 function getUtcDateKey(): string {
@@ -508,11 +559,9 @@ function DietTab() {
 
         let plannedIds: number[] = [];
         try {
-          const rawPlanJson = weeklyPlan?.planJson ?? weeklyPlan?.plan_json;
+          const rawPlanJson = weeklyPlan?.planJson ?? weeklyPlan?.PlanJson ?? weeklyPlan?.plan_json;
           const map = rawPlanJson ? JSON.parse(rawPlanJson) : {};
-          const byLocalDate = normalizePlannedMealIdsForDay(map?.[today]);
-          const byUtcDate = byLocalDate.length > 0 ? byLocalDate : normalizePlannedMealIdsForDay(map?.[utcToday]);
-          plannedIds = byUtcDate.length > 0 ? byUtcDate : normalizePlannedMealIdsForDay(map?.[todayKey]);
+          plannedIds = resolvePlannedMealIds(map, today, utcToday, todayKey);
         } catch {
           plannedIds = [];
         }
@@ -686,62 +735,180 @@ function DietTab() {
   );
 }
 
-// ─── Body Weight Progress Chart (SVG) ────────────────────────────────────────
+// ─── Advanced Body Weight Progress Chart ────────────────────────────────────
 function WeightChart({ logs, targetWeight }: { logs: api.BodyWeightLog[]; targetWeight: number | null }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+
   if (logs.length === 0) return (
-    <div className="flex items-center justify-center h-32 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No weight entries yet. Log your first entry below!</p>
+    <div className="flex flex-col items-center justify-center h-36 rounded-2xl gap-2"
+      style={{ backgroundColor: 'var(--surface-elevated)', border: '2px dashed var(--border)' }}>
+      <span className="text-2xl">📊</span>
+      <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>No weight entries yet</p>
+      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Log your weight below to start tracking</p>
     </div>
   );
 
-  const W = 320, H = 130, padX = 28, padY = 12;
+  const W = 340, H = 160, padX = 36, padY = 20, padBottom = 24;
   const innerW = W - padX * 2;
-  const innerH = H - padY * 2;
+  const innerH = H - padY - padBottom;
 
   const weights = logs.map(l => l.weightKg);
   const allVals = targetWeight !== null ? [...weights, targetWeight] : weights;
-  const minW = Math.min(...allVals) - 1;
-  const maxW = Math.max(...allVals) + 1;
+  const rawMin = Math.min(...allVals);
+  const rawMax = Math.max(...allVals);
+  const spread = Math.max(rawMax - rawMin, 1);
+  const minW = rawMin - spread * 0.15;
+  const maxW = rawMax + spread * 0.15;
 
   const toX = (i: number) => padX + (i / Math.max(logs.length - 1, 1)) * innerW;
   const toY = (w: number) => padY + innerH - ((w - minW) / (maxW - minW)) * innerH;
 
-  const points = logs.map((l, i) => `${toX(i)},${toY(l.weightKg)}`).join(' ');
-  const areaPoints = `${toX(0)},${H} ` + logs.map((l, i) => `${toX(i)},${toY(l.weightKg)}`).join(' ') + ` ${toX(logs.length - 1)},${H}`;
+  // Smooth cubic bezier path
+  function smoothPath(pts: [number, number][]): string {
+    if (pts.length === 1) return `M ${pts[0][0]} ${pts[0][1]}`;
+    let d = `M ${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 1; i < pts.length; i++) {
+      const [x0, y0] = pts[i - 1];
+      const [x1, y1] = pts[i];
+      const cpx = (x0 + x1) / 2;
+      d += ` C ${cpx} ${y0}, ${cpx} ${y1}, ${x1} ${y1}`;
+    }
+    return d;
+  }
 
-  const labelIndexes = logs.length <= 7
+  const pts: [number, number][] = logs.map((l, i) => [toX(i), toY(l.weightKg)]);
+  const linePath = smoothPath(pts);
+  const areaPath = `${linePath} L ${toX(logs.length - 1)} ${H - padBottom} L ${toX(0)} ${H - padBottom} Z`;
+
+  const labelIndexes = logs.length <= 6
     ? logs.map((_, i) => i)
-    : [0, Math.floor(logs.length / 2), logs.length - 1];
+    : [0, Math.round((logs.length - 1) / 3), Math.round((logs.length - 1) * 2 / 3), logs.length - 1];
 
   const targetY = targetWeight !== null ? toY(targetWeight) : null;
+  const first = weights[0];
+  const last = weights[weights.length - 1];
+  const delta = last - first;
+  const isLosing = delta < 0;
+
+  // Y-axis grid lines
+  const gridCount = 4;
+  const gridLines = Array.from({ length: gridCount + 1 }, (_, i) => {
+    const val = minW + ((maxW - minW) * i) / gridCount;
+    const y = toY(val);
+    return { y, label: val.toFixed(1) };
+  });
+
+  const gradientId = `wg-${Math.abs(Math.round(first * 10))}`;
 
   return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible' }}>
-      {/* Area fill */}
-      <polygon points={areaPoints} fill="var(--accent-blue, #3b82f6)" fillOpacity="0.08" />
-      {/* Target weight dashed line */}
-      {targetY !== null && (
-        <>
-          <line x1={padX} y1={targetY} x2={W - padX} y2={targetY}
-            stroke="var(--accent-gold, #f59e0b)" strokeWidth="1.5" strokeDasharray="5,3" />
-          <text x={W - padX + 3} y={targetY + 4} fontSize="9" fill="var(--accent-gold, #f59e0b)">goal</text>
-        </>
-      )}
-      {/* Line */}
-      <polyline points={points}
-        fill="none" stroke="var(--accent-blue, #3b82f6)" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-      {/* Dots */}
-      {logs.map((l, i) => (
-        <circle key={i} cx={toX(i)} cy={toY(l.weightKg)} r={logs.length > 15 ? 2 : 3}
+    <div style={{ position: 'relative' }}>
+      {/* Delta badge */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+          style={{
+            backgroundColor: isLosing ? '#10b98122' : '#f59e0b22',
+            color: isLosing ? '#10b981' : '#f59e0b',
+          }}>
+          {delta > 0 ? '+' : ''}{delta.toFixed(1)} kg since start
+        </span>
+        {targetWeight !== null && (
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+            style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
+            {(last - targetWeight).toFixed(1)} kg to goal
+          </span>
+        )}
+      </div>
+
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ overflow: 'visible', display: 'block' }}
+        onMouseLeave={() => setHovered(null)}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--accent-blue, #3b82f6)" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="var(--accent-blue, #3b82f6)" stopOpacity="0.0" />
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+
+        {/* Grid lines */}
+        {gridLines.map((g, i) => (
+          <g key={i}>
+            <line x1={padX} y1={g.y} x2={W - 12} y2={g.y}
+              stroke="var(--border)" strokeWidth="0.75" strokeDasharray="3,4" />
+            <text x={padX - 4} y={g.y + 3.5} textAnchor="end" fontSize="8.5"
+              fill="var(--text-muted)">{g.label}</text>
+          </g>
+        ))}
+
+        {/* Target line */}
+        {targetY !== null && (
+          <g>
+            <line x1={padX} y1={targetY} x2={W - 12} y2={targetY}
+              stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="6,4" opacity="0.7" />
+            <rect x={W - 36} y={targetY - 9} width={32} height={12} rx="4"
+              fill="#f59e0b22" />
+            <text x={W - 20} y={targetY + 0.5} textAnchor="middle" fontSize="8" fill="#f59e0b" fontWeight="600">
+              goal
+            </text>
+          </g>
+        )}
+
+        {/* Area fill */}
+        <path d={areaPath} fill={`url(#${gradientId})`} />
+
+        {/* Line */}
+        <path d={linePath} fill="none" stroke="var(--accent-blue, #3b82f6)"
+          strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" filter="url(#glow)" />
+
+        {/* Dots */}
+        {logs.map((l, i) => {
+          const isHov = hovered === i;
+          return (
+            <g key={i}>
+              <circle cx={toX(i)} cy={toY(l.weightKg)}
+                r={isHov ? 7 : (logs.length > 20 ? 2.5 : 4)}
+                fill={isHov ? '#fff' : 'var(--accent-blue, #3b82f6)'}
+                stroke={isHov ? 'var(--accent-blue, #3b82f6)' : 'var(--surface)'}
+                strokeWidth={isHov ? 2 : 1.5}
+                style={{ cursor: 'pointer', transition: 'r 0.15s' }}
+                onMouseEnter={() => setHovered(i)}
+              />
+              {/* Hover tooltip */}
+              {isHov && (
+                <g>
+                  <rect
+                    x={Math.min(toX(i) - 30, W - 70)} y={toY(l.weightKg) - 34}
+                    width={60} height={22} rx={6}
+                    fill="var(--surface-elevated)" stroke="var(--border)" strokeWidth="1"
+                  />
+                  <text x={Math.min(toX(i), W - 40)} y={toY(l.weightKg) - 19}
+                    textAnchor="middle" fontSize="9.5" fontWeight="700"
+                    fill="var(--text-primary)">{l.weightKg} kg</text>
+                  <text x={Math.min(toX(i), W - 40)} y={toY(l.weightKg) - 9}
+                    textAnchor="middle" fontSize="8"
+                    fill="var(--text-muted)">{l.date.slice(5)}</text>
+                </g>
+              )}
+            </g>
+          );
+        })}
+
+        {/* X-axis labels */}
+        {labelIndexes.map(i => (
+          <text key={i} x={toX(i)} y={H - 4} textAnchor="middle" fontSize="8.5" fill="var(--text-muted)">
+            {logs[i].date.slice(5)}
+          </text>
+        ))}
+
+        {/* Current weight dot accent */}
+        <circle cx={toX(logs.length - 1)} cy={toY(last)} r="5"
+          fill="var(--accent-blue, #3b82f6)" opacity="0.3" />
+        <circle cx={toX(logs.length - 1)} cy={toY(last)} r="3"
           fill="var(--accent-blue, #3b82f6)" />
-      ))}
-      {/* X-axis date labels */}
-      {labelIndexes.map(i => (
-        <text key={i} x={toX(i)} y={H + 12} textAnchor="middle" fontSize="8" fill="var(--text-muted, #888)">
-          {logs[i].date.slice(5)}
-        </text>
-      ))}
-    </svg>
+      </svg>
+    </div>
   );
 }
 
@@ -912,18 +1079,24 @@ function BodyMetricsSection() {
 function ProgressTab() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [prs, setPrs] = useState<any[]>([]);
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [bestMeals, setBestMeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const [analyticsData, prsData] = await Promise.all([
-          api.getWorkoutAnalytics().catch(() => null),
+        const [analyticsData, prsData, exData, mealsData] = await Promise.all([
+          api.getWorkoutAnalytics(12).catch(() => null),
           api.getPersonalRecords().catch(() => []),
+          api.getExercises().catch(() => []),
+          api.getMealTemplates().catch(() => []),
         ]);
         setAnalytics(analyticsData);
         setPrs(Array.isArray(prsData) ? prsData : []);
+        setExercises(Array.isArray(exData) ? exData : []);
+        setBestMeals(Array.isArray(mealsData) ? mealsData.slice(0, 3) : []);
       } finally {
         setLoading(false);
       }
@@ -931,68 +1104,199 @@ function ProgressTab() {
     load();
   }, []);
 
+  const resolveExerciseName = (exerciseId: number) =>
+    exercises.find(e => e.id === exerciseId)?.name ?? `Exercise #${exerciseId}`;
+
+  const resolveExerciseMuscle = (exerciseId: number) => {
+    const ex = exercises.find(e => e.id === exerciseId);
+    return ex?.muscleGroup ?? ex?.category ?? 'Strength';
+  };
+
+  // Stats cards with live analytics
+  const statCards = [
+    {
+      label: 'Days Logged',
+      value: analytics?.daysLogged ?? 0,
+      unit: 'days',
+      icon: '🗓️',
+      color: 'var(--accent)',
+    },
+    {
+      label: 'Total Sets',
+      value: analytics?.totalSets ?? 0,
+      unit: 'sets',
+      icon: '💪',
+      color: 'var(--accent-green)',
+    },
+    {
+      label: 'Volume Lifted',
+      value: analytics?.totalVolume ? `${(analytics.totalVolume / 1000).toFixed(1)}k` : '0',
+      unit: 'kg total',
+      icon: '🏋️',
+      color: 'var(--accent-warm)',
+    },
+    {
+      label: 'This Period',
+      value: analytics?.weeks ?? 12,
+      unit: 'weeks',
+      icon: '📅',
+      color: 'var(--accent-blue, #3b82f6)',
+    },
+  ];
+
   return (
-    <div className="px-4 space-y-4">
-      {/* Body Metrics (height, weight, chart) */}
+    <div className="px-4 space-y-5 pb-6">
+      {/* Body Metrics */}
       <BodyMetricsSection />
 
       <div className="border-t" style={{ borderColor: 'var(--border)' }} />
 
-      {/* Workout Stats */}
-      {/* Workout Stats */}
-      {analytics && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Days Logged</p>
-            <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{analytics.daysLogged || 0}</p>
-          </div>
-          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Total Sets</p>
-            <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{analytics.totalSets || 0}</p>
-          </div>
-          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Total Volume</p>
-            <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{Math.round(analytics.totalVolume || 0)}</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>kg</p>
-          </div>
-          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Last 12w</p>
-            <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{analytics.weeks || 12}</p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>weeks</p>
-          </div>
+      {/* ── Workout Stats ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Workout Stats</span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+            style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>Last 12 weeks</span>
         </div>
-      )}
-
-      <div className="section-header px-0 mb-2">
-        <span className="section-label">Personal Records</span>
-      </div>
-      
-      {loading ? (
-        <div className="py-8 text-center">
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</p>
-        </div>
-      ) : prs.length === 0 ? (
-        <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-sm" style={{ color: 'var(--text-primary)' }}>No personal records yet.</p>
-          <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>Log your first workout to see your PRs here!</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {prs.slice(0, 10).map((pr, idx) => (
-            <div key={idx} className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--accent-gold)22' }}>
-                🏆
+        <div className="grid grid-cols-2 gap-3">
+          {statCards.map(card => (
+            <div key={card.label} className="p-4 rounded-2xl flex items-center gap-3"
+              style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                style={{ backgroundColor: `${card.color}22` }}>
+                {card.icon}
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Exercise #{pr.exerciseId}</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  {pr.weightKg} kg x {pr.reps} reps
+              <div>
+                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{card.label}</p>
+                <p className="text-2xl font-black leading-tight num" style={{ color: card.color }}>
+                  {loading ? '—' : card.value}
                 </p>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{card.unit}</p>
               </div>
             </div>
           ))}
         </div>
+      </div>
+
+      {/* ── Personal Records ── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Personal Records</span>
+            <span className="text-xs">🏆</span>
+          </div>
+          {prs.length > 0 && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: '#f59e0b22', color: '#f59e0b' }}>
+              {prs.length} PRs set!
+            </span>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-16 rounded-2xl skeleton" style={{ backgroundColor: 'var(--surface)' }} />
+            ))}
+          </div>
+        ) : prs.length === 0 ? (
+          <div className="p-5 rounded-2xl text-center"
+            style={{ backgroundColor: 'var(--surface)', border: '2px dashed var(--border)' }}>
+            <p className="text-3xl mb-2">🎯</p>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>No PRs yet — crush your first workout!</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Complete sets in the Workout tab to set records</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {prs.slice(0, 8).map((pr, idx) => {
+              const name = resolveExerciseName(pr.exerciseId);
+              const muscle = resolveExerciseMuscle(pr.exerciseId);
+              const oneRm = pr.weightKg && pr.reps
+                ? Math.round(Number(pr.weightKg) * (1 + Number(pr.reps) / 30))
+                : null;
+              const medals = ['🥇', '🥈', '🥉'];
+              const medal = medals[idx] ?? '🏅';
+              return (
+                <div key={idx} className="flex items-center gap-3 p-3 rounded-2xl"
+                  style={{
+                    backgroundColor: 'var(--surface)',
+                    border: idx === 0 ? '1px solid #f59e0b66' : '1px solid var(--border)',
+                    background: idx === 0 ? 'linear-gradient(135deg, #f59e0b11, var(--surface))' : undefined,
+                  }}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                    style={{ backgroundColor: idx === 0 ? '#f59e0b22' : 'var(--surface-elevated)' }}>
+                    {medal}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{name}</p>
+                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{muscle}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-black num" style={{ color: 'var(--accent-warm)' }}>
+                      {pr.weightKg} kg × {pr.reps}
+                    </p>
+                    {oneRm !== null && (
+                      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>~{oneRm} kg 1RM</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Best Meals ── */}
+      {bestMeals.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Top Meals</span>
+            <span className="text-xs">🍽️</span>
+          </div>
+          <div className="space-y-2">
+            {bestMeals.map((meal, idx) => {
+              const ings = parseMealIngredients(meal.ingredientsJson);
+              const totalCal = Math.round(ings.reduce((s: number, i: any) => s + Number(i.caloriesKcal || 0), 0));
+              const totalPro = Math.round(ings.reduce((s: number, i: any) => s + Number(i.proteinG || 0), 0));
+              const mealMedals = ['⭐', '✨', '💫'];
+              return (
+                <div key={meal.id} className="flex items-center gap-3 p-3 rounded-2xl"
+                  style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                    style={{ backgroundColor: 'var(--accent-green)22' }}>
+                    {mealMedals[idx] ?? '🍴'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
+                    <p className="text-[11px] capitalize" style={{ color: 'var(--text-muted)' }}>{meal.timing}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-black num" style={{ color: 'var(--accent-warm)' }}>{totalCal} kcal</p>
+                    <p className="text-[10px]" style={{ color: 'var(--accent-green)' }}>{totalPro}g protein</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
+
+      {/* ── Motivational Banner ── */}
+      <div className="p-4 rounded-2xl text-center"
+        style={{ background: 'linear-gradient(135deg, var(--accent)22, var(--accent-green)11)', border: '1px solid var(--accent)33' }}>
+        <p className="text-base font-black" style={{ color: 'var(--text-primary)' }}>
+          {(analytics?.daysLogged ?? 0) === 0
+            ? '🔥 Start your journey — log day 1 today!'
+            : (analytics?.daysLogged ?? 0) < 7
+              ? `🚀 ${analytics.daysLogged} days logged — you're just getting started!`
+              : (analytics?.daysLogged ?? 0) < 30
+                ? `💪 ${analytics.daysLogged} days logged — building real momentum!`
+                : `🏆 ${analytics.daysLogged} days logged — you're unstoppable!`}
+        </p>
+        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+          Keep going — every rep counts.
+        </p>
+      </div>
     </div>
   );
 }

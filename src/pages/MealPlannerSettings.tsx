@@ -377,13 +377,19 @@ export default function MealPlannerSettings() {
   useEffect(() => {
     const state: any = location.state || {};
     const pick = state.mealPick;
+    const source = state.source as string | undefined;
     if (loading) return;
     const pickedId = Number(pick?.mealTemplateId);
     if (!pick?.dayKey || !Number.isFinite(pickedId) || pickedId <= 0) return;
     const signature = `${pick.dayKey}-${pickedId}-${pick.timeOfDay || ''}-${pick.slotTiming || ''}`;
     if (lastAppliedPickRef.current === signature) return;
     lastAppliedPickRef.current = signature;
-    addMealToDay(pick.dayKey, pickedId, pick.timeOfDay);
+    (async () => {
+      await addMealToDay(pick.dayKey, pickedId, pick.timeOfDay);
+      if (source === 'diet') {
+        navigate('/body?tab=Diet');
+      }
+    })();
   }, [location.state, loading]);
 
   function openMealPicker(dayKey: string) {
