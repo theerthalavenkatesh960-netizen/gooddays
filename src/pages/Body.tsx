@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dumbbell, Settings as SettingsIcon, Leaf, TrendingUp, Check,
-  Pencil, X, Scale, ChevronDown, ChevronUp, Trash2,
+  Pencil, X, Scale,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO, subDays } from 'date-fns';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import * as api from '../lib/api';
 
@@ -74,9 +74,12 @@ type SplitPreset = {
 
 type WorkoutPlan = {
   id?: number;
+  date?: string;
   plannedExercises: string;
   sets?: WorkoutSet[];
 };
+
+type ExerciseAverages = Record<number, { avgWeight: number; avgReps: number; totalSets: number }>;
 
 const BODY_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Workout', label: 'Workout', icon: Dumbbell },
@@ -110,22 +113,49 @@ function WorkoutTab() {
   const [todayPlan, setTodayPlan] = useState<WorkoutPlan | null>(null);
   const [loggedSets, setLoggedSets] = useState<WorkoutSet[]>([]);
   const [busyExerciseId, setBusyExerciseId] = useState<number | null>(null);
-  const [expandedExercises, setExpandedExercises] = useState<Set<number>>(new Set());
+  const [exerciseAverages, setExerciseAverages] = useState<ExerciseAverages>({});
 
   const dayKey = format(new Date(), 'EEEE').toLowerCase();
   const today = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
+    const fromDate = format(subDays(new Date(), 365), 'yyyy-MM-dd');
+
     Promise.all([
       api.getExercises(),
       api.getWorkoutPlanByDate(today),
       api.getActiveSplit(),
+      api.getWorkoutPlans(fromDate),
     ])
-      .then(([exData, plan, activeSplit]) => {
+      .then(([exData, plan, activeSplit, plans]) => {
         setExercises(Array.isArray(exData) ? exData : []);
         const normalizedPlan = plan || null;
         setTodayPlan(normalizedPlan);
         setLoggedSets(Array.isArray(normalizedPlan?.sets) ? normalizedPlan.sets : []);
+
+        const avgMap: ExerciseAverages = {};
+        const planList = Array.isArray(plans) ? plans : [];
+        for (const p of planList as WorkoutPlan[]) {
+          const sets = Array.isArray(p?.sets) ? p.sets : [];
+          for (const s of sets) {
+            const exId = Number(s.exerciseId);
+            if (!Number.isFinite(exId) || exId <= 0 || !s.isCompleted) continue;
+            const weight = Number(s.weightKg || 0);
+            const reps = Number(s.reps || 0);
+            if (!avgMap[exId]) avgMap[exId] = { avgWeight: 0, avgReps: 0, totalSets: 0 };
+            avgMap[exId].avgWeight += weight;
+            avgMap[exId].avgReps += reps;
+            avgMap[exId].totalSets += 1;
+          }
+        }
+        for (const exIdText of Object.keys(avgMap)) {
+          const exId = Number(exIdText);
+          const row = avgMap[exId];
+          const denom = Math.max(1, row.totalSets);
+          row.avgWeight = row.avgWeight / denom;
+          row.avgReps = row.avgReps / denom;
+        }
+        setExerciseAverages(avgMap);
 
         const split = activeSplit as SplitPreset | null;
         if (split?.id) setSplitId(split.id);
@@ -153,6 +183,7 @@ function WorkoutTab() {
         setLoggedSets([]);
         setRoutine({});
         setSplitId(null);
+        setExerciseAverages({});
       })
       .finally(() => setLoading(false));
   }, [today]);
@@ -192,6 +223,17 @@ function WorkoutTab() {
       };
     });
   }, [routineCards, loggedSets]);
+
+  const targetedMusclesToday = useMemo(() => {
+    const groups = cardData
+      .map(c => String(c.exercise.muscleGroup || c.exercise.category || '').trim())
+      .filter(Boolean)
+      .map(g => g.toLowerCase());
+
+    const unique = Array.from(new Set(groups));
+    const pretty = unique.map(g => g.split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' '));
+    return pretty.slice(0, 2);
+  }, [cardData]);
 
   async function ensureTodayPlan(seedExerciseId: number, seedTargetSets: number) {
     if (todayPlan?.id) return todayPlan;
@@ -239,6 +281,10 @@ function WorkoutTab() {
     }
   }
 
+  function openExerciseLogger(exerciseId: number) {
+    navigate(`/body/workout/exercise/${exerciseId}/log`);
+  }
+
   async function syncExerciseToRoutine(exerciseId: number, targetSets: number) {
     if (!splitId) return;
     
@@ -256,46 +302,6 @@ function WorkoutTab() {
     } catch {
       // Silently fail; local state is already updated
     }
-  }
-
-  function patchSetLocal(setId: number | undefined, patch: Partial<WorkoutSet>) {
-    if (!setId) return;
-    setLoggedSets(prev => prev.map(s => s.id === setId ? { ...s, ...patch } : s));
-  }
-
-  async function saveSet(setId: number | undefined, patch: Partial<WorkoutSet>) {
-    if (!setId) return;
-    setLoggedSets(prev => prev.map(s => s.id === setId ? { ...s, ...patch } : s));
-    try {
-      await api.updateWorkoutSet(setId, patch);
-    } catch {
-      // no-op; optimistic state already applied
-    }
-  }
-
-  async function toggleDone(s: WorkoutSet) {
-    const next = !s.isCompleted;
-    await saveSet(s.id, { reps: s.reps, weightKg: s.weightKg, isCompleted: next });
-  }
-
-  async function deleteSet(setId: number | undefined) {
-    if (!setId) return;
-    setLoggedSets(prev => prev.filter(s => s.id !== setId));
-    try {
-      await api.deleteWorkoutSet(setId);
-    } catch {
-      // Optimistic delete already applied
-    }
-  }
-
-  function toggleExerciseExpanded(exerciseId: number) {
-    const next = new Set(expandedExercises);
-    if (next.has(exerciseId)) {
-      next.delete(exerciseId);
-    } else {
-      next.add(exerciseId);
-    }
-    setExpandedExercises(next);
   }
 
   return (
@@ -333,14 +339,27 @@ function WorkoutTab() {
           </button>
         </div>
       ) : (
-        cardData.map(({ exercise, sets, targetSets }) => {
+        <>
+        <div className="rounded-2xl px-3 py-2.5 mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-[10px] uppercase font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Targeted Muscles Today</p>
+          <div className="flex flex-wrap gap-1.5">
+            {targetedMusclesToday.length > 0 ? targetedMusclesToday.map((muscle) => (
+              <span key={muscle} className="px-2 py-1 rounded-lg text-[11px] font-semibold" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>
+                {muscle}
+              </span>
+            )) : (
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>No muscle target found</span>
+            )}
+          </div>
+        </div>
+
+        {cardData.map(({ exercise, sets, targetSets }) => {
           const completed = sets.filter(s => s.isCompleted).length;
-          const isExpanded = expandedExercises.has(exercise.id);
+          const avg = exerciseAverages[exercise.id];
+          const recentSets = sets.slice(-3).reverse();
           return (
             <div key={exercise.id} className="rounded-2xl overflow-hidden mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <button
-                onClick={() => toggleExerciseExpanded(exercise.id)}
-                className="w-full flex items-center gap-3 p-4" style={{ borderBottom: isExpanded ? '1px solid var(--border)' : 'none' }}>
+              <div className="w-full flex items-center gap-3 p-4">
                 {exercise.imageUrl ? (
                   <img src={exercise.imageUrl} alt={exercise.name} className="w-10 h-10 rounded-xl object-cover" />
                 ) : (
@@ -351,105 +370,45 @@ function WorkoutTab() {
                 <div className="flex-1 min-w-0 text-left">
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{exercise.name}</p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{exercise.muscleGroup || exercise.category || 'General'}</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--accent)' }}>
+                    Avg: {avg ? `${avg.avgWeight.toFixed(1)}kg · ${avg.avgReps.toFixed(1)} reps` : 'No history yet'}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="text-right">
                     <span className="text-xs block" style={{ color: 'var(--text-muted)' }}>{completed}/{targetSets || sets.length || 0}</span>
                   </div>
-                  {isExpanded ? <ChevronUp size={20} style={{ color: 'var(--accent)' }} /> : <ChevronDown size={20} style={{ color: 'var(--text-muted)' }} />}
                 </div>
-              </button>
-
-              <AnimatePresence>
-                {isExpanded && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.2 }}>
-                    <div className="px-3 pb-3 pt-2 space-y-3">
-                      {sets.map((s, idx) => (
-                        <div key={`${exercise.id}-${s.id ?? idx}`} className="rounded-lg px-2 py-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Set #{s.setNumber}</p>
-                            <button
-                              onClick={() => deleteSet(s.id)}
-                              className="p-1.5 hover:opacity-70 transition-opacity"
-                              style={{ color: 'var(--text-muted)' }}
-                              title="Delete set">
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-[1fr_1fr_52px] gap-2 items-end">
-                            <div>
-                              <label className="text-[9px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Reps</label>
-                              <input
-                                type="number"
-                                value={s.reps && s.reps > 0 ? s.reps : ''}
-                                placeholder="0"
-                                onChange={e => patchSetLocal(s.id, { reps: Number(e.target.value || 0) })}
-                                onBlur={() => s.id && saveSet(s.id, { reps: s.reps, weightKg: s.weightKg, isCompleted: s.isCompleted })}
-                                className="w-full h-7 px-2 rounded-md text-xs num outline-none"
-                                style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-[9px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Weight (kg)</label>
-                              <input
-                                type="number"
-                                value={s.weightKg && s.weightKg > 0 ? s.weightKg : ''}
-                                placeholder="0"
-                                onChange={e => patchSetLocal(s.id, { weightKg: Number(e.target.value || 0) })}
-                                onBlur={() => s.id && saveSet(s.id, { reps: s.reps, weightKg: s.weightKg, isCompleted: s.isCompleted })}
-                                className="w-full h-7 px-2 rounded-md text-xs num outline-none"
-                                style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                              />
-                            </div>
-                            <button
-                              onClick={() => toggleDone(s)}
-                              className="h-7 rounded-md text-[10px] font-semibold"
-                              style={{ backgroundColor: s.isCompleted ? 'var(--accent-green)' : 'var(--surface)', color: s.isCompleted ? '#fff' : 'var(--text-muted)', border: '1px solid var(--border)' }}
-                            >
-                              {s.isCompleted ? 'Done' : 'Log'}
-                            </button>
-                          </div>
-                        </div>
+              </div>
+              <div className="px-4 pb-3">
+                {recentSets.length > 0 ? (
+                  <div className="rounded-lg px-2 py-2 mb-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                    <p className="text-[10px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Recent Sets</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {recentSets.map((s, idx) => (
+                        <span key={`${exercise.id}-recent-${s.id ?? idx}`} className="px-2 py-1 rounded text-[10px] num" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                          {Number(s.weightKg || 0)}kg x {Number(s.reps || 0)}
+                        </span>
                       ))}
-                      {sets.length === 0 && (
-                        <p className="text-xs px-1" style={{ color: 'var(--text-muted)' }}>
-                          No sets logged yet. Tap + Set to log directly here.
-                        </p>
-                      )}
                     </div>
-                    <div className="px-3 pb-3">
-                      <button
-                        onClick={() => addSet(exercise.id, targetSets || 4)}
-                        className="w-full h-8 rounded-lg text-[11px] font-semibold"
-                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}
-                        disabled={busyExerciseId === exercise.id}
-                      >
-                        {busyExerciseId === exercise.id ? '...' : '+ Add Set'}
-                      </button>
-                    </div>
-                  </motion.div>
+                  </div>
+                ) : (
+                  <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+                    No sets logged yet. Tap Open Logger to start tracking.
+                  </p>
                 )}
-              </AnimatePresence>
-
-              {!isExpanded && sets.length === 0 && (
-                <div className="px-4 py-2" style={{ borderTop: '1px solid var(--border)' }}>
-                  <button
-                    onClick={() => addSet(exercise.id, targetSets || 4)}
-                    className="h-7 w-full rounded-lg text-[11px] font-semibold"
-                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}
-                    disabled={busyExerciseId === exercise.id}
-                  >
-                    {busyExerciseId === exercise.id ? '...' : '+ Set'}
-                  </button>
-                </div>
-              )}
+                <button
+                  onClick={() => openExerciseLogger(exercise.id)}
+                  className="w-full h-8 rounded-lg text-[11px] font-semibold"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}
+                >
+                  Open Logger
+                </button>
+              </div>
             </div>
           );
-        })
+        })}
+        </>
       )}
     </div>
   );
@@ -538,6 +497,8 @@ function DietTab() {
   const [plannedMeals, setPlannedMeals] = useState<MealTemplate[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [goal, setGoal] = useState(2400);
+  const [waterConsumedMl, setWaterConsumedMl] = useState(0);
+  const [waterGoalMl, setWaterGoalMl] = useState(2000);
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const navigate = useNavigate();
@@ -558,11 +519,12 @@ function DietTab() {
     async function load() {
       setLoading(true);
       try {
-        const [templates, weeklyPlan, todayLog, settings] = await Promise.all([
+        const [templates, weeklyPlan, todayLog, settings, waterLog] = await Promise.all([
           api.getMealTemplates(),
           api.getWeeklyMealPlan() as Promise<WeeklyMealPlan>,
           (api as any).getDailyMealLog(today) as Promise<DailyMealLog | null>,
           api.getUserSettings(),
+          api.getDailyWaterLog(today) as Promise<any>,
         ]);
 
         const list = Array.isArray(templates) ? templates : [];
@@ -588,6 +550,9 @@ function DietTab() {
         if (Number.isFinite(settings?.calorieGoal)) {
           setGoal(Number(settings.calorieGoal));
         }
+
+        setWaterConsumedMl(Number(waterLog?.mlConsumed || 0));
+        setWaterGoalMl(Math.max(500, Number(waterLog?.goalMl || 2000)));
       } finally {
         setLoading(false);
       }
@@ -649,6 +614,7 @@ function DietTab() {
   }, [goal]);
 
   const caloriePercentage = goal > 0 ? Math.min(100, Math.round((consumedCalories / goal) * 100)) : 0;
+  const waterPercentage = waterGoalMl > 0 ? Math.min(100, Math.round((waterConsumedMl / waterGoalMl) * 100)) : 0;
 
   return (
     <div className="px-4 space-y-4">
@@ -687,21 +653,30 @@ function DietTab() {
         <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
           Targets are auto-derived from your daily calorie goal.
         </p>
-      </div>
 
-      {/* Calorie Consumption Progress Bar */}
-      <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Daily Consumption</p>
-          <p className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{caloriePercentage}%</p>
+        <div className="mt-3 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Meal Consumption</p>
+            <p className="text-[10px] font-bold num" style={{ color: 'var(--accent-warm)' }}>{caloriePercentage}%</p>
+          </div>
+          <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, caloriePercentage)}%`, backgroundColor: 'var(--accent-warm)' }} />
+          </div>
+          <p className="text-[10px] mt-1 mb-2" style={{ color: 'var(--text-muted)' }}>
+            <span className="font-semibold num" style={{ color: 'var(--text-primary)' }}>{Math.round(consumedCalories)}</span> / {goal} kcal
+          </p>
+
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Water Consumption</p>
+            <p className="text-[10px] font-bold num" style={{ color: 'var(--accent)' }}>{waterPercentage}%</p>
+          </div>
+          <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, waterPercentage)}%`, backgroundColor: '#06B6D4' }} />
+          </div>
+          <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+            <span className="font-semibold num" style={{ color: 'var(--text-primary)' }}>{Math.round(waterConsumedMl)}</span> / {Math.round(waterGoalMl)} ml
+          </p>
         </div>
-        <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-          <div className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(100, caloriePercentage)}%`, backgroundColor: 'var(--accent-warm)' }} />
-        </div>
-        <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
-          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{Math.round(consumedCalories)}</span> of {goal} kcal
-        </p>
       </div>
 
       <div className="flex items-center justify-between mb-2">
@@ -755,6 +730,14 @@ function DietTab() {
 // ─── Advanced Body Weight Progress Chart ────────────────────────────────────
 function WeightChart({ logs, targetWeight }: { logs: api.BodyWeightLog[]; targetWeight: number | null }) {
   const [hovered, setHovered] = useState<number | null>(null);
+
+  function formatChartDate(dateText: string): string {
+    try {
+      return format(parseISO(dateText), 'MMM do, yyyy');
+    } catch {
+      return dateText;
+    }
+  }
 
   if (logs.length === 0) return (
     <div className="flex flex-col items-center justify-center h-36 rounded-2xl gap-2"
@@ -884,8 +867,15 @@ function WeightChart({ logs, targetWeight }: { logs: api.BodyWeightLog[]; target
           const isHov = hovered === i;
           return (
             <g key={i}>
+              <circle
+                cx={toX(i)} cy={toY(l.weightKg)}
+                r={10}
+                fill="transparent"
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={() => setHovered(i)}
+              />
               <circle cx={toX(i)} cy={toY(l.weightKg)}
-                r={isHov ? 7 : (logs.length > 20 ? 2.5 : 4)}
+                r={isHov ? 6.5 : 3.2}
                 fill={isHov ? '#fff' : 'var(--accent-blue, #3b82f6)'}
                 stroke={isHov ? 'var(--accent-blue, #3b82f6)' : 'var(--surface)'}
                 strokeWidth={isHov ? 2 : 1.5}
@@ -905,7 +895,7 @@ function WeightChart({ logs, targetWeight }: { logs: api.BodyWeightLog[]; target
                     fill="var(--text-primary)">{l.weightKg} kg</text>
                   <text x={Math.min(toX(i), W - 40)} y={toY(l.weightKg) - 9}
                     textAnchor="middle" fontSize="8"
-                    fill="var(--text-muted)">{l.date.slice(5)}</text>
+                    fill="var(--text-muted)">{formatChartDate(l.date)}</text>
                 </g>
               )}
             </g>
@@ -1097,23 +1087,20 @@ function ProgressTab() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [prs, setPrs] = useState<any[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [bestMeals, setBestMeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const [analyticsData, prsData, exData, mealsData] = await Promise.all([
+        const [analyticsData, prsData, exData] = await Promise.all([
           api.getWorkoutAnalytics(12).catch(() => null),
           api.getPersonalRecords().catch(() => []),
           api.getExercises().catch(() => []),
-          api.getMealTemplates().catch(() => []),
         ]);
         setAnalytics(analyticsData);
         setPrs(Array.isArray(prsData) ? prsData : []);
         setExercises(Array.isArray(exData) ? exData : []);
-        setBestMeals(Array.isArray(mealsData) ? mealsData.slice(0, 3) : []);
       } finally {
         setLoading(false);
       }
@@ -1154,7 +1141,7 @@ function ProgressTab() {
     },
     {
       label: 'This Period',
-      value: analytics?.weeks ?? 12,
+      value: analytics?.weeks ?? 0,
       unit: 'weeks',
       icon: '📅',
       color: 'var(--accent-blue, #3b82f6)',
@@ -1173,7 +1160,7 @@ function ProgressTab() {
         <div className="flex items-center gap-2 mb-3">
           <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Workout Stats</span>
           <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-            style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>Last 12 weeks</span>
+            style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>Last {analytics?.weeks ?? 0} weeks</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           {statCards.map(card => (
@@ -1262,41 +1249,6 @@ function ProgressTab() {
           </div>
         )}
       </div>
-
-      {/* ── Best Meals ── */}
-      {bestMeals.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Top Meals</span>
-            <span className="text-xs">🍽️</span>
-          </div>
-          <div className="space-y-2">
-            {bestMeals.map((meal, idx) => {
-              const ings = parseMealIngredients(meal.ingredientsJson);
-              const totalCal = Math.round(ings.reduce((s: number, i: any) => s + Number(i.caloriesKcal || 0), 0));
-              const totalPro = Math.round(ings.reduce((s: number, i: any) => s + Number(i.proteinG || 0), 0));
-              const mealMedals = ['⭐', '✨', '💫'];
-              return (
-                <div key={meal.id} className="flex items-center gap-3 p-3 rounded-2xl"
-                  style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                    style={{ backgroundColor: 'var(--accent-green)22' }}>
-                    {mealMedals[idx] ?? '🍴'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
-                    <p className="text-[11px] capitalize" style={{ color: 'var(--text-muted)' }}>{meal.timing}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-black num" style={{ color: 'var(--accent-warm)' }}>{totalCal} kcal</p>
-                    <p className="text-[10px]" style={{ color: 'var(--accent-green)' }}>{totalPro}g protein</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* ── Motivational Banner ── */}
       <div className="p-4 rounded-2xl text-center"
