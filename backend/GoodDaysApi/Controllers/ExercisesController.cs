@@ -56,7 +56,7 @@ public class ExercisesController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] Exercise body)
     {
         var userId = GetUserId();
-        var exercise = await _db.Exercises.FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
+        var exercise = await _db.Exercises.FirstOrDefaultAsync(e => e.Id == id && (e.UserId == null || e.UserId == userId));
         if (exercise is null) return NotFound();
         exercise.Name = body.Name;
         exercise.MuscleGroup = body.MuscleGroup;
