@@ -122,7 +122,7 @@ export default function ExerciseLoggerPage() {
       isCompleted: true,
     };
     setDraftSets(prevDrafts => [...prevDrafts, draft]);
-    setStatus('Draft set added. Tap Done to save.');
+    setStatus('Draft set added. Tap Log to save.');
     setTimeout(() => setStatus(''), 1200);
   }
 
@@ -143,7 +143,7 @@ export default function ExerciseLoggerPage() {
 
       setDraftSets(prev => prev.filter(d => d.localId !== localId));
       setSetsToday(prev => [...prev, created as WorkoutSet].sort((a, b) => Number(a.setNumber || 0) - Number(b.setNumber || 0)));
-      setStatus('Set logged');
+      setStatus('Set logged. Tap Edit to modify.');
       await load();
     } catch (e: any) {
       setStatus(e?.message || 'Failed to log set');
@@ -330,9 +330,13 @@ export default function ExerciseLoggerPage() {
                   <button
                     onClick={() => saveSet(s.id, { isCompleted: !s.isCompleted, reps: s.reps, weightKg: s.weightKg })}
                     className="h-8 rounded-md text-[10px] font-semibold"
-                    style={{ backgroundColor: s.isCompleted ? 'var(--accent-green)' : 'var(--surface)', color: s.isCompleted ? '#fff' : 'var(--text-muted)', border: '1px solid var(--border)' }}
+                    style={{
+                      backgroundColor: s.isCompleted ? 'var(--surface)' : 'var(--accent)',
+                      color: s.isCompleted ? 'var(--text-secondary)' : '#fff',
+                      border: s.isCompleted ? '1px solid var(--border)' : '1px solid var(--accent)'
+                    }}
                   >
-                    {s.isCompleted ? 'Done' : 'Log'}
+                    {s.isCompleted ? 'Edit' : 'Log'}
                   </button>
                 </div>
               </div>
@@ -371,9 +375,9 @@ export default function ExerciseLoggerPage() {
                     onClick={() => saveDraftSet(d.localId)}
                     disabled={saving}
                     className="h-8 rounded-md text-[10px] font-semibold"
-                    style={{ backgroundColor: 'var(--accent-green)', color: '#fff', border: '1px solid var(--border)', opacity: saving ? 0.7 : 1 }}
+                    style={{ backgroundColor: 'var(--accent)', color: '#fff', border: '1px solid var(--accent)', opacity: saving ? 0.7 : 1 }}
                   >
-                    Done
+                    Log
                   </button>
                 </div>
               </div>
