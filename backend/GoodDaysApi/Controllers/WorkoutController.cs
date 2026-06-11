@@ -350,12 +350,21 @@ public class WorkoutController : ControllerBase
             .Where(p => p.UserId == userId && p.Date >= since)
             .ToListAsync();
 
+        var weeklyVolume = sets
+            .GroupBy(s => System.Globalization.ISOWeek.GetYear(s.WorkoutDayPlan.Date) + "-W" + System.Globalization.ISOWeek.GetWeekOfYear(s.WorkoutDayPlan.Date).ToString("00"))
+            .Select(g => new { week = g.Key, totalVolume = g.Sum(s => (s.WeightKg ?? 0) * (s.Reps ?? 0)), totalSets = g.Count() })
+            .ToList();
+
+        var trainedDates = plans.Where(p => p.IsCompleted).Select(p => p.Date.ToString("yyyy-MM-dd")).ToList();
+
         return Ok(new
         {
-            weeklyVolume = sets
-                .GroupBy(s => System.Globalization.ISOWeek.GetYear(s.WorkoutDayPlan.Date) + "-W" + System.Globalization.ISOWeek.GetWeekOfYear(s.WorkoutDayPlan.Date).ToString("00"))
-                .Select(g => new { week = g.Key, totalVolume = g.Sum(s => (s.WeightKg ?? 0) * (s.Reps ?? 0)), totalSets = g.Count() }),
-            trainedDates = plans.Where(p => p.IsCompleted).Select(p => p.Date.ToString("yyyy-MM-dd"))
+            weeks,
+            daysLogged = trainedDates.Count,
+            totalSets = sets.Count,
+            totalVolume = sets.Sum(s => (s.WeightKg ?? 0) * (s.Reps ?? 0)),
+            weeklyVolume,
+            trainedDates,
         });
     }
 }

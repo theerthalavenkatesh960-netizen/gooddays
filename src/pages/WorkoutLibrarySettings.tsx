@@ -79,7 +79,7 @@ export default function WorkoutLibrarySettings() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterMuscle, setFilterMuscle] = useState<string | null>(null);
-  const [showExerciseFilters, setShowExerciseFilters] = useState(false);
+  const [showExerciseFilters, setShowExerciseFilters] = useState(true);
   const [showAiGenerateModal, setShowAiGenerateModal] = useState(false);
   const [generatingAi, setGeneratingAi] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(false);
@@ -508,8 +508,8 @@ export default function WorkoutLibrarySettings() {
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 {filteredExercises.map(ex => (
-                  <div key={ex.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
-                    <button onClick={() => navigate(`/settings/workout-library/exercise/${ex.id}`)} className="w-full text-left">
+                  <div key={ex.id} className="rounded-xl overflow-hidden h-[216px] flex flex-col" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+                    <button onClick={() => navigate(`/settings/workout-library/exercise/${ex.id}`)} className="w-full text-left flex-1 min-h-0">
                       <div className="w-full h-24 flex items-center justify-center relative" style={{ backgroundColor: 'rgba(108, 99, 255, 0.07)' }}>
                         {ex.imageUrl
                           ? <img src={ex.imageUrl} alt={ex.name} className="w-full h-full object-cover" />
@@ -519,12 +519,12 @@ export default function WorkoutLibrarySettings() {
                           {ex.muscleGroup}
                         </span>
                       </div>
-                      <div className="p-2.5">
+                      <div className="p-2.5 h-[84px] overflow-hidden">
                         <p className="text-xs font-semibold line-clamp-1 mb-0.5" style={{ color: 'var(--text-primary)' }}>{ex.name}</p>
-                        {ex.description && <p className="text-[10px] line-clamp-2 mb-2" style={{ color: 'var(--text-muted)' }}>{ex.description}</p>}
+                        {ex.description && <p className="text-[10px] line-clamp-2" style={{ color: 'var(--text-muted)' }}>{ex.description}</p>}
                       </div>
                     </button>
-                    <div className="px-2.5 pb-2.5">
+                    <div className="px-2.5 pb-2.5 mt-auto">
                       <button
                         onClick={() => deleteExercise(ex)}
                         className="w-full py-1 rounded-lg text-[10px] font-medium press flex items-center justify-center gap-1"

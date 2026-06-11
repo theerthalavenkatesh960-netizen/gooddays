@@ -42,6 +42,8 @@ import SettingsLife from './pages/SettingsLife';
 import SettingsVehicles from './pages/SettingsVehicles';
 import SettingsAnalytics from './pages/SettingsAnalytics';
 import FinanceGmailReview from './pages/FinanceGmailReview';
+import AddIngredientPage from './pages/AddIngredientPage';
+import IngredientPickerPage from './pages/IngredientPickerPage';
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -103,6 +105,7 @@ VITE_API_URL=https://gooddays.onrender.com
 
               <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
               <Route path="/body"     element={<PrivateRoute><Layout><Body /></Layout></PrivateRoute>} />
+              <Route path="/diet/add-ingredient" element={<PrivateRoute><Layout><AddIngredientPage /></Layout></PrivateRoute>} />
               <Route path="/body/workout-log" element={<PrivateRoute><Layout><Workout /></Layout></PrivateRoute>} />
               <Route path="/finance"  element={<PrivateRoute><Layout><Finance /></Layout></PrivateRoute>} />
               <Route path="/finance/cards" element={<PrivateRoute><Layout><Cards /></Layout></PrivateRoute>} />
@@ -128,6 +131,7 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/settings/meals/catalog" element={<PrivateRoute><Layout><MealCatalogBrowse /></Layout></PrivateRoute>} />
               <Route path="/settings/routines" element={<PrivateRoute><Layout><RoutineManager /></Layout></PrivateRoute>} />
               <Route path="/settings/meals/ingredients" element={<PrivateRoute><Layout><MealIngredientLibraryPage /></Layout></PrivateRoute>} />
+              <Route path="/settings/meals/pick-ingredients" element={<PrivateRoute><Layout><IngredientPickerPage /></Layout></PrivateRoute>} />
               <Route path="/settings/meals/new-template" element={<PrivateRoute><Layout><MealCreateTemplatePage /></Layout></PrivateRoute>} />
               <Route path="/settings/meals/template/:id" element={<PrivateRoute><Layout><MealTemplateDetails /></Layout></PrivateRoute>} />
               <Route path="/settings/meals/pick" element={<PrivateRoute><Layout><MealDayPickerPage /></Layout></PrivateRoute>} />

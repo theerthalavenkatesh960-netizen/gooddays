@@ -14,6 +14,7 @@ export default function WorkoutAddExercisePage() {
     muscleGroup: 'Chest',
     description: '',
     imageUrl: '',
+    shareWithOthers: false,
   });
 
   async function save() {
@@ -25,6 +26,7 @@ export default function WorkoutAddExercisePage() {
         muscleGroup: form.muscleGroup,
         description: form.description.trim(),
         imageUrl: form.imageUrl.trim(),
+        shareWithOthers: form.shareWithOthers,
       });
       navigate('/settings/workout-library');
     } catch (e: any) {
@@ -83,6 +85,19 @@ export default function WorkoutAddExercisePage() {
           className="w-full px-3 py-2 text-sm rounded-xl outline-none resize-none"
           style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
         />
+
+        <label className="flex items-start gap-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+          <input
+            type="checkbox"
+            checked={form.shareWithOthers}
+            onChange={e => setForm(p => ({ ...p, shareWithOthers: e.target.checked }))}
+            className="mt-0.5"
+          />
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Allow others to use this workout</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>If checked, this exercise is visible in other users' workout libraries.</p>
+          </div>
+        </label>
 
         <button
           onClick={save}

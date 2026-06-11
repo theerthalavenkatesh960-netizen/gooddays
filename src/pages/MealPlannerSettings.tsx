@@ -362,8 +362,21 @@ export default function MealPlannerSettings() {
     }
 
     const existing = mealPlan[dayKey] || [];
+    
+    // Check if exact same meal already exists
     if (existing.some(a => a.mealTemplateId === mealTemplateId)) {
-      flash('Meal already exists for this day');
+      flash('This meal already exists for this day');
+      return;
+    }
+
+    // Check if a meal with the same timing already exists (prevent duplicate preworkout, breakfast, etc)
+    const mealTiming = pickedMeal.timing?.toLowerCase() || '';
+    if (mealTiming && existing.some(a => {
+      const existingMeal = meals.find(m => m.id === a.mealTemplateId);
+      return existingMeal && existingMeal.timing?.toLowerCase() === mealTiming;
+    })) {
+      flash(`You already have a ${mealTiming} meal for this day. Replace it?`);
+      // Return false so caller can prompt for replacement
       return;
     }
 
@@ -377,14 +390,23 @@ export default function MealPlannerSettings() {
   useEffect(() => {
     const state: any = location.state || {};
     const pick = state.mealPick;
+    const source = state.source as string | undefined;
     if (loading) return;
     const pickedId = Number(pick?.mealTemplateId);
     if (!pick?.dayKey || !Number.isFinite(pickedId) || pickedId <= 0) return;
     const signature = `${pick.dayKey}-${pickedId}-${pick.timeOfDay || ''}-${pick.slotTiming || ''}`;
     if (lastAppliedPickRef.current === signature) return;
     lastAppliedPickRef.current = signature;
-    addMealToDay(pick.dayKey, pickedId, pick.timeOfDay);
-  }, [location.state, loading]);
+    (async () => {
+      await addMealToDay(pick.dayKey, pickedId, pick.timeOfDay);
+      if (source === 'diet') {
+        navigate('/body?tab=Diet');
+      } else {
+        // Clear the mealPick state to prevent effect from re-running
+        navigate(location.pathname, { state: { tab: 'weekly' }, replace: true });
+      }
+    })();
+  }, [location.state, loading, navigate]);
 
   function openMealPicker(dayKey: string) {
     navigate('/settings/meals/pick', { state: { dayKey } });
@@ -423,7 +445,23 @@ export default function MealPlannerSettings() {
   const selectedMeals = useMemo(() => {
     const assignments = mealPlan[selectedDayKey] || [];
     const fallbackAssignments = (assignments.length > 0) ? assignments : (mealPlan[toLegacyDayKey(selectedDate)] || []);
-    return fallbackAssignments
+    
+    // Remove duplicate timings - keep only the first meal of each timing
+    const timingsSeen = new Set<string>();
+    const uniqueAssignments = [];
+    
+    for (const assignment of fallbackAssignments) {
+      const meal = meals.find(m => m.id === assignment.mealTemplateId);
+      if (meal) {
+        const key = meal.timing?.toLowerCase() || `meal-${assignment.mealTemplateId}`;
+        if (!timingsSeen.has(key)) {
+          timingsSeen.add(key);
+          uniqueAssignments.push(assignment);
+        }
+      }
+    }
+    
+    return uniqueAssignments
       .map(assignment => {
         const meal = meals.find(m => m.id === assignment.mealTemplateId);
         return meal ? { meal, overrideTime: assignment.timeOfDay as string | undefined } : null;
