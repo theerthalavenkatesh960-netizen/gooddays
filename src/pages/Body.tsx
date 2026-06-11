@@ -5,7 +5,7 @@ import {
   Pencil, X, Scale, ChevronDown, ChevronUp, Trash2,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import * as api from '../lib/api';
 
 type Tab = 'Workout' | 'Diet' | 'Progress';
@@ -539,10 +539,20 @@ function DietTab() {
   const [selected, setSelected] = useState<number[]>([]);
   const [goal, setGoal] = useState(2400);
   const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const navigate = useNavigate();
+  const location = useLocation();
   const today = format(new Date(), 'yyyy-MM-dd');
   const todayKey = format(new Date(), 'EEEE').toLowerCase();
   const utcToday = getUtcDateKey();
+
+  // Listen for location changes that indicate meals were added
+  useEffect(() => {
+    // If we're coming back to this tab and there was a meal pick, refresh
+    if ((location.state as any)?.mealPick || (location.state as any)?.mealAdded) {
+      setRefreshTrigger(prev => prev + 1);
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     async function load() {
@@ -584,7 +594,11 @@ function DietTab() {
     }
 
     load();
-  }, [today, todayKey, utcToday]);
+  }, [today, todayKey, utcToday, refreshTrigger]);
+  
+  const handleAddIngredient = () => {
+    navigate('/diet/add-ingredient');
+  };
 
   async function toggleMeal(id: number) {
     const next = selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id];
@@ -692,7 +706,10 @@ function DietTab() {
 
       <div className="flex items-center justify-between mb-2">
         <span className="section-label">Today's Meals</span>
-        <button onClick={() => navigate('/settings/meals')} className="text-xs" style={{ color: 'var(--accent)' }}>Manage</button>
+        <div className="flex gap-2">
+          <button onClick={handleAddIngredient} className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>Add Item</button>
+          <button onClick={() => navigate('/settings/meals')} className="text-xs" style={{ color: 'var(--accent)' }}>Manage</button>
+        </div>
       </div>
 
       {loading ? (
