@@ -79,7 +79,7 @@ export default function WorkoutLibrarySettings() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterMuscle, setFilterMuscle] = useState<string | null>(null);
-  const [showExerciseFilters, setShowExerciseFilters] = useState(false);
+  const [showExerciseFilters, setShowExerciseFilters] = useState(true);
   const [showAiGenerateModal, setShowAiGenerateModal] = useState(false);
   const [generatingAi, setGeneratingAi] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(false);

@@ -9,6 +9,7 @@ type Exercise = {
   muscleGroup: string;
   description?: string;
   imageUrl?: string;
+  userId?: number | null;
 };
 
 type RoutineEntry = { exerciseId: number; sets: number; reps: number };
@@ -23,7 +24,7 @@ export default function WorkoutExerciseDetails() {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState('');
-  const [form, setForm] = useState({ name: '', muscleGroup: 'Chest', description: '', imageUrl: '' });
+  const [form, setForm] = useState({ name: '', muscleGroup: 'Chest', description: '', imageUrl: '', shareWithOthers: false });
   const [plannedDays, setPlannedDays] = useState<Array<{ day: string; sets: number; reps: number }>>([]);
 
   const selectedMeta = (location.state || {}) as { day?: string; sets?: number; reps?: number };
@@ -46,6 +47,7 @@ export default function WorkoutExerciseDetails() {
         muscleGroup: found.muscleGroup || 'Chest',
         description: found.description || '',
         imageUrl: found.imageUrl || '',
+        shareWithOthers: found.userId == null,
       });
     }
 
@@ -80,6 +82,7 @@ export default function WorkoutExerciseDetails() {
         muscleGroup: form.muscleGroup,
         description: form.description,
         imageUrl: form.imageUrl.trim() || null,
+        shareWithOthers: form.shareWithOthers,
       });
       if (updated) setExercise(updated as Exercise);
       setEditing(false);
@@ -164,6 +167,18 @@ export default function WorkoutExerciseDetails() {
                 placeholder="Image URL" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
               <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                 rows={3} placeholder="Description" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+              <label className="flex items-start gap-3 p-3 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                <input
+                  type="checkbox"
+                  checked={form.shareWithOthers}
+                  onChange={e => setForm(p => ({ ...p, shareWithOthers: e.target.checked }))}
+                  className="mt-0.5"
+                />
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Allow others to use this workout</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>If checked, this exercise is visible in other users' workout libraries.</p>
+                </div>
+              </label>
             </div>
           ) : (
             <>

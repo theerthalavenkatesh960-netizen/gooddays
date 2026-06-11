@@ -14,6 +14,24 @@ public class ExercisesController : ControllerBase
     private readonly AppDbContext _db;
     public ExercisesController(AppDbContext db) => _db = db;
 
+    public sealed class CreateExerciseRequest
+    {
+        public string Name { get; set; } = string.Empty;
+        public string MuscleGroup { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? ImageUrl { get; set; }
+        public bool ShareWithOthers { get; set; }
+    }
+
+    public sealed class UpdateExerciseRequest
+    {
+        public string Name { get; set; } = string.Empty;
+        public string MuscleGroup { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? ImageUrl { get; set; }
+        public bool? ShareWithOthers { get; set; }
+    }
+
     private int GetUserId() => int.Parse(
         User.FindFirst("userId")?.Value
         ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
@@ -41,19 +59,27 @@ public class ExercisesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Exercise body)
+    public async Task<IActionResult> Create([FromBody] CreateExerciseRequest body)
     {
         var userId = GetUserId();
-        body.UserId = userId;
-        body.IsCustom = true;
-        body.CreatedAt = DateTime.UtcNow;
-        _db.Exercises.Add(body);
+        var exercise = new Exercise
+        {
+            Name = body.Name,
+            MuscleGroup = body.MuscleGroup,
+            Description = body.Description,
+            ImageUrl = body.ImageUrl,
+            UserId = body.ShareWithOthers ? null : userId,
+            IsCustom = true,
+            CreatedAt = DateTime.UtcNow,
+        };
+
+        _db.Exercises.Add(exercise);
         await _db.SaveChangesAsync();
-        return Ok(body);
+        return Ok(exercise);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, [FromBody] Exercise body)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateExerciseRequest body)
     {
         var userId = GetUserId();
         var exercise = await _db.Exercises.FirstOrDefaultAsync(e => e.Id == id && (e.UserId == null || e.UserId == userId));
@@ -62,6 +88,10 @@ public class ExercisesController : ControllerBase
         exercise.MuscleGroup = body.MuscleGroup;
         exercise.Description = body.Description;
         exercise.ImageUrl = body.ImageUrl;
+        if (body.ShareWithOthers.HasValue)
+        {
+            exercise.UserId = body.ShareWithOthers.Value ? null : userId;
+        }
         await _db.SaveChangesAsync();
         return Ok(exercise);
     }
