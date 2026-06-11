@@ -4,7 +4,7 @@ import {
   Dumbbell, Settings as SettingsIcon, Leaf, TrendingUp, Check,
   Pencil, X, Scale, ChevronDown, ChevronUp, Trash2,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import * as api from '../lib/api';
 
@@ -74,9 +74,12 @@ type SplitPreset = {
 
 type WorkoutPlan = {
   id?: number;
+  date?: string;
   plannedExercises: string;
   sets?: WorkoutSet[];
 };
+
+type ExerciseAverages = Record<number, { avgWeight: number; avgReps: number; totalSets: number }>;
 
 const BODY_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Workout', label: 'Workout', icon: Dumbbell },
@@ -111,21 +114,49 @@ function WorkoutTab() {
   const [loggedSets, setLoggedSets] = useState<WorkoutSet[]>([]);
   const [busyExerciseId, setBusyExerciseId] = useState<number | null>(null);
   const [expandedExercises, setExpandedExercises] = useState<Set<number>>(new Set());
+  const [exerciseAverages, setExerciseAverages] = useState<ExerciseAverages>({});
 
   const dayKey = format(new Date(), 'EEEE').toLowerCase();
   const today = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
+    const fromDate = format(subDays(new Date(), 365), 'yyyy-MM-dd');
+
     Promise.all([
       api.getExercises(),
       api.getWorkoutPlanByDate(today),
       api.getActiveSplit(),
+      api.getWorkoutPlans(fromDate),
     ])
-      .then(([exData, plan, activeSplit]) => {
+      .then(([exData, plan, activeSplit, plans]) => {
         setExercises(Array.isArray(exData) ? exData : []);
         const normalizedPlan = plan || null;
         setTodayPlan(normalizedPlan);
         setLoggedSets(Array.isArray(normalizedPlan?.sets) ? normalizedPlan.sets : []);
+
+        const avgMap: ExerciseAverages = {};
+        const planList = Array.isArray(plans) ? plans : [];
+        for (const p of planList as WorkoutPlan[]) {
+          const sets = Array.isArray(p?.sets) ? p.sets : [];
+          for (const s of sets) {
+            const exId = Number(s.exerciseId);
+            if (!Number.isFinite(exId) || exId <= 0 || !s.isCompleted) continue;
+            const weight = Number(s.weightKg || 0);
+            const reps = Number(s.reps || 0);
+            if (!avgMap[exId]) avgMap[exId] = { avgWeight: 0, avgReps: 0, totalSets: 0 };
+            avgMap[exId].avgWeight += weight;
+            avgMap[exId].avgReps += reps;
+            avgMap[exId].totalSets += 1;
+          }
+        }
+        for (const exIdText of Object.keys(avgMap)) {
+          const exId = Number(exIdText);
+          const row = avgMap[exId];
+          const denom = Math.max(1, row.totalSets);
+          row.avgWeight = row.avgWeight / denom;
+          row.avgReps = row.avgReps / denom;
+        }
+        setExerciseAverages(avgMap);
 
         const split = activeSplit as SplitPreset | null;
         if (split?.id) setSplitId(split.id);
@@ -153,6 +184,7 @@ function WorkoutTab() {
         setLoggedSets([]);
         setRoutine({});
         setSplitId(null);
+        setExerciseAverages({});
       })
       .finally(() => setLoading(false));
   }, [today]);
@@ -192,6 +224,17 @@ function WorkoutTab() {
       };
     });
   }, [routineCards, loggedSets]);
+
+  const targetedMusclesToday = useMemo(() => {
+    const groups = cardData
+      .map(c => String(c.exercise.muscleGroup || c.exercise.category || '').trim())
+      .filter(Boolean)
+      .map(g => g.toLowerCase());
+
+    const unique = Array.from(new Set(groups));
+    const pretty = unique.map(g => g.split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' '));
+    return pretty.slice(0, 2);
+  }, [cardData]);
 
   async function ensureTodayPlan(seedExerciseId: number, seedTargetSets: number) {
     if (todayPlan?.id) return todayPlan;
@@ -239,6 +282,10 @@ function WorkoutTab() {
     }
   }
 
+  function openExerciseLogger(exerciseId: number) {
+    navigate(`/body/workout/exercise/${exerciseId}/log`);
+  }
+
   async function syncExerciseToRoutine(exerciseId: number, targetSets: number) {
     if (!splitId) return;
     
@@ -255,36 +302,6 @@ function WorkoutTab() {
       await api.updateSplit(splitId, { dayConfigs: JSON.stringify(nextRoutine), isActive: true });
     } catch {
       // Silently fail; local state is already updated
-    }
-  }
-
-  function patchSetLocal(setId: number | undefined, patch: Partial<WorkoutSet>) {
-    if (!setId) return;
-    setLoggedSets(prev => prev.map(s => s.id === setId ? { ...s, ...patch } : s));
-  }
-
-  async function saveSet(setId: number | undefined, patch: Partial<WorkoutSet>) {
-    if (!setId) return;
-    setLoggedSets(prev => prev.map(s => s.id === setId ? { ...s, ...patch } : s));
-    try {
-      await api.updateWorkoutSet(setId, patch);
-    } catch {
-      // no-op; optimistic state already applied
-    }
-  }
-
-  async function toggleDone(s: WorkoutSet) {
-    const next = !s.isCompleted;
-    await saveSet(s.id, { reps: s.reps, weightKg: s.weightKg, isCompleted: next });
-  }
-
-  async function deleteSet(setId: number | undefined) {
-    if (!setId) return;
-    setLoggedSets(prev => prev.filter(s => s.id !== setId));
-    try {
-      await api.deleteWorkoutSet(setId);
-    } catch {
-      // Optimistic delete already applied
     }
   }
 
@@ -333,9 +350,24 @@ function WorkoutTab() {
           </button>
         </div>
       ) : (
-        cardData.map(({ exercise, sets, targetSets }) => {
+        <>
+        <div className="rounded-2xl px-3 py-2.5 mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-[10px] uppercase font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Targeted Muscles Today</p>
+          <div className="flex flex-wrap gap-1.5">
+            {targetedMusclesToday.length > 0 ? targetedMusclesToday.map((muscle) => (
+              <span key={muscle} className="px-2 py-1 rounded-lg text-[11px] font-semibold" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>
+                {muscle}
+              </span>
+            )) : (
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>No muscle target found</span>
+            )}
+          </div>
+        </div>
+
+        {cardData.map(({ exercise, sets, targetSets }) => {
           const completed = sets.filter(s => s.isCompleted).length;
           const isExpanded = expandedExercises.has(exercise.id);
+          const avg = exerciseAverages[exercise.id];
           return (
             <div key={exercise.id} className="rounded-2xl overflow-hidden mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <button
@@ -351,6 +383,9 @@ function WorkoutTab() {
                 <div className="flex-1 min-w-0 text-left">
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{exercise.name}</p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{exercise.muscleGroup || exercise.category || 'General'}</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--accent)' }}>
+                    Avg: {avg ? `${avg.avgWeight.toFixed(1)}kg · ${avg.avgReps.toFixed(1)} reps` : 'No history yet'}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="text-right">
@@ -372,63 +407,35 @@ function WorkoutTab() {
                         <div key={`${exercise.id}-${s.id ?? idx}`} className="rounded-lg px-2 py-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                           <div className="flex items-center justify-between mb-1.5">
                             <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Set #{s.setNumber}</p>
-                            <button
-                              onClick={() => deleteSet(s.id)}
-                              className="p-1.5 hover:opacity-70 transition-opacity"
-                              style={{ color: 'var(--text-muted)' }}
-                              title="Delete set">
-                              <Trash2 size={14} />
-                            </button>
+                            <span className="text-[10px] px-2 py-0.5 rounded" style={{ backgroundColor: s.isCompleted ? 'rgba(78, 205, 196, 0.16)' : 'rgba(255,255,255,0.06)', color: s.isCompleted ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                              {s.isCompleted ? 'Completed' : 'Pending'}
+                            </span>
                           </div>
-                          <div className="grid grid-cols-[1fr_1fr_52px] gap-2 items-end">
+                          <div className="grid grid-cols-2 gap-2 items-end">
                             <div>
                               <label className="text-[9px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Reps</label>
-                              <input
-                                type="number"
-                                value={s.reps && s.reps > 0 ? s.reps : ''}
-                                placeholder="0"
-                                onChange={e => patchSetLocal(s.id, { reps: Number(e.target.value || 0) })}
-                                onBlur={() => s.id && saveSet(s.id, { reps: s.reps, weightKg: s.weightKg, isCompleted: s.isCompleted })}
-                                className="w-full h-7 px-2 rounded-md text-xs num outline-none"
-                                style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                              />
+                              <p className="w-full h-7 px-2 rounded-md text-xs num flex items-center" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>{Number(s.reps || 0)}</p>
                             </div>
                             <div>
                               <label className="text-[9px] font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>Weight (kg)</label>
-                              <input
-                                type="number"
-                                value={s.weightKg && s.weightKg > 0 ? s.weightKg : ''}
-                                placeholder="0"
-                                onChange={e => patchSetLocal(s.id, { weightKg: Number(e.target.value || 0) })}
-                                onBlur={() => s.id && saveSet(s.id, { reps: s.reps, weightKg: s.weightKg, isCompleted: s.isCompleted })}
-                                className="w-full h-7 px-2 rounded-md text-xs num outline-none"
-                                style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                              />
+                              <p className="w-full h-7 px-2 rounded-md text-xs num flex items-center" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>{Number(s.weightKg || 0)}</p>
                             </div>
-                            <button
-                              onClick={() => toggleDone(s)}
-                              className="h-7 rounded-md text-[10px] font-semibold"
-                              style={{ backgroundColor: s.isCompleted ? 'var(--accent-green)' : 'var(--surface)', color: s.isCompleted ? '#fff' : 'var(--text-muted)', border: '1px solid var(--border)' }}
-                            >
-                              {s.isCompleted ? 'Done' : 'Log'}
-                            </button>
                           </div>
                         </div>
                       ))}
                       {sets.length === 0 && (
                         <p className="text-xs px-1" style={{ color: 'var(--text-muted)' }}>
-                          No sets logged yet. Tap + Set to log directly here.
+                          No sets logged yet. Tap Open Logger to start logging.
                         </p>
                       )}
                     </div>
                     <div className="px-3 pb-3">
                       <button
-                        onClick={() => addSet(exercise.id, targetSets || 4)}
+                        onClick={() => openExerciseLogger(exercise.id)}
                         className="w-full h-8 rounded-lg text-[11px] font-semibold"
                         style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}
-                        disabled={busyExerciseId === exercise.id}
                       >
-                        {busyExerciseId === exercise.id ? '...' : '+ Add Set'}
+                        Open Logger
                       </button>
                     </div>
                   </motion.div>
@@ -438,18 +445,18 @@ function WorkoutTab() {
               {!isExpanded && sets.length === 0 && (
                 <div className="px-4 py-2" style={{ borderTop: '1px solid var(--border)' }}>
                   <button
-                    onClick={() => addSet(exercise.id, targetSets || 4)}
+                    onClick={() => openExerciseLogger(exercise.id)}
                     className="h-7 w-full rounded-lg text-[11px] font-semibold"
                     style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}
-                    disabled={busyExerciseId === exercise.id}
                   >
-                    {busyExerciseId === exercise.id ? '...' : '+ Set'}
+                    Open Logger
                   </button>
                 </div>
               )}
             </div>
           );
-        })
+        })}
+        </>
       )}
     </div>
   );
@@ -538,6 +545,8 @@ function DietTab() {
   const [plannedMeals, setPlannedMeals] = useState<MealTemplate[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [goal, setGoal] = useState(2400);
+  const [waterConsumedMl, setWaterConsumedMl] = useState(0);
+  const [waterGoalMl, setWaterGoalMl] = useState(2000);
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const navigate = useNavigate();
@@ -558,11 +567,12 @@ function DietTab() {
     async function load() {
       setLoading(true);
       try {
-        const [templates, weeklyPlan, todayLog, settings] = await Promise.all([
+        const [templates, weeklyPlan, todayLog, settings, waterLog] = await Promise.all([
           api.getMealTemplates(),
           api.getWeeklyMealPlan() as Promise<WeeklyMealPlan>,
           (api as any).getDailyMealLog(today) as Promise<DailyMealLog | null>,
           api.getUserSettings(),
+          api.getDailyWaterLog(today) as Promise<any>,
         ]);
 
         const list = Array.isArray(templates) ? templates : [];
@@ -588,6 +598,9 @@ function DietTab() {
         if (Number.isFinite(settings?.calorieGoal)) {
           setGoal(Number(settings.calorieGoal));
         }
+
+        setWaterConsumedMl(Number(waterLog?.mlConsumed || 0));
+        setWaterGoalMl(Math.max(500, Number(waterLog?.goalMl || 2000)));
       } finally {
         setLoading(false);
       }
@@ -649,6 +662,7 @@ function DietTab() {
   }, [goal]);
 
   const caloriePercentage = goal > 0 ? Math.min(100, Math.round((consumedCalories / goal) * 100)) : 0;
+  const waterPercentage = waterGoalMl > 0 ? Math.min(100, Math.round((waterConsumedMl / waterGoalMl) * 100)) : 0;
 
   return (
     <div className="px-4 space-y-4">
@@ -687,21 +701,19 @@ function DietTab() {
         <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
           Targets are auto-derived from your daily calorie goal.
         </p>
-      </div>
 
-      {/* Calorie Consumption Progress Bar */}
-      <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Daily Consumption</p>
-          <p className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{caloriePercentage}%</p>
+        <div className="mt-3 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Water Consumption</p>
+            <p className="text-[10px] font-bold num" style={{ color: 'var(--accent)' }}>{waterPercentage}%</p>
+          </div>
+          <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, waterPercentage)}%`, backgroundColor: '#06B6D4' }} />
+          </div>
+          <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+            <span className="font-semibold num" style={{ color: 'var(--text-primary)' }}>{Math.round(waterConsumedMl)}</span> / {Math.round(waterGoalMl)} ml
+          </p>
         </div>
-        <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-          <div className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(100, caloriePercentage)}%`, backgroundColor: 'var(--accent-warm)' }} />
-        </div>
-        <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
-          <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{Math.round(consumedCalories)}</span> of {goal} kcal
-        </p>
       </div>
 
       <div className="flex items-center justify-between mb-2">

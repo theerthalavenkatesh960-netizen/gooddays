@@ -215,6 +215,8 @@ export default function MealPlannerSettings() {
   const [showAiGenerateModal, setShowAiGenerateModal] = useState(false);
   const [generatingAi, setGeneratingAi] = useState(false);
   const [checkingProfile, setCheckingProfile] = useState(false);
+  const [showCopyFromDay, setShowCopyFromDay] = useState(false);
+  const [copySourceDate, setCopySourceDate] = useState('');
 
   const selectedDayKey = toDateKey(selectedDate);
   const selectedDayLabel = format(selectedDate, 'EEEE').toLowerCase();
@@ -347,6 +349,31 @@ export default function MealPlannerSettings() {
     } catch (e: any) {
       flash(e?.message || 'Last week has no meals to copy');
     }
+  }
+
+  async function copyMealsFromDay() {
+    if (!copySourceDate) {
+      flash('Select a day to copy from');
+      return;
+    }
+
+    const sourceAssignments = mealPlan[copySourceDate] || [];
+    if (!sourceAssignments.length) {
+      flash('Nothing to copy from selected day');
+      return;
+    }
+
+    await savePlan({
+      ...mealPlan,
+      [selectedDayKey]: sourceAssignments.map(a => ({
+        mealTemplateId: a.mealTemplateId,
+        timeOfDay: a.timeOfDay,
+      })),
+    });
+
+    flash(`Copied ${sourceAssignments.length} meal${sourceAssignments.length !== 1 ? 's' : ''}`);
+    setShowCopyFromDay(false);
+    setCopySourceDate('');
   }
 
   async function addMealToDay(dayKey: string, mealTemplateId: number, timeOfDay?: string) {
@@ -579,6 +606,14 @@ export default function MealPlannerSettings() {
 
       {tab === 'weekly' && (
         <div className="space-y-2.5">
+          <div className="flex justify-end mb-2">
+            <button onClick={copyLastWeekPlan}
+              className="px-2 py-1 rounded-lg text-[11px] press"
+              style={{ backgroundColor: 'var(--surface)', color: 'var(--text-secondary)' }}>
+              Copy Whole Week
+            </button>
+          </div>
+
           <div className="mb-4">
             <WeeklyCalendar
               selectedDate={selectedDate}
@@ -621,10 +656,10 @@ export default function MealPlannerSettings() {
                 style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>
                 <Sparkles size={13} /> {checkingProfile ? 'Checking…' : 'Generate with AI'}
               </button>
-              <button onClick={copyLastWeekPlan}
+              <button onClick={() => setShowCopyFromDay(v => !v)}
                 className="px-2 py-1 rounded-lg text-[11px] press"
                 style={{ backgroundColor: 'var(--surface)', color: 'var(--text-secondary)' }}>
-                Copy Last Week
+                Copy From Day
               </button>
               <button onClick={() => openMealPicker(selectedDayKey)}
                 className="px-2.5 py-1 rounded-lg font-semibold text-[11px] flex items-center gap-1.5 press"
@@ -632,6 +667,28 @@ export default function MealPlannerSettings() {
                 <Plus size={14} /> Add Meal
               </button>
             </div>
+
+            {showCopyFromDay && (
+              <div className="mt-2 rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Copy into {selectedDayKey} from:</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={copySourceDate}
+                    onChange={e => setCopySourceDate(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-lg text-xs outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                  />
+                  <button
+                    onClick={copyMealsFromDay}
+                    className="px-3 py-2 rounded-lg text-xs font-semibold"
+                    style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between mb-3">
