@@ -401,9 +401,12 @@ export default function MealPlannerSettings() {
       await addMealToDay(pick.dayKey, pickedId, pick.timeOfDay);
       if (source === 'diet') {
         navigate('/body?tab=Diet');
+      } else {
+        // Clear the mealPick state to prevent effect from re-running
+        navigate(location.pathname, { state: { tab: 'weekly' }, replace: true });
       }
     })();
-  }, [location.state, loading]);
+  }, [location.state, loading, navigate]);
 
   function openMealPicker(dayKey: string) {
     navigate('/settings/meals/pick', { state: { dayKey } });
