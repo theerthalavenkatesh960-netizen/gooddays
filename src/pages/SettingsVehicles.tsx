@@ -326,7 +326,12 @@ export default function SettingsVehicles() {
   const [tab, setTab] = useState<VehicleTab>('Refills');
   const [loading, setLoading] = useState(true);
   const [showAddVehicle, setShowAddVehicle] = useState(false);
+  const [showEditVehicle, setShowEditVehicle] = useState(false);
   const [addForm, setAddForm] = useState({
+    name: '', make: '', model: '', year: new Date().getFullYear().toString(),
+    regNo: '', fuelType: 'Petrol', color: '#6C63FF', odometer: ''
+  });
+  const [editForm, setEditForm] = useState({
     name: '', make: '', model: '', year: new Date().getFullYear().toString(),
     regNo: '', fuelType: 'Petrol', color: '#6C63FF', odometer: ''
   });
@@ -353,6 +358,62 @@ export default function SettingsVehicles() {
     setVehicles(prev => [...prev, created]);
     setAddForm({ name: '', make: '', model: '', year: new Date().getFullYear().toString(), regNo: '', fuelType: 'Petrol', color: '#6C63FF', odometer: '' });
     setShowAddVehicle(false);
+  }
+
+  function openEditVehicleForm(vehicle: Vehicle) {
+    setEditForm({
+      name: vehicle.name || '',
+      make: vehicle.make || '',
+      model: vehicle.model || '',
+      year: (vehicle.year || new Date().getFullYear()).toString(),
+      regNo: vehicle.regNo || '',
+      fuelType: vehicle.fuelType || 'Petrol',
+      color: vehicle.color || '#6C63FF',
+      odometer: (vehicle.odometer || 0).toString(),
+    });
+    setShowEditVehicle(true);
+  }
+
+  async function handleEditVehicle() {
+    if (!selectedVehicle || !editForm.name.trim() || !editForm.make.trim() || !editForm.odometer) return;
+
+    const payload = {
+      name: editForm.name,
+      make: editForm.make,
+      model: editForm.model,
+      year: parseInt(editForm.year),
+      regNo: editForm.regNo,
+      fuelType: editForm.fuelType,
+      color: editForm.color,
+      odometer: parseInt(editForm.odometer),
+    };
+
+    const updatedFromApi = await api.updateVehicle(selectedVehicle.id, payload);
+    const updatedVehicle: Vehicle = {
+      ...selectedVehicle,
+      ...payload,
+      ...(updatedFromApi || {}),
+      // Preserve nested logs if API only returns vehicle fields.
+      refills: updatedFromApi?.refills ?? selectedVehicle.refills ?? [],
+      services: updatedFromApi?.services ?? selectedVehicle.services ?? [],
+      issues: updatedFromApi?.issues ?? selectedVehicle.issues ?? [],
+    };
+
+    setVehicles(prev => prev.map(v => v.id === selectedVehicle.id ? updatedVehicle : v));
+    setSelectedVehicle(updatedVehicle);
+    setShowEditVehicle(false);
+  }
+
+  async function handleDeleteVehicle() {
+    if (!selectedVehicle) return;
+    const confirmed = window.confirm(`Delete ${selectedVehicle.name || 'this vehicle'}? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    await api.deleteVehicle(selectedVehicle.id);
+    const nextVehicles = vehicles.filter(v => v.id !== selectedVehicle.id);
+    setVehicles(nextVehicles);
+    setSelectedVehicle(null);
+    setShowEditVehicle(false);
   }
 
   function handleVehicleUpdate(updated: Vehicle) {
@@ -429,7 +490,15 @@ export default function SettingsVehicles() {
 
         <div className="px-4">
           {vehicles.map(v => (
-            <button key={v.id} onClick={() => setSelectedVehicle(v)} className="w-full p-4 rounded-2xl mb-3 press" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <button
+              key={v.id}
+              onClick={() => {
+                setSelectedVehicle(v);
+                setShowEditVehicle(false);
+              }}
+              className="w-full p-4 rounded-2xl mb-3 press"
+              style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
+            >
               <div className="flex items-center gap-4">
                 <div className="w-16 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: (v.color || '#6C63FF') + '22' }}>
                   <svg viewBox="0 0 64 32" width="48" height="24">
@@ -523,7 +592,7 @@ export default function SettingsVehicles() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {selectedVehicle.fuelType || 'Fuel'} · {selectedVehicle.regNo || selectedVehicle.licensePlate || '--'}
+              {selectedVehicle.fuelType || 'Fuel'} · {selectedVehicle.regNo || '--'}
             </p>
             <p className="text-base font-bold mt-1" style={{ color: 'var(--text-primary)' }}>
               {selectedVehicle.name || `${selectedVehicle.make || ''} ${selectedVehicle.model || ''}`.trim() || 'Vehicle'}
@@ -557,6 +626,50 @@ export default function SettingsVehicles() {
           </div>
         </div>
       </div>
+
+      <div className="px-4 mb-4 flex gap-2">
+        <button
+          onClick={() => openEditVehicleForm(selectedVehicle)}
+          className="flex-1 h-10 rounded-xl text-sm font-semibold press"
+          style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+        >
+          Edit Vehicle
+        </button>
+        <button
+          onClick={handleDeleteVehicle}
+          className="h-10 px-4 rounded-xl text-sm font-semibold press flex items-center gap-2"
+          style={{ backgroundColor: '#ef444422', color: '#ef4444', border: '1px solid #ef444455' }}
+        >
+          <Trash2 size={14} /> Delete
+        </button>
+      </div>
+
+      {showEditVehicle && (
+        <div className="mx-4 mb-4 p-4 rounded-2xl space-y-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Edit Vehicle</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="col-span-2">
+              <input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} placeholder="Nickname *" className="w-full h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            </div>
+            <input value={editForm.make} onChange={e => setEditForm(p => ({ ...p, make: e.target.value }))} placeholder="Make *" className="h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            <input value={editForm.model} onChange={e => setEditForm(p => ({ ...p, model: e.target.value }))} placeholder="Model" className="h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            <input type="number" value={editForm.year} onChange={e => setEditForm(p => ({ ...p, year: e.target.value }))} placeholder="Year" className="h-10 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            <input value={editForm.regNo} onChange={e => setEditForm(p => ({ ...p, regNo: e.target.value }))} placeholder="Reg. No" className="h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            <select value={editForm.fuelType} onChange={e => setEditForm(p => ({ ...p, fuelType: e.target.value }))} className="h-10 px-3 rounded-xl outline-none text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
+              {['Petrol', 'Diesel', 'CNG', 'Electric', 'Hybrid'].map(f => <option key={f}>{f}</option>)}
+            </select>
+            <input type="number" value={editForm.odometer} onChange={e => setEditForm(p => ({ ...p, odometer: e.target.value }))} placeholder="Odometer (km) *" className="h-10 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            <div className="flex items-center gap-2 h-10 px-3 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+              <input type="color" value={editForm.color} onChange={e => setEditForm(p => ({ ...p, color: e.target.value }))} className="w-8 h-7 rounded cursor-pointer border-0 bg-transparent p-0" />
+              <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{editForm.color}</span>
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={() => setShowEditVehicle(false)} className="flex-1 h-10 rounded-xl text-sm" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Cancel</button>
+            <button onClick={handleEditVehicle} className="flex-1 h-10 rounded-xl text-sm font-semibold text-white" style={{ backgroundColor: 'var(--accent)' }}>Save Changes</button>
+          </div>
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="px-4 mb-4 flex gap-2 rounded-2xl p-1" style={{ backgroundColor: 'var(--surface)' }}>
