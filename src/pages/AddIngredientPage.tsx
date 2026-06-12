@@ -87,12 +87,21 @@ export default function AddIngredientPage() {
         imageUrl: '',
       };
 
-      // Create meal template
-      await api.createMealTemplate(mealData);
+      // Create a single-item meal template and log it for today so it appears immediately in Diet.
+      const created = await api.createMealTemplate(mealData);
+
+      const today = new Date().toISOString().slice(0, 10);
+      const todayLog = await (api as any).getDailyMealLog(today).catch(() => null);
+      const existingIds = Array.isArray(todayLog?.mealIds) ? todayLog.mealIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0) : [];
+      const createdId = Number((created as any)?.id);
+      if (Number.isFinite(createdId) && createdId > 0) {
+        const nextIds = Array.from(new Set([...existingIds, createdId]));
+        await (api as any).upsertDailyMealLog(today, nextIds);
+      }
       
       setStatus('Ingredient logged! ✓');
       setTimeout(() => {
-        navigate('/body?tab=Diet');
+        navigate('/body?tab=Diet', { state: { mealAdded: true } });
       }, 800);
     } catch (e: any) {
       setStatus(e?.message || 'Failed to log ingredient');

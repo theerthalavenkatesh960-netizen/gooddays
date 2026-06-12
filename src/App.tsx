@@ -45,6 +45,8 @@ import FinanceGmailReview from './pages/FinanceGmailReview';
 import AddIngredientPage from './pages/AddIngredientPage';
 import IngredientPickerPage from './pages/IngredientPickerPage';
 import ExerciseLoggerPage from './pages/ExerciseLoggerPage';
+import BodyAllPrsPage from './pages/BodyAllPrsPage';
+import BodyAllMealsPage from './pages/BodyAllMealsPage';
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -107,6 +109,8 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
               <Route path="/body"     element={<PrivateRoute><Layout><Body /></Layout></PrivateRoute>} />
               <Route path="/diet/add-ingredient" element={<PrivateRoute><Layout><AddIngredientPage /></Layout></PrivateRoute>} />
+              <Route path="/body/progress/prs" element={<PrivateRoute><Layout><BodyAllPrsPage /></Layout></PrivateRoute>} />
+              <Route path="/body/diet/meals" element={<PrivateRoute><Layout><BodyAllMealsPage /></Layout></PrivateRoute>} />
               <Route path="/body/workout/exercise/:exerciseId/log" element={<PrivateRoute><Layout><ExerciseLoggerPage /></Layout></PrivateRoute>} />
               <Route path="/body/workout-log" element={<PrivateRoute><Layout><Workout /></Layout></PrivateRoute>} />
               <Route path="/finance"  element={<PrivateRoute><Layout><Finance /></Layout></PrivateRoute>} />

@@ -50,6 +50,29 @@ export default function ExerciseLoggerPage() {
   const exId = Number(exerciseId || 0);
   const today = format(new Date(), 'yyyy-MM-dd');
 
+  function toNumber(value: unknown, fallback = 0): number {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function normalizeSet(raw: any): WorkoutSet {
+    const reps = toNumber(raw?.reps ?? raw?.Reps, 0);
+    const weightKg = toNumber(raw?.weightKg ?? raw?.WeightKg, 0);
+    const completedRaw = raw?.isCompleted ?? raw?.IsCompleted;
+    const isCompleted = typeof completedRaw === 'boolean'
+      ? completedRaw
+      : (reps > 0 || weightKg > 0);
+
+    return {
+      id: toNumber(raw?.id ?? raw?.Id, 0) || undefined,
+      exerciseId: toNumber(raw?.exerciseId ?? raw?.ExerciseId, 0),
+      setNumber: toNumber(raw?.setNumber ?? raw?.SetNumber, 0),
+      reps,
+      weightKg,
+      isCompleted,
+    };
+  }
+
   useEffect(() => {
     if (!exId) return;
     load();
@@ -72,6 +95,7 @@ export default function ExerciseLoggerPage() {
       setTodayPlan(normalizedPlan);
 
       const todaySets = (Array.isArray(normalizedPlan?.sets) ? normalizedPlan!.sets! : [])
+        .map((s: any) => normalizeSet(s))
         .filter(s => Number(s.exerciseId) === exId)
         .sort((a, b) => Number(a.setNumber || 0) - Number(b.setNumber || 0));
       setSetsToday(todaySets);
@@ -80,7 +104,7 @@ export default function ExerciseLoggerPage() {
       const history: Array<WorkoutSet & { date: string }> = [];
       for (const p of allPlans) {
         const date = String((p as any).date || '').slice(0, 10);
-        const sets = Array.isArray(p.sets) ? p.sets : [];
+        const sets = (Array.isArray(p.sets) ? p.sets : []).map((s: any) => normalizeSet(s));
         for (const s of sets) {
           if (Number(s.exerciseId) !== exId) continue;
           history.push({ ...s, date });
@@ -181,7 +205,10 @@ export default function ExerciseLoggerPage() {
   }
 
   const insights = useMemo(() => {
-    const completed = historySets.filter(s => s.isCompleted);
+    const completed = historySets.filter(s => {
+      if (typeof s.isCompleted === 'boolean') return s.isCompleted;
+      return Number(s.reps || 0) > 0 || Number(s.weightKg || 0) > 0;
+    });
     const count = completed.length;
     const avgWeight = count ? completed.reduce((sum, s) => sum + Number(s.weightKg || 0), 0) / count : 0;
     const avgReps = count ? completed.reduce((sum, s) => sum + Number(s.reps || 0), 0) / count : 0;

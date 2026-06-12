@@ -697,7 +697,8 @@ function DietTab() {
           </button>
         </div>
       ) : (
-        plannedMeals.map(meal => {
+        <>
+        {plannedMeals.map(meal => {
           const total = parseMealIngredients(meal.ingredientsJson).reduce((s, i) => s + Number(i.caloriesKcal || 0), 0);
           const on = selected.includes(meal.id);
           return (
@@ -721,7 +722,8 @@ function DietTab() {
               <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{Math.round(total)}</span>
             </button>
           );
-        })
+        })}
+        </>
       )}
     </div>
   );
@@ -1084,29 +1086,98 @@ function BodyMetricsSection() {
 }
 
 function ProgressTab() {
+  const navigate = useNavigate();
   const [analytics, setAnalytics] = useState<any>(null);
   const [prs, setPrs] = useState<any[]>([]);
   const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [mealTemplates, setMealTemplates] = useState<MealTemplate[]>([]);
+  const [mealLogs, setMealLogs] = useState<DailyMealLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  function toNumber(value: unknown, fallback = 0): number {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function normalizeAnalyticsShape(data: any) {
+    if (!data || typeof data !== 'object') return null;
+    return {
+      weeks: toNumber(data.weeks ?? data.Weeks, 12),
+      daysLogged: toNumber(data.daysLogged ?? data.days_logged ?? data.DaysLogged, 0),
+      totalSets: toNumber(data.totalSets ?? data.total_sets ?? data.TotalSets, 0),
+      totalVolume: toNumber(data.totalVolume ?? data.total_volume ?? data.TotalVolume, 0),
+    };
+  }
+
+  function normalizePrShape(list: any[]) {
+    return list
+      .map((pr) => ({
+        ...pr,
+        exerciseId: toNumber(pr?.exerciseId ?? pr?.exercise_id ?? pr?.ExerciseId, 0),
+        weightKg: toNumber(pr?.weightKg ?? pr?.maxWeightKg ?? pr?.max_weight_kg ?? pr?.MaxWeightKg, 0),
+        reps: toNumber(pr?.reps ?? pr?.Reps, 0),
+      }))
+      .filter((pr) => pr.exerciseId > 0);
+  }
+
+  function deriveFallbackAnalytics(plans: any[]) {
+    const planList = Array.isArray(plans) ? plans : [];
+    const sets = planList.flatMap((p) => (Array.isArray(p?.sets) ? p.sets : []));
+    const completedSets = sets.filter((s) => Boolean(s?.isCompleted ?? s?.IsCompleted ?? true));
+    const daysFromPlans = new Set(
+      planList
+        .filter((p) => Boolean(p?.isCompleted) || (Array.isArray(p?.sets) && p.sets.length > 0))
+        .map((p) => String(p?.date || '').slice(0, 10))
+        .filter(Boolean),
+    );
+
+    return {
+      weeks: 12,
+      daysLogged: daysFromPlans.size,
+      totalSets: completedSets.length,
+      totalVolume: completedSets.reduce(
+        (sum, s) => sum + toNumber(s?.weightKg ?? s?.WeightKg, 0) * toNumber(s?.reps ?? s?.Reps, 0),
+        0,
+      ),
+    };
+  }
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const [analyticsData, prsData, exData] = await Promise.all([
+        const fromDate = format(subDays(new Date(), 365), 'yyyy-MM-dd');
+        const [analyticsData, prsData, exData, plansData, mealsData, mealLogsData] = await Promise.all([
           api.getWorkoutAnalytics(12).catch(() => null),
           api.getPersonalRecords().catch(() => []),
           api.getExercises().catch(() => []),
+          api.getWorkoutPlans(fromDate).catch(() => []),
+          api.getMealTemplates().catch(() => []),
+          (api as any).getDailyMealLogs('1970-01-01', today).catch(() => []),
         ]);
-        setAnalytics(analyticsData);
-        setPrs(Array.isArray(prsData) ? prsData : []);
+
+        const normalizedAnalytics = normalizeAnalyticsShape(analyticsData);
+        const fallbackAnalytics = deriveFallbackAnalytics(Array.isArray(plansData) ? plansData : []);
+
+        const finalAnalytics = normalizedAnalytics && (normalizedAnalytics.daysLogged > 0 || normalizedAnalytics.totalSets > 0 || normalizedAnalytics.totalVolume > 0)
+          ? normalizedAnalytics
+          : {
+              ...fallbackAnalytics,
+              weeks: normalizedAnalytics?.weeks ?? fallbackAnalytics.weeks,
+            };
+
+        setAnalytics(finalAnalytics);
+        setPrs(normalizePrShape(Array.isArray(prsData) ? prsData : []));
         setExercises(Array.isArray(exData) ? exData : []);
+        setMealTemplates(Array.isArray(mealsData) ? mealsData : []);
+        setMealLogs(Array.isArray(mealLogsData) ? mealLogsData : []);
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
+  }, [today]);
 
   const resolveExerciseName = (exerciseId: number) =>
     exercises.find(e => e.id === exerciseId)?.name ?? `Exercise #${exerciseId}`;
@@ -1115,6 +1186,53 @@ function ProgressTab() {
     const ex = exercises.find(e => e.id === exerciseId);
     return ex?.muscleGroup ?? ex?.category ?? 'Strength';
   };
+
+  const mealRecords = useMemo(() => {
+    const byMeal = new Map<number, { count: number; lastDate: string }>();
+    const logs = Array.isArray(mealLogs) ? mealLogs : [];
+
+    for (const log of logs) {
+      const date = String(log?.date || '').slice(0, 10);
+      const ids = Array.isArray(log?.mealIds) ? log.mealIds : [];
+      for (const rawId of ids) {
+        const id = Number(rawId);
+        if (!Number.isFinite(id) || id <= 0) continue;
+        const prev = byMeal.get(id);
+        if (!prev) {
+          byMeal.set(id, { count: 1, lastDate: date });
+        } else {
+          byMeal.set(id, {
+            count: prev.count + 1,
+            lastDate: prev.lastDate && prev.lastDate > date ? prev.lastDate : date,
+          });
+        }
+      }
+    }
+
+    return Array.from(byMeal.entries())
+      .map(([id, stats]) => {
+        const meal = mealTemplates.find((m) => m.id === id);
+        if (!meal) return null;
+        const ingredients = parseMealIngredients(meal.ingredientsJson);
+        const calories = ingredients.reduce((sum, ing) => sum + Number(ing.caloriesKcal || 0), 0);
+        const protein = ingredients.reduce((sum, ing) => sum + Number(ing.proteinG || 0), 0);
+        const carbs = ingredients.reduce((sum, ing) => sum + Number(ing.carbsG || 0), 0);
+        const fats = ingredients.reduce((sum, ing) => sum + Number(ing.fatsG || 0), 0);
+        return {
+          id: meal.id,
+          name: meal.name,
+          timing: meal.timing,
+          calories,
+          protein,
+          carbs,
+          fats,
+          count: stats.count,
+          lastDate: stats.lastDate,
+        };
+      })
+      .filter((m): m is { id: number; name: string; timing: string; calories: number; protein: number; carbs: number; fats: number; count: number; lastDate: string } => !!m)
+      .sort((a, b) => b.count - a.count || b.protein - a.protein || b.calories - a.calories);
+  }, [mealTemplates, mealLogs]);
 
   // Stats cards with live analytics
   const statCards = [
@@ -1212,11 +1330,13 @@ function ProgressTab() {
           </div>
         ) : (
           <div className="space-y-2">
-            {prs.slice(0, 8).map((pr, idx) => {
+            {prs.slice(0, 5).map((pr, idx) => {
               const name = resolveExerciseName(pr.exerciseId);
               const muscle = resolveExerciseMuscle(pr.exerciseId);
-              const oneRm = pr.weightKg && pr.reps
-                ? Math.round(Number(pr.weightKg) * (1 + Number(pr.reps) / 30))
+              const weight = toNumber(pr.weightKg, 0);
+              const reps = toNumber(pr.reps, 0);
+              const oneRm = weight > 0 && reps > 0
+                ? Math.round(weight * (1 + reps / 30))
                 : null;
               const medals = ['🥇', '🥈', '🥉'];
               const medal = medals[idx] ?? '🏅';
@@ -1237,7 +1357,7 @@ function ProgressTab() {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-black num" style={{ color: 'var(--accent-warm)' }}>
-                      {pr.weightKg} kg × {pr.reps}
+                      {weight} kg × {reps}
                     </p>
                     {oneRm !== null && (
                       <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>~{oneRm} kg 1RM</p>
@@ -1246,6 +1366,75 @@ function ProgressTab() {
                 </div>
               );
             })}
+            {prs.length > 5 && (
+              <button
+                onClick={() => navigate('/body/progress/prs')}
+                className="w-full h-10 rounded-xl text-sm font-semibold"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)', border: '1px solid var(--border)' }}
+              >
+                Show More ({prs.length - 5} more)
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Meal Records ── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Meal Records</span>
+            <span className="text-xs">🍽️</span>
+          </div>
+          {mealRecords.length > 0 && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
+              {mealRecords.length} all-time meals
+            </span>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-16 rounded-2xl skeleton" style={{ backgroundColor: 'var(--surface)' }} />
+            ))}
+          </div>
+        ) : mealRecords.length === 0 ? (
+          <div className="p-5 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '2px dashed var(--border)' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>No meal records yet</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Log meals in Diet to build all-time meal records</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {mealRecords.slice(0, 5).map((meal, idx) => (
+              <div key={`${meal.id}-${idx}`} className="flex items-center gap-3 p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                  🍽️
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{meal.timing || 'Meal'}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-sm font-black num" style={{ color: 'var(--accent-warm)' }}>{Math.round(meal.calories)} kcal</p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                    {meal.count} logs · last {meal.lastDate || '--'}
+                  </p>
+                  <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>
+                    P{Math.round(meal.protein)} C{Math.round(meal.carbs)} F{Math.round(meal.fats)}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {mealRecords.length > 5 && (
+              <button
+                onClick={() => navigate('/body/diet/meals')}
+                className="w-full h-10 rounded-xl text-sm font-semibold"
+                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)', border: '1px solid var(--border)' }}
+              >
+                Show More ({mealRecords.length - 5} more)
+              </button>
+            )}
           </div>
         )}
       </div>

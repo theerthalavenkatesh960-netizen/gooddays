@@ -2590,6 +2590,26 @@ export async function getDailyMealLog(date: string) {
   return request(`meal/logs/${date}`);
 }
 
+export async function getDailyMealLogs(from?: string, to?: string) {
+  if (DUMMY_FLAGS.meals) {
+    const rows = Object.entries(DUMMY_DAILY_MEAL_LOGS)
+      .filter(([date]) => {
+        if (from && date < from) return false;
+        if (to && date > to) return false;
+        return true;
+      })
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([date, mealIds]) => ({ date, mealIds: [...mealIds] }));
+    return Promise.resolve(rows);
+  }
+
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const query = params.toString();
+  return request(`meal/logs${query ? `?${query}` : ''}`);
+}
+
 export async function upsertDailyMealLog(date: string, mealIds: number[]) {
   if (DUMMY_FLAGS.meals) {
     DUMMY_DAILY_MEAL_LOGS[date] = [...mealIds];
