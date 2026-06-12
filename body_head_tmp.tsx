@@ -34,9 +34,6 @@ type MealIngredient = {
   proteinG?: number;
   carbsG?: number;
   fatsG?: number;
-  qty?: number;
-  unit?: string;
-  baseUnit?: string;
 };
 type MealTemplate = {
   id: number;
@@ -47,8 +44,18 @@ type MealTemplate = {
   imageUrl?: string;
 };
 
+type MealAssignment = {
+  mealTemplateId?: number;
+  timeOfDay?: string;
+};
+
 type WeeklyMealPlan = { planJson?: string; PlanJson?: string; plan_json?: string } | null;
 type DailyMealLog = { date: string; mealIds: number[] };
+
+type PlannedExercise = {
+  exerciseId: number;
+  targetSets?: number;
+};
 
 type RoutineEntry = {
   exerciseId: number;
@@ -101,8 +108,11 @@ function WorkoutTab() {
   const navigate = useNavigate();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [routine, setRoutine] = useState<RoutineMap>({});
+  const [splitId, setSplitId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [todayPlan, setTodayPlan] = useState<WorkoutPlan | null>(null);
   const [loggedSets, setLoggedSets] = useState<WorkoutSet[]>([]);
+  const [busyExerciseId, setBusyExerciseId] = useState<number | null>(null);
   const [exerciseAverages, setExerciseAverages] = useState<ExerciseAverages>({});
 
   const dayKey = format(new Date(), 'EEEE').toLowerCase();
@@ -120,6 +130,7 @@ function WorkoutTab() {
       .then(([exData, plan, activeSplit, plans]) => {
         setExercises(Array.isArray(exData) ? exData : []);
         const normalizedPlan = plan || null;
+        setTodayPlan(normalizedPlan);
         setLoggedSets(Array.isArray(normalizedPlan?.sets) ? normalizedPlan.sets : []);
 
         const avgMap: ExerciseAverages = {};
@@ -147,7 +158,8 @@ function WorkoutTab() {
         setExerciseAverages(avgMap);
 
         const split = activeSplit as SplitPreset | null;
-
+        if (split?.id) setSplitId(split.id);
+        
         if (!split?.dayConfigs) {
           setRoutine({});
           return;
@@ -167,8 +179,10 @@ function WorkoutTab() {
       })
       .catch(() => {
         setExercises([]);
+        setTodayPlan(null);
         setLoggedSets([]);
         setRoutine({});
+        setSplitId(null);
         setExerciseAverages({});
       })
       .finally(() => setLoading(false));
@@ -188,6 +202,16 @@ function WorkoutTab() {
       })
       .filter(Boolean) as Array<{ exercise: Exercise; sets: WorkoutSet[]; targetSets: number }>;
   }, [routine, dayKey, exercises]);
+
+  const plannedExercises = useMemo<PlannedExercise[]>(() => {
+    if (!todayPlan?.plannedExercises) return [];
+    try {
+      const parsed = JSON.parse(todayPlan.plannedExercises);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, [todayPlan?.plannedExercises]);
 
   const cardData = useMemo(() => {
     return routineCards.map((routineCard) => {
@@ -211,8 +235,73 @@ function WorkoutTab() {
     return pretty.slice(0, 2);
   }, [cardData]);
 
+  async function ensureTodayPlan(seedExerciseId: number, seedTargetSets: number) {
+    if (todayPlan?.id) return todayPlan;
+
+    const plannedSource = cardData.length > 0 ? cardData : [{ exercise: exercises.find(e => e.id === seedExerciseId), sets: [], targetSets: seedTargetSets }]
+      .filter(x => x.exercise) as Array<{ exercise: Exercise; sets: WorkoutSet[]; targetSets: number }>;
+
+    const planned = plannedSource.map(item => ({
+      exerciseId: item.exercise.id,
+      targetSets: item.targetSets || 4,
+      targetReps: 10,
+      targetWeightKg: null,
+    }));
+
+    const created = await api.createWorkoutPlan({
+      date: new Date().toISOString(),
+      dayLabel: format(new Date(), 'EEEE'),
+      plannedExercises: JSON.stringify(planned),
+      isCompleted: false,
+    });
+    setTodayPlan(created);
+    setLoggedSets([]);
+    return created;
+  }
+
+  async function addSet(exerciseId: number, targetSets: number) {
+    setBusyExerciseId(exerciseId);
+    try {
+      const plan = await ensureTodayPlan(exerciseId, targetSets);
+      const existingSets = loggedSets.filter(s => s.exerciseId === exerciseId).sort((a, b) => a.setNumber - b.setNumber);
+      const prevSet = existingSets[existingSets.length - 1];
+      const created = await api.logWorkoutSet(plan.id!, {
+        exerciseId,
+        setNumber: existingSets.length + 1,
+        reps: prevSet?.reps ?? 10,
+        weightKg: prevSet?.weightKg ?? 0,
+        isCompleted: true,
+      });
+      setLoggedSets(prev => [...prev, created]);
+      
+      // Also add to routine if not already there
+      await syncExerciseToRoutine(exerciseId, targetSets);
+    } finally {
+      setBusyExerciseId(null);
+    }
+  }
+
   function openExerciseLogger(exerciseId: number) {
     navigate(`/body/workout/exercise/${exerciseId}/log`);
+  }
+
+  async function syncExerciseToRoutine(exerciseId: number, targetSets: number) {
+    if (!splitId) return;
+    
+    const existing = routine[dayKey] || [];
+    if (existing.some(e => e.exerciseId === exerciseId)) return; // Already in routine
+    
+    const nextRoutine = {
+      ...routine,
+      [dayKey]: [...existing, { exerciseId, sets: targetSets, reps: 10 }],
+    };
+    
+    setRoutine(nextRoutine);
+    try {
+      await api.updateSplit(splitId, { dayConfigs: JSON.stringify(nextRoutine), isActive: true });
+    } catch {
+      // Silently fail; local state is already updated
+    }
   }
 
   return (
@@ -282,7 +371,7 @@ function WorkoutTab() {
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{exercise.name}</p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{exercise.muscleGroup || exercise.category || 'General'}</p>
                   <p className="text-[10px] mt-0.5" style={{ color: 'var(--accent)' }}>
-                    Avg: {avg ? `${avg.avgWeight.toFixed(1)}kg Â· ${avg.avgReps.toFixed(1)} reps` : 'No history yet'}
+                    Avg: {avg ? `${avg.avgWeight.toFixed(1)}kg -+ ${avg.avgReps.toFixed(1)} reps` : 'No history yet'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -325,6 +414,15 @@ function WorkoutTab() {
   );
 }
 
+function parseMealIngredients(json: string): MealIngredient[] {
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function normalizePlannedMealIdsForDay(dayValue: unknown): number[] {
   if (Array.isArray(dayValue)) {
     return dayValue
@@ -343,9 +441,10 @@ function normalizePlannedMealIdsForDay(dayValue: unknown): number[] {
 
         return Number.isFinite(id) && id > 0 ? id : null;
       })
-        .filter((id): id is number => id !== null && Number.isFinite(id) && id > 0);
+      .filter((id): id is number => Number.isFinite(id) && id > 0);
   }
 
+  // Backward-compatibility: support { mealIds: [...] }
   if (dayValue && typeof dayValue === 'object' && Array.isArray((dayValue as any).mealIds)) {
     return normalizePlannedMealIdsForDay((dayValue as any).mealIds);
   }
@@ -392,34 +491,6 @@ function resolvePlannedMealIds(map: unknown, today: string, utcToday: string, to
 
 function getUtcDateKey(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function parseMealIngredients(rawJson: string): MealIngredient[] {
-  if (!rawJson) return [];
-  try {
-    const parsed = JSON.parse(rawJson);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((item: any) => {
-        if (!item || typeof item !== 'object') return null;
-        const id = Number(item.id ?? 0);
-        if (!Number.isFinite(id) || id <= 0) return null;
-        return {
-          id,
-          name: String(item.name ?? ''),
-          caloriesKcal: Number(item.caloriesKcal ?? 0),
-          proteinG: Number(item.proteinG ?? 0),
-          carbsG: Number(item.carbsG ?? 0),
-          fatsG: Number(item.fatsG ?? 0),
-          qty: Number(item.qty ?? 0),
-          unit: item.unit ? String(item.unit) : undefined,
-          baseUnit: item.baseUnit ? String(item.baseUnit) : undefined,
-        } as MealIngredient;
-      })
-      .filter((item): item is MealIngredient => item !== null);
-  } catch {
-    return [];
-  }
 }
 
 function DietTab() {
@@ -493,6 +564,10 @@ function DietTab() {
     load();
   }, [today, todayKey, utcToday, refreshTrigger]);
   
+  const handleAddIngredient = () => {
+    navigate('/diet/add-ingredient');
+  };
+
   function isIngredientMeal(meal: MealTemplate): boolean {
     const ingredients = parseMealIngredients(meal.ingredientsJson);
     return ingredients.length === 1 && !meal.recipe?.trim();
@@ -674,7 +749,7 @@ function DietTab() {
       <div className="flex items-center justify-between mb-2">
         <span className="section-label">Today's Meals</span>
         <div className="flex gap-2">
-          <button onClick={() => navigate('/meals/add-ingredient')} className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>Add Item</button>
+          <button onClick={handleAddIngredient} className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>Add Item</button>
           <button onClick={() => navigate('/settings/meals')} className="text-xs" style={{ color: 'var(--accent)' }}>Manage</button>
         </div>
       </div>
@@ -697,33 +772,9 @@ function DietTab() {
           const ingInfo = isIngMeal ? getIngredientInfo(meal) : null;
 
           return (
-            <div key={meal.id} className="relative">
-              {isIngMeal && ingInfo && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteIngredientMeal(meal.id);
-                  }}
-                  className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fecaca' }}
-                  title="Delete ingredient"
-                  aria-label="Delete ingredient"
-                >
-                  <X size={12} />
-                </button>
-              )}
+            <div key={meal.id}>
               <button
-                onClick={() => {
-                  if (isIngMeal && ingInfo) {
-                    // For ingredient meals, open qty popup
-                    setEditingMealId(meal.id);
-                    setEditQty(String(ingInfo.qty || 1));
-                    setEditUnit(ingInfo.unit || 'serving');
-                  } else {
-                    // For recipe meals, toggle logged state
-                    toggleMeal(meal.id);
-                  }
-                }}
+                onClick={() => toggleMeal(meal.id)}
                 className="w-full text-left flex items-center gap-3 p-3 rounded-xl mb-2"
                 style={{
                   backgroundColor: on ? 'var(--accent)11' : 'var(--surface)',
@@ -735,14 +786,37 @@ function DietTab() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
-                  <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{meal.timing} Â· {isIngMeal ? 'Logged' : 'Planned'} Â· tap to {on ? 'unlog' : 'log'}</p>
+                  <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{meal.timing} -+ {isIngMeal ? 'Logged' : 'Planned'} -+ tap to {on ? 'unlog' : 'log'}</p>
                   {meal.recipe && <p className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{meal.recipe}</p>}
                 </div>
                 <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{Math.round(total)}</span>
               </button>
 
+              {isIngMeal && ingInfo && (
+                <div className="flex gap-2 mb-2 px-1">
+                  <button
+                    onClick={() => {
+                      setEditingMealId(meal.id);
+                      setEditQty(String(ingInfo.qty || 1));
+                      setEditUnit(ingInfo.unit || 'serving');
+                    }}
+                    className="flex-1 text-xs px-2 py-1.5 rounded-lg font-medium transition-all"
+                    style={{ backgroundColor: 'var(--surface)', color: 'var(--accent)', border: '1px solid var(--accent)33' }}
+                  >
+                    G£Ån+Å Edit
+                  </button>
+                  <button
+                    onClick={() => deleteIngredientMeal(meal.id)}
+                    className="flex-1 text-xs px-2 py-1.5 rounded-lg font-medium transition-all"
+                    style={{ backgroundColor: 'var(--surface)', color: 'var(--accent-warm)', border: '1px solid var(--accent-warm)33' }}
+                  >
+                    =ƒùæn+Å Delete
+                  </button>
+                </div>
+              )}
+
               {editingMealId === meal.id && isIngMeal && ingInfo && (
-                <div className="mb-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--accent)11', border: '1px solid var(--accent)33', backdropFilter: 'blur(10px)' }}>
+                <div className="mb-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)33' }}>
                   <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Edit {ingInfo.name}</p>
                   <div className="flex gap-2 mb-2">
                     <input
@@ -751,12 +825,11 @@ function DietTab() {
                       onChange={e => setEditQty(e.target.value)}
                       className="flex-1 px-2 py-1.5 text-sm rounded-lg outline-none"
                       style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                      placeholder="Qty"
                     />
                     <select
                       value={editUnit}
                       onChange={e => setEditUnit(e.target.value)}
-                      className="px-2 py-1.5 text-sm rounded-lg outline-none"
+                      className="flex-1 px-2 py-1.5 text-sm rounded-lg outline-none"
                       style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
                     >
                       <option>serving</option>
@@ -791,13 +864,11 @@ function DietTab() {
         })}
         </>
       )}
-
-
     </div>
   );
 }
 
-// â”€â”€â”€ Advanced Body Weight Progress Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇGöÇ Advanced Body Weight Progress Chart GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 function WeightChart({ logs, targetWeight }: { logs: api.BodyWeightLog[]; targetWeight: number | null }) {
   const [hovered, setHovered] = useState<number | null>(null);
 
@@ -812,7 +883,7 @@ function WeightChart({ logs, targetWeight }: { logs: api.BodyWeightLog[]; target
   if (logs.length === 0) return (
     <div className="flex flex-col items-center justify-center h-36 rounded-2xl gap-2"
       style={{ backgroundColor: 'var(--surface-elevated)', border: '2px dashed var(--border)' }}>
-      <span className="text-2xl">ðŸ“Š</span>
+      <span className="text-2xl">=ƒôè</span>
       <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>No weight entries yet</p>
       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Log your weight below to start tracking</p>
     </div>
@@ -989,7 +1060,7 @@ function WeightChart({ logs, targetWeight }: { logs: api.BodyWeightLog[]; target
   );
 }
 
-// â”€â”€â”€ Body Metrics Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// GöÇGöÇGöÇ Body Metrics Section GöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇGöÇ
 function BodyMetricsSection() {
   const [profile, setProfile] = useState<api.BodyMetricsProfile | null>(null);
   const [logs, setLogs] = useState<api.BodyWeightLog[]>([]);
@@ -1094,21 +1165,21 @@ function BodyMetricsSection() {
         <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Height</p>
           <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            {profile?.heightCm != null ? profile.heightCm : 'Gï¿½ï¿½'}
+            {profile?.heightCm != null ? profile.heightCm : 'GÇö'}
           </p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>cm</p>
         </div>
         <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Current</p>
           <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            {currentWeight != null ? currentWeight : 'Gï¿½ï¿½'}
+            {currentWeight != null ? currentWeight : 'GÇö'}
           </p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>kg</p>
         </div>
         <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Target</p>
           <p className="text-xl font-bold" style={{ color: 'var(--accent-gold, #f59e0b)' }}>
-            {profile?.targetWeightKg != null ? profile.targetWeightKg : 'Gï¿½ï¿½'}
+            {profile?.targetWeightKg != null ? profile.targetWeightKg : 'GÇö'}
           </p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>kg</p>
         </div>
@@ -1308,28 +1379,28 @@ function ProgressTab() {
       label: 'Days Logged',
       value: analytics?.daysLogged ?? 0,
       unit: 'days',
-      icon: '=ï¿½ï¿½ï¿½n+ï¿½',
+      icon: '=ƒùôn+Å',
       color: 'var(--accent)',
     },
     {
       label: 'Total Sets',
       value: analytics?.totalSets ?? 0,
       unit: 'sets',
-      icon: '=ï¿½Æ¬',
+      icon: '=ƒÆ¬',
       color: 'var(--accent-green)',
     },
     {
       label: 'Volume Lifted',
       value: analytics?.totalVolume ? `${(analytics.totalVolume / 1000).toFixed(1)}k` : '0',
       unit: 'kg total',
-      icon: '=ï¿½ï¿½ï¿½n+ï¿½',
+      icon: '=ƒÅïn+Å',
       color: 'var(--accent-warm)',
     },
     {
       label: 'This Period',
       value: analytics?.weeks ?? 0,
       unit: 'weeks',
-      icon: '=ï¿½ï¿½ï¿½',
+      icon: '=ƒôà',
       color: 'var(--accent-blue, #3b82f6)',
     },
   ];
@@ -1341,7 +1412,7 @@ function ProgressTab() {
 
       <div className="border-t" style={{ borderColor: 'var(--border)' }} />
 
-      {/* Gï¿½ï¿½Gï¿½ï¿½ Workout Stats Gï¿½ï¿½Gï¿½ï¿½ */}
+      {/* GöÇGöÇ Workout Stats GöÇGöÇ */}
       <div>
         <div className="flex items-center gap-2 mb-3">
           <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Workout Stats</span>
@@ -1359,7 +1430,7 @@ function ProgressTab() {
               <div>
                 <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{card.label}</p>
                 <p className="text-2xl font-black leading-tight num" style={{ color: card.color }}>
-                  {loading ? 'Gï¿½ï¿½' : card.value}
+                  {loading ? 'GÇö' : card.value}
                 </p>
                 <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{card.unit}</p>
               </div>
@@ -1368,12 +1439,12 @@ function ProgressTab() {
         </div>
       </div>
 
-      {/* Gï¿½ï¿½Gï¿½ï¿½ Personal Records Gï¿½ï¿½Gï¿½ï¿½ */}
+      {/* GöÇGöÇ Personal Records GöÇGöÇ */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Personal Records</span>
-            <span className="text-xs">=ï¿½ï¿½ï¿½</span>
+            <span className="text-xs">=ƒÅå</span>
           </div>
           {prs.length > 0 && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
@@ -1392,8 +1463,8 @@ function ProgressTab() {
         ) : prs.length === 0 ? (
           <div className="p-5 rounded-2xl text-center"
             style={{ backgroundColor: 'var(--surface)', border: '2px dashed var(--border)' }}>
-            <p className="text-3xl mb-2">=ï¿½Ä»</p>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>No PRs yet Gï¿½ï¿½ crush your first workout!</p>
+            <p className="text-3xl mb-2">=ƒÄ»</p>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>No PRs yet GÇö crush your first workout!</p>
             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Complete sets in the Workout tab to set records</p>
           </div>
         ) : (
@@ -1406,8 +1477,8 @@ function ProgressTab() {
               const oneRm = weight > 0 && reps > 0
                 ? Math.round(weight * (1 + reps / 30))
                 : null;
-              const medals = ['=ï¿½ï¿½ï¿½', '=ï¿½ï¿½ï¿½', '=ï¿½ï¿½ï¿½'];
-              const medal = medals[idx] ?? '=ï¿½ï¿½ï¿½';
+              const medals = ['=ƒÑç', '=ƒÑê', '=ƒÑë'];
+              const medal = medals[idx] ?? '=ƒÅà';
               return (
                 <div key={idx} className="flex items-center gap-3 p-3 rounded-2xl"
                   style={{
@@ -1425,7 +1496,7 @@ function ProgressTab() {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-black num" style={{ color: 'var(--accent-warm)' }}>
-                      {weight} kg +ï¿½ {reps}
+                      {weight} kg +ù {reps}
                     </p>
                     {oneRm !== null && (
                       <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>~{oneRm} kg 1RM</p>
@@ -1447,12 +1518,12 @@ function ProgressTab() {
         )}
       </div>
 
-      {/* Gï¿½ï¿½Gï¿½ï¿½ Meal Records Gï¿½ï¿½Gï¿½ï¿½ */}
+      {/* GöÇGöÇ Meal Records GöÇGöÇ */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Meal Records</span>
-            <span className="text-xs">=ï¿½ï¿½+n+ï¿½</span>
+            <span className="text-xs">=ƒì+n+Å</span>
           </div>
           {mealRecords.length > 0 && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
@@ -1477,7 +1548,7 @@ function ProgressTab() {
             {mealRecords.slice(0, 5).map((meal, idx) => (
               <div key={`${meal.id}-${idx}`} className="flex items-center gap-3 p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                  =ï¿½ï¿½+n+ï¿½
+                  =ƒì+n+Å
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
@@ -1507,20 +1578,20 @@ function ProgressTab() {
         )}
       </div>
 
-      {/* Gï¿½ï¿½Gï¿½ï¿½ Motivational Banner Gï¿½ï¿½Gï¿½ï¿½ */}
+      {/* GöÇGöÇ Motivational Banner GöÇGöÇ */}
       <div className="p-4 rounded-2xl text-center"
         style={{ background: 'linear-gradient(135deg, var(--accent)22, var(--accent-green)11)', border: '1px solid var(--accent)33' }}>
         <p className="text-base font-black" style={{ color: 'var(--text-primary)' }}>
           {(analytics?.daysLogged ?? 0) === 0
-            ? '=ï¿½ï¿½ï¿½ Start your journey Gï¿½ï¿½ log day 1 today!'
+            ? '=ƒöÑ Start your journey GÇö log day 1 today!'
             : (analytics?.daysLogged ?? 0) < 7
-              ? `=ï¿½ï¿½ï¿½ ${analytics.daysLogged} days logged Gï¿½ï¿½ you're just getting started!`
+              ? `=ƒÜÇ ${analytics.daysLogged} days logged GÇö you're just getting started!`
               : (analytics?.daysLogged ?? 0) < 30
-                ? `=ï¿½Æ¬ ${analytics.daysLogged} days logged Gï¿½ï¿½ building real momentum!`
-                : `=ï¿½ï¿½ï¿½ ${analytics.daysLogged} days logged Gï¿½ï¿½ you're unstoppable!`}
+                ? `=ƒÆ¬ ${analytics.daysLogged} days logged GÇö building real momentum!`
+                : `=ƒÅå ${analytics.daysLogged} days logged GÇö you're unstoppable!`}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-          Keep going Gï¿½ï¿½ every rep counts.
+          Keep going GÇö every rep counts.
         </p>
       </div>
     </div>

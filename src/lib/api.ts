@@ -2376,7 +2376,7 @@ const DUMMY_MEAL_INGREDIENTS = [
   { id: 8, name: 'Banana', caloriesKcal: 89, proteinG: 1.1, carbsG: 23, fatsG: 0.3, createdAt: new Date().toISOString() }
 ];
 
-const DUMMY_MEAL_TEMPLATES = [
+const DEFAULT_MEAL_TEMPLATES = [
   {
     id: 1,
     name: 'Grilled Chicken & Broccoli',
@@ -2423,6 +2423,23 @@ const DUMMY_MEAL_TEMPLATES = [
     createdAt: new Date().toISOString()
   }
 ];
+
+const DUMMY_MEAL_TEMPLATES = (() => {
+  try {
+    const stored = localStorage.getItem('gd_dummy_meal_templates');
+    return stored ? JSON.parse(stored) : DEFAULT_MEAL_TEMPLATES;
+  } catch {
+    return DEFAULT_MEAL_TEMPLATES;
+  }
+})();
+
+function saveMealTemplates() {
+  try {
+    localStorage.setItem('gd_dummy_meal_templates', JSON.stringify(DUMMY_MEAL_TEMPLATES));
+  } catch (e) {
+    console.error('Failed to save meal templates to localStorage:', e);
+  }
+}
 
 const DUMMY_WEEKLY_MEAL_PLAN = {
   planJson: JSON.stringify({
@@ -2493,6 +2510,7 @@ export async function createMealTemplate(body: any) {
   if (DUMMY_FLAGS.meals) {
     const newTemplate = { id: Math.max(...DUMMY_MEAL_TEMPLATES.map(m => m.id), 0) + 1, ...body, createdAt: new Date().toISOString() };
     DUMMY_MEAL_TEMPLATES.push(newTemplate);
+    saveMealTemplates();
     return Promise.resolve(newTemplate);
   }
   return request('meal/templates', { method: 'POST', body: JSON.stringify(body) });
@@ -2502,6 +2520,7 @@ export async function deleteMealTemplate(id: number) {
   if (DUMMY_FLAGS.meals) {
     const idx = DUMMY_MEAL_TEMPLATES.findIndex(m => m.id === id);
     if (idx >= 0) DUMMY_MEAL_TEMPLATES.splice(idx, 1);
+    saveMealTemplates();
     return Promise.resolve({ success: true });
   }
   return request(`meal/templates/${id}`, { method: 'DELETE' });
@@ -2511,6 +2530,7 @@ export async function updateMealTemplate(id: number, body: any) {
   if (DUMMY_FLAGS.meals) {
     const item = DUMMY_MEAL_TEMPLATES.find(m => m.id === id);
     if (item) Object.assign(item, body);
+    saveMealTemplates();
     return Promise.resolve(item);
   }
   return request(`meal/templates/${id}`, { method: 'PUT', body: JSON.stringify(body) });
@@ -2581,7 +2601,22 @@ export async function copyLastWeekMealPlan(sourceDate: string, targetDate?: stri
   });
 }
 
-const DUMMY_DAILY_MEAL_LOGS: Record<string, number[]> = {};
+const DUMMY_DAILY_MEAL_LOGS: Record<string, number[]> = (() => {
+  try {
+    const stored = localStorage.getItem('gd_dummy_daily_meal_logs');
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+})();
+
+function saveDailyMealLogs() {
+  try {
+    localStorage.setItem('gd_dummy_daily_meal_logs', JSON.stringify(DUMMY_DAILY_MEAL_LOGS));
+  } catch (e) {
+    console.error('Failed to save daily meal logs to localStorage:', e);
+  }
+}
 
 export async function getDailyMealLog(date: string) {
   if (DUMMY_FLAGS.meals) {
@@ -2590,9 +2625,30 @@ export async function getDailyMealLog(date: string) {
   return request(`meal/logs/${date}`);
 }
 
+export async function getDailyMealLogs(from?: string, to?: string) {
+  if (DUMMY_FLAGS.meals) {
+    const rows = Object.entries(DUMMY_DAILY_MEAL_LOGS)
+      .filter(([date]) => {
+        if (from && date < from) return false;
+        if (to && date > to) return false;
+        return true;
+      })
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([date, mealIds]) => ({ date, mealIds: [...mealIds] }));
+    return Promise.resolve(rows);
+  }
+
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const query = params.toString();
+  return request(`meal/logs${query ? `?${query}` : ''}`);
+}
+
 export async function upsertDailyMealLog(date: string, mealIds: number[]) {
   if (DUMMY_FLAGS.meals) {
     DUMMY_DAILY_MEAL_LOGS[date] = [...mealIds];
+    saveDailyMealLogs();
     return Promise.resolve({ date, mealIds: [...mealIds] });
   }
   return request('meal/logs', { method: 'PUT', body: JSON.stringify({ date, mealIds }) });
@@ -2762,6 +2818,7 @@ export async function logQuickEntry(type: 'workout' | 'meal' | 'expense' | 'wate
       const current = DUMMY_DAILY_MEAL_LOGS[entry.date] || [];
       const mealIds = Array.isArray(payload.mealIds) ? payload.mealIds : [payload.mealIds];
       DUMMY_DAILY_MEAL_LOGS[entry.date] = [...new Set([...current, ...mealIds])];
+      saveDailyMealLogs();
     } else if (type === 'water' && payload.ml) {
       // Log water in ml
       const key = entry.date;

@@ -390,20 +390,9 @@ export default function MealPlannerSettings() {
 
     const existing = mealPlan[dayKey] || [];
     
-    // Check if exact same meal already exists
+    // Check if exact same meal already exists (prevent duplicate of same meal template)
     if (existing.some(a => a.mealTemplateId === mealTemplateId)) {
       flash('This meal already exists for this day');
-      return;
-    }
-
-    // Check if a meal with the same timing already exists (prevent duplicate preworkout, breakfast, etc)
-    const mealTiming = pickedMeal.timing?.toLowerCase() || '';
-    if (mealTiming && existing.some(a => {
-      const existingMeal = meals.find(m => m.id === a.mealTemplateId);
-      return existingMeal && existingMeal.timing?.toLowerCase() === mealTiming;
-    })) {
-      flash(`You already have a ${mealTiming} meal for this day. Replace it?`);
-      // Return false so caller can prompt for replacement
       return;
     }
 

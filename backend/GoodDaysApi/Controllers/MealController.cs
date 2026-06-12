@@ -560,6 +560,65 @@ public class MealController : ControllerBase
         });
     }
 
+    [HttpGet("logs")]
+    public async Task<IActionResult> GetDailyLogs([FromQuery] string? from, [FromQuery] string? to)
+    {
+        var userId = GetUserId();
+
+        DateOnly? fromDate = null;
+        DateOnly? toDate = null;
+
+        if (!string.IsNullOrWhiteSpace(from))
+        {
+            if (!DateOnly.TryParse(from, out var parsedFrom))
+                return BadRequest("Invalid from date format. Use yyyy-MM-dd");
+            fromDate = parsedFrom;
+        }
+
+        if (!string.IsNullOrWhiteSpace(to))
+        {
+            if (!DateOnly.TryParse(to, out var parsedTo))
+                return BadRequest("Invalid to date format. Use yyyy-MM-dd");
+            toDate = parsedTo;
+        }
+
+        var query = _db.DailyMealLogs
+            .AsNoTracking()
+            .Where(l => l.UserId == userId)
+            .AsQueryable();
+
+        if (fromDate.HasValue)
+            query = query.Where(l => l.Date >= fromDate.Value);
+
+        if (toDate.HasValue)
+            query = query.Where(l => l.Date <= toDate.Value);
+
+        var logs = await query
+            .OrderByDescending(l => l.Date)
+            .ToListAsync();
+
+        var rows = logs.Select(log =>
+        {
+            int[] ids;
+            try
+            {
+                ids = log.MealIdsJson.RootElement.Deserialize<int[]>() ?? Array.Empty<int>();
+            }
+            catch
+            {
+                ids = Array.Empty<int>();
+            }
+
+            return new
+            {
+                date = log.Date.ToString("yyyy-MM-dd"),
+                mealIds = ids
+            };
+        });
+
+        return Ok(rows);
+    }
+
     [HttpPut("logs")]
     public async Task<IActionResult> UpsertDailyLog([FromBody] UpsertDailyLogRequestDto body)
     {
