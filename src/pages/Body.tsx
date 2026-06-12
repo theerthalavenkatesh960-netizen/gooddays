@@ -697,7 +697,21 @@ function DietTab() {
           const ingInfo = isIngMeal ? getIngredientInfo(meal) : null;
 
           return (
-            <div key={meal.id}>
+            <div key={meal.id} className="relative">
+              {isIngMeal && ingInfo && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteIngredientMeal(meal.id);
+                  }}
+                  className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full flex items-center justify-center"
+                  style={{ color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fecaca' }}
+                  title="Delete ingredient"
+                  aria-label="Delete ingredient"
+                >
+                  <X size={12} />
+                </button>
+              )}
               <button
                 onClick={() => {
                   if (isIngMeal && ingInfo) {
@@ -726,19 +740,6 @@ function DietTab() {
                 </div>
                 <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{Math.round(total)}</span>
               </button>
-
-              {isIngMeal && ingInfo && (
-                <div className="flex gap-1 mb-2 px-1">
-                  <button
-                    onClick={() => deleteIngredientMeal(meal.id)}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-110"
-                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent-warm)' }}
-                    title="Delete ingredient"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              )}
 
               {editingMealId === meal.id && isIngMeal && ingInfo && (
                 <div className="mb-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--accent)11', border: '1px solid var(--accent)33', backdropFilter: 'blur(10px)' }}>
