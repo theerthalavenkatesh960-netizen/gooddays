@@ -501,6 +501,9 @@ function DietTab() {
   const [waterGoalMl, setWaterGoalMl] = useState(2000);
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [editingMealId, setEditingMealId] = useState<number | null>(null);
+  const [editQty, setEditQty] = useState('1');
+  const [editUnit, setEditUnit] = useState('serving');
   const navigate = useNavigate();
   const location = useLocation();
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -564,6 +567,70 @@ function DietTab() {
   const handleAddIngredient = () => {
     navigate('/diet/add-ingredient');
   };
+
+  function isIngredientMeal(meal: MealTemplate): boolean {
+    const ingredients = parseMealIngredients(meal.ingredientsJson);
+    return ingredients.length === 1 && !meal.recipe?.trim();
+  }
+
+  function getIngredientInfo(meal: MealTemplate) {
+    const ingredients = parseMealIngredients(meal.ingredientsJson);
+    if (ingredients.length !== 1) return null;
+    const ing = ingredients[0];
+    return {
+      qty: ing.qty || 1,
+      unit: ing.unit || ing.baseUnit || 'serving',
+      name: ing.name || '',
+      id: ing.id || 0,
+    };
+  }
+
+  async function deleteIngredientMeal(mealId: number) {
+    if (!window.confirm('Delete this ingredient log?')) return;
+    try {
+      await api.deleteMealTemplate(mealId);
+      setPlannedMeals(prev => prev.filter(m => m.id !== mealId));
+      const nextSelected = selected.filter(id => id !== mealId);
+      setSelected(nextSelected);
+      await (api as any).upsertDailyMealLog(today, nextSelected);
+    } catch (e) {
+      console.error('Failed to delete:', e);
+    }
+  }
+
+  async function saveIngredientEdit(mealId: number) {
+    const meal = plannedMeals.find(m => m.id === mealId);
+    if (!meal) return;
+    const ingInfo = getIngredientInfo(meal);
+    if (!ingInfo) return;
+
+    try {
+      const newQty = Number(editQty) || 1;
+      const macroFactor = newQty / (ingInfo.qty || 1);
+
+      const updated = {
+        ...meal,
+        name: `${newQty} ${editUnit} ${ingInfo.name}`,
+        ingredientsJson: JSON.stringify([
+          {
+            ...getIngredientInfo(meal),
+            qty: newQty,
+            unit: editUnit,
+            caloriesKcal: Number(parseMealIngredients(meal.ingredientsJson)[0].caloriesKcal || 0) * macroFactor,
+            proteinG: Number(parseMealIngredients(meal.ingredientsJson)[0].proteinG || 0) * macroFactor,
+            carbsG: Number(parseMealIngredients(meal.ingredientsJson)[0].carbsG || 0) * macroFactor,
+            fatsG: Number(parseMealIngredients(meal.ingredientsJson)[0].fatsG || 0) * macroFactor,
+          }
+        ]),
+      };
+
+      await api.updateMealTemplate(mealId, updated);
+      setPlannedMeals(prev => prev.map(m => m.id === mealId ? { ...m, ...updated } : m));
+      setEditingMealId(null);
+    } catch (e) {
+      console.error('Failed to save:', e);
+    }
+  }
 
   async function toggleMeal(id: number) {
     const next = selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id];
@@ -701,26 +768,98 @@ function DietTab() {
         {plannedMeals.map(meal => {
           const total = parseMealIngredients(meal.ingredientsJson).reduce((s, i) => s + Number(i.caloriesKcal || 0), 0);
           const on = selected.includes(meal.id);
+          const isIngMeal = isIngredientMeal(meal);
+          const ingInfo = isIngMeal ? getIngredientInfo(meal) : null;
+
           return (
-            <button
-              key={meal.id}
-              onClick={() => toggleMeal(meal.id)}
-              className="w-full text-left flex items-center gap-3 p-3 rounded-xl mb-2"
-              style={{
-                backgroundColor: on ? 'var(--accent)11' : 'var(--surface)',
-                border: `1px solid ${on ? 'var(--accent)55' : 'var(--border)'}`,
-              }}
-            >
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: on ? 'var(--accent)' : 'var(--surface-elevated)' }}>
-                {on && <Check size={12} color="#fff" />}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
-                <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{meal.timing} · Planned · tap to {on ? 'unlog' : 'log'}</p>
-                {meal.recipe && <p className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{meal.recipe}</p>}
-              </div>
-              <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{Math.round(total)}</span>
-            </button>
+            <div key={meal.id}>
+              <button
+                onClick={() => toggleMeal(meal.id)}
+                className="w-full text-left flex items-center gap-3 p-3 rounded-xl mb-2"
+                style={{
+                  backgroundColor: on ? 'var(--accent)11' : 'var(--surface)',
+                  border: `1px solid ${on ? 'var(--accent)55' : 'var(--border)'}`,
+                }}
+              >
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: on ? 'var(--accent)' : 'var(--surface-elevated)' }}>
+                  {on && <Check size={12} color="#fff" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
+                  <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{meal.timing} · {isIngMeal ? 'Logged' : 'Planned'} · tap to {on ? 'unlog' : 'log'}</p>
+                  {meal.recipe && <p className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{meal.recipe}</p>}
+                </div>
+                <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{Math.round(total)}</span>
+              </button>
+
+              {isIngMeal && ingInfo && (
+                <div className="flex gap-2 mb-2 px-1">
+                  <button
+                    onClick={() => {
+                      setEditingMealId(meal.id);
+                      setEditQty(String(ingInfo.qty || 1));
+                      setEditUnit(ingInfo.unit || 'serving');
+                    }}
+                    className="flex-1 text-xs px-2 py-1.5 rounded-lg font-medium transition-all"
+                    style={{ backgroundColor: 'var(--surface)', color: 'var(--accent)', border: '1px solid var(--accent)33' }}
+                  >
+                    ✏️ Edit
+                  </button>
+                  <button
+                    onClick={() => deleteIngredientMeal(meal.id)}
+                    className="flex-1 text-xs px-2 py-1.5 rounded-lg font-medium transition-all"
+                    style={{ backgroundColor: 'var(--surface)', color: 'var(--accent-warm)', border: '1px solid var(--accent-warm)33' }}
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
+              )}
+
+              {editingMealId === meal.id && isIngMeal && ingInfo && (
+                <div className="mb-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)33' }}>
+                  <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Edit {ingInfo.name}</p>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="number"
+                      value={editQty}
+                      onChange={e => setEditQty(e.target.value)}
+                      className="flex-1 px-2 py-1.5 text-sm rounded-lg outline-none"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
+                    <select
+                      value={editUnit}
+                      onChange={e => setEditUnit(e.target.value)}
+                      className="flex-1 px-2 py-1.5 text-sm rounded-lg outline-none"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    >
+                      <option>serving</option>
+                      <option>g</option>
+                      <option>ml</option>
+                      <option>oz</option>
+                      <option>cup</option>
+                      <option>tbsp</option>
+                      <option>tsp</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setEditingMealId(null)}
+                      className="flex-1 text-xs px-2 py-1 rounded-lg font-medium"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => saveIngredientEdit(meal.id)}
+                      className="flex-1 text-xs px-2 py-1 rounded-lg font-medium text-white"
+                      style={{ backgroundColor: 'var(--accent)' }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           );
         })}
         </>
