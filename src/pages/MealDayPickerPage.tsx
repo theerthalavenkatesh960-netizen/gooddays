@@ -66,7 +66,7 @@ export default function MealDayPickerPage() {
   const [dayAssignments, setDayAssignments] = useState<MealAssignment[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState('');
-  const [slotTiming, setSlotTiming] = useState<string>(((location.state || {}) as PickerState).slotTiming || '');
+  const [slotTiming, setSlotTiming] = useState<string>(((location.state || {}) as PickerState).slotTiming || 'all');
   const [pickTime, setPickTime] = useState('');
   const [status, setStatus] = useState('');
 
@@ -95,13 +95,14 @@ export default function MealDayPickerPage() {
   }, [loaded]);
 
   const filtered = useMemo(() => {
-    if (!slotTiming) return [];
     let list = meals;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(m => m.name.toLowerCase().includes(q));
     }
-    list = list.filter(m => normalizeTiming(m.timing) === normalizeTiming(slotTiming));
+    if (slotTiming && slotTiming !== 'all') {
+      list = list.filter(m => normalizeTiming(m.timing) === normalizeTiming(slotTiming));
+    }
     return list;
   }, [meals, search, slotTiming]);
 
@@ -175,13 +176,13 @@ export default function MealDayPickerPage() {
 
         <select value={slotTiming} onChange={e => setSlotTiming(e.target.value)} className="w-full px-3 py-2 text-sm rounded-xl outline-none mb-2"
           style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
-          <option value="">Select timing slot...</option>
-          <option value="breakfast">Breakfast</option>
-          <option value="lunch">Lunch</option>
-          <option value="dinner">Dinner</option>
-          <option value="pre-workout">Pre-workout</option>
-          <option value="post-workout">Post-workout</option>
-          <option value="snack">Snack</option>
+          <option value="all">All Meals</option>
+          <option value="pre-workout">Pre-workout (till 8:00)</option>
+          <option value="post-workout">Post-workout (till 9:30)</option>
+          <option value="breakfast">Breakfast (till 11:00)</option>
+          <option value="lunch">Lunch (till 3:00 PM)</option>
+          <option value="snack">Snack (till 7:00 PM)</option>
+          <option value="dinner">Dinner (after 7:00 PM)</option>
         </select>
 
         <input value={pickTime} onChange={e => setPickTime(e.target.value)} placeholder="Override time HH:MM (optional)"
