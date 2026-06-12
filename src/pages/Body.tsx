@@ -422,193 +422,6 @@ function parseMealIngredients(rawJson: string): MealIngredient[] {
   }
 }
 
-function AddIngredientModalContent({ onSuccess, onClose }: { onSuccess: () => void; onClose: () => void }) {
-  const [ingredients, setIngredients] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [qty, setQty] = useState('1');
-  const [unit, setUnit] = useState('serving');
-  const [loading, setLoading] = useState(true);
-  const [isLogging, setIsLogging] = useState(false);
-
-  useEffect(() => {
-    api.getMealIngredients()
-      .then(data => {
-        setIngredients(Array.isArray(data) ? data : []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return ingredients;
-    const q = search.trim().toLowerCase();
-    return ingredients.filter(i => i.name.toLowerCase().includes(q));
-  }, [ingredients, search]);
-
-  const selectedIng = ingredients.find(i => i.id === selectedId);
-
-  useEffect(() => {
-    if (selectedIng) {
-      setQty(String(selectedIng.defaultQty || 1));
-      setUnit(selectedIng.defaultUnit || 'serving');
-    }
-  }, [selectedIng]);
-
-  function formatDefaultServing(ingredient: any): string {
-    const defaultQty = ingredient?.defaultQty ?? 1;
-    const rawUnit = String(ingredient?.defaultUnit || 'serving').toLowerCase();
-    const displayUnit = rawUnit === 'g' ? 'gms' : rawUnit;
-    return `${defaultQty} ${displayUnit}`;
-  }
-
-  async function logIngredient() {
-    if (!selectedId) return;
-    if (!qty || Number(qty) <= 0) return;
-
-    setIsLogging(true);
-    try {
-      const qtyNum = Number(qty);
-      const macroFactor = qtyNum / (selectedIng?.defaultQty || 1);
-
-      const mealData = {
-        name: `${qtyNum} ${unit} ${selectedIng?.name}`,
-        timing: 'snack',
-        ingredientsJson: JSON.stringify([
-          {
-            id: selectedId,
-            name: selectedIng?.name || '',
-            qty: qtyNum,
-            baseQty: selectedIng?.defaultQty || 1,
-            unit,
-            caloriesKcal: (selectedIng?.caloriesKcal || 0) * macroFactor,
-            proteinG: (selectedIng?.proteinG || 0) * macroFactor,
-            carbsG: (selectedIng?.carbsG || 0) * macroFactor,
-            fatsG: (selectedIng?.fatsG || 0) * macroFactor,
-          }
-        ]),
-        recipe: '',
-        imageUrl: '',
-      };
-
-      const created = await api.createMealTemplate(mealData);
-      const createdId = Number((created as any)?.id);
-      if (!Number.isFinite(createdId) || createdId <= 0) throw new Error('Failed to create meal');
-
-      const today = new Date().toISOString().slice(0, 10);
-      let todayLog = null;
-      try {
-        todayLog = await (api as any).getDailyMealLog(today);
-      } catch {
-        // No existing log for today.
-      }
-
-      const existingIds = Array.isArray(todayLog?.mealIds)
-        ? todayLog.mealIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0)
-        : [];
-
-      const nextIds = Array.from(new Set([...existingIds, createdId]));
-      await (api as any).upsertDailyMealLog(today, nextIds);
-      onSuccess();
-    } catch (e) {
-      console.error('Failed to log:', e);
-    } finally {
-      setIsLogging(false);
-    }
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="relative">
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search ingredients..."
-          className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-          style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-        />
-      </div>
-
-      <div className="space-y-1 max-h-48 overflow-y-auto">
-        {loading ? (
-          <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>Loading...</p>
-        ) : filtered.length === 0 ? (
-          <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>No ingredients found</p>
-        ) : (
-          filtered.map(ing => (
-            <button
-              key={ing.id}
-              onClick={() => setSelectedId(ing.id)}
-              className="w-full text-left p-2 rounded-lg text-xs transition-all"
-              style={{
-                backgroundColor: selectedId === ing.id ? 'var(--accent)11' : 'var(--surface-elevated)',
-                border: `1px solid ${selectedId === ing.id ? 'var(--accent)33' : 'var(--border)'}`,
-              }}
-            >
-              <p style={{ color: 'var(--text-primary)', fontWeight: '500' }}>{ing.name}</p>
-            </button>
-          ))
-        )}
-      </div>
-
-      {selectedIng && (
-        <div className="space-y-2 p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-          <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <p style={{ color: 'var(--text-primary)', fontWeight: '500', fontSize: '0.875rem' }}>{selectedIng.name}</p>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px' }}>
-              Default: {formatDefaultServing(selectedIng)}
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              type="number"
-              value={qty}
-              onChange={e => setQty(e.target.value)}
-              className="flex-1 px-2 py-1.5 text-sm rounded-lg outline-none"
-              style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-              placeholder="Qty"
-            />
-            <select
-              value={unit}
-              onChange={e => setUnit(e.target.value)}
-              className="px-2 py-1.5 text-sm rounded-lg outline-none"
-              style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-            >
-              <option>serving</option>
-              <option>g</option>
-              <option>ml</option>
-              <option>oz</option>
-              <option>cup</option>
-              <option>tbsp</option>
-              <option>tsp</option>
-            </select>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={onClose}
-              className="flex-1 px-2 py-1.5 text-xs font-medium rounded-lg"
-              style={{ backgroundColor: 'var(--surface)', color: 'var(--text-muted)' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={logIngredient}
-              disabled={isLogging}
-              className="flex-1 px-2 py-1.5 text-xs font-medium rounded-lg text-white disabled:opacity-60"
-              style={{ backgroundColor: 'var(--accent)' }}
-            >
-              {isLogging ? 'Logging...' : 'Log'}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function DietTab() {
   const [plannedMeals, setPlannedMeals] = useState<MealTemplate[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
@@ -620,7 +433,6 @@ function DietTab() {
   const [editingMealId, setEditingMealId] = useState<number | null>(null);
   const [editQty, setEditQty] = useState('1');
   const [editUnit, setEditUnit] = useState('serving');
-  const [showIngredientModal, setShowIngredientModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -862,7 +674,7 @@ function DietTab() {
       <div className="flex items-center justify-between mb-2">
         <span className="section-label">Today's Meals</span>
         <div className="flex gap-2">
-          <button onClick={() => setShowIngredientModal(true)} className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>Add Item</button>
+          <button onClick={() => navigate('/meals/add-ingredient')} className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>Add Item</button>
           <button onClick={() => navigate('/settings/meals')} className="text-xs" style={{ color: 'var(--accent)' }}>Manage</button>
         </div>
       </div>
@@ -887,7 +699,17 @@ function DietTab() {
           return (
             <div key={meal.id}>
               <button
-                onClick={() => toggleMeal(meal.id)}
+                onClick={() => {
+                  if (isIngMeal && ingInfo) {
+                    // For ingredient meals, open qty popup
+                    setEditingMealId(meal.id);
+                    setEditQty(String(ingInfo.qty || 1));
+                    setEditUnit(ingInfo.unit || 'serving');
+                  } else {
+                    // For recipe meals, toggle logged state
+                    toggleMeal(meal.id);
+                  }
+                }}
                 className="w-full text-left flex items-center gap-3 p-3 rounded-xl mb-2"
                 style={{
                   backgroundColor: on ? 'var(--accent)11' : 'var(--surface)',
@@ -907,18 +729,6 @@ function DietTab() {
 
               {isIngMeal && ingInfo && (
                 <div className="flex gap-1 mb-2 px-1">
-                  <button
-                    onClick={() => {
-                      setEditingMealId(meal.id);
-                      setEditQty(String(ingInfo.qty || 1));
-                      setEditUnit(ingInfo.unit || 'serving');
-                    }}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-110"
-                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}
-                    title="Edit ingredient"
-                  >
-                    ✏️
-                  </button>
                   <button
                     onClick={() => deleteIngredientMeal(meal.id)}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:scale-110"
@@ -981,33 +791,7 @@ function DietTab() {
         </>
       )}
 
-      {showIngredientModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }}>
-          <div
-            className="w-full max-w-md rounded-2xl p-4 max-h-[90vh] overflow-y-auto"
-            style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Log Ingredient</h2>
-              <button
-                onClick={() => setShowIngredientModal(false)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: 'var(--surface-elevated)' }}
-              >
-                ✕
-              </button>
-            </div>
-            <AddIngredientModalContent
-              onSuccess={() => {
-                setShowIngredientModal(false);
-                setRefreshTrigger(prev => prev + 1);
-              }}
-              onClose={() => setShowIngredientModal(false)}
-            />
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
