@@ -23,6 +23,7 @@ export default function AddIngredientPage() {
   const [qty, setQty] = useState('1');
   const [unit, setUnit] = useState('serving');
   const [status, setStatus] = useState('');
+  const [isLogging, setIsLogging] = useState(false);
 
   useEffect(() => {
     loadIngredients();
@@ -60,6 +61,8 @@ export default function AddIngredientPage() {
       return;
     }
 
+    setIsLogging(true);
+    setStatus('');
     try {
       const qtyNum = Number(qty);
       const macroFactor = qtyNum / (selectedIng?.defaultQty || 1);
@@ -89,22 +92,37 @@ export default function AddIngredientPage() {
 
       // Create a single-item meal template and log it for today so it appears immediately in Diet.
       const created = await api.createMealTemplate(mealData);
+      const createdId = Number((created as any)?.id);
+      
+      if (!Number.isFinite(createdId) || createdId <= 0) {
+        throw new Error('Failed to create meal: invalid response from server');
+      }
 
       const today = new Date().toISOString().slice(0, 10);
-      const todayLog = await (api as any).getDailyMealLog(today).catch(() => null);
-      const existingIds = Array.isArray(todayLog?.mealIds) ? todayLog.mealIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0) : [];
-      const createdId = Number((created as any)?.id);
-      if (Number.isFinite(createdId) && createdId > 0) {
-        const nextIds = Array.from(new Set([...existingIds, createdId]));
-        await (api as any).upsertDailyMealLog(today, nextIds);
+      let todayLog = null;
+      try {
+        todayLog = await (api as any).getDailyMealLog(today);
+      } catch (e) {
+        // If getting the log fails, that's okay - we'll create a new one
       }
+      
+      const existingIds = Array.isArray(todayLog?.mealIds) 
+        ? todayLog.mealIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0) 
+        : [];
+      
+      const nextIds = Array.from(new Set([...existingIds, createdId]));
+      await (api as any).upsertDailyMealLog(today, nextIds);
       
       setStatus('Ingredient logged! ✓');
       setTimeout(() => {
         navigate('/body?tab=Diet', { state: { mealAdded: true } });
       }, 800);
     } catch (e: any) {
-      setStatus(e?.message || 'Failed to log ingredient');
+      console.error('Ingredient logging error:', e);
+      const errorMsg = e?.message || 'Failed to log ingredient';
+      setStatus(errorMsg);
+    } finally {
+      setIsLogging(false);
     }
   }
 
@@ -274,11 +292,20 @@ export default function AddIngredientPage() {
           {/* Log Button */}
           <button
             onClick={logIngredient}
-            disabled={!selectedIng}
-            className="w-full h-11 rounded-xl font-semibold flex items-center justify-center gap-2 text-white disabled:opacity-50"
+            disabled={!selectedIng || isLogging}
+            className="w-full h-11 rounded-xl font-semibold flex items-center justify-center gap-2 text-white disabled:opacity-50 transition-all"
             style={{ backgroundColor: 'var(--accent)' }}
           >
-            <Plus size={18} /> Log {selectedIng?.name || 'Ingredient'}
+            {isLogging ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Logging...
+              </>
+            ) : (
+              <>
+                <Plus size={18} /> Log {selectedIng?.name || 'Ingredient'}
+              </>
+            )}
           </button>
         </>
       )}
