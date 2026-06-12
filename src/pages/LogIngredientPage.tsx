@@ -152,43 +152,34 @@ export default function LogIngredientPage() {
         />
       </div>
 
-      {/* Ingredients List */}
-      <div className="space-y-2 mb-6">
-        {loading ? (
-          <p className="text-center py-8" style={{ color: 'var(--text-muted)' }}>Loading...</p>
-        ) : filtered.length === 0 ? (
-          <p className="text-center py-8" style={{ color: 'var(--text-muted)' }}>No ingredients found</p>
-        ) : (
-          filtered.map(ing => (
-            <button
-              key={ing.id}
-              onClick={() => setSelectedId(ing.id)}
-              className="w-full text-left p-3 rounded-lg transition-all"
-              style={{
-                backgroundColor: selectedId === ing.id ? 'var(--accent)11' : 'var(--surface)',
-                border: `1px solid ${selectedId === ing.id ? 'var(--accent)55' : 'var(--border)'}`,
-              }}
-            >
-              <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-                {ing.name}
-              </p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                {Math.round(ing.caloriesKcal)} kcal · {Math.round(ing.proteinG || 0)}g protein
-              </p>
-            </button>
-          ))
-        )}
-      </div>
-
       {/* Selected Ingredient Details and Input */}
       {selectedIng && (
-        <div className="space-y-4 p-4 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="mb-4 space-y-3 p-4 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div>
             <p className="font-semibold text-sm mb-2" style={{ color: 'var(--text-primary)' }}>
               {selectedIng.name}
             </p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
               Default: {formatDefaultServing(selectedIng)}
+                        {/* Macros Display */}
+                        <div className="grid grid-cols-4 gap-2 mb-3">
+                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Kcal</p>
+                            <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{Math.round(selectedIng.caloriesKcal)}</p>
+                          </div>
+                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Protein</p>
+                            <p className="text-xs font-bold" style={{ color: 'var(--accent-green)' }}>{Math.round(selectedIng.proteinG || 0)}g</p>
+                          </div>
+                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Carbs</p>
+                            <p className="text-xs font-bold" style={{ color: 'var(--accent-gold)' }}>{Math.round(selectedIng.carbsG || 0)}g</p>
+                          </div>
+                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Fats</p>
+                            <p className="text-xs font-bold" style={{ color: 'var(--accent)' }}>{Math.round(selectedIng.fatsG || 0)}g</p>
+                          </div>
+                        </div>
             </p>
           </div>
 
@@ -218,6 +209,7 @@ export default function LogIngredientPage() {
                 <option>oz</option>
                 <option>cup</option>
                 <option>tbsp</option>
+                                <option>tsp</option>
                 <option>tsp</option>
               </select>
             </div>
@@ -226,11 +218,11 @@ export default function LogIngredientPage() {
           {/* Buttons */}
           <div className="flex gap-2 pt-2">
             <button
-              onClick={() => navigate('/body')}
+              onClick={() => setSelectedId(null)}
               className="flex-1 px-3 py-2 text-sm font-medium rounded-lg"
               style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}
             >
-              Cancel
+              Clear
             </button>
             <button
               onClick={logIngredient}
@@ -243,6 +235,37 @@ export default function LogIngredientPage() {
           </div>
         </div>
       )}
+
+        {/* Ingredients List */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold px-1" style={{ color: 'var(--text-muted)' }}>
+            {selectedId ? 'Select another ingredient or confirm above' : 'Select an ingredient'}
+          </p>
+          {loading ? (
+            <p className="text-center py-8" style={{ color: 'var(--text-muted)' }}>Loading...</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-center py-8" style={{ color: 'var(--text-muted)' }}>No ingredients found</p>
+          ) : (
+            filtered.map(ing => (
+              <button
+                key={ing.id}
+                onClick={() => setSelectedId(ing.id)}
+                className="w-full text-left p-3 rounded-lg transition-all"
+                style={{
+                  backgroundColor: selectedId === ing.id ? 'var(--accent)11' : 'var(--surface)',
+                  border: `1px solid ${selectedId === ing.id ? 'var(--accent)55' : 'var(--border)'}`,
+                }}
+              >
+                <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                  {ing.name}
+                </p>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  {Math.round(ing.caloriesKcal)} kcal · {Math.round(ing.proteinG || 0)}g protein
+                </p>
+              </button>
+            ))
+          )}
+        </div>
     </div>
   );
 }
