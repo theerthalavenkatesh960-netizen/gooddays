@@ -16,6 +16,15 @@ type MealIngredient = {
 
 const UNIT_OPTIONS = ['gms', 'serving', 'ml', 'oz', 'cup', 'tbsp', 'tsp'];
 
+function roundTo2(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function format2(value: number): string {
+  const rounded = roundTo2(value);
+  return rounded.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+}
+
 /** Normalise backend unit string to what we display in the dropdown */
 function normaliseUnit(raw: string | undefined): string {
   const u = (raw || 'serving').toLowerCase().trim();
@@ -70,10 +79,10 @@ export default function LogIngredientPage() {
     const baseQty = selectedIng.defaultQty || 1;
     const factor = qtyNum / baseQty;
     return {
-      kcal: (selectedIng.caloriesKcal || 0) * factor,
-      protein: (selectedIng.proteinG || 0) * factor,
-      carbs: (selectedIng.carbsG || 0) * factor,
-      fats: (selectedIng.fatsG || 0) * factor,
+      kcal: roundTo2((selectedIng.caloriesKcal || 0) * factor),
+      protein: roundTo2((selectedIng.proteinG || 0) * factor),
+      carbs: roundTo2((selectedIng.carbsG || 0) * factor),
+      fats: roundTo2((selectedIng.fatsG || 0) * factor),
     };
   }, [selectedIng, qty]);
 
@@ -96,10 +105,10 @@ export default function LogIngredientPage() {
           qty: qtyNum,
           baseQty: selectedIng.defaultQty || 1,
           unit: storedUnit,
-          caloriesKcal: (selectedIng.caloriesKcal || 0) * factor,
-          proteinG: (selectedIng.proteinG || 0) * factor,
-          carbsG: (selectedIng.carbsG || 0) * factor,
-          fatsG: (selectedIng.fatsG || 0) * factor,
+          caloriesKcal: roundTo2((selectedIng.caloriesKcal || 0) * factor),
+          proteinG: roundTo2((selectedIng.proteinG || 0) * factor),
+          carbsG: roundTo2((selectedIng.carbsG || 0) * factor),
+          fatsG: roundTo2((selectedIng.fatsG || 0) * factor),
         }]),
         recipe: '',
         imageUrl: '',
@@ -161,7 +170,7 @@ export default function LogIngredientPage() {
           <div>
             <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{selectedIng.name}</p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              Per {selectedIng.defaultQty || 1} {defaultUnitDisplay}: {Math.round(selectedIng.caloriesKcal)} kcal
+              Per {format2(selectedIng.defaultQty || 1)} {defaultUnitDisplay}: {format2(selectedIng.caloriesKcal)} kcal
             </p>
           </div>
 
@@ -196,19 +205,19 @@ export default function LogIngredientPage() {
             <div className="grid grid-cols-4 gap-2">
               <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                 <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Kcal</p>
-                <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{Math.round(scaledMacros.kcal)}</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{format2(scaledMacros.kcal)}</p>
               </div>
               <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                 <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Protein</p>
-                <p className="text-xs font-bold" style={{ color: 'var(--accent-green)' }}>{Math.round(scaledMacros.protein)}g</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--accent-green)' }}>{format2(scaledMacros.protein)}g</p>
               </div>
               <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                 <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Carbs</p>
-                <p className="text-xs font-bold" style={{ color: 'var(--accent-gold)' }}>{Math.round(scaledMacros.carbs)}g</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--accent-gold)' }}>{format2(scaledMacros.carbs)}g</p>
               </div>
               <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
                 <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Fats</p>
-                <p className="text-xs font-bold" style={{ color: 'var(--accent)' }}>{Math.round(scaledMacros.fats)}g</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--accent)' }}>{format2(scaledMacros.fats)}g</p>
               </div>
             </div>
           </div>
@@ -256,7 +265,7 @@ export default function LogIngredientPage() {
             >
               <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{ing.name}</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                {Math.round(ing.caloriesKcal)} kcal · {Math.round(ing.proteinG || 0)}g protein
+                {format2(ing.caloriesKcal)} kcal · {format2(ing.proteinG || 0)}g protein
               </p>
             </button>
           ))

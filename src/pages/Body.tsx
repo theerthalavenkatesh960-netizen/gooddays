@@ -74,6 +74,15 @@ type WorkoutPlan = {
 
 type ExerciseAverages = Record<number, { avgWeight: number; avgReps: number; totalSets: number }>;
 
+function roundTo2(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function format2(value: number): string {
+  const rounded = roundTo2(value);
+  return rounded.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+}
+
 const BODY_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Workout', label: 'Workout', icon: Dumbbell },
   { id: 'Diet', label: 'Diet', icon: Leaf },
@@ -555,6 +564,7 @@ function DietTab() {
     try {
       const newQty = Number(editQty) || 1;
       const macroFactor = newQty / (ingInfo.qty || 1);
+      const source = parseMealIngredients(meal.ingredientsJson)[0];
 
       const updated = {
         ...meal,
@@ -564,10 +574,10 @@ function DietTab() {
             ...getIngredientInfo(meal),
             qty: newQty,
             unit: editUnit,
-            caloriesKcal: Number(parseMealIngredients(meal.ingredientsJson)[0].caloriesKcal || 0) * macroFactor,
-            proteinG: Number(parseMealIngredients(meal.ingredientsJson)[0].proteinG || 0) * macroFactor,
-            carbsG: Number(parseMealIngredients(meal.ingredientsJson)[0].carbsG || 0) * macroFactor,
-            fatsG: Number(parseMealIngredients(meal.ingredientsJson)[0].fatsG || 0) * macroFactor,
+            caloriesKcal: roundTo2(Number(source?.caloriesKcal || 0) * macroFactor),
+            proteinG: roundTo2(Number(source?.proteinG || 0) * macroFactor),
+            carbsG: roundTo2(Number(source?.carbsG || 0) * macroFactor),
+            fatsG: roundTo2(Number(source?.fatsG || 0) * macroFactor),
           }
         ]),
       };
@@ -650,19 +660,19 @@ function DietTab() {
         <div className="grid grid-cols-4 gap-2">
           <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
             <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Kcal</p>
-            <p className="text-xs font-bold num" style={{ color: 'var(--text-primary)' }}>{Math.round(consumedCalories)}/{macroTargets.calories}</p>
+            <p className="text-xs font-bold num" style={{ color: 'var(--text-primary)' }}>{format2(consumedCalories)}/{format2(macroTargets.calories)}</p>
           </div>
           <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
             <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Protein</p>
-            <p className="text-xs font-bold num" style={{ color: 'var(--accent-green)' }}>{Math.round(consumedMacros.protein)}/{macroTargets.protein}g</p>
+            <p className="text-xs font-bold num" style={{ color: 'var(--accent-green)' }}>{format2(consumedMacros.protein)}/{format2(macroTargets.protein)}g</p>
           </div>
           <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
             <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Carbs</p>
-            <p className="text-xs font-bold num" style={{ color: 'var(--accent-gold)' }}>{Math.round(consumedMacros.carbs)}/{macroTargets.carbs}g</p>
+            <p className="text-xs font-bold num" style={{ color: 'var(--accent-gold)' }}>{format2(consumedMacros.carbs)}/{format2(macroTargets.carbs)}g</p>
           </div>
           <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
             <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Fats</p>
-            <p className="text-xs font-bold num" style={{ color: 'var(--accent)' }}>{Math.round(consumedMacros.fats)}/{macroTargets.fats}g</p>
+            <p className="text-xs font-bold num" style={{ color: 'var(--accent)' }}>{format2(consumedMacros.fats)}/{format2(macroTargets.fats)}g</p>
           </div>
         </div>
         <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
@@ -678,7 +688,7 @@ function DietTab() {
             <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, caloriePercentage)}%`, backgroundColor: 'var(--accent-warm)' }} />
           </div>
           <p className="text-[10px] mt-1 mb-2" style={{ color: 'var(--text-muted)' }}>
-            <span className="font-semibold num" style={{ color: 'var(--text-primary)' }}>{Math.round(consumedCalories)}</span> / {goal} kcal
+            <span className="font-semibold num" style={{ color: 'var(--text-primary)' }}>{format2(consumedCalories)}</span> / {format2(goal)} kcal
           </p>
 
           <div className="flex items-center justify-between mb-1.5">
@@ -738,7 +748,7 @@ function DietTab() {
                   <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{meal.timing} · {isIngMeal ? 'Logged' : 'Planned'} · tap to {on ? 'unlog' : 'log'}</p>
                   {meal.recipe && <p className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{meal.recipe}</p>}
                 </div>
-                <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{Math.round(total)}</span>
+                <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{format2(total)}</span>
               </button>
 
               {/* Ingredient action row: pencil + delete icons */}
