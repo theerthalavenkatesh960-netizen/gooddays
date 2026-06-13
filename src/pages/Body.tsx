@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dumbbell, Settings as SettingsIcon, Leaf, TrendingUp, Check,
-  Pencil, X, Scale,
+  Pencil, X, Scale, Calendar, Package, Clock, Trash2,
 } from 'lucide-react';
 import { format, parseISO, subDays } from 'date-fns';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -190,13 +190,25 @@ function WorkoutTab() {
   }, [routine, dayKey, exercises]);
 
   const cardData = useMemo(() => {
-    return routineCards.map((routineCard) => {
+    const cards = routineCards.map((routineCard) => {
       const loggedForExercise = loggedSets.filter(s => s.exerciseId === routineCard.exercise.id)
         .sort((a, b) => a.setNumber - b.setNumber);
       return {
         ...routineCard,
         sets: loggedForExercise,
       };
+    });
+    // Sort: in-progress first, pending second, completed last
+    return cards.sort((a, b) => {
+      const statusOrder = (c: typeof a) => {
+        const comp = c.sets.filter(s => s.isCompleted).length;
+        if (comp === 0 && c.sets.length === 0) return 1; // pending
+        if (comp > 0 && comp < (c.targetSets || c.sets.length)) return 0; // in-progress
+        if (comp > 0 && comp >= (c.targetSets || c.sets.length)) return 2; // completed
+        if (c.sets.length > 0) return 0; // has sets but none completed = in-progress
+        return 1; // pending
+      };
+      return statusOrder(a) - statusOrder(b);
     });
   }, [routineCards, loggedSets]);
 
@@ -266,6 +278,16 @@ function WorkoutTab() {
 
         {cardData.map(({ exercise, sets, targetSets }) => {
           const completed = sets.filter(s => s.isCompleted).length;
+          const total = targetSets || sets.length || 0;
+          const status: 'pending' | 'in-progress' | 'completed' =
+            sets.length === 0 ? 'pending'
+            : completed >= total && total > 0 ? 'completed'
+            : 'in-progress';
+          const statusConfig = {
+            pending:     { label: 'Pending',     bg: 'var(--surface-elevated)', color: 'var(--text-muted)' },
+            'in-progress': { label: 'In Progress', bg: '#f59e0b22',              color: '#f59e0b' },
+            completed:   { label: 'Completed',   bg: '#10b98122',              color: '#10b981' },
+          }[status];
           const avg = exerciseAverages[exercise.id];
           const recentSets = sets.slice(-3).reverse();
           return (
@@ -285,10 +307,11 @@ function WorkoutTab() {
                     Avg: {avg ? `${avg.avgWeight.toFixed(1)}kg · ${avg.avgReps.toFixed(1)} reps` : 'No history yet'}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-right">
-                    <span className="text-xs block" style={{ color: 'var(--text-muted)' }}>{completed}/{targetSets || sets.length || 0}</span>
-                  </div>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: statusConfig.bg, color: statusConfig.color }}>
+                    {statusConfig.label}
+                  </span>
+                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{completed}/{total}</span>
                 </div>
               </div>
               <div className="px-4 pb-3">
@@ -697,37 +720,14 @@ function DietTab() {
           const ingInfo = isIngMeal ? getIngredientInfo(meal) : null;
 
           return (
-            <div key={meal.id} className="relative">
-              {isIngMeal && ingInfo && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteIngredientMeal(meal.id);
-                  }}
-                  className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ color: '#dc2626', backgroundColor: '#fef2f2', border: '1px solid #fecaca' }}
-                  title="Delete ingredient"
-                  aria-label="Delete ingredient"
-                >
-                  <X size={12} />
-                </button>
-              )}
+            <div key={meal.id} className="relative mb-2">
               <button
-                onClick={() => {
-                  if (isIngMeal && ingInfo) {
-                    // For ingredient meals, open qty popup
-                    setEditingMealId(meal.id);
-                    setEditQty(String(ingInfo.qty || 1));
-                    setEditUnit(ingInfo.unit || 'serving');
-                  } else {
-                    // For recipe meals, toggle logged state
-                    toggleMeal(meal.id);
-                  }
-                }}
-                className="w-full text-left flex items-center gap-3 p-3 rounded-xl mb-2"
+                onClick={() => toggleMeal(meal.id)}
+                className="w-full text-left flex items-center gap-3 p-3 rounded-xl"
                 style={{
                   backgroundColor: on ? 'var(--accent)11' : 'var(--surface)',
                   border: `1px solid ${on ? 'var(--accent)55' : 'var(--border)'}`,
+                  borderRadius: isIngMeal ? '12px 12px 0 0' : '12px',
                 }}
               >
                 <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: on ? 'var(--accent)' : 'var(--surface-elevated)' }}>
@@ -740,6 +740,32 @@ function DietTab() {
                 </div>
                 <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{Math.round(total)}</span>
               </button>
+
+              {/* Ingredient action row: pencil + delete icons */}
+              {isIngMeal && ingInfo && (
+                <div className="flex items-center justify-end gap-1.5 px-3 py-1.5 rounded-b-xl" style={{ backgroundColor: on ? 'var(--accent)07' : 'var(--surface-elevated)', border: `1px solid ${on ? 'var(--accent)33' : 'var(--border)'}`, borderTop: 'none' }}>
+                  <button
+                    onClick={() => {
+                      setEditingMealId(editingMealId === meal.id ? null : meal.id);
+                      setEditQty(String(ingInfo.qty || 1));
+                      setEditUnit(ingInfo.unit || 'serving');
+                    }}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:scale-110"
+                    style={{ backgroundColor: 'var(--surface)', color: 'var(--accent)', border: '1px solid var(--border)' }}
+                    title="Edit quantity"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    onClick={() => deleteIngredientMeal(meal.id)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:scale-110"
+                    style={{ backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}
+                    title="Delete ingredient"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              )}
 
               {editingMealId === meal.id && isIngMeal && ingInfo && (
                 <div className="mb-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--accent)11', border: '1px solid var(--accent)33', backdropFilter: 'blur(10px)' }}>
@@ -1308,28 +1334,28 @@ function ProgressTab() {
       label: 'Days Logged',
       value: analytics?.daysLogged ?? 0,
       unit: 'days',
-      icon: '=���n+�',
+      Icon: Calendar,
       color: 'var(--accent)',
     },
     {
       label: 'Total Sets',
       value: analytics?.totalSets ?? 0,
       unit: 'sets',
-      icon: '=�Ƭ',
+      Icon: Package,
       color: 'var(--accent-green)',
     },
     {
       label: 'Volume Lifted',
       value: analytics?.totalVolume ? `${(analytics.totalVolume / 1000).toFixed(1)}k` : '0',
       unit: 'kg total',
-      icon: '=���n+�',
+      Icon: Dumbbell,
       color: 'var(--accent-warm)',
     },
     {
       label: 'This Period',
       value: analytics?.weeks ?? 0,
       unit: 'weeks',
-      icon: '=���',
+      Icon: Clock,
       color: 'var(--accent-blue, #3b82f6)',
     },
   ];
@@ -1349,22 +1375,25 @@ function ProgressTab() {
             style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>Last {analytics?.weeks ?? 0} weeks</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {statCards.map(card => (
-            <div key={card.label} className="p-4 rounded-2xl flex items-center gap-3"
-              style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                style={{ backgroundColor: `${card.color}22` }}>
-                {card.icon}
+          {statCards.map(card => {
+            const IconComponent = card.Icon;
+            return (
+              <div key={card.label} className="p-4 rounded-2xl flex items-center gap-3"
+                style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: `${card.color}22` }}>
+                  <IconComponent size={20} style={{ color: card.color }} />
+                </div>
+                <div>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{card.label}</p>
+                  <p className="text-2xl font-black leading-tight num" style={{ color: card.color }}>
+                    {loading ? '—' : card.value}
+                  </p>
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{card.unit}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{card.label}</p>
-                <p className="text-2xl font-black leading-tight num" style={{ color: card.color }}>
-                  {loading ? 'G��' : card.value}
-                </p>
-                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{card.unit}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -1507,20 +1536,20 @@ function ProgressTab() {
         )}
       </div>
 
-      {/* G��G�� Motivational Banner G��G�� */}
+      {/* Motivational Banner */}
       <div className="p-4 rounded-2xl text-center"
-        style={{ background: 'linear-gradient(135deg, var(--accent)22, var(--accent-green)11)', border: '1px solid var(--accent)33' }}>
-        <p className="text-base font-black" style={{ color: 'var(--text-primary)' }}>
+        style={{ background: "linear-gradient(135deg, var(--accent)22, var(--accent-green)11)", border: "1px solid var(--accent)33" }}>
+        <p className="text-base font-black" style={{ color: "var(--text-primary)" }}>
           {(analytics?.daysLogged ?? 0) === 0
-            ? '=��� Start your journey G�� log day 1 today!'
+            ? "Start your journey � log day 1 today!"
             : (analytics?.daysLogged ?? 0) < 7
-              ? `=��� ${analytics.daysLogged} days logged G�� you're just getting started!`
+              ? `${analytics.daysLogged} days logged � you are just getting started!`
               : (analytics?.daysLogged ?? 0) < 30
-                ? `=�Ƭ ${analytics.daysLogged} days logged G�� building real momentum!`
-                : `=��� ${analytics.daysLogged} days logged G�� you're unstoppable!`}
+                ? `${analytics.daysLogged} days logged � building real momentum!`
+                : `${analytics.daysLogged} days logged � you are unstoppable!`}
         </p>
-        <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-          Keep going G�� every rep counts.
+        <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+          Keep going, every rep counts.
         </p>
       </div>
     </div>
@@ -1565,3 +1594,7 @@ export default function Body() {
     </div>
   );
 }
+
+
+
+
