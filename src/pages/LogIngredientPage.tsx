@@ -14,6 +14,25 @@ type MealIngredient = {
   defaultUnit?: string;
 };
 
+const UNIT_OPTIONS = ['gms', 'serving', 'ml', 'oz', 'cup', 'tbsp', 'tsp'];
+
+function roundTo2(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function format2(value: number): string {
+  const rounded = roundTo2(value);
+  return rounded.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+}
+
+/** Normalise backend unit string to what we display in the dropdown */
+function normaliseUnit(raw: string | undefined): string {
+  const u = (raw || 'serving').toLowerCase().trim();
+  if (u === 'g' || u === 'gram' || u === 'grams') return 'gms';
+  if (UNIT_OPTIONS.includes(u)) return u;
+  return 'serving';
+}
+
 export default function LogIngredientPage() {
   const navigate = useNavigate();
   const [ingredients, setIngredients] = useState<MealIngredient[]>([]);
@@ -24,9 +43,7 @@ export default function LogIngredientPage() {
   const [loading, setLoading] = useState(true);
   const [isLogging, setIsLogging] = useState(false);
 
-  useEffect(() => {
-    loadIngredients();
-  }, []);
+  useEffect(() => { loadIngredients(); }, []);
 
   async function loadIngredients() {
     try {
@@ -47,47 +64,52 @@ export default function LogIngredientPage() {
 
   const selectedIng = ingredients.find(i => i.id === selectedId);
 
-  // Auto-populate qty/unit when ingredient selected
+  // Auto-populate qty/unit from ingredient defaults when selection changes
   useEffect(() => {
     if (selectedIng) {
       setQty(String(selectedIng.defaultQty || 1));
-      setUnit(selectedIng.defaultUnit || 'serving');
+      setUnit(normaliseUnit(selectedIng.defaultUnit));
     }
   }, [selectedIng]);
 
-  function formatDefaultServing(ingredient: MealIngredient | undefined): string {
-    if (!ingredient) return '';
-    const defaultQty = ingredient.defaultQty ?? 1;
-    const rawUnit = String(ingredient.defaultUnit || 'serving').toLowerCase();
-    const displayUnit = rawUnit === 'g' ? 'gms' : rawUnit;
-    return `${defaultQty} ${displayUnit}`;
-  }
+  // Live macro calculation scaled to current qty
+  const scaledMacros = useMemo(() => {
+    if (!selectedIng) return null;
+    const qtyNum = Math.max(0, Number(qty) || 0);
+    const baseQty = selectedIng.defaultQty || 1;
+    const factor = qtyNum / baseQty;
+    return {
+      kcal: roundTo2((selectedIng.caloriesKcal || 0) * factor),
+      protein: roundTo2((selectedIng.proteinG || 0) * factor),
+      carbs: roundTo2((selectedIng.carbsG || 0) * factor),
+      fats: roundTo2((selectedIng.fatsG || 0) * factor),
+    };
+  }, [selectedIng, qty]);
 
   async function logIngredient() {
-    if (!selectedId) return;
-    if (!qty || Number(qty) <= 0) return;
+    if (!selectedId || !selectedIng) return;
+    const qtyNum = Number(qty);
+    if (!qtyNum || qtyNum <= 0) return;
 
     setIsLogging(true);
     try {
-      const qtyNum = Number(qty);
-      const macroFactor = qtyNum / (selectedIng?.defaultQty || 1);
+      const factor = qtyNum / (selectedIng.defaultQty || 1);
+      const storedUnit = unit === 'gms' ? 'g' : unit;
 
       const mealData = {
-        name: `${qtyNum} ${unit} ${selectedIng?.name}`,
+        name: `${qtyNum} ${unit} ${selectedIng.name}`,
         timing: 'snack',
-        ingredientsJson: JSON.stringify([
-          {
-            id: selectedId,
-            name: selectedIng?.name || '',
-            qty: qtyNum,
-            baseQty: selectedIng?.defaultQty || 1,
-            unit,
-            caloriesKcal: (selectedIng?.caloriesKcal || 0) * macroFactor,
-            proteinG: (selectedIng?.proteinG || 0) * macroFactor,
-            carbsG: (selectedIng?.carbsG || 0) * macroFactor,
-            fatsG: (selectedIng?.fatsG || 0) * macroFactor,
-          }
-        ]),
+        ingredientsJson: JSON.stringify([{
+          id: selectedId,
+          name: selectedIng.name,
+          qty: qtyNum,
+          baseQty: selectedIng.defaultQty || 1,
+          unit: storedUnit,
+          caloriesKcal: roundTo2((selectedIng.caloriesKcal || 0) * factor),
+          proteinG: roundTo2((selectedIng.proteinG || 0) * factor),
+          carbsG: roundTo2((selectedIng.carbsG || 0) * factor),
+          fatsG: roundTo2((selectedIng.fatsG || 0) * factor),
+        }]),
         recipe: '',
         imageUrl: '',
       };
@@ -97,21 +119,14 @@ export default function LogIngredientPage() {
       if (!Number.isFinite(createdId) || createdId <= 0) throw new Error('Failed to create meal');
 
       const today = new Date().toISOString().slice(0, 10);
-      let todayLog = null;
-      try {
-        todayLog = await (api as any).getDailyMealLog(today);
-      } catch {
-        // No existing log for today
-      }
+      let todayLog: any = null;
+      try { todayLog = await (api as any).getDailyMealLog(today); } catch { /* no log yet */ }
 
-      const existingIds = Array.isArray(todayLog?.mealIds)
+      const existingIds: number[] = Array.isArray(todayLog?.mealIds)
         ? todayLog.mealIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id) && id > 0)
         : [];
 
-      const nextIds = Array.from(new Set([...existingIds, createdId]));
-      await (api as any).upsertDailyMealLog(today, nextIds);
-      
-      // Navigate back to Body page
+      await (api as any).upsertDailyMealLog(today, Array.from(new Set([...existingIds, createdId])));
       navigate('/body', { state: { mealAdded: true } });
     } catch (e) {
       console.error('Failed to log:', e);
@@ -120,28 +135,24 @@ export default function LogIngredientPage() {
     }
   }
 
+  const defaultUnitDisplay = normaliseUnit(selectedIng?.defaultUnit);
+  const unitOptions = selectedIng
+    ? [defaultUnitDisplay, ...UNIT_OPTIONS.filter(u => u !== defaultUnitDisplay)]
+    : UNIT_OPTIONS;
+
   return (
     <div className="min-h-screen p-4" style={{ backgroundColor: 'var(--background)' }}>
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
-        <button
-          onClick={() => navigate('/body')}
-          className="p-2 rounded-lg"
-          style={{ backgroundColor: 'var(--surface)' }}
-        >
+        <button onClick={() => navigate('/body')} className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface)' }}>
           <ArrowLeft size={20} style={{ color: 'var(--text-primary)' }} />
         </button>
-        <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-          Log Ingredient
-        </h1>
+        <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Log Ingredient</h1>
       </div>
 
       {/* Search */}
       <div className="mb-4 relative">
-        <Search
-          size={16}
-          style={{ color: 'var(--text-muted)', position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}
-        />
+        <Search size={16} style={{ color: 'var(--text-muted)', position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
         <input
           type="text"
           value={search}
@@ -152,42 +163,20 @@ export default function LogIngredientPage() {
         />
       </div>
 
-      {/* Selected Ingredient Details and Input */}
-      {selectedIng && (
-        <div className="mb-4 space-y-3 p-4 rounded-xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+      {/* Selected ingredient card — shown above the list */}
+      {selectedIng && scaledMacros && (
+        <div className="mb-4 p-4 rounded-xl space-y-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          {/* Name + default serving info */}
           <div>
-            <p className="font-semibold text-sm mb-2" style={{ color: 'var(--text-primary)' }}>
-              {selectedIng.name}
-            </p>
-            <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-              Default: {formatDefaultServing(selectedIng)}
-                        {/* Macros Display */}
-                        <div className="grid grid-cols-4 gap-2 mb-3">
-                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Kcal</p>
-                            <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{Math.round(selectedIng.caloriesKcal)}</p>
-                          </div>
-                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Protein</p>
-                            <p className="text-xs font-bold" style={{ color: 'var(--accent-green)' }}>{Math.round(selectedIng.proteinG || 0)}g</p>
-                          </div>
-                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Carbs</p>
-                            <p className="text-xs font-bold" style={{ color: 'var(--accent-gold)' }}>{Math.round(selectedIng.carbsG || 0)}g</p>
-                          </div>
-                          <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                            <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Fats</p>
-                            <p className="text-xs font-bold" style={{ color: 'var(--accent)' }}>{Math.round(selectedIng.fatsG || 0)}g</p>
-                          </div>
-                        </div>
+            <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{selectedIng.name}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              Per {format2(selectedIng.defaultQty || 1)} {defaultUnitDisplay}: {format2(selectedIng.caloriesKcal)} kcal
             </p>
           </div>
 
-          {/* Quantity and Unit Inputs */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-              Quantity
-            </label>
+          {/* Qty + unit inputs */}
+          <div>
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-primary)' }}>Quantity</label>
             <div className="flex gap-2">
               <input
                 type="number"
@@ -203,20 +192,38 @@ export default function LogIngredientPage() {
                 className="px-3 py-2 text-sm rounded-lg outline-none"
                 style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
               >
-                <option>serving</option>
-                <option>g</option>
-                <option>ml</option>
-                <option>oz</option>
-                <option>cup</option>
-                <option>tbsp</option>
-                                <option>tsp</option>
-                <option>tsp</option>
+                {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
               </select>
             </div>
           </div>
 
-          {/* Buttons */}
-          <div className="flex gap-2 pt-2">
+          {/* Live macro preview */}
+          <div>
+            <p className="text-[10px] font-semibold uppercase mb-1.5" style={{ color: 'var(--text-muted)' }}>
+              Macros for {qty || 0} {unit}
+            </p>
+            <div className="grid grid-cols-4 gap-2">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Kcal</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{format2(scaledMacros.kcal)}</p>
+              </div>
+              <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Protein</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--accent-green)' }}>{format2(scaledMacros.protein)}g</p>
+              </div>
+              <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Carbs</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--accent-gold)' }}>{format2(scaledMacros.carbs)}g</p>
+              </div>
+              <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Fats</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--accent)' }}>{format2(scaledMacros.fats)}g</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-1">
             <button
               onClick={() => setSelectedId(null)}
               className="flex-1 px-3 py-2 text-sm font-medium rounded-lg"
@@ -236,36 +243,34 @@ export default function LogIngredientPage() {
         </div>
       )}
 
-        {/* Ingredients List */}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold px-1" style={{ color: 'var(--text-muted)' }}>
-            {selectedId ? 'Select another ingredient or confirm above' : 'Select an ingredient'}
-          </p>
-          {loading ? (
-            <p className="text-center py-8" style={{ color: 'var(--text-muted)' }}>Loading...</p>
-          ) : filtered.length === 0 ? (
-            <p className="text-center py-8" style={{ color: 'var(--text-muted)' }}>No ingredients found</p>
-          ) : (
-            filtered.map(ing => (
-              <button
-                key={ing.id}
-                onClick={() => setSelectedId(ing.id)}
-                className="w-full text-left p-3 rounded-lg transition-all"
-                style={{
-                  backgroundColor: selectedId === ing.id ? 'var(--accent)11' : 'var(--surface)',
-                  border: `1px solid ${selectedId === ing.id ? 'var(--accent)55' : 'var(--border)'}`,
-                }}
-              >
-                <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-                  {ing.name}
-                </p>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                  {Math.round(ing.caloriesKcal)} kcal · {Math.round(ing.proteinG || 0)}g protein
-                </p>
-              </button>
-            ))
-          )}
-        </div>
+      {/* Ingredients list */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold px-1" style={{ color: 'var(--text-muted)' }}>
+          {selectedId ? 'Change ingredient' : 'Select an ingredient'}
+        </p>
+        {loading ? (
+          <p className="text-center py-8" style={{ color: 'var(--text-muted)' }}>Loading...</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-center py-8" style={{ color: 'var(--text-muted)' }}>No ingredients found</p>
+        ) : (
+          filtered.map(ing => (
+            <button
+              key={ing.id}
+              onClick={() => setSelectedId(ing.id)}
+              className="w-full text-left p-3 rounded-lg transition-all"
+              style={{
+                backgroundColor: selectedId === ing.id ? 'var(--accent)11' : 'var(--surface)',
+                border: `1px solid ${selectedId === ing.id ? 'var(--accent)55' : 'var(--border)'}`,
+              }}
+            >
+              <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{ing.name}</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                {format2(ing.caloriesKcal)} kcal · {format2(ing.proteinG || 0)}g protein
+              </p>
+            </button>
+          ))
+        )}
+      </div>
     </div>
   );
 }

@@ -343,26 +343,33 @@ public class WorkoutController : ControllerBase
         var since = DateTime.UtcNow.AddDays(-weeks * 7);
         var sets = await _db.WorkoutSets
             .Include(s => s.WorkoutDayPlan)
-            .Where(s => s.WorkoutDayPlan.UserId == userId && s.WorkoutDayPlan.Date >= since && s.IsCompleted)
+            .Where(s => s.WorkoutDayPlan.UserId == userId && s.WorkoutDayPlan.Date >= since)
             .ToListAsync();
 
-        var plans = await _db.WorkoutDayPlans
-            .Where(p => p.UserId == userId && p.Date >= since)
-            .ToListAsync();
+        var completedSets = sets.Where(s => s.IsCompleted).ToList();
 
-        var weeklyVolume = sets
+        // Count distinct days that have at least one logged set
+        var daysWithSets = sets
+            .Select(s => s.WorkoutDayPlan.Date.ToString("yyyy-MM-dd"))
+            .Distinct()
+            .Count();
+
+        var weeklyVolume = completedSets
             .GroupBy(s => System.Globalization.ISOWeek.GetYear(s.WorkoutDayPlan.Date) + "-W" + System.Globalization.ISOWeek.GetWeekOfYear(s.WorkoutDayPlan.Date).ToString("00"))
             .Select(g => new { week = g.Key, totalVolume = g.Sum(s => (s.WeightKg ?? 0) * (s.Reps ?? 0)), totalSets = g.Count() })
             .ToList();
 
-        var trainedDates = plans.Where(p => p.IsCompleted).Select(p => p.Date.ToString("yyyy-MM-dd")).ToList();
+        var trainedDates = sets
+            .Select(s => s.WorkoutDayPlan.Date.ToString("yyyy-MM-dd"))
+            .Distinct()
+            .ToList();
 
         return Ok(new
         {
             weeks,
-            daysLogged = trainedDates.Count,
+            daysLogged = daysWithSets,
             totalSets = sets.Count,
-            totalVolume = sets.Sum(s => (s.WeightKg ?? 0) * (s.Reps ?? 0)),
+            totalVolume = completedSets.Sum(s => (s.WeightKg ?? 0) * (s.Reps ?? 0)),
             weeklyVolume,
             trainedDates,
         });

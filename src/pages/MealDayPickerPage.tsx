@@ -106,16 +106,17 @@ export default function MealDayPickerPage() {
     return list;
   }, [meals, search, slotTiming]);
 
-  const currentSlotMeal = useMemo(() => {
+  const currentSlotMeals = useMemo(() => {
     if (!slotTiming) return null;
     const normalized = normalizeTiming(slotTiming);
+    const list: MealTemplate[] = [];
     for (const assignment of dayAssignments) {
       const meal = meals.find(m => m.id === Number(assignment.mealTemplateId));
       if (meal && normalizeTiming(meal.timing) === normalized) {
-        return meal;
+        list.push(meal);
       }
     }
-    return null;
+    return list;
   }, [slotTiming, dayAssignments, meals]);
 
   function pickMeal(meal: MealTemplate) {
@@ -128,11 +129,6 @@ export default function MealDayPickerPage() {
     if (!Number.isFinite(pickedId) || pickedId <= 0) {
       setStatus('Invalid meal template selected');
       return;
-    }
-
-    if (currentSlotMeal && currentSlotMeal.id !== pickedId) {
-      const ok = window.confirm(`Replace ${currentSlotMeal.name} (${slotTiming}) with ${meal.name}?`);
-      if (!ok) return;
     }
 
     const { source } = (location.state || {}) as PickerState;
@@ -192,8 +188,8 @@ export default function MealDayPickerPage() {
       {slotTiming && (
         <div className="rounded-xl px-3 py-2 mb-3 text-xs"
           style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
-          {currentSlotMeal
-            ? `Current ${slotTiming}: ${currentSlotMeal.name}`
+          {(currentSlotMeals && currentSlotMeals.length > 0)
+            ? `${currentSlotMeals.length} ${slotTiming} meal${currentSlotMeals.length > 1 ? 's' : ''} planned. Pick below to add another.`
             : `No ${slotTiming} planned yet. Pick one below.`}
         </div>
       )}
