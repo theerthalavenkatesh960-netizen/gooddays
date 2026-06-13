@@ -461,23 +461,8 @@ export default function MealPlannerSettings() {
   const selectedMeals = useMemo(() => {
     const assignments = mealPlan[selectedDayKey] || [];
     const fallbackAssignments = (assignments.length > 0) ? assignments : (mealPlan[toLegacyDayKey(selectedDate)] || []);
-    
-    // Remove duplicate timings - keep only the first meal of each timing
-    const timingsSeen = new Set<string>();
-    const uniqueAssignments = [];
-    
-    for (const assignment of fallbackAssignments) {
-      const meal = meals.find(m => m.id === assignment.mealTemplateId);
-      if (meal) {
-        const key = meal.timing?.toLowerCase() || `meal-${assignment.mealTemplateId}`;
-        if (!timingsSeen.has(key)) {
-          timingsSeen.add(key);
-          uniqueAssignments.push(assignment);
-        }
-      }
-    }
-    
-    return uniqueAssignments
+
+    return fallbackAssignments
       .map(assignment => {
         const meal = meals.find(m => m.id === assignment.mealTemplateId);
         return meal ? { meal, overrideTime: assignment.timeOfDay as string | undefined } : null;
