@@ -2376,12 +2376,40 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  const [showRoutineTab, setShowRoutineTab] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadRoutineTabPreference() {
+      try {
+        const settings = await api.getUserSettings();
+        const trackingOptions = settings?.trackingOptions ?? [];
+        if (!mounted) return;
+        setShowRoutineTab(!trackingOptions.includes(api.DASHBOARD_ROUTINE_TAB_HIDDEN_OPTION));
+      } catch {
+        // Keep current default if settings are unavailable.
+      }
+    }
+
+    loadRoutineTabPreference();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showRoutineTab && activeTab === 'routine') {
+      setActiveTab('dashboard');
+    }
+  }, [showRoutineTab, activeTab]);
 
   const TABS: { id: TabId; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'routine', label: 'Daily Routine', icon: Repeat },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare },
   ];
+  const visibleTabs = showRoutineTab ? TABS : TABS.filter(tab => tab.id !== 'routine');
 
   return (
     <div className="px-4 pt-4 pb-nav">
@@ -2407,7 +2435,7 @@ export default function Dashboard() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 p-1 rounded-2xl" style={{ backgroundColor: 'var(--surface)' }}>
-        {TABS.map(tab => {
+        {visibleTabs.map(tab => {
           const Icon = tab.icon;
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -2428,11 +2456,11 @@ export default function Dashboard() {
               user={user}
               navigate={navigate}
               onOpenTasks={() => setActiveTab('tasks')}
-              onOpenRoutine={() => setActiveTab('routine')}
+              onOpenRoutine={() => setActiveTab(showRoutineTab ? 'routine' : 'dashboard')}
             />
           )}
           {activeTab === 'tasks' && <TasksTab user={user} />}
-          {activeTab === 'routine' && user && <DailyRoutineTab userId={user.id} />}
+          {activeTab === 'routine' && showRoutineTab && user && <DailyRoutineTab userId={user.id} />}
         </motion.div>
       </AnimatePresence>
     </div>
