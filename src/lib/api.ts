@@ -49,6 +49,8 @@ export type UserSettings = {
   };
 };
 
+export const DASHBOARD_ROUTINE_TAB_HIDDEN_OPTION = 'dashboard_routine_tab_hidden';
+
 export type AiProvider = 'local-llama' | 'claude';
 
 export type AiPlannerSettings = {

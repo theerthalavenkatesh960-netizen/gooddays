@@ -20,6 +20,7 @@ public class UserProfilesController : ControllerBase
         "phone_minutes",
         "mood",
         "water",
+        "dashboard_routine_tab_hidden",
     };
 
     private static readonly HashSet<string> AllowedDashboardPresets = new(StringComparer.OrdinalIgnoreCase)

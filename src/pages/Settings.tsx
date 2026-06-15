@@ -21,6 +21,17 @@ const THEMES: { id: Theme; label: string; accent: string; bg: string }[] = [
   { id: 'ocean',       label: 'Teal',        accent: '#06B6D4', bg: '#060A0D' },
 ];
 
+function isDashboardRoutineTabEnabled(trackingOptions?: string[]) {
+  return !(trackingOptions ?? []).includes(api.DASHBOARD_ROUTINE_TAB_HIDDEN_OPTION);
+}
+
+function withDashboardRoutineTabEnabled(trackingOptions: string[], enabled: boolean) {
+  const withoutHidden = trackingOptions.filter(
+    option => option !== api.DASHBOARD_ROUTINE_TAB_HIDDEN_OPTION,
+  );
+  return enabled ? withoutHidden : [...withoutHidden, api.DASHBOARD_ROUTINE_TAB_HIDDEN_OPTION];
+}
+
 function SettingRow({ icon: Icon, label, value, onPress, color }: {
   icon: React.ElementType;
   label: string;
@@ -60,6 +71,9 @@ export default function Settings() {
   const { user, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const [calorieGoal, setCalorieGoal] = useState('2400');
+  const [trackingOptions, setTrackingOptions] = useState<string[]>([]);
+  const [showDashboardRoutineTab, setShowDashboardRoutineTab] = useState(true);
+  const [savingDashboardRoutineTab, setSavingDashboardRoutineTab] = useState(false);
 
   // Test user detection: show advanced features for test emails
   const isTestUser = user?.email?.toLowerCase().includes('test');
@@ -70,6 +84,9 @@ export default function Settings() {
       try {
         const settings = await api.getUserSettings();
         if (Number.isFinite(settings?.calorieGoal)) setCalorieGoal(String(settings.calorieGoal));
+        const nextTrackingOptions = settings?.trackingOptions ?? [];
+        setTrackingOptions(nextTrackingOptions);
+        setShowDashboardRoutineTab(isDashboardRoutineTabEnabled(nextTrackingOptions));
       } catch {
         // Keep existing defaults when API settings are unavailable.
       }
@@ -85,6 +102,29 @@ export default function Settings() {
       setCalorieGoal(String(updated.calorieGoal));
     } catch {
       // Keep UI value; next settings refresh will reconcile state.
+    }
+  };
+
+  const persistDashboardRoutineTab = async (enabled: boolean) => {
+    if (savingDashboardRoutineTab) return;
+    const previousTrackingOptions = trackingOptions;
+    const previousEnabled = showDashboardRoutineTab;
+    const nextTrackingOptions = withDashboardRoutineTabEnabled(previousTrackingOptions, enabled);
+
+    setShowDashboardRoutineTab(enabled);
+    setTrackingOptions(nextTrackingOptions);
+    setSavingDashboardRoutineTab(true);
+
+    try {
+      const updated = await api.updateUserSettings({ trackingOptions: nextTrackingOptions });
+      const updatedTrackingOptions = updated?.trackingOptions ?? nextTrackingOptions;
+      setTrackingOptions(updatedTrackingOptions);
+      setShowDashboardRoutineTab(isDashboardRoutineTabEnabled(updatedTrackingOptions));
+    } catch {
+      setTrackingOptions(previousTrackingOptions);
+      setShowDashboardRoutineTab(previousEnabled);
+    } finally {
+      setSavingDashboardRoutineTab(false);
     }
   };
 
@@ -175,6 +215,30 @@ export default function Settings() {
           onPress={() => navigate('/settings/dashboard-momentum')}
           color="var(--accent)"
         />
+        <div className="flex items-center gap-3 p-4" style={{ opacity: savingDashboardRoutineTab ? 0.75 : 1 }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--accent)22' }}>
+            <Dumbbell size={18} style={{ color: 'var(--accent)' }} />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Show Routine Tab</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Show or hide Daily Routine in Dashboard tabs</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={showDashboardRoutineTab}
+            aria-label="Show Routine Tab"
+            disabled={savingDashboardRoutineTab}
+            onClick={() => persistDashboardRoutineTab(!showDashboardRoutineTab)}
+            className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-60"
+            style={{ backgroundColor: showDashboardRoutineTab ? 'var(--accent)' : 'var(--border)' }}
+          >
+            <span
+              className="inline-block h-5 w-5 transform rounded-full bg-white transition-transform"
+              style={{ transform: `translateX(${showDashboardRoutineTab ? '1.25rem' : '0.125rem'})` }}
+            />
+          </button>
+        </div>
       </SectionCard>
 
       {/* Nutrition */}
