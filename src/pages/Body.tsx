@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dumbbell, Settings as SettingsIcon, Leaf, TrendingUp, Check,
-  Pencil, X, Scale, Calendar, Package, Clock, Trash2, Trophy, UtensilsCrossed,
+  Pencil, X, Scale, Calendar, Package, Clock, Trash2, Trophy, UtensilsCrossed, Medal,
 } from 'lucide-react';
 import { format, parseISO, subDays } from 'date-fns';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -1452,8 +1452,8 @@ function ProgressTab() {
               const oneRm = weight > 0 && reps > 0
                 ? Math.round(weight * (1 + reps / 30))
                 : null;
-              const ranks = ['#1', '#2', '#3'];
-              const rank = ranks[idx] ?? '#';
+              const medalColors = ['#f59e0b', '#94a3b8', '#b45309'];
+              const medalColor = medalColors[idx] ?? 'var(--text-muted)';
               return (
                 <div key={idx} className="flex items-center gap-3 p-3 rounded-2xl"
                   style={{
@@ -1463,10 +1463,7 @@ function ProgressTab() {
                   }}>
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: idx === 0 ? '#f59e0b22' : 'var(--surface-elevated)' }}>
-                    <div className="flex items-center gap-1">
-                      <Trophy size={16} style={{ color: idx === 0 ? '#f59e0b' : 'var(--text-muted)' }} />
-                      <span className="text-[10px] font-bold" style={{ color: idx === 0 ? '#f59e0b' : 'var(--text-secondary)' }}>{rank}</span>
-                    </div>
+                    <Medal size={16} style={{ color: medalColor }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{name}</p>
@@ -1483,15 +1480,6 @@ function ProgressTab() {
                 </div>
               );
             })}
-            {prs.length > 5 && (
-              <button
-                onClick={() => navigate('/body/progress/prs')}
-                className="w-full h-10 rounded-xl text-sm font-semibold"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)', border: '1px solid var(--border)' }}
-              >
-                Show More ({prs.length - 5} more)
-              </button>
-            )}
           </div>
         )}
       </div>
