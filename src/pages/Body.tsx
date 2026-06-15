@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dumbbell, Settings as SettingsIcon, Leaf, TrendingUp, Check,
-  Pencil, X, Scale, Calendar, Package, Clock, Trash2,
+  Pencil, X, Scale, Calendar, Package, Clock, Trash2, Trophy, UtensilsCrossed,
 } from 'lucide-react';
 import { format, parseISO, subDays } from 'date-fns';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -1120,7 +1120,7 @@ function BodyMetricsSection() {
           <button onClick={saveProfile} disabled={saving}
             className="w-full py-2 rounded-xl text-sm font-semibold"
             style={{ backgroundColor: 'var(--accent-blue, #3b82f6)', color: '#fff' }}>
-            {saving ? 'SavingGǪ' : 'Save'}
+            {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
       )}
@@ -1130,21 +1130,21 @@ function BodyMetricsSection() {
         <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Height</p>
           <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            {profile?.heightCm != null ? profile.heightCm : 'G��'}
+            {profile?.heightCm != null ? profile.heightCm : '--'}
           </p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>cm</p>
         </div>
         <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Current</p>
           <p className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            {currentWeight != null ? currentWeight : 'G��'}
+            {currentWeight != null ? currentWeight : '--'}
           </p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>kg</p>
         </div>
         <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>Target</p>
           <p className="text-xl font-bold" style={{ color: 'var(--accent-gold, #f59e0b)' }}>
-            {profile?.targetWeightKg != null ? profile.targetWeightKg : 'G��'}
+            {profile?.targetWeightKg != null ? profile.targetWeightKg : '--'}
           </p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>kg</p>
         </div>
@@ -1157,7 +1157,7 @@ function BodyMetricsSection() {
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>BMI</span>
           <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{bmi}</span>
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            {bmi < 18.5 ? '-+ Underweight' : bmi < 25 ? '-+ Normal' : bmi < 30 ? '-+ Overweight' : '-+ Obese'}
+            {bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese'}
           </span>
         </div>
       )}
@@ -1181,7 +1181,7 @@ function BodyMetricsSection() {
           <button onClick={saveWeight} disabled={saving || !weightInput}
             className="px-4 py-2 rounded-xl text-sm font-semibold"
             style={{ backgroundColor: 'var(--accent-blue, #3b82f6)', color: '#fff', opacity: !weightInput ? 0.5 : 1 }}>
-            {saving ? 'GǪ' : 'Save'}
+            {saving ? '...' : 'Save'}
           </button>
         </div>
       </div>
@@ -1377,9 +1377,12 @@ function ProgressTab() {
 
       <div className="border-t" style={{ borderColor: 'var(--border)' }} />
 
-      {/* G��G�� Workout Stats G��G�� */}
+      {/* Workout Stats */}
       <div>
         <div className="flex items-center gap-2 mb-3">
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--accent-warm)22' }}>
+            <Dumbbell size={14} style={{ color: 'var(--accent-warm)' }} />
+          </div>
           <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Workout Stats</span>
           <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
             style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>Last {analytics?.weeks ?? 0} weeks</span>
@@ -1407,12 +1410,14 @@ function ProgressTab() {
         </div>
       </div>
 
-      {/* G��G�� Personal Records G��G�� */}
+      {/* Personal Records */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#f59e0b22' }}>
+              <Trophy size={14} style={{ color: '#f59e0b' }} />
+            </div>
             <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Personal Records</span>
-            <span className="text-xs">=���</span>
           </div>
           {prs.length > 0 && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
@@ -1431,8 +1436,10 @@ function ProgressTab() {
         ) : prs.length === 0 ? (
           <div className="p-5 rounded-2xl text-center"
             style={{ backgroundColor: 'var(--surface)', border: '2px dashed var(--border)' }}>
-            <p className="text-3xl mb-2">=�Ļ</p>
-            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>No PRs yet G�� crush your first workout!</p>
+            <div className="mb-2 flex items-center justify-center w-11 h-11 rounded-xl mx-auto" style={{ backgroundColor: '#f59e0b22' }}>
+              <Trophy size={28} style={{ color: '#f59e0b' }} />
+            </div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>No PRs yet - crush your first workout!</p>
             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Complete sets in the Workout tab to set records</p>
           </div>
         ) : (
@@ -1445,8 +1452,8 @@ function ProgressTab() {
               const oneRm = weight > 0 && reps > 0
                 ? Math.round(weight * (1 + reps / 30))
                 : null;
-              const medals = ['=���', '=���', '=���'];
-              const medal = medals[idx] ?? '=���';
+              const ranks = ['#1', '#2', '#3'];
+              const rank = ranks[idx] ?? '#';
               return (
                 <div key={idx} className="flex items-center gap-3 p-3 rounded-2xl"
                   style={{
@@ -1454,9 +1461,12 @@ function ProgressTab() {
                     border: idx === 0 ? '1px solid #f59e0b66' : '1px solid var(--border)',
                     background: idx === 0 ? 'linear-gradient(135deg, #f59e0b11, var(--surface))' : undefined,
                   }}>
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                     style={{ backgroundColor: idx === 0 ? '#f59e0b22' : 'var(--surface-elevated)' }}>
-                    {medal}
+                    <div className="flex items-center gap-1">
+                      <Trophy size={16} style={{ color: idx === 0 ? '#f59e0b' : 'var(--text-muted)' }} />
+                      <span className="text-[10px] font-bold" style={{ color: idx === 0 ? '#f59e0b' : 'var(--text-secondary)' }}>{rank}</span>
+                    </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{name}</p>
@@ -1464,7 +1474,7 @@ function ProgressTab() {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-black num" style={{ color: 'var(--accent-warm)' }}>
-                      {weight} kg +� {reps}
+                      {weight} kg x {reps}
                     </p>
                     {oneRm !== null && (
                       <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>~{oneRm} kg 1RM</p>
@@ -1486,12 +1496,14 @@ function ProgressTab() {
         )}
       </div>
 
-      {/* G��G�� Meal Records G��G�� */}
+      {/* Meal Records */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--accent)22' }}>
+              <UtensilsCrossed size={14} style={{ color: 'var(--accent)' }} />
+            </div>
             <span className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>Meal Records</span>
-            <span className="text-xs">=��+n+�</span>
           </div>
           {mealRecords.length > 0 && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
@@ -1508,6 +1520,9 @@ function ProgressTab() {
           </div>
         ) : mealRecords.length === 0 ? (
           <div className="p-5 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '2px dashed var(--border)' }}>
+            <div className="mb-2 flex items-center justify-center w-11 h-11 rounded-xl mx-auto" style={{ backgroundColor: 'var(--accent)22' }}>
+              <UtensilsCrossed size={20} style={{ color: 'var(--accent)' }} />
+            </div>
             <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>No meal records yet</p>
             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Log meals in Diet to build all-time meal records</p>
           </div>
@@ -1515,8 +1530,8 @@ function ProgressTab() {
           <div className="space-y-2">
             {mealRecords.slice(0, 5).map((meal, idx) => (
               <div key={`${meal.id}-${idx}`} className="flex items-center gap-3 p-3 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ backgroundColor: 'var(--surface-elevated)' }}>
-                  =��+n+�
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                  <UtensilsCrossed size={16} style={{ color: 'var(--accent)' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
@@ -1525,7 +1540,7 @@ function ProgressTab() {
                 <div className="text-right flex-shrink-0">
                   <p className="text-sm font-black num" style={{ color: 'var(--accent-warm)' }}>{Math.round(meal.calories)} kcal</p>
                   <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                    {meal.count} logs -+ last {meal.lastDate || '--'}
+                    {meal.count} logs - last {meal.lastDate || '--'}
                   </p>
                   <p className="text-[10px] num" style={{ color: 'var(--text-muted)' }}>
                     P{Math.round(meal.protein)} C{Math.round(meal.carbs)} F{Math.round(meal.fats)}
@@ -1551,12 +1566,12 @@ function ProgressTab() {
         style={{ background: "linear-gradient(135deg, var(--accent)22, var(--accent-green)11)", border: "1px solid var(--accent)33" }}>
         <p className="text-base font-black" style={{ color: "var(--text-primary)" }}>
           {(analytics?.daysLogged ?? 0) === 0
-            ? "Start your journey � log day 1 today!"
+            ? 'Start your journey - log day 1 today!'
             : (analytics?.daysLogged ?? 0) < 7
-              ? `${analytics.daysLogged} days logged � you are just getting started!`
+              ? `${analytics.daysLogged} days logged - you are just getting started!`
               : (analytics?.daysLogged ?? 0) < 30
-                ? `${analytics.daysLogged} days logged � building real momentum!`
-                : `${analytics.daysLogged} days logged � you are unstoppable!`}
+                ? `${analytics.daysLogged} days logged - building real momentum!`
+                : `${analytics.daysLogged} days logged - you are unstoppable!`}
         </p>
         <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
           Keep going, every rep counts.
