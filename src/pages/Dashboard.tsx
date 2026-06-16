@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, Settings, CheckCircle2, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, GripVertical, LayoutDashboard, CheckSquare, Repeat, X } from 'lucide-react';
-import { format, isToday, parseISO, subDays, addDays, startOfWeek, isSameDay, isPast } from 'date-fns';
+import { format, isToday, parseISO, subDays, addDays, startOfWeek } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
   DndContext,
@@ -68,12 +68,6 @@ function greeting(name?: string) {
   const h = new Date().getHours();
   const base = h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
   return `${base}${name ? `, ${name.split(' ')[0]}` : ''}`;
-}
-
-function getPriorityColor(priority: string) {
-  if (priority === 'high') return 'bg-red-100 text-red-700 border-red-200';
-  if (priority === 'medium') return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-  return 'bg-green-100 text-green-700 border-green-200';
 }
 
 function timeToMinutes(t: string) {
@@ -837,159 +831,127 @@ function DashboardTab({
 // ─── Tasks Tab ────────────────────────────────────────────────────────────────
 
 function TasksTab({ user }: { user: any }) {
+  const WEEKDAY_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const [tasks, setTasks] = useState<any[]>([]);
-  const [newTask, setNewTask] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(CATEGORY_OPTIONS[0].name);
-  const [selectedPriority, setSelectedPriority] = useState('medium');
-  const [recurring, setRecurring] = useState(false);
-  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
-  const [recurrenceUnit, setRecurrenceUnit] = useState<'days' | 'weeks' | 'months' | 'years'>('days');
-  const [recurrenceDays, setRecurrenceDays] = useState<string[]>([]);
-  const [monthlyDay, setMonthlyDay] = useState(1);
-  const [recurrenceStart, setRecurrenceStart] = useState('');
-  const [recurrenceEnd, setRecurrenceEnd] = useState('');
-  const [filterView, setFilterView] = useState('today');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [deleteConfirm, setDeleteConfirm] = useState<{ taskId: number; isRecurring: boolean } | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [reminders, setReminders] = useState<any[]>([]);
+  const [todayReminderDoneIds, setTodayReminderDoneIds] = useState<Set<number>>(new Set());
+  const [loading, setLoading] = useState(true);
   const [showAddSheet, setShowAddSheet] = useState(false);
-  const [editingTask, setEditingTask] = useState<any | null>(null);
-  const [scheduledDate, setScheduledDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [itemType, setItemType] = useState<'task' | 'reminder'>('task');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed' | 'recurring'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'task' | 'reminder'>('all');
+
+  const [taskForm, setTaskForm] = useState({
+    title: '',
+    category: CATEGORY_OPTIONS[0].name,
+    priority: 'medium',
+    dueDate: format(new Date(), 'yyyy-MM-dd'),
+    recurring: false,
+    recurrenceInterval: 1,
+    recurrenceUnit: 'days' as 'days' | 'weeks' | 'months' | 'years',
+    recurrenceDays: [] as string[],
+    monthlyDay: 1,
+    recurrenceStart: '',
+    recurrenceEnd: '',
+  });
+
+  const [reminderForm, setReminderForm] = useState({
+    title: '',
+    time: '09:00',
+    frequency: 'daily' as 'daily' | 'weekly' | 'custom',
+    weeklyDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+    customInterval: 1,
+    customUnit: 'days' as 'days' | 'weeks' | 'months' | 'yearly',
+    isEnabled: true,
+  });
 
   useEffect(() => {
-    if (recurring) {
-      const today = format(new Date(), 'yyyy-MM-dd');
-      setRecurrenceStart(today);
-      const d = new Date(); d.setDate(d.getDate() + 30);
-      setRecurrenceEnd(format(d, 'yyyy-MM-dd'));
-    } else {
-      setRecurrenceStart('');
-      setRecurrenceEnd('');
+    if (user) {
+      loadAll();
     }
-  }, [recurring]);
-
-  useEffect(() => {
-    if (user) loadTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const loadTasks = async () => {
+  const normalizeTodayReminderDone = (todayLogsPayload: any): Set<number> => {
+    const rawLogs = Array.isArray(todayLogsPayload)
+      ? todayLogsPayload
+      : Array.isArray(todayLogsPayload?.logs)
+      ? todayLogsPayload.logs
+      : [];
+
+    const doneIds = rawLogs
+      .filter((log: any) => Boolean(log?.markedDone ?? log?.MarkedDone))
+      .map((log: any) => Number(log?.reminderId ?? log?.ReminderId))
+      .filter((id: number) => Number.isFinite(id));
+
+    return new Set(doneIds);
+  };
+
+  const loadAll = async () => {
+    setLoading(true);
     try {
-      const data = await api.getTasks(user.id);
-      setTasks(Array.isArray(data) ? data : []);
-    } catch {}
-  };
+      const [taskData, reminderData, todayLogs] = await Promise.all([
+        api.getTasks(user.id).catch(() => []),
+        api.getReminders().catch(() => []),
+        api.getTodayReminderLogs().catch(() => []),
+      ]);
 
-  const addTask = async () => {
-    if (!user || !newTask.trim()) return;
-    const body: any = {
-      userId: user.id,
-      title: newTask,
-      category: selectedCategory,
-      priority: selectedPriority,
-      recurring,
-      recurrenceInterval,
-      recurrenceUnit,
-      recurrenceStartDate: recurrenceStart ? new Date(recurrenceStart) : undefined,
-      recurrenceEndDate: recurrenceEnd ? new Date(recurrenceEnd) : undefined,
-      recurrenceDays: recurrenceUnit === 'weeks' ? recurrenceDays : recurrenceUnit === 'months' ? [monthlyDay.toString()] : undefined,
-    };
-    if (!recurring && scheduledDate) body.dueDate = new Date(scheduledDate);
-    if (recurring) {
-      if (!body.recurrenceStartDate) body.recurrenceStartDate = new Date();
-      if (!body.recurrenceEndDate) {
-        const d = new Date(); d.setDate(d.getDate() + 30);
-        body.recurrenceEndDate = d;
-      }
+      setTasks(Array.isArray(taskData) ? taskData : []);
+      setReminders(Array.isArray(reminderData) ? reminderData : []);
+      setTodayReminderDoneIds(normalizeTodayReminderDone(todayLogs));
+    } finally {
+      setLoading(false);
     }
-    if (editingTask) await api.updateTask(editingTask.id, body);
-    else await api.createTask(body);
-    resetForm();
-    loadTasks();
   };
 
-  const resetForm = () => {
-    setNewTask(''); setScheduledDate(''); setRecurring(false);
-    setRecurrenceInterval(1); setRecurrenceUnit('days');
-    setRecurrenceDays([]); setRecurrenceStart(''); setRecurrenceEnd('');
-    setShowAddSheet(false); setEditingTask(null);
+  const isTaskDone = (task: any) => Boolean(task.isCompleted ?? task.status === 'completed');
+  const isReminderDone = (reminder: any) => todayReminderDoneIds.has(Number(reminder.id));
+
+  const formatReminderFrequency = (reminder: any) => {
+    if (reminder.frequency !== 'custom') return reminder.frequency ?? 'daily';
+    const activeDays = String(reminder.activeDays || '');
+    const match = activeDays.match(/^interval:(\d+);unit:(days|weeks|months|yearly)$/);
+    if (!match) return 'custom';
+    return `every ${Math.max(1, parseInt(match[1], 10) || 1)} ${match[2]}`;
   };
 
-  const openEditSheet = (task: any) => {
-    setEditingTask(task);
-    setNewTask(task.title || '');
-    setSelectedCategory(task.category || 'Personal');
-    setSelectedPriority(task.priority || 'medium');
-    setRecurring(!!task.recurring);
-    setRecurrenceInterval(task.recurrenceInterval || 1);
-    setRecurrenceUnit(task.recurrenceUnit || 'days');
-    setRecurrenceDays(task.recurrenceDays || []);
-    setMonthlyDay(task.recurrenceUnit === 'months' && task.recurrenceDays?.[0] ? parseInt(task.recurrenceDays[0], 10) : 1);
-    setRecurrenceStart(task.recurrenceStartDate ? format(parseISO(task.recurrenceStartDate), 'yyyy-MM-dd') : '');
-    setRecurrenceEnd(task.recurrenceEndDate ? format(parseISO(task.recurrenceEndDate), 'yyyy-MM-dd') : '');
-    setScheduledDate(task.dueDate ? format(parseISO(task.dueDate), 'yyyy-MM-dd') : '');
-    setShowAddSheet(true);
+  const formatTaskRecurring = (task: any) => {
+    if (!task.recurring) return null;
+    const interval = Number(task.recurrenceInterval || 1);
+    const unit = String(task.recurrenceUnit || 'days');
+    return `every ${interval} ${unit}`;
   };
 
-  const toggleTask = async (task: any) => {
-    const isCompleted = !task.isCompleted;
-    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, isCompleted } : t));
-    await api.updateTask(task.id, { isCompleted });
-    if (isCompleted && user) await api.addPoints(user.id, 'task_completed', 1);
-    loadTasks();
-  };
-
-  const deleteTask = async (id: number, deleteMode: 'this' | 'series' = 'this') => {
-    await api.deleteTask(id, deleteMode);
-    setDeleteConfirm(null);
-    loadTasks();
-  };
-
-  const getFilteredTasks = () => {
-    let filtered = tasks;
-    if (selectedDate) {
-      filtered = filtered.filter(t => {
-        const due = t.dueDate ?? t.due_date;
-        if (!due) return false;
-        try { return isSameDay(parseISO(due), selectedDate); } catch { return false; }
-      });
-    } else if (filterView === 'today') {
-      filtered = filtered.filter(t => {
-        const due = t.dueDate ?? t.due_date;
-        return !due || isToday(parseISO(due));
-      });
-    } else if (filterView === 'overdue') {
-      filtered = filtered.filter(t => {
-        const due = t.dueDate ?? t.due_date;
-        return due && isPast(parseISO(due)) && !isToday(parseISO(due)) && t.status !== 'completed';
-      });
-    }
-    if (filterCategory !== 'all') filtered = filtered.filter(t => t.category === filterCategory);
-    return filtered;
-  };
-
-  const renderOccurrences = (task: any) => {
+  const renderTaskHistory = (task: any) => {
     if (!task.recurrenceId) return null;
-    const selected = new Date(selectedDate); selected.setHours(0, 0, 0, 0);
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const cutoff = selected > today ? today : selected;
-    const seriesHistory = tasks.filter(t => {
+    const todayCutoff = new Date();
+    todayCutoff.setHours(0, 0, 0, 0);
+    const seriesHistory = tasks.filter((t: any) => {
       if (t.recurrenceId !== task.recurrenceId) return false;
       const dueValue = t.dueDate || t.due_date;
       if (!dueValue) return false;
-      const due = new Date(dueValue); due.setHours(0, 0, 0, 0);
-      return due <= cutoff;
+      const due = new Date(dueValue);
+      due.setHours(0, 0, 0, 0);
+      return due <= todayCutoff;
     });
-    const completed = seriesHistory.filter(t => t.isCompleted || t.status === 'completed')
-      .sort((a, b) => new Date(b.dueDate || b.due_date).getTime() - new Date(a.dueDate || a.due_date).getTime())
+    const completed = seriesHistory
+      .filter((t: any) => isTaskDone(t))
+      .sort((a: any, b: any) => new Date(b.dueDate || b.due_date).getTime() - new Date(a.dueDate || a.due_date).getTime())
       .slice(0, 5);
-    const missed = seriesHistory.filter(t => !(t.isCompleted || t.status === 'completed')).length;
+    const missed = seriesHistory.filter((t: any) => !isTaskDone(t)).length;
     if (completed.length === 0 && missed === 0) return null;
     return (
-      <div className="flex items-center gap-1.5 mr-1">
-        {completed.map((t, i) => (
-          <span key={t.id || i} title={new Date(t.dueDate || t.due_date).toLocaleDateString()}
+      <div className="flex items-center gap-1.5 mt-1">
+        {completed.map((t: any, i: number) => (
+          <span
+            key={t.id || i}
+            title={new Date(t.dueDate || t.due_date).toLocaleDateString()}
             className="w-4 h-4 rounded-sm flex items-center justify-center text-white text-[9px]"
-            style={{ backgroundColor: 'var(--accent-green)' }}>✓</span>
+            style={{ backgroundColor: 'var(--accent-green)' }}
+          >
+            ✓
+          </span>
         ))}
         {missed > 0 && (
           <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
@@ -1000,343 +962,442 @@ function TasksTab({ user }: { user: any }) {
     );
   };
 
-  const filteredTasks = getFilteredTasks();
+  const actionItems = useMemo(() => {
+    const taskItems = tasks.map((task: any) => ({
+      id: `task-${task.id}`,
+      type: 'task' as const,
+      title: task.title,
+      done: isTaskDone(task),
+      recurring: Boolean(task.recurring),
+      raw: task,
+      category: task.category,
+      subtitle: formatTaskRecurring(task) || (task.dueDate || task.due_date ? format(parseISO(task.dueDate || task.due_date), 'EEE, MMM d') : 'one-time task'),
+    }));
+
+    const reminderItems = reminders
+      .filter((r: any) => Boolean(r.isEnabled))
+      .map((reminder: any) => ({
+        id: `reminder-${reminder.id}`,
+        type: 'reminder' as const,
+        title: reminder.title,
+        done: isReminderDone(reminder),
+        recurring: true,
+        raw: reminder,
+        category: 'Reminder',
+        subtitle: `${reminder.time || '--:--'} • ${formatReminderFrequency(reminder)}`,
+      }));
+
+    return [...taskItems, ...reminderItems]
+      .sort((a, b) => Number(a.done) - Number(b.done) || Number(b.recurring) - Number(a.recurring));
+  }, [tasks, reminders, todayReminderDoneIds]);
+
+  const filteredItems = actionItems.filter((item) => {
+    if (filterType !== 'all' && item.type !== filterType) return false;
+    if (filterStatus === 'pending' && item.done) return false;
+    if (filterStatus === 'completed' && !item.done) return false;
+    if (filterStatus === 'recurring' && !item.recurring) return false;
+    return true;
+  });
+
+  const completedCount = actionItems.filter(i => i.done).length;
+  const totalCount = actionItems.length;
+
+  const toggleItem = async (item: (typeof actionItems)[number]) => {
+    if (item.type === 'task') {
+      await api.updateTask(Number(item.raw.id), { isCompleted: !item.done });
+      if (!item.done && user) await api.addPoints(user.id, 'task_completed', 1);
+      await loadAll();
+      return;
+    }
+    await api.toggleReminderDone(Number(item.raw.id));
+    await loadAll();
+  };
+
+  const deleteItem = async (item: (typeof actionItems)[number]) => {
+    if (item.type === 'task') {
+      await api.deleteTask(Number(item.raw.id), 'this');
+    } else {
+      await api.deleteReminder(Number(item.raw.id));
+    }
+    await loadAll();
+  };
+
+  const resetForm = () => {
+    setTaskForm({
+      title: '',
+      category: CATEGORY_OPTIONS[0].name,
+      priority: 'medium',
+      dueDate: format(new Date(), 'yyyy-MM-dd'),
+      recurring: false,
+      recurrenceInterval: 1,
+      recurrenceUnit: 'days',
+      recurrenceDays: [],
+      monthlyDay: 1,
+      recurrenceStart: '',
+      recurrenceEnd: '',
+    });
+    setReminderForm({
+      title: '',
+      time: '09:00',
+      frequency: 'daily',
+      weeklyDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+      customInterval: 1,
+      customUnit: 'days',
+      isEnabled: true,
+    });
+    setItemType('task');
+    setShowAddSheet(false);
+  };
+
+  const createItem = async () => {
+    if (itemType === 'task') {
+      if (!taskForm.title.trim()) return;
+      const body: any = {
+        userId: user.id,
+        title: taskForm.title,
+        category: taskForm.category,
+        priority: taskForm.priority,
+        recurring: taskForm.recurring,
+        recurrenceInterval: taskForm.recurrenceInterval,
+        recurrenceUnit: taskForm.recurrenceUnit,
+        recurrenceStartDate: taskForm.recurrenceStart ? new Date(taskForm.recurrenceStart) : undefined,
+        recurrenceEndDate: taskForm.recurrenceEnd ? new Date(taskForm.recurrenceEnd) : undefined,
+        recurrenceDays: taskForm.recurrenceUnit === 'weeks'
+          ? taskForm.recurrenceDays
+          : taskForm.recurrenceUnit === 'months'
+          ? [String(taskForm.monthlyDay)]
+          : undefined,
+      };
+      if (!taskForm.recurring && taskForm.dueDate) body.dueDate = new Date(taskForm.dueDate);
+      await api.createTask(body);
+      resetForm();
+      await loadAll();
+      return;
+    }
+
+    if (!reminderForm.title.trim()) return;
+    const customSchedule = `interval:${Math.max(1, Number(reminderForm.customInterval) || 1)};unit:${reminderForm.customUnit}`;
+    const activeDays = reminderForm.frequency === 'daily'
+      ? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun'
+      : reminderForm.frequency === 'weekly'
+      ? reminderForm.weeklyDays.join(',')
+      : customSchedule;
+
+    await api.createReminder({
+      title: reminderForm.title,
+      time: reminderForm.time,
+      frequency: reminderForm.frequency,
+      activeDays,
+      isEnabled: reminderForm.isEnabled,
+    });
+    resetForm();
+    await loadAll();
+  };
 
   return (
     <div>
-      {/* Week date strip */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {format(selectedDate, 'EEEE, MMM d')}
-          </h2>
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setSelectedDate(addDays(selectedDate, -7))}
-              className="px-2 py-1 rounded-lg text-[11px] press" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-secondary)' }}>
-              ◀
-            </button>
-            <button onClick={() => setSelectedDate(new Date())}
-              className="px-2 py-1 rounded-lg text-[11px] font-semibold press" style={{ backgroundColor: 'var(--surface)', color: 'var(--accent)' }}>
-              Today
-            </button>
-            <button onClick={() => setSelectedDate(addDays(selectedDate, 7))}
-              className="px-2 py-1 rounded-lg text-[11px] press" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-secondary)' }}>
-              ▶
-            </button>
+      <div className="mb-4 p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Actions Progress</p>
+            <p className="text-2xl font-extrabold num" style={{ color: 'var(--text-primary)' }}>
+              {completedCount}/{totalCount}
+            </p>
           </div>
-        </div>
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
-          {Array.from({ length: 7 }).map((_, i) => {
-            const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
-            const d = addDays(weekStart, i);
-            const isSelected = isSameDay(d, selectedDate);
-            const isNow = isToday(d);
-            return (
-              <button key={d.toISOString()} onClick={() => setSelectedDate(d)}
-                className="flex-1 min-w-[38px] py-2 rounded-xl text-center press transition-all"
-                style={{
-                  backgroundColor: isSelected ? 'var(--accent)' : isNow ? 'var(--surface-elevated)' : 'var(--surface)',
-                  border: isNow && !isSelected ? '1px solid var(--accent)' : '1px solid transparent',
-                }}>
-                <div className="text-[10px]" style={{ color: isSelected ? '#fff' : 'var(--text-muted)' }}>{format(d, 'EEE')}</div>
-                <div className="font-bold text-sm" style={{ color: isSelected ? '#fff' : 'var(--text-primary)' }}>{format(d, 'd')}</div>
-              </button>
-            );
-          })}
+          <button
+            onClick={() => setShowAddSheet(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white press"
+            style={{ backgroundColor: 'var(--accent)' }}
+          >
+            <Plus size={13} /> Add
+          </button>
         </div>
       </div>
 
-      {/* Filters row */}
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-2 mb-3">
-        {(['today', 'overdue'] as const).map(v => (
-          <button key={v} onClick={() => setFilterView(v)}
-            className="px-3 py-1.5 rounded-full text-xs font-semibold flex-shrink-0 press transition-all"
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-3">
+        {(['all', 'pending', 'completed', 'recurring'] as const).map(s => (
+          <button
+            key={s}
+            onClick={() => setFilterStatus(s)}
+            className="px-3 py-1.5 rounded-full text-xs font-semibold press"
             style={{
-              backgroundColor: filterView === v ? (v === 'overdue' ? '#ef4444' : 'var(--accent)') : 'var(--surface)',
-              color: filterView === v ? '#fff' : 'var(--text-secondary)',
-            }}>
-            {v.charAt(0).toUpperCase() + v.slice(1)}
+              backgroundColor: filterStatus === s ? 'var(--accent)' : 'var(--surface)',
+              color: filterStatus === s ? '#fff' : 'var(--text-secondary)',
+            }}
+          >
+            {s.charAt(0).toUpperCase() + s.slice(1)}
           </button>
         ))}
-        <div className="flex items-center gap-1.5 flex-shrink-0 px-3 py-1.5 rounded-full" style={{ backgroundColor: 'var(--surface)' }}>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ backgroundColor: 'var(--surface)' }}>
           <Filter size={12} style={{ color: 'var(--text-muted)' }} />
-          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
-            className="text-xs outline-none bg-transparent" style={{ color: 'var(--text-secondary)' }}>
-            <option value="all">All Categories</option>
-            {CATEGORY_OPTIONS.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+          <select
+            value={filterType}
+            onChange={e => setFilterType(e.target.value as any)}
+            className="text-xs outline-none bg-transparent"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <option value="all">All Types</option>
+            <option value="task">Tasks</option>
+            <option value="reminder">Reminders</option>
           </select>
         </div>
-
-        <button onClick={() => { setEditingTask(null); setShowAddSheet(true); }}
-          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold press text-white"
-          style={{ backgroundColor: 'var(--accent)' }}>
-          <Plus size={13} /> New
-        </button>
       </div>
 
-      {/* Task list */}
       <div className="space-y-2">
-        <AnimatePresence>
-          {filteredTasks.map(task => (
-            <motion.div key={task.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.97 }}
-              className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', opacity: task.isCompleted ? 0.6 : 1 }}>
+        {loading ? (
+          [1, 2, 3].map(i => <div key={i} className="h-16 rounded-2xl skeleton" style={{ backgroundColor: 'var(--surface)' }} />)
+        ) : filteredItems.length === 0 ? (
+          <div className="py-10 text-center">
+            <Target size={30} className="mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No actions in this view</p>
+          </div>
+        ) : (
+          filteredItems.map(item => (
+            <div key={item.id} className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', opacity: item.done ? 0.6 : 1 }}>
               <div className="flex items-center gap-2.5">
-                <button onClick={() => toggleTask(task)} className="flex-shrink-0 press">
-                  {task.isCompleted
+                <button onClick={() => toggleItem(item)} className="flex-shrink-0 press">
+                  {item.done
                     ? <CheckCircle2 size={20} style={{ color: 'var(--accent)' }} />
                     : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--border)' }} />}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: task.isCompleted ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: task.isCompleted ? 'line-through' : 'none' }}>
-                    {task.title}
+                  <p className="text-sm font-medium truncate" style={{ color: item.done ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: item.done ? 'line-through' : 'none' }}>
+                    {item.title}
                   </p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {task.category && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
-                        {task.category}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
+                      {item.type === 'task' ? 'Task' : 'Reminder'}
+                    </span>
+                    {item.category && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: item.type === 'reminder' ? 'var(--accent)22' : 'var(--surface-elevated)', color: item.type === 'reminder' ? 'var(--accent)' : 'var(--text-muted)' }}>
+                        {item.category}
                       </span>
                     )}
-                    {task.priority && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${getPriorityColor(task.priority)}`}>
-                        {task.priority}
-                      </span>
-                    )}
-                    {(task.dueDate ?? task.due_date) && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}>
-                        {format(parseISO(task.dueDate ?? task.due_date), 'EEE, MMM d')}
-                      </span>
-                    )}
-                    {task.recurring && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent-green)' }}>
+                    {item.recurring && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent-green)22', color: 'var(--accent-green)' }}>
                         recurring
                       </span>
                     )}
                   </div>
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>{item.subtitle}</p>
+                  {item.type === 'task' && item.raw.recurring && renderTaskHistory(item.raw)}
                 </div>
-                <div className="flex items-center gap-1">
-                  {renderOccurrences(task)}
-                  {task.isCompleted ? (
-                    <button onClick={() => toggleTask(task)} className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}>
-                      <RotateCcw size={13} />
-                    </button>
-                  ) : (
-                    <button onClick={() => openEditSheet(task)} className="p-1.5 rounded-lg press" style={{ color: 'var(--text-muted)' }}>
-                      <Edit size={13} />
-                    </button>
-                  )}
-                  <button onClick={() => setDeleteConfirm({ taskId: task.id, isRecurring: task.recurring })}
-                    className="p-1.5 rounded-lg press" style={{ color: '#ef4444' }}>
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+                <button onClick={() => deleteItem(item)} className="p-1.5 rounded-lg press" style={{ color: '#ef4444' }}>
+                  <Trash2 size={13} />
+                </button>
               </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {filteredTasks.length === 0 && (
-          <div className="py-12 text-center">
-            <Target size={32} className="mx-auto mb-2" style={{ color: 'var(--text-muted)' }} />
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No tasks found</p>
-            <button onClick={() => setShowAddSheet(true)} className="mt-2 text-xs font-semibold press" style={{ color: 'var(--accent)' }}>
-              + Add a task
-            </button>
-          </div>
+            </div>
+          ))
         )}
       </div>
 
-      {/* Add / Edit Bottom Sheet */}
       <AnimatePresence>
         {showAddSheet && (
           <>
-            <motion.div className="fixed inset-0 z-40 bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={resetForm} />
-            <motion.div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl overflow-hidden flex flex-col"
+            <motion.div className="fixed inset-0 z-40 bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={resetForm} />
+            <motion.div
+              className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl overflow-hidden flex flex-col"
               style={{ backgroundColor: 'var(--surface)', maxHeight: '90dvh', paddingBottom: 'env(safe-area-inset-bottom)' }}
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 350 }}>
-              {/* handle */}
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+            >
               <div className="flex justify-center pt-3 pb-1">
                 <div className="w-10 h-1 rounded-full" style={{ backgroundColor: 'var(--border)' }} />
               </div>
               <div className="flex items-center justify-between px-5 pb-3 border-b" style={{ borderColor: 'var(--border)' }}>
-                <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-                  {editingTask ? 'Edit Task' : 'New Task'}
-                </h3>
+                <h3 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>New Action</h3>
                 <button onClick={resetForm} className="text-xl leading-none press" style={{ color: 'var(--text-muted)' }}>&times;</button>
               </div>
 
               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-                {/* Title */}
-                <input type="text" value={newTask} onChange={e => setNewTask(e.target.value)}
-                  placeholder="Task title" autoFocus
-                  className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
-
-                {/* Category */}
-                <div>
-                  <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>Category</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {CATEGORY_OPTIONS.map(c => {
-                      const Icon = c.icon;
-                      const active = selectedCategory === c.name;
-                      return (
-                        <button key={c.name} onClick={() => setSelectedCategory(c.name)}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium press transition-all"
-                          style={{
-                            backgroundColor: active ? 'var(--accent)' : 'var(--surface-elevated)',
-                            color: active ? '#fff' : 'var(--text-secondary)',
-                          }}>
-                          <Icon size={10} />{c.name}
-                        </button>
-                      );
-                    })}
-                  </div>
+                <div className="flex gap-2">
+                  {(['task', 'reminder'] as const).map(kind => (
+                    <button
+                      key={kind}
+                      onClick={() => setItemType(kind)}
+                      className="px-3 py-1.5 rounded-full text-xs font-semibold press"
+                      style={{ backgroundColor: itemType === kind ? 'var(--accent)' : 'var(--surface-elevated)', color: itemType === kind ? '#fff' : 'var(--text-secondary)' }}
+                    >
+                      {kind === 'task' ? 'Task' : 'Reminder'}
+                    </button>
+                  ))}
                 </div>
 
-                {/* Priority + Recurring */}
-                <div className="flex items-end gap-4">
-                  <div>
-                    <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>Priority</p>
-                    <select value={selectedPriority} onChange={e => setSelectedPriority(e.target.value)}
-                      className="px-3 py-2 rounded-xl text-xs outline-none"
-                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
-                      {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <label className="flex items-center gap-2 cursor-pointer pb-2">
-                    <div onClick={() => setRecurring(!recurring)}
-                      className="w-9 h-5 rounded-full relative transition-all"
-                      style={{ backgroundColor: recurring ? 'var(--accent)' : 'var(--surface-elevated)' }}>
-                      <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
-                        style={{ left: recurring ? '18px' : '2px' }} />
-                    </div>
-                    <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Recurring</span>
-                  </label>
-                </div>
-
-                {/* Schedule date */}
-                {!recurring && (
-                  <div>
-                    <p className="text-xs font-semibold mb-1.5" style={{ color: 'var(--text-muted)' }}>Schedule for</p>
-                    <input type="date" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)}
-                      className="px-3 py-2 rounded-xl text-xs outline-none"
-                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
-                  </div>
-                )}
-
-                {/* Recurrence options */}
-                {recurring && (
-                  <div className="rounded-xl p-3 space-y-3" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+                {itemType === 'task' ? (
+                  <>
+                    <input
+                      type="text"
+                      value={taskForm.title}
+                      onChange={e => setTaskForm(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Task title"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
                     <div className="flex items-center gap-2">
-                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Every</span>
-                      <input type="number" value={recurrenceInterval} onChange={e => setRecurrenceInterval(parseInt(e.target.value) || 1)}
-                        className="w-14 px-2 py-1.5 rounded-lg text-xs text-center outline-none"
-                        style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
-                      <select value={recurrenceUnit} onChange={e => setRecurrenceUnit(e.target.value as any)}
-                        className="px-2 py-1.5 rounded-lg text-xs outline-none"
-                        style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
-                        <option value="days">day(s)</option>
-                        <option value="weeks">week(s)</option>
-                        <option value="months">month(s)</option>
-                        <option value="years">year(s)</option>
+                      <select value={taskForm.category} onChange={e => setTaskForm(prev => ({ ...prev, category: e.target.value }))}
+                        className="px-3 py-2 rounded-xl text-xs outline-none"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                        {CATEGORY_OPTIONS.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                      </select>
+                      <select value={taskForm.priority} onChange={e => setTaskForm(prev => ({ ...prev, priority: e.target.value }))}
+                        className="px-3 py-2 rounded-xl text-xs outline-none"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                        {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
                       </select>
                     </div>
-                    {recurrenceUnit === 'weeks' && (
-                      <div className="flex gap-2 flex-wrap">
-                        {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, i) => {
-                          const full = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][i];
-                          const active = recurrenceDays.includes(full);
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={taskForm.recurring}
+                        onChange={e => setTaskForm(prev => ({ ...prev, recurring: e.target.checked }))}
+                      />
+                      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Recurring</span>
+                    </label>
+                    {!taskForm.recurring ? (
+                      <input type="date" value={taskForm.dueDate} onChange={e => setTaskForm(prev => ({ ...prev, dueDate: e.target.value }))}
+                        className="px-3 py-2 rounded-xl text-xs outline-none"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                    ) : (
+                      <div className="rounded-xl p-3 space-y-2" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Every</span>
+                          <input type="number" min={1} value={taskForm.recurrenceInterval}
+                            onChange={e => setTaskForm(prev => ({ ...prev, recurrenceInterval: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                            className="w-14 px-2 py-1.5 rounded-lg text-xs text-center outline-none"
+                            style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+                          <select value={taskForm.recurrenceUnit} onChange={e => setTaskForm(prev => ({ ...prev, recurrenceUnit: e.target.value as any }))}
+                            className="px-2 py-1.5 rounded-lg text-xs outline-none"
+                            style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                            <option value="days">days</option>
+                            <option value="weeks">weeks</option>
+                            <option value="months">months</option>
+                            <option value="years">years</option>
+                          </select>
+                        </div>
+
+                        {taskForm.recurrenceUnit === 'weeks' && (
+                          <div className="flex gap-1.5 flex-wrap">
+                            {WEEKDAY_SHORT.map((day, i) => {
+                              const fullDay = WEEKDAY_FULL[i];
+                              const active = taskForm.recurrenceDays.includes(fullDay);
+                              return (
+                                <button
+                                  key={day}
+                                  onClick={() => setTaskForm(prev => ({
+                                    ...prev,
+                                    recurrenceDays: active
+                                      ? prev.recurrenceDays.filter(d => d !== fullDay)
+                                      : [...prev.recurrenceDays, fullDay],
+                                  }))}
+                                  className="w-8 h-8 rounded-full text-[10px] font-semibold press"
+                                  style={{ backgroundColor: active ? 'var(--accent)' : 'var(--surface)', color: active ? '#fff' : 'var(--text-muted)' }}
+                                >
+                                  {day}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {taskForm.recurrenceUnit === 'months' && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>on day</span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={31}
+                              value={taskForm.monthlyDay}
+                              onChange={e => setTaskForm(prev => ({ ...prev, monthlyDay: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                              className="w-14 px-2 py-1.5 rounded-lg text-xs text-center outline-none"
+                              style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={reminderForm.title}
+                      onChange={e => setReminderForm(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Reminder title"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
+                    <input
+                      type="time"
+                      value={reminderForm.time}
+                      onChange={e => setReminderForm(prev => ({ ...prev, time: e.target.value }))}
+                      className="px-3 py-2 rounded-xl text-xs outline-none"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
+                    <select
+                      value={reminderForm.frequency}
+                      onChange={e => setReminderForm(prev => ({ ...prev, frequency: e.target.value as any }))}
+                      className="px-3 py-2 rounded-xl text-xs outline-none"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="custom">Custom</option>
+                    </select>
+
+                    {reminderForm.frequency === 'weekly' && (
+                      <div className="flex gap-1.5 flex-wrap">
+                        {WEEKDAY_SHORT.map(day => {
+                          const active = reminderForm.weeklyDays.includes(day);
                           return (
-                            <button key={d} onClick={() => setRecurrenceDays(active ? recurrenceDays.filter(x => x !== full) : [...recurrenceDays, full])}
-                              className="w-9 h-9 rounded-full text-xs font-semibold press"
-                              style={{ backgroundColor: active ? 'var(--accent)' : 'var(--surface)', color: active ? '#fff' : 'var(--text-muted)' }}>
-                              {d}
+                            <button
+                              key={day}
+                              onClick={() => setReminderForm(prev => ({
+                                ...prev,
+                                weeklyDays: active ? prev.weeklyDays.filter(d => d !== day) : [...prev.weeklyDays, day],
+                              }))}
+                              className="w-8 h-8 rounded-full text-[10px] font-semibold press"
+                              style={{ backgroundColor: active ? 'var(--accent)' : 'var(--surface)', color: active ? '#fff' : 'var(--text-muted)' }}
+                            >
+                              {day}
                             </button>
                           );
                         })}
                       </div>
                     )}
-                    {recurrenceUnit === 'months' && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>on day</span>
-                        <input type="number" min={1} max={31} value={monthlyDay} onChange={e => setMonthlyDay(parseInt(e.target.value) || 1)}
-                          className="w-14 px-2 py-1.5 rounded-lg text-xs text-center outline-none"
-                          style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
+
+                    {reminderForm.frequency === 'custom' && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          value={reminderForm.customInterval}
+                          onChange={e => setReminderForm(prev => ({ ...prev, customInterval: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                          className="px-3 py-2 rounded-xl text-xs outline-none"
+                          style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                        />
+                        <select
+                          value={reminderForm.customUnit}
+                          onChange={e => setReminderForm(prev => ({ ...prev, customUnit: e.target.value as any }))}
+                          className="px-3 py-2 rounded-xl text-xs outline-none"
+                          style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                        >
+                          <option value="days">days</option>
+                          <option value="weeks">weeks</option>
+                          <option value="months">months</option>
+                          <option value="yearly">yearly</option>
+                        </select>
                       </div>
                     )}
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Start</p>
-                        <input type="date" value={recurrenceStart} onChange={e => setRecurrenceStart(e.target.value)}
-                          className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
-                          style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>End</p>
-                        <input type="date" value={recurrenceEnd} onChange={e => setRecurrenceEnd(e.target.value)}
-                          className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
-                          style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border)' }} />
-                      </div>
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
 
               <div className="flex gap-2 px-5 py-3 border-t" style={{ borderColor: 'var(--border)' }}>
-                <button onClick={resetForm} className="px-4 py-2.5 rounded-xl text-sm font-semibold press"
-                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                <button onClick={resetForm} className="px-4 py-2.5 rounded-xl text-sm font-semibold press" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
                   Cancel
                 </button>
-                <button onClick={addTask} disabled={!newTask.trim()}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white press disabled:opacity-40"
-                  style={{ backgroundColor: 'var(--accent)' }}>
-                  {editingTask ? 'Save Changes' : 'Create Task'}
+                <button onClick={createItem} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white press" style={{ backgroundColor: 'var(--accent)' }}>
+                  Create
                 </button>
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Delete confirm sheet */}
-      <AnimatePresence>
-        {deleteConfirm && (
-          <>
-            <motion.div className="fixed inset-0 z-40 bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setDeleteConfirm(null)} />
-            <motion.div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl p-5"
-              style={{ backgroundColor: 'var(--surface)', paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ type: 'spring', damping: 30, stiffness: 350 }}>
-              <h3 className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>Delete Task</h3>
-              {deleteConfirm.isRecurring ? (
-                <div className="space-y-2 mt-3">
-                  <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>This is a recurring task. What would you like to delete?</p>
-                  <button onClick={() => deleteTask(deleteConfirm.taskId, 'this')}
-                    className="w-full py-3 rounded-xl text-sm font-semibold press"
-                    style={{ backgroundColor: 'rgba(234,179,8,0.15)', color: '#ca8a04' }}>
-                    Delete Only This Occurrence
-                  </button>
-                  <button onClick={() => deleteTask(deleteConfirm.taskId, 'series')}
-                    className="w-full py-3 rounded-xl text-sm font-semibold press"
-                    style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
-                    Delete Entire Series
-                  </button>
-                </div>
-              ) : (
-                <div className="mt-3">
-                  <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>Are you sure you want to delete this task?</p>
-                  <button onClick={() => deleteTask(deleteConfirm.taskId, 'this')}
-                    className="w-full py-3 rounded-xl text-sm font-semibold press mb-2"
-                    style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
-                    Delete Task
-                  </button>
-                </div>
-              )}
-              <button onClick={() => setDeleteConfirm(null)}
-                className="w-full py-3 rounded-xl text-sm font-semibold press mt-1"
-                style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                Cancel
-              </button>
             </motion.div>
           </>
         )}
@@ -2407,7 +2468,7 @@ export default function Dashboard() {
   const TABS: { id: TabId; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'routine', label: 'Daily Routine', icon: Repeat },
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+    { id: 'tasks', label: 'Actions', icon: CheckSquare },
   ];
   const visibleTabs = showRoutineTab ? TABS : TABS.filter(tab => tab.id !== 'routine');
 
