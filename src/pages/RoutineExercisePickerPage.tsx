@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Dumbbell, Search } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Search, Check } from 'lucide-react';
 import * as api from '../lib/api';
 
 type Exercise = {
@@ -27,6 +27,7 @@ export default function RoutineExercisePickerPage() {
   const [muscle, setMuscle] = useState('All');
   const [sets, setSets] = useState(3);
   const [reps, setReps] = useState(10);
+  const [selectedExercises, setSelectedExercises] = useState<number[]>([]);
 
   useEffect(() => {
     if (loaded) return;
@@ -46,7 +47,32 @@ export default function RoutineExercisePickerPage() {
     return list;
   }, [exercises, muscle, search]);
 
-  function pickExercise(exercise: Exercise) {
+  function toggleExercise(exerciseId: number) {
+    setSelectedExercises(prev => 
+      prev.includes(exerciseId)
+        ? prev.filter(id => id !== exerciseId)
+        : [...prev, exerciseId]
+    );
+  }
+
+  function addSelectedExercises() {
+    if (selectedExercises.length === 0) return;
+    
+    navigate('/settings/workout-library', {
+      state: {
+        routinePick: {
+          day,
+          exerciseIds: selectedExercises, // Changed to array for multi-select
+          sets,
+          reps,
+        },
+        tab: 'routine',
+        reloadAt: Date.now(),
+      },
+    });
+  }
+
+  function pickSingleExercise(exercise: Exercise) {
     navigate('/settings/workout-library', {
       state: {
         routinePick: {
@@ -67,7 +93,7 @@ export default function RoutineExercisePickerPage() {
         <button onClick={() => navigate('/settings/workout-library', { state: { tab: 'routine' } })} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--surface)' }}>
           <ArrowLeft size={18} style={{ color: 'var(--text-secondary)' }} />
         </button>
-        <h1 className="text-xl font-bold capitalize" style={{ color: 'var(--text-primary)' }}>Pick Workout for {day || 'day'}</h1>
+        <h1 className="text-xl font-bold capitalize" style={{ color: 'var(--text-primary)' }}>Pick Workouts for {day || 'day'}</h1>
       </div>
 
       <div className="rounded-2xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -86,31 +112,67 @@ export default function RoutineExercisePickerPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 mb-3">
           <input type="number" value={sets} min={1} max={20} onChange={e => setSets(Math.max(1, Number(e.target.value) || 1))}
             placeholder="Sets" className="px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
           <input type="number" value={reps} min={1} max={100} onChange={e => setReps(Math.max(1, Number(e.target.value) || 1))}
             placeholder="Reps" className="px-3 py-2 text-sm rounded-xl outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
         </div>
+
+        {selectedExercises.length > 0 && (
+          <button 
+            onClick={addSelectedExercises}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white"
+            style={{ backgroundColor: 'var(--accent)' }}
+          >
+            Add {selectedExercises.length} Selected Exercise{selectedExercises.length !== 1 ? 's' : ''}
+          </button>
+        )}
       </div>
 
+      <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+        Click exercise twice to add immediately, or select multiple and use the button above
+      </p>
+
       <div className="grid grid-cols-2 gap-2">
-        {filtered.map(ex => (
-          <button key={ex.id} onClick={() => pickExercise(ex)} className="rounded-xl overflow-hidden text-left" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <div className="w-full h-24 flex items-center justify-center" style={{ backgroundColor: 'rgba(108, 99, 255, 0.08)' }}>
-              {ex.imageUrl ? (
-                <img src={ex.imageUrl} alt={ex.name} className="w-full h-full object-cover" />
-              ) : (
-                <Dumbbell size={28} style={{ color: 'var(--accent)', opacity: 0.65 }} />
-              )}
+        {filtered.map(ex => {
+          const isSelected = selectedExercises.includes(ex.id);
+          return (
+            <div key={ex.id} className="relative">
+              <button 
+                onClick={() => toggleExercise(ex.id)} 
+                className="w-full rounded-xl overflow-hidden text-left" 
+                style={{ backgroundColor: 'var(--surface)', border: isSelected ? '2px solid var(--accent)' : '1px solid var(--border)' }}
+              >
+                <div className="w-full h-24 flex items-center justify-center relative" style={{ backgroundColor: 'rgba(108, 99, 255, 0.08)' }}>
+                  {ex.imageUrl ? (
+                    <img src={ex.imageUrl} alt={ex.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <Dumbbell size={28} style={{ color: 'var(--accent)', opacity: 0.65 }} />
+                  )}
+                  {isSelected && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <Check size={24} style={{ color: '#fff' }} />
+                    </div>
+                  )}
+                </div>
+                <div className="p-2.5">
+                  <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)', whiteSpace: 'normal', wordBreak: 'break-word' }}>{ex.name}</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{ex.muscleGroup}</p>
+                  {ex.description && <p className="text-[10px] mt-1 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{ex.description}</p>}
+                </div>
+              </button>
+              <button
+                onClick={() => pickSingleExercise(ex)}
+                className="absolute top-1 right-1 w-6 h-6 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
+                style={{ backgroundColor: 'var(--accent)' }}
+                title="Add this exercise immediately"
+              >
+                +
+              </button>
             </div>
-            <div className="p-2.5">
-              <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)', whiteSpace: 'normal', wordBreak: 'break-word' }}>{ex.name}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{ex.muscleGroup}</p>
-              {ex.description && <p className="text-[10px] mt-1 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{ex.description}</p>}
-            </div>
-          </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

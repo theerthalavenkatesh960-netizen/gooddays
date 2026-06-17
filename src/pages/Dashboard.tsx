@@ -962,20 +962,43 @@ function TasksTab({ user }: { user: any }) {
     );
   };
 
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  const isReminderAppliedToday = (reminder: any): boolean => {
+    if (!reminder.isEnabled) return false;
+    if (reminder.frequency === 'daily') return true;
+    if (reminder.frequency === 'weekly') {
+      const activeDays = String(reminder.activeDays || '').split(',');
+      const todayName = format(new Date(), 'EEE');
+      return activeDays.includes(todayName);
+    }
+    if (reminder.frequency === 'custom') {
+      return true; // Show custom reminders
+    }
+    return false;
+  };
+
   const actionItems = useMemo(() => {
-    const taskItems = tasks.map((task: any) => ({
-      id: `task-${task.id}`,
-      type: 'task' as const,
-      title: task.title,
-      done: isTaskDone(task),
-      recurring: Boolean(task.recurring),
-      raw: task,
-      category: task.category,
-      subtitle: formatTaskRecurring(task) || (task.dueDate || task.due_date ? format(parseISO(task.dueDate || task.due_date), 'EEE, MMM d') : 'one-time task'),
-    }));
+    const taskItems = tasks
+      .filter((task: any) => {
+        if (task.recurring) return true; // Always show recurring tasks
+        const dueDate = task.dueDate || task.due_date;
+        if (!dueDate) return false;
+        return format(parseISO(dueDate), 'yyyy-MM-dd') === today;
+      })
+      .map((task: any) => ({
+        id: `task-${task.id}`,
+        type: 'task' as const,
+        title: task.title,
+        done: isTaskDone(task),
+        recurring: Boolean(task.recurring),
+        raw: task,
+        category: task.category,
+        subtitle: formatTaskRecurring(task) || (task.dueDate || task.due_date ? format(parseISO(task.dueDate || task.due_date), 'EEE, MMM d') : 'one-time task'),
+      }));
 
     const reminderItems = reminders
-      .filter((r: any) => Boolean(r.isEnabled))
+      .filter((r: any) => isReminderAppliedToday(r))
       .map((reminder: any) => ({
         id: `reminder-${reminder.id}`,
         type: 'reminder' as const,
@@ -989,7 +1012,7 @@ function TasksTab({ user }: { user: any }) {
 
     return [...taskItems, ...reminderItems]
       .sort((a, b) => Number(a.done) - Number(b.done) || Number(b.recurring) - Number(a.recurring));
-  }, [tasks, reminders, todayReminderDoneIds]);
+  }, [tasks, reminders, todayReminderDoneIds, today]);
 
   const filteredItems = actionItems.filter((item) => {
     if (filterType !== 'all' && item.type !== filterType) return false;

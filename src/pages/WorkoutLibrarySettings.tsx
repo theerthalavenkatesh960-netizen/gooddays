@@ -228,16 +228,27 @@ export default function WorkoutLibrarySettings() {
     if (state.tab) setTab(state.tab);
     if (loading) return;
     const pick = state.routinePick;
-    if (!pick?.day || !pick?.exerciseId) return;
-    const signature = `${pick.day}-${pick.exerciseId}-${state.reloadAt || 0}`;
+    
+    // Handle both single exerciseId and multi-select exerciseIds
+    const exerciseIds = pick?.exerciseIds && Array.isArray(pick.exerciseIds) 
+      ? pick.exerciseIds 
+      : (pick?.exerciseId ? [pick.exerciseId] : []);
+    
+    if (!pick?.day || exerciseIds.length === 0) return;
+    
+    const signature = `${pick.day}-${exerciseIds.join(',')}-${state.reloadAt || 0}`;
     if (lastAppliedPickRef.current === signature) return;
     lastAppliedPickRef.current = signature;
-    void addToDay(
-      String(pick.day).toLowerCase(),
-      Number(pick.exerciseId),
-      Math.max(1, Number(pick.sets) || 3),
-      Math.max(1, Number(pick.reps) || 10),
-    );
+    
+    // Add all selected exercises
+    for (const exerciseId of exerciseIds) {
+      void addToDay(
+        String(pick.day).toLowerCase(),
+        Number(exerciseId),
+        Math.max(1, Number(pick.sets) || 3),
+        Math.max(1, Number(pick.reps) || 10),
+      );
+    }
   }, [location.state, loading]);
 
   const filteredExercises = useMemo(() => {
