@@ -153,6 +153,27 @@ export default function WorkoutLibrarySettings() {
     }
   }
 
+  async function addMultipleToDay(day: string, exerciseIds: number[], sets: number, reps: number) {
+    const existing = routine[day] || [];
+    const existingIds = new Set(existing.map(e => e.exerciseId));
+    
+    // Filter out exercises that are already added
+    const newExercises = exerciseIds
+      .filter(id => !existingIds.has(id))
+      .map(exerciseId => ({ exerciseId, sets, reps }));
+    
+    if (newExercises.length === 0) return;
+    
+    const next = { ...routine, [day]: [...existing, ...newExercises] };
+    try {
+      await persistRoutine(next);
+      setRoutine(next);
+      flash(`Added ${newExercises.length} exercise${newExercises.length !== 1 ? 's' : ''}`);
+    } catch (e: any) {
+      flash(e?.message || 'Failed to save');
+    }
+  }
+
   async function addToDay(day: string, exerciseId: number, sets: number, reps: number) {
     const existing = routine[day] || [];
     if (existing.some(e => e.exerciseId === exerciseId)) return;
@@ -228,13 +249,22 @@ export default function WorkoutLibrarySettings() {
     if (state.tab) setTab(state.tab);
     if (loading) return;
     const pick = state.routinePick;
-    if (!pick?.day || !pick?.exerciseId) return;
-    const signature = `${pick.day}-${pick.exerciseId}-${state.reloadAt || 0}`;
+    
+    // Handle both single exerciseId and multi-select exerciseIds
+    const exerciseIds = pick?.exerciseIds && Array.isArray(pick.exerciseIds) 
+      ? pick.exerciseIds 
+      : (pick?.exerciseId ? [pick.exerciseId] : []);
+    
+    if (!pick?.day || exerciseIds.length === 0) return;
+    
+    const signature = `${pick.day}-${exerciseIds.join(',')}-${state.reloadAt || 0}`;
     if (lastAppliedPickRef.current === signature) return;
     lastAppliedPickRef.current = signature;
-    void addToDay(
+    
+    // Add all selected exercises in batch
+    addMultipleToDay(
       String(pick.day).toLowerCase(),
-      Number(pick.exerciseId),
+      exerciseIds,
       Math.max(1, Number(pick.sets) || 3),
       Math.max(1, Number(pick.reps) || 10),
     );

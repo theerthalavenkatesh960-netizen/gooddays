@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Dumbbell, Plus, Trash2, TrendingUp, Activity, BarChart3, Trophy } from 'lucide-react';
+import { ArrowLeft, Dumbbell, Plus, Trash2, TrendingUp, Activity, BarChart3, Trophy, Check } from 'lucide-react';
 import { format, parseISO, subDays } from 'date-fns';
 import * as api from '../lib/api';
 
@@ -148,6 +148,43 @@ export default function ExerciseLoggerPage() {
     setDraftSets(prevDrafts => [...prevDrafts, draft]);
     setStatus('Draft set added. Tap Log to save.');
     setTimeout(() => setStatus(''), 1200);
+  }
+
+  async function logAllDraftSets() {
+    if (draftSets.length === 0 || !exId) return;
+    
+    setSaving(true);
+    try {
+      const plan = await ensureTodayPlan();
+      const createdSets: WorkoutSet[] = [];
+      
+      // Log all draft sets in sequence
+      for (const draft of draftSets) {
+        const created = await api.logWorkoutSet(Number(plan.id), {
+          exerciseId: exId,
+          setNumber: draft.setNumber,
+          reps: Number(draft.reps || 0),
+          weightKg: Number(draft.weightKg || 0),
+          isCompleted: Boolean(draft.isCompleted),
+        });
+        createdSets.push(created as WorkoutSet);
+      }
+      
+      // Update state with all logged sets
+      setSetsToday(prev => [
+        ...prev,
+        ...createdSets,
+      ].sort((a, b) => Number(a.setNumber || 0) - Number(b.setNumber || 0)));
+      
+      setDraftSets([]); // Clear all drafts
+      setStatus(`Logged ${createdSets.length} set${createdSets.length !== 1 ? 's' : ''} successfully!`);
+      await load();
+    } catch (e: any) {
+      setStatus(e?.message || 'Failed to log sets');
+    } finally {
+      setSaving(false);
+      setTimeout(() => setStatus(''), 1800);
+    }
   }
 
   async function saveDraftSet(localId: string) {
@@ -314,9 +351,22 @@ export default function ExerciseLoggerPage() {
       <div className="rounded-2xl p-4 mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Today&apos;s Logging</p>
-          <button onClick={addSet} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1" style={{ backgroundColor: 'var(--accent)' }}>
-            <Plus size={12} /> {saving ? 'Adding...' : 'Add Set'}
-          </button>
+          <div className="flex items-center gap-2">
+            {draftSets.length > 0 && (
+              <button 
+                onClick={logAllDraftSets} 
+                disabled={saving} 
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1" 
+                style={{ backgroundColor: '#22c55e' }}
+                title={`Log all ${draftSets.length} draft set${draftSets.length !== 1 ? 's' : ''}`}
+              >
+                <Check size={12} /> Log All ({draftSets.length})
+              </button>
+            )}
+            <button onClick={addSet} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex items-center gap-1" style={{ backgroundColor: 'var(--accent)' }}>
+              <Plus size={12} /> {saving ? 'Adding...' : 'Add Set'}
+            </button>
+          </div>
         </div>
 
         {(setsToday.length === 0 && draftSets.length === 0) ? (

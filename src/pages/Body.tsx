@@ -660,19 +660,19 @@ function DietTab() {
         <div className="grid grid-cols-4 gap-2">
           <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
             <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Kcal</p>
-            <p className="text-xs font-bold num" style={{ color: 'var(--text-primary)' }}>{format2(consumedCalories)}/{format2(macroTargets.calories)}</p>
+            <p className="text-xs font-bold num" style={{ color: 'var(--text-primary)' }}>{Math.round(consumedCalories)}/{Math.round(macroTargets.calories)}</p>
           </div>
           <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
             <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Protein</p>
-            <p className="text-xs font-bold num" style={{ color: 'var(--accent-green)' }}>{format2(consumedMacros.protein)}/{format2(macroTargets.protein)}g</p>
+            <p className="text-xs font-bold num" style={{ color: 'var(--accent-green)' }}>{Math.round(consumedMacros.protein)}/{Math.round(macroTargets.protein)}g</p>
           </div>
           <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
             <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Carbs</p>
-            <p className="text-xs font-bold num" style={{ color: 'var(--accent-gold)' }}>{format2(consumedMacros.carbs)}/{format2(macroTargets.carbs)}g</p>
+            <p className="text-xs font-bold num" style={{ color: 'var(--accent-gold)' }}>{Math.round(consumedMacros.carbs)}/{Math.round(macroTargets.carbs)}g</p>
           </div>
           <div className="rounded-lg px-2 py-1.5" style={{ backgroundColor: 'var(--surface-elevated)' }}>
             <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Fats</p>
-            <p className="text-xs font-bold num" style={{ color: 'var(--accent)' }}>{format2(consumedMacros.fats)}/{format2(macroTargets.fats)}g</p>
+            <p className="text-xs font-bold num" style={{ color: 'var(--accent)' }}>{Math.round(consumedMacros.fats)}/{Math.round(macroTargets.fats)}g</p>
           </div>
         </div>
         <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
