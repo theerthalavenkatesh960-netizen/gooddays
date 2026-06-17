@@ -981,7 +981,7 @@ function TasksTab({ user }: { user: any }) {
   const actionItems = useMemo(() => {
     const taskItems = tasks
       .filter((task: any) => {
-        if (task.recurring) return true; // Always show recurring tasks
+        // Only show tasks due today (recurring or not)
         const dueDate = task.dueDate || task.due_date;
         if (!dueDate) return false;
         return format(parseISO(dueDate), 'yyyy-MM-dd') === today;
