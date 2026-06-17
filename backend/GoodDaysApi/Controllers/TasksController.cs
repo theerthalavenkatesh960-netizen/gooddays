@@ -96,7 +96,8 @@ public class TasksController : ControllerBase
                 RecurrenceId = recurrenceId,
                 RecurrenceInterval = req.RecurrenceInterval,
                 RecurrenceUnit = req.RecurrenceUnit,
-                Status = req.Status
+                Status = req.Status,
+                NotesJson = req.NotesJson
             };
             _db.Tasks.Add(task);
             await _db.SaveChangesAsync();
@@ -331,6 +332,7 @@ public class TasksController : ControllerBase
                 task.CompletedAt = null;
             }
         }
+        if (req.NotesJson != null) task.NotesJson = req.NotesJson;
         
         await _db.SaveChangesAsync();
         return Ok(task);
@@ -373,7 +375,8 @@ public record CreateTaskRequest(
     string[]? RecurrenceDays = null,
     int? RecurrenceId = null,
     int? RecurrenceInterval = null,
-    string? RecurrenceUnit = null // "days", "weeks", "months", "years"
+    string? RecurrenceUnit = null, // "days", "weeks", "months", "years"
+    string? NotesJson = null
 );
 
 public record UpdateTaskRequest(
@@ -390,5 +393,6 @@ public record UpdateTaskRequest(
     int? RecurrenceInterval = null,
     string? RecurrenceUnit = null,
     DateTime? CompletedAt = null,
-    bool? IsCompleted = null
+    bool? IsCompleted = null,
+    string? NotesJson = null
 );

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Settings, CheckCircle2, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, GripVertical, LayoutDashboard, CheckSquare, Repeat, X } from 'lucide-react';
+import { Bell, Settings, CheckCircle2, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, GripVertical, LayoutDashboard, CheckSquare, Repeat, X, ListChecks, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, isToday, parseISO, subDays, addDays, startOfWeek } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -838,9 +838,42 @@ function TasksTab({ user }: { user: any }) {
   const [todayReminderDoneIds, setTodayReminderDoneIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [showAddSheet, setShowAddSheet] = useState(false);
-  const [itemType, setItemType] = useState<'task' | 'reminder'>('task');
+  const [itemType, setItemType] = useState<'task' | 'reminder' | 'list'>('task');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed' | 'recurring'>('all');
   const [filterType, setFilterType] = useState<'all' | 'task' | 'reminder'>('all');
+  const [expandedListIds, setExpandedListIds] = useState<Set<string>>(new Set());
+
+  const [listForm, setListForm] = useState({
+    title: '',
+    items: [{ text: '', done: false }],
+  });
+
+  const addListFormItem = () =>
+    setListForm(prev => ({ ...prev, items: [...prev.items, { text: '', done: false }] }));
+  const removeListFormItem = (idx: number) =>
+    setListForm(prev => ({ ...prev, items: prev.items.filter((_, i) => i !== idx) }));
+  const updateListFormItem = (idx: number, text: string) =>
+    setListForm(prev => ({ ...prev, items: prev.items.map((it, i) => i === idx ? { ...it, text } : it) }));
+
+  const parseListItems = (task: any): { id: string; text: string; done: boolean }[] => {
+    try {
+      const raw = task.notesJson ?? task.notes_json ?? task.NotesJson;
+      if (!raw) return [];
+      return JSON.parse(raw);
+    } catch { return []; }
+  };
+
+  const toggleListItem = async (task: any, itemId: string) => {
+    const items = parseListItems(task).map((it: any) =>
+      it.id === itemId ? { ...it, done: !it.done } : it
+    );
+    const allDone = items.length > 0 && items.every((i: any) => i.done);
+    await api.updateTask(Number(task.id), {
+      notesJson: JSON.stringify(items),
+      isCompleted: allDone,
+    });
+    await loadAll();
+  };
 
   const [taskForm, setTaskForm] = useState({
     title: '',
@@ -979,23 +1012,82 @@ function TasksTab({ user }: { user: any }) {
   };
 
   const actionItems = useMemo(() => {
-    const taskItems = tasks
+    // For recurring tasks: deduplicate by recurrenceId — show only one entry per series
+    // Pick priority: today's instance > next upcoming > most recent
+    const recurringGroups = new Map<string, any[]>();
+    const nonRecurringTasks: any[] = [];
+
+    for (const task of tasks) {
+      if (task.recurring && task.recurrenceId) {
+        const group = recurringGroups.get(task.recurrenceId) || [];
+        group.push(task);
+        recurringGroups.set(task.recurrenceId, group);
+      } else {
+        nonRecurringTasks.push(task);
+      }
+    }
+
+    // Pick the best representative from each recurring group
+    const representativeTasks: any[] = [];
+    for (const [, group] of recurringGroups) {
+      const todayInstance = group.find((t: any) => {
+        const d = t.dueDate || t.due_date;
+        return d && format(parseISO(d), 'yyyy-MM-dd') === today;
+      });
+      const nextUpcoming = group
+        .filter((t: any) => {
+          const d = t.dueDate || t.due_date;
+          return d && format(parseISO(d), 'yyyy-MM-dd') > today && !isTaskDone(t);
+        })
+        .sort((a: any, b: any) => {
+          const da = a.dueDate || a.due_date;
+          const db = b.dueDate || b.due_date;
+          return String(da).localeCompare(String(db));
+        })[0];
+      const pendingOverdue = group
+        .filter((t: any) => {
+          const d = t.dueDate || t.due_date;
+          return d && format(parseISO(d), 'yyyy-MM-dd') < today && !isTaskDone(t);
+        })
+        .sort((a: any, b: any) => String(b.dueDate || b.due_date).localeCompare(String(a.dueDate || a.due_date)))[0];
+      representativeTasks.push(todayInstance || pendingOverdue || nextUpcoming || group[0]);
+    }
+
+    const allTasksToShow = [...nonRecurringTasks, ...representativeTasks];
+
+    const taskItems = allTasksToShow
       .filter((task: any) => {
-        // Only show tasks due today (recurring or not)
         const dueDate = task.dueDate || task.due_date;
-        if (!dueDate) return false;
-        return format(parseISO(dueDate), 'yyyy-MM-dd') === today;
+        // No due date → always show
+        if (!dueDate) return true;
+        const dueDateStr = format(parseISO(dueDate), 'yyyy-MM-dd');
+        // Hide old completed non-recurring tasks
+        if (!task.recurring && dueDateStr < today && isTaskDone(task)) return false;
+        return true;
       })
-      .map((task: any) => ({
-        id: `task-${task.id}`,
-        type: 'task' as const,
-        title: task.title,
-        done: isTaskDone(task),
-        recurring: Boolean(task.recurring),
-        raw: task,
-        category: task.category,
-        subtitle: formatTaskRecurring(task) || (task.dueDate || task.due_date ? format(parseISO(task.dueDate || task.due_date), 'EEE, MMM d') : 'one-time task'),
-      }));
+      .map((task: any) => {
+        const dueDate = task.dueDate || task.due_date;
+        const dueDateStr = dueDate ? format(parseISO(dueDate), 'yyyy-MM-dd') : null;
+        const isOverdue = dueDateStr && dueDateStr < today && !isTaskDone(task);
+        const isFuture = dueDateStr && dueDateStr > today;
+        const recurrLabel = formatTaskRecurring(task);
+        const subtitle = recurrLabel
+          || (isOverdue ? `Overdue · ${format(parseISO(dueDate), 'EEE, MMM d')}` : null)
+          || (isFuture ? format(parseISO(dueDate), 'EEE, MMM d') : null)
+          || (dueDateStr === today ? 'Today' : null)
+          || 'No due date';
+        return {
+          id: `task-${task.id}`,
+          type: 'task' as const,
+          title: task.title,
+          done: isTaskDone(task),
+          recurring: Boolean(task.recurring),
+          isOverdue: Boolean(isOverdue),
+          raw: task,
+          category: task.category,
+          subtitle,
+        };
+      });
 
     const reminderItems = reminders
       .filter((r: any) => isReminderAppliedToday(r))
@@ -1011,7 +1103,15 @@ function TasksTab({ user }: { user: any }) {
       }));
 
     return [...taskItems, ...reminderItems]
-      .sort((a, b) => Number(a.done) - Number(b.done) || Number(b.recurring) - Number(a.recurring));
+      .sort((a, b) => {
+        // Done tasks always last
+        if (a.done !== b.done) return Number(a.done) - Number(b.done);
+        // Overdue first among pending
+        const aOver = (a as any).isOverdue ? 0 : 1;
+        const bOver = (b as any).isOverdue ? 0 : 1;
+        if (aOver !== bOver) return aOver - bOver;
+        return 0;
+      });
   }, [tasks, reminders, todayReminderDoneIds, today]);
 
   const filteredItems = actionItems.filter((item) => {
@@ -1070,6 +1170,7 @@ function TasksTab({ user }: { user: any }) {
     });
     setItemType('task');
     setShowAddSheet(false);
+    setListForm({ title: '', items: [{ text: '', done: false }] });
   };
 
   const createItem = async () => {
@@ -1093,6 +1194,22 @@ function TasksTab({ user }: { user: any }) {
       };
       if (!taskForm.recurring && taskForm.dueDate) body.dueDate = new Date(taskForm.dueDate);
       await api.createTask(body);
+      resetForm();
+      await loadAll();
+      return;
+    }
+
+    if (itemType === 'list') {
+      if (!listForm.title.trim()) return;
+      const items = listForm.items
+        .filter(it => it.text.trim())
+        .map(it => ({ id: crypto.randomUUID(), text: it.text.trim(), done: false }));
+      await api.createTask({
+        userId: user.id,
+        title: listForm.title.trim(),
+        category: 'Shopping',
+        notesJson: JSON.stringify(items),
+      });
       resetForm();
       await loadAll();
       return;
@@ -1191,6 +1308,88 @@ function TasksTab({ user }: { user: any }) {
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
                       {item.type === 'task' ? 'Task' : 'Reminder'}
                     </span>
+                    {(item as any).isOverdue && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                        Overdue
+                              ) : (
+                                filteredItems.map(item => {
+                                  const listItems = item.type === 'task' ? parseListItems(item.raw) : [];
+                                  const isList = listItems.length > 0;
+                                  const isExpanded = expandedListIds.has(item.id);
+                                  const doneCount = listItems.filter((i: any) => i.done).length;
+
+                                  if (isList) {
+                                    return (
+                                      <div key={item.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                                        {/* List header */}
+                                        <button
+                                          className="w-full flex items-center gap-2.5 p-3 press"
+                                          onClick={() => setExpandedListIds(prev => {
+                                            const next = new Set(prev);
+                                            next.has(item.id) ? next.delete(item.id) : next.add(item.id);
+                                            return next;
+                                          })}
+                                        >
+                                          <ListChecks size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                                          <div className="flex-1 min-w-0 text-left">
+                                            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</p>
+                                            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{doneCount}/{listItems.length} done</p>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            {doneCount === listItems.length && listItems.length > 0 && (
+                                              <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent-green)22', color: 'var(--accent-green)' }}>All done</span>
+                                            )}
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>List</span>
+                                            {isExpanded ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
+                                            <button onClick={e => { e.stopPropagation(); deleteItem(item); }} className="p-1 press" style={{ color: '#ef4444' }}><Trash2 size={13} /></button>
+                                          </div>
+                                        </button>
+                                        {/* Expanded items */}
+                                        {isExpanded && (
+                                          <div className="px-3 pb-3 space-y-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
+                                            {listItems.map((it: any) => (
+                                              <button
+                                                key={it.id}
+                                                className="w-full flex items-center gap-2.5 py-1.5 press"
+                                                onClick={() => toggleListItem(item.raw, it.id)}
+                                              >
+                                                {it.done
+                                                  ? <CheckCircle2 size={16} style={{ color: 'var(--accent-green)', flexShrink: 0 }} />
+                                                  : <div className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{ borderColor: 'var(--border)' }} />}
+                                                <span className="text-sm text-left" style={{ color: it.done ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: it.done ? 'line-through' : 'none' }}>
+                                                  {it.text}
+                                                </span>
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  }
+
+                                  return (
+                                  <div key={item.id} className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', opacity: item.done ? 0.6 : 1 }}>
+                                    <div className="flex items-center gap-2.5">
+                                      <button onClick={() => toggleItem(item)} className="flex-shrink-0 press">
+                                        {item.done
+                                          ? <CheckCircle2 size={20} style={{ color: 'var(--accent)' }} />
+                                          : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--border)' }} />}
+                                      </button>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate" style={{ color: item.done ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: item.done ? 'line-through' : 'none' }}>
+                                          {item.title}
+                                        </p>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
+                                            {item.type === 'task' ? 'Task' : 'Reminder'}
+                                          </span>
+                                          {(item as any).isOverdue && (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                                              Overdue
+                                            </span>
+                                          )}
+                      </span>
+                    )}
                     {item.category && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: item.type === 'reminder' ? 'var(--accent)22' : 'var(--surface-elevated)', color: item.type === 'reminder' ? 'var(--accent)' : 'var(--text-muted)' }}>
                         {item.category}
@@ -1202,7 +1401,7 @@ function TasksTab({ user }: { user: any }) {
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>{item.subtitle}</p>
+                  <p className="text-[11px] mt-1" style={{ color: (item as any).isOverdue ? '#ef4444' : 'var(--text-muted)' }}>{item.subtitle}</p>
                   {item.type === 'task' && item.raw.recurring && renderTaskHistory(item.raw)}
                 </div>
                 <button onClick={() => deleteItem(item)} className="p-1.5 rounded-lg press" style={{ color: '#ef4444' }}>
@@ -1210,7 +1409,8 @@ function TasksTab({ user }: { user: any }) {
                 </button>
               </div>
             </div>
-          ))
+          );
+          })
         )}
       </div>
 
@@ -1233,19 +1433,57 @@ function TasksTab({ user }: { user: any }) {
 
               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
                 <div className="flex gap-2">
-                  {(['task', 'reminder'] as const).map(kind => (
-                    <button
-                      key={kind}
-                      onClick={() => setItemType(kind)}
-                      className="px-3 py-1.5 rounded-full text-xs font-semibold press"
-                      style={{ backgroundColor: itemType === kind ? 'var(--accent)' : 'var(--surface-elevated)', color: itemType === kind ? '#fff' : 'var(--text-secondary)' }}
-                    >
-                      {kind === 'task' ? 'Task' : 'Reminder'}
-                    </button>
-                  ))}
+                  {(['task', 'reminder', 'list'] as const).map(kind => (
                 </div>
 
-                {itemType === 'task' ? (
+                {(['task', 'reminder', 'list'] as const).map(kind => (
+                  <button
+                    key={kind}
+                    onClick={() => setItemType(kind)}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold press"
+                    style={{ backgroundColor: itemType === kind ? 'var(--accent)' : 'var(--surface-elevated)', color: itemType === kind ? '#fff' : 'var(--text-secondary)' }}
+                  >
+                    {kind === 'task' ? 'Task' : kind === 'reminder' ? 'Reminder' : 'List'}
+                  </button>
+                ))}
+
+                {itemType === 'list' ? (
+                  <>
+                    <input
+                      type="text"
+                      value={listForm.title}
+                      onChange={e => setListForm(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="List name (e.g. Grocery list)"
+                      className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
+                    <div className="space-y-2">
+                      {listForm.items.map((it, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={it.text}
+                            onChange={e => updateListFormItem(idx, e.target.value)}
+                            placeholder={`Item ${idx + 1}`}
+                            className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addListFormItem(); } }}
+                          />
+                          <button onClick={() => removeListFormItem(idx)} className="p-1.5" style={{ color: 'var(--text-muted)' }}>
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={addListFormItem}
+                        className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg press"
+                        style={{ color: 'var(--accent)', backgroundColor: 'var(--surface-elevated)' }}
+                      >
+                        <Plus size={12} /> Add item
+                      </button>
+                    </div>
+                  </>
+                ) : itemType === 'task' ? (
                   <>
                     <input
                       type="text"
