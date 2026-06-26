@@ -864,9 +864,10 @@ function TasksTab({ user }: { user: any }) {
   };
 
   const toggleListItem = async (task: any, itemId: string) => {
-    const items = parseListItems(task).map((it: any) =>
-      it.id === itemId ? { ...it, done: !it.done } : it
-    );
+    const items = parseListItems(task).map((it: any, idx: number) => {
+      const currentId = it.id ?? String(idx);
+      return currentId === itemId ? { ...it, done: !it.done } : it;
+    });
     const allDone = items.length > 0 && items.every((i: any) => i.done);
     await api.updateTask(Number(task.id), {
       notesJson: JSON.stringify(items),
@@ -1292,124 +1293,128 @@ function TasksTab({ user }: { user: any }) {
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No actions in this view</p>
           </div>
         ) : (
-          filteredItems.map(item => (
-            <div key={item.id} className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', opacity: item.done ? 0.6 : 1 }}>
-              <div className="flex items-center gap-2.5">
-                <button onClick={() => toggleItem(item)} className="flex-shrink-0 press">
-                  {item.done
-                    ? <CheckCircle2 size={20} style={{ color: 'var(--accent)' }} />
-                    : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--border)' }} />}
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: item.done ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: item.done ? 'line-through' : 'none' }}>
-                    {item.title}
-                  </p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
-                      {item.type === 'task' ? 'Task' : 'Reminder'}
-                    </span>
-                    {(item as any).isOverdue && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
-                        Overdue
-                              ) : (
-                                filteredItems.map(item => {
-                                  const listItems = item.type === 'task' ? parseListItems(item.raw) : [];
-                                  const isList = listItems.length > 0;
-                                  const isExpanded = expandedListIds.has(item.id);
-                                  const doneCount = listItems.filter((i: any) => i.done).length;
+          filteredItems.map(item => {
+            const listItems = item.type === 'task' ? parseListItems(item.raw) : [];
+            const isList = listItems.length > 0;
+            const isExpanded = expandedListIds.has(item.id);
+            const doneCount = listItems.filter((it: any) => it.done).length;
 
-                                  if (isList) {
-                                    return (
-                                      <div key={item.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-                                        {/* List header */}
-                                        <button
-                                          className="w-full flex items-center gap-2.5 p-3 press"
-                                          onClick={() => setExpandedListIds(prev => {
-                                            const next = new Set(prev);
-                                            next.has(item.id) ? next.delete(item.id) : next.add(item.id);
-                                            return next;
-                                          })}
-                                        >
-                                          <ListChecks size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-                                          <div className="flex-1 min-w-0 text-left">
-                                            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</p>
-                                            <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{doneCount}/{listItems.length} done</p>
-                                          </div>
-                                          <div className="flex items-center gap-2">
-                                            {doneCount === listItems.length && listItems.length > 0 && (
-                                              <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent-green)22', color: 'var(--accent-green)' }}>All done</span>
-                                            )}
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>List</span>
-                                            {isExpanded ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
-                                            <button onClick={e => { e.stopPropagation(); deleteItem(item); }} className="p-1 press" style={{ color: '#ef4444' }}><Trash2 size={13} /></button>
-                                          </div>
-                                        </button>
-                                        {/* Expanded items */}
-                                        {isExpanded && (
-                                          <div className="px-3 pb-3 space-y-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
-                                            {listItems.map((it: any) => (
-                                              <button
-                                                key={it.id}
-                                                className="w-full flex items-center gap-2.5 py-1.5 press"
-                                                onClick={() => toggleListItem(item.raw, it.id)}
-                                              >
-                                                {it.done
-                                                  ? <CheckCircle2 size={16} style={{ color: 'var(--accent-green)', flexShrink: 0 }} />
-                                                  : <div className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{ borderColor: 'var(--border)' }} />}
-                                                <span className="text-sm text-left" style={{ color: it.done ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: it.done ? 'line-through' : 'none' }}>
-                                                  {it.text}
-                                                </span>
-                                              </button>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  }
+            if (isList) {
+              return (
+                <div key={item.id} className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', opacity: item.done ? 0.7 : 1 }}>
+                  <button
+                    className="w-full flex items-center gap-2.5 p-3 press"
+                    onClick={() => setExpandedListIds(prev => {
+                      const next = new Set(prev);
+                      next.has(item.id) ? next.delete(item.id) : next.add(item.id);
+                      return next;
+                    })}
+                  >
+                    <ListChecks size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-sm font-medium truncate" style={{ color: item.done ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: item.done ? 'line-through' : 'none' }}>
+                        {item.title}
+                      </p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
+                          List
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
+                          {doneCount}/{listItems.length} done
+                        </span>
+                        {(item as any).isOverdue && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                            Overdue
+                          </span>
+                        )}
+                        {item.recurring && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent-green)22', color: 'var(--accent-green)' }}>
+                            recurring
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {isExpanded ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        deleteItem(item);
+                      }}
+                      className="p-1 press"
+                      style={{ color: '#ef4444' }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </button>
 
-                                  return (
-                                  <div key={item.id} className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', opacity: item.done ? 0.6 : 1 }}>
-                                    <div className="flex items-center gap-2.5">
-                                      <button onClick={() => toggleItem(item)} className="flex-shrink-0 press">
-                                        {item.done
-                                          ? <CheckCircle2 size={20} style={{ color: 'var(--accent)' }} />
-                                          : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--border)' }} />}
-                                      </button>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium truncate" style={{ color: item.done ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: item.done ? 'line-through' : 'none' }}>
-                                          {item.title}
-                                        </p>
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                          <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
-                                            {item.type === 'task' ? 'Task' : 'Reminder'}
-                                          </span>
-                                          {(item as any).isOverdue && (
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
-                                              Overdue
-                                            </span>
-                                          )}
-                      </span>
-                    )}
-                    {item.category && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: item.type === 'reminder' ? 'var(--accent)22' : 'var(--surface-elevated)', color: item.type === 'reminder' ? 'var(--accent)' : 'var(--text-muted)' }}>
-                        {item.category}
-                      </span>
-                    )}
-                    {item.recurring && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent-green)22', color: 'var(--accent-green)' }}>
-                        recurring
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] mt-1" style={{ color: (item as any).isOverdue ? '#ef4444' : 'var(--text-muted)' }}>{item.subtitle}</p>
-                  {item.type === 'task' && item.raw.recurring && renderTaskHistory(item.raw)}
+                  {isExpanded && (
+                    <div className="px-3 pb-3 space-y-1.5 border-t" style={{ borderColor: 'var(--border)' }}>
+                      {listItems.map((it: any, idx: number) => {
+                        const itemId = it.id ?? String(idx);
+                        return (
+                          <button
+                            key={itemId}
+                            className="w-full flex items-center gap-2.5 py-1.5 press"
+                            onClick={() => toggleListItem(item.raw, itemId)}
+                          >
+                            {it.done
+                              ? <CheckCircle2 size={16} style={{ color: 'var(--accent-green)', flexShrink: 0 }} />
+                              : <div className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{ borderColor: 'var(--border)' }} />}
+                            <span className="text-sm text-left" style={{ color: it.done ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: it.done ? 'line-through' : 'none' }}>
+                              {it.text}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <button onClick={() => deleteItem(item)} className="p-1.5 rounded-lg press" style={{ color: '#ef4444' }}>
-                  <Trash2 size={13} />
-                </button>
+              );
+            }
+
+            return (
+              <div key={item.id} className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', opacity: item.done ? 0.6 : 1 }}>
+                <div className="flex items-center gap-2.5">
+                  <button onClick={() => toggleItem(item)} className="flex-shrink-0 press">
+                    {item.done
+                      ? <CheckCircle2 size={20} style={{ color: 'var(--accent)' }} />
+                      : <div className="w-5 h-5 rounded-full border-2" style={{ borderColor: 'var(--border)' }} />}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: item.done ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: item.done ? 'line-through' : 'none' }}>
+                      {item.title}
+                    </p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
+                        {item.type === 'task' ? 'Task' : 'Reminder'}
+                      </span>
+                      {(item as any).isOverdue && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                          Overdue
+                        </span>
+                      )}
+                      {item.category && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: item.type === 'reminder' ? 'var(--accent)22' : 'var(--surface-elevated)', color: item.type === 'reminder' ? 'var(--accent)' : 'var(--text-muted)' }}>
+                          {item.category}
+                        </span>
+                      )}
+                      {item.recurring && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent-green)22', color: 'var(--accent-green)' }}>
+                          recurring
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] mt-1" style={{ color: (item as any).isOverdue ? '#ef4444' : 'var(--text-muted)' }}>
+                      {item.subtitle}
+                    </p>
+                    {item.type === 'task' && item.raw.recurring && renderTaskHistory(item.raw)}
+                  </div>
+                  <button onClick={() => deleteItem(item)} className="p-1.5 rounded-lg press" style={{ color: '#ef4444' }}>
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
-            </div>
-          );
+            );
           })
         )}
       </div>
@@ -1434,18 +1439,16 @@ function TasksTab({ user }: { user: any }) {
               <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
                 <div className="flex gap-2">
                   {(['task', 'reminder', 'list'] as const).map(kind => (
+                    <button
+                      key={kind}
+                      onClick={() => setItemType(kind)}
+                      className="px-3 py-1.5 rounded-full text-xs font-semibold press"
+                      style={{ backgroundColor: itemType === kind ? 'var(--accent)' : 'var(--surface-elevated)', color: itemType === kind ? '#fff' : 'var(--text-secondary)' }}
+                    >
+                      {kind === 'task' ? 'Task' : kind === 'reminder' ? 'Reminder' : 'List'}
+                    </button>
+                  ))}
                 </div>
-
-                {(['task', 'reminder', 'list'] as const).map(kind => (
-                  <button
-                    key={kind}
-                    onClick={() => setItemType(kind)}
-                    className="px-3 py-1.5 rounded-full text-xs font-semibold press"
-                    style={{ backgroundColor: itemType === kind ? 'var(--accent)' : 'var(--surface-elevated)', color: itemType === kind ? '#fff' : 'var(--text-secondary)' }}
-                  >
-                    {kind === 'task' ? 'Task' : kind === 'reminder' ? 'Reminder' : 'List'}
-                  </button>
-                ))}
 
                 {itemType === 'list' ? (
                   <>
