@@ -396,6 +396,7 @@ export interface CreateTaskParams {
   recurrenceEndDate?: Date;
   recurrenceDays?: string[];
   status?: string;
+  notesJson?: string;
 }
 
 export async function createTask(params: CreateTaskParams) {
@@ -421,6 +422,7 @@ export interface UpdateTaskParams {
   status?: string;
   completedAt?: Date;
   isCompleted?: boolean;
+  notesJson?: string;
 }
 
 export async function updateTask(id: number, params: UpdateTaskParams) {

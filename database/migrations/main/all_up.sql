@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   recurrence_unit text,
   recurrence_days text[],
   recurrence_id integer,
+  notes_json text,
   status text DEFAULT 'pending',
   created_at timestamptz DEFAULT now(),
   completed_at timestamptz

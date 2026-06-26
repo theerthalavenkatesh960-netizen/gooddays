@@ -43,6 +43,8 @@ public class DailyTask
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     [Column("completed_at")]
     public DateTime? CompletedAt { get; set; }
+    [Column("notes_json")]
+    public string? NotesJson { get; set; }
 
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
