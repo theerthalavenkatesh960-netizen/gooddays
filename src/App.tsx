@@ -47,6 +47,7 @@ import IngredientPickerPage from './pages/IngredientPickerPage';
 import ExerciseLoggerPage from './pages/ExerciseLoggerPage';
 import BodyAllPrsPage from './pages/BodyAllPrsPage';
 import BodyAllMealsPage from './pages/BodyAllMealsPage';
+import MealNeedsReviewPage from './pages/MealNeedsReviewPage';
 import LogIngredientPage from './pages/LogIngredientPage';
 import AiChat from './pages/AiChat';
 
@@ -113,6 +114,7 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/diet/add-ingredient" element={<PrivateRoute><Layout><AddIngredientPage /></Layout></PrivateRoute>} />
               <Route path="/body/progress/prs" element={<PrivateRoute><Layout><BodyAllPrsPage /></Layout></PrivateRoute>} />
               <Route path="/body/diet/meals" element={<PrivateRoute><Layout><BodyAllMealsPage /></Layout></PrivateRoute>} />
+              <Route path="/body/diet/meals/review" element={<PrivateRoute><Layout><MealNeedsReviewPage /></Layout></PrivateRoute>} />
               <Route path="/body/workout/exercise/:exerciseId/log" element={<PrivateRoute><Layout><ExerciseLoggerPage /></Layout></PrivateRoute>} />
               <Route path="/body/workout-log" element={<PrivateRoute><Layout><Workout /></Layout></PrivateRoute>} />
               <Route path="/finance"  element={<PrivateRoute><Layout><Finance /></Layout></PrivateRoute>} />
