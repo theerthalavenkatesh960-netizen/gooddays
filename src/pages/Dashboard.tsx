@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Settings, CheckCircle2, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, GripVertical, LayoutDashboard, CheckSquare, Repeat, X, ListChecks, ChevronDown, ChevronUp } from 'lucide-react';
+import { MessageCircle, Settings, CheckCircle2, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, GripVertical, LayoutDashboard, CheckSquare, Repeat, X, ListChecks, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, isToday, parseISO, subDays, addDays, startOfWeek } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -2749,8 +2749,8 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <button className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
-            <Bell size={18} style={{ color: 'var(--text-secondary)' }} />
+          <button onClick={() => navigate('/ai-chat')} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
+            <MessageCircle size={18} style={{ color: 'var(--text-secondary)' }} />
           </button>
           <button onClick={() => navigate('/settings')} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
             <Settings size={18} style={{ color: 'var(--text-secondary)' }} />

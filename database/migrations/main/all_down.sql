@@ -1,11 +1,22 @@
 -- ===================================================================
 -- GoodDays Application - Full Database Rollback (DOWN)
--- Combined from migrations: 007 → 001 (reverse order)
+-- Combined from migrations: 014 → 001 (reverse order)
 -- WARNING: This will DELETE ALL DATA permanently!
 -- Run: psql -U postgres -d gooddays -f all_down.sql
 -- ===================================================================
 
 BEGIN;
+
+-- ===================================================================
+-- 014 ROLLBACK: AI Chat tables
+-- ===================================================================
+
+DROP INDEX IF EXISTS idx_ai_messages_user_created;
+DROP INDEX IF EXISTS idx_ai_messages_conversation_id;
+DROP INDEX IF EXISTS idx_ai_conversations_user_id;
+
+DROP TABLE IF EXISTS ai_messages;
+DROP TABLE IF EXISTS ai_conversations;
 
 -- ===================================================================
 -- 010 ROLLBACK: Routine block templates

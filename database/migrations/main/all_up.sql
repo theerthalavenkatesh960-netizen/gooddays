@@ -1,6 +1,6 @@
 -- ===================================================================
 -- GoodDays Application - Full Database Schema (UP)
--- Combined from migrations: 001 → 007
+-- Combined from migrations: 001 → 014
 -- Description: Creates the complete schema (all tables, indexes)
 -- Run: psql -U postgres -d gooddays -f all_up.sql
 -- ===================================================================
@@ -1046,5 +1046,37 @@ ALTER TABLE user_onboarding
 
 ALTER TABLE user_onboarding
   ADD COLUMN IF NOT EXISTS plan_adherence_score INTEGER;
+
+-- ===================================================================
+-- 014: AI CHAT TABLES
+-- ===================================================================
+
+CREATE TABLE IF NOT EXISTS ai_conversations (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL DEFAULT 'New Chat',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ai_messages (
+  id SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  action_taken TEXT,
+  tokens_used INTEGER,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_conversations_user_id
+  ON ai_conversations(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_messages_conversation_id
+  ON ai_messages(conversation_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_messages_user_created
+  ON ai_messages(user_id, created_at DESC);
 
 COMMIT;

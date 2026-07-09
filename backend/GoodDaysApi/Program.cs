@@ -1,5 +1,6 @@
 using GoodDaysApi.Data;
 using GoodDaysApi.Services;
+using GoodDaysApi.Services.Ai;
 using GoodDaysApi.Services.Gmail;
 using GoodDaysApi.Services.Financial;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -67,8 +68,31 @@ builder.Services.AddHostedService<GmailSyncBackgroundWorker>();
 // Register AI Service
 builder.Services.AddScoped<AiService>();
 
-// Register Meal Services
-builder.Services.AddScoped<MealMacroCalculatorService>();
+// Register AI Chat Services
+builder.Services.AddScoped<IAiToolsRegistry, AiToolsRegistry>();
+builder.Services.AddScoped<IAiChatService, AiChatService>();
+builder.Services.AddScoped<IAiToolExecutor, AiToolExecutor>();
+
+
+// Register LLM Provider based on configuration
+builder.Services.AddScoped<ILlmProvider>(provider =>
+{
+    var config = provider.GetRequiredService<IConfiguration>();
+    var userSettings = provider.GetRequiredService<AppDbContext>().UserAiSettings.AsNoTracking().FirstOrDefault();
+    
+    var providerType = userSettings?.Provider ?? config.GetValue<string>("Ai:Provider") ?? "local-llama";
+    var localEndpoint = userSettings?.LocalEndpoint ?? config.GetValue<string>("Ai:LocalEndpoint") ?? "http://localhost:11434";
+    var localModel = userSettings?.LocalModel ?? config.GetValue<string>("Ai:LocalModel") ?? "llama3.1:8b";
+    var claudeApiKey = userSettings?.ClaudeApiKey ?? config.GetValue<string>("Ai:ClaudeApiKey");
+    var claudeModel = userSettings?.ClaudeModel ?? config.GetValue<string>("Ai:ClaudeModel") ?? "claude-3-5-sonnet-latest";
+
+    if (providerType == "claude" && !string.IsNullOrWhiteSpace(claudeApiKey))
+    {
+        return new ClaudeLlmProvider(claudeApiKey, claudeModel);
+    }
+    
+    return new LocalLlmProvider(localEndpoint, localModel);
+});
 
 // Register Onboarding Service
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();

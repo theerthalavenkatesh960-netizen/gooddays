@@ -7,7 +7,7 @@
 ═══════════════════════════════════════════════════════ */
 
 :root {
-  --app-height: 100dvh;
+  --app-height: 100svh;
   --bg: #0A0A0F;
   --surface: #13131A;
   --surface-elevated: #1C1C26;
@@ -133,6 +133,7 @@
 
   html {
     height: var(--app-height);
+    overscroll-behavior-y: none;
   }
 
   body {
@@ -144,11 +145,13 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    overscroll-behavior-y: none;
   }
 
   #root {
     min-height: var(--app-height);
     height: var(--app-height);
+    overscroll-behavior-y: none;
   }
 }
 
@@ -265,8 +268,9 @@
   .bottom-nav {
     position: fixed;
     bottom: 0;
-    left: 0;
-    right: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(390px, 100%);
     height: calc(64px + env(safe-area-inset-bottom));
     background-color: var(--surface);
     border-top: 1px solid var(--border);
