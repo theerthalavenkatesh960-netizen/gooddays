@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Send, ChevronLeft, Menu, Plus } from 'lucide-react';
+import { Send, Menu, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContextApi';
 import * as api from '../lib/api';
 
@@ -44,14 +44,9 @@ export default function AiChat() {
       
       try {
         setLoading(true);
-        const response = await fetch(`/api/ai-chat/${conversationId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setConversation(data);
-          setError('');
-        } else {
-          setError('Failed to load conversation');
-        }
+        const data = await api.getAiChatConversation(conversationId);
+        setConversation(data);
+        setError('');
       } catch (err) {
         setError('Error loading conversation');
         console.error(err);
@@ -69,11 +64,8 @@ export default function AiChat() {
       if (!user) return;
       
       try {
-        const response = await fetch('/api/ai-chat');
-        if (response.ok) {
-          const data = await response.json();
-          setConversations(data);
-        }
+        const data = await api.getAiChatConversations();
+        setConversations(data);
       } catch (err) {
         console.error('Error loading conversations', err);
       }
@@ -85,16 +77,8 @@ export default function AiChat() {
   // Create new conversation
   const handleNewConversation = async () => {
     try {
-      const response = await fetch('/api/ai-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'New Chat' })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        navigate(`/ai-chat/${data.id}`);
-      }
+      const data = await api.createAiChatConversation('New Chat');
+      navigate(`/ai-chat/${data.id}`);
     } catch (err) {
       console.error('Error creating conversation', err);
       setError('Failed to create conversation');
@@ -111,24 +95,11 @@ export default function AiChat() {
       setMessage('');
       setError('');
 
-      const response = await fetch(`/api/ai-chat/${conversationId}/message`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: message })
-      });
+      await api.sendAiChatMessage(conversationId, message);
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Reload conversation to show new messages
-        const convResponse = await fetch(`/api/ai-chat/${conversationId}`);
-        if (convResponse.ok) {
-          const updatedConv = await convResponse.json();
-          setConversation(updatedConv);
-        }
-      } else {
-        setError('Failed to send message');
-      }
+      // Reload conversation to show new messages
+      const updatedConv = await api.getAiChatConversation(conversationId);
+      setConversation(updatedConv);
     } catch (err) {
       console.error('Error sending message', err);
       setError('Error sending message');

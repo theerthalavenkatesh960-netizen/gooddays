@@ -324,6 +324,28 @@ export async function updateAiPlannerSettings(patch: Partial<AiPlannerSettings>)
   return request('ai-planner/settings', { method: 'PUT', body: JSON.stringify(patch) });
 }
 
+export async function getAiChatConversations() {
+  return request('ai-chat');
+}
+
+export async function createAiChatConversation(title?: string) {
+  return request('ai-chat', {
+    method: 'POST',
+    body: JSON.stringify({ title: title ?? 'New Chat' }),
+  });
+}
+
+export async function getAiChatConversation(conversationId: string | number) {
+  return request(`ai-chat/${conversationId}`);
+}
+
+export async function sendAiChatMessage(conversationId: string | number, content: string) {
+  return request(`ai-chat/${conversationId}/message`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
+}
+
 export async function getHealthProfile(): Promise<HealthProfile> {
   return request('ai-planner/profile');
 }
