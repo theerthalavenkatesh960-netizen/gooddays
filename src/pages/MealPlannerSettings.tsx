@@ -224,7 +224,11 @@ export default function MealPlannerSettings() {
   useEffect(() => { loadAll(); }, []);
 
   useEffect(() => {
-    setTab((location.state as any)?.tab ?? 'weekly');
+    const state = (location.state as any) || {};
+    setTab(state?.tab ?? 'weekly');
+    if (state?.reloadAt) {
+      loadAll();
+    }
   }, [location.state]);
 
   async function openGenerateModal() {

@@ -471,13 +471,10 @@ function DietTab() {
   const todayKey = format(new Date(), 'EEEE').toLowerCase();
   const utcToday = getUtcDateKey();
 
-  // Listen for location changes that indicate meals were added
+  // Refresh whenever this route instance is re-entered (e.g. returning from add/pick pages)
   useEffect(() => {
-    // If we're coming back to this tab and there was a meal pick, refresh
-    if ((location.state as any)?.mealPick || (location.state as any)?.mealAdded) {
-      setRefreshTrigger(prev => prev + 1);
-    }
-  }, [location.pathname]);
+    setRefreshTrigger(prev => prev + 1);
+  }, [location.key]);
 
   useEffect(() => {
     async function load() {
