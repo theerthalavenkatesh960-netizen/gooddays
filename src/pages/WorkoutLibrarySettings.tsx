@@ -174,19 +174,6 @@ export default function WorkoutLibrarySettings() {
     }
   }
 
-  async function addToDay(day: string, exerciseId: number, sets: number, reps: number) {
-    const existing = routine[day] || [];
-    if (existing.some(e => e.exerciseId === exerciseId)) return;
-    const next = { ...routine, [day]: [...existing, { exerciseId, sets, reps }] };
-    try {
-      await persistRoutine(next);
-      setRoutine(next);
-      flash('Saved');
-    } catch (e: any) {
-      flash(e?.message || 'Failed to save');
-    }
-  }
-
   async function removeFromDay(day: string, exerciseId: number) {
     const next = { ...routine, [day]: (routine[day] || []).filter(e => e.exerciseId !== exerciseId) };
     try {

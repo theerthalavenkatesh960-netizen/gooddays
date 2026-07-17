@@ -1,6 +1,7 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Anthropic;
+using GoodDaysApi.Models;
 
 namespace GoodDaysApi.Services.Ai;
 
@@ -21,74 +22,67 @@ public class ClaudeLlmProvider : ILlmProvider
     {
         try
         {
-            var client = new Anthropic.Anthropic(_apiKey);
-            
-            // Build message history
-            var messages = history.Select(m => new Anthropic.Message.MessageParam
-            {
-                Role = m.Role == "user" ? "user" : "assistant",
-                Content = m.Content
-            }).ToList();
-            
-            // Add current user message
-            messages.Add(new Anthropic.Message.MessageParam
-            {
-                Role = "user",
-                Content = userMessage
-            });
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
+            request.Headers.Add("x-api-key", _apiKey);
+            request.Headers.Add("anthropic-version", "2023-06-01");
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            // Convert tools to Claude format
-            var claudeTools = availableTools.Select(t => new Anthropic.Tool
-            {
-                Name = t.Name,
-                Description = t.Description,
-                InputSchema = new Anthropic.ToolInputSchema
+            var messages = history
+                .Select(m => new Dictionary<string, object>
                 {
-                    Type = "object",
-                    Properties = t.InputSchema.Properties.ToDictionary(
-                        p => p.Key,
-                        p => new Anthropic.ToolInputSchema.Property
-                        {
-                            Type = p.Value.Type,
-                            Description = p.Value.Description
-                        }
-                    ),
-                    Required = t.InputSchema.Required
-                }
-            }).ToList();
+                    ["role"] = m.Role == "assistant" ? "assistant" : "user",
+                    ["content"] = m.Content
+                })
+                .ToList();
 
-            // Call Claude API
-            var response = await client.Messages.CreateAsync(new Anthropic.MessageCreateParams
+            messages.Add(new Dictionary<string, object>
             {
-                Model = _modelId,
-                MaxTokens = 2048,
-                Messages = messages,
-                Tools = claudeTools.Count > 0 ? claudeTools : null,
-                SystemPrompt = GetSystemPrompt()
+                ["role"] = "user",
+                ["content"] = userMessage
             });
 
-            var textContent = response.Content.FirstOrDefault(c => c.Type == "text");
-            var toolUseContent = response.Content.FirstOrDefault(c => c.Type == "tool_use");
-
-            var result = new LlmResponse
+            var payload = new Dictionary<string, object>
             {
-                Content = textContent?.GetType().GetProperty("Text")?.GetValue(textContent)?.ToString() ?? "",
-                TokensUsed = response.Usage.OutputTokens + response.Usage.InputTokens
+                ["model"] = _modelId,
+                ["max_tokens"] = 2048,
+                ["system"] = GetSystemPrompt(),
+                ["messages"] = messages
             };
 
-            if (toolUseContent != null)
+            request.Content = JsonContent.Create(payload);
+            using var response = await _httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            var content = await response.Content.ReadAsStringAsync();
+
+            using var doc = JsonDocument.Parse(content);
+            var root = doc.RootElement;
+
+            var aiText = "";
+            if (root.TryGetProperty("content", out var contentArray) && contentArray.ValueKind == JsonValueKind.Array)
             {
-                var toolName = (string)toolUseContent.GetType().GetProperty("Name").GetValue(toolUseContent);
-                var toolInput = (Dictionary<string, object>)toolUseContent.GetType().GetProperty("Input").GetValue(toolUseContent);
-                
-                result.ToolCall = new ToolCall
+                foreach (var item in contentArray.EnumerateArray())
                 {
-                    Name = toolName,
-                    Parameters = toolInput
-                };
+                    if (item.TryGetProperty("type", out var type) && type.GetString() == "text" &&
+                        item.TryGetProperty("text", out var text))
+                    {
+                        aiText += text.GetString();
+                    }
+                }
             }
 
-            return result;
+            int? tokensUsed = null;
+            if (root.TryGetProperty("usage", out var usage))
+            {
+                var inTokens = usage.TryGetProperty("input_tokens", out var i) ? i.GetInt32() : 0;
+                var outTokens = usage.TryGetProperty("output_tokens", out var o) ? o.GetInt32() : 0;
+                tokensUsed = inTokens + outTokens;
+            }
+
+            return new LlmResponse
+            {
+                Content = string.IsNullOrWhiteSpace(aiText) ? "I couldn't process that request." : aiText,
+                TokensUsed = tokensUsed
+            };
         }
         catch (Exception ex)
         {

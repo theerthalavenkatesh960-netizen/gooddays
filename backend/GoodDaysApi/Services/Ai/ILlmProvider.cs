@@ -1,11 +1,12 @@
 using System.Text.Json.Serialization;
+using GoodDaysApi.Models;
 
 namespace GoodDaysApi.Services.Ai;
 
 public class ToolCall
 {
     [JsonPropertyName("name")]
-    public string Name { get; set; }
+    public string Name { get; set; } = string.Empty;
     
     [JsonPropertyName("parameters")]
     public Dictionary<string, object> Parameters { get; set; } = new();
@@ -24,9 +25,9 @@ public class LlmResponse
 
 public class Tool
 {
-    public string Name { get; set; }
+    public string Name { get; set; } = string.Empty;
     
-    public string Description { get; set; }
+    public string Description { get; set; } = string.Empty;
     
     public InputSchema InputSchema { get; set; } = new();
 }
@@ -42,7 +43,7 @@ public class InputSchema
 
 public class PropertyDef
 {
-    public string Type { get; set; }
+    public string Type { get; set; } = "string";
     
     public string? Description { get; set; }
 }

@@ -1,24 +1,25 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GoodDaysApi.Models;
 
 namespace GoodDaysApi.Services.Ai;
 
 public class OllamaMessage
 {
     [JsonPropertyName("role")]
-    public string Role { get; set; }
+    public string Role { get; set; } = string.Empty;
     
     [JsonPropertyName("content")]
-    public string Content { get; set; }
+    public string Content { get; set; } = string.Empty;
 }
 
 public class OllamaRequest
 {
     [JsonPropertyName("model")]
-    public string Model { get; set; }
+    public string Model { get; set; } = string.Empty;
     
     [JsonPropertyName("messages")]
-    public List<OllamaMessage> Messages { get; set; }
+    public List<OllamaMessage> Messages { get; set; } = new();
     
     [JsonPropertyName("stream")]
     public bool Stream { get; set; } = false;
@@ -27,7 +28,7 @@ public class OllamaRequest
 public class OllamaResponse
 {
     [JsonPropertyName("message")]
-    public OllamaMessage Message { get; set; }
+    public OllamaMessage Message { get; set; } = new();
     
     [JsonPropertyName("done")]
     public bool Done { get; set; }
