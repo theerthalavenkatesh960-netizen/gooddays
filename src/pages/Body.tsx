@@ -471,10 +471,16 @@ function DietTab() {
   const todayKey = format(new Date(), 'EEEE').toLowerCase();
   const utcToday = getUtcDateKey();
 
-  // Refresh whenever this route instance is re-entered (e.g. returning from add/pick pages)
+  // Refresh when returning with should reload signal, or when route key changes
   useEffect(() => {
-    setRefreshTrigger(prev => prev + 1);
-  }, [location.key]);
+    if ((location.state as any)?.shouldReloadMeals) {
+      // Direct reload signal from meal add
+      setRefreshTrigger(prev => prev + 1);
+    } else {
+      // Fallback: reload on route key change
+      setRefreshTrigger(prev => prev + 1);
+    }
+  }, [location.key, location.state?.shouldReloadMeals]);
 
   useEffect(() => {
     async function load() {

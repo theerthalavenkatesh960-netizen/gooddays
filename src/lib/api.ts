@@ -207,7 +207,14 @@ function popLoad() { _loadingCount = Math.max(0, _loadingCount - 1); if (_loadin
 async function request(path: string, opts: RequestInit = {}) {
   pushLoad();
   try {
-    const res = await fetch(`${API_BASE}/api/${path}`, { ...opts, headers: { 'Content-Type': 'application/json', ...getAuthHeader(), ...(opts.headers || {}) } });
+    const method = String(opts.method || 'GET').toUpperCase();
+    const requestOpts: RequestInit = {
+      ...opts,
+      // Avoid stale cached GET responses after create/update flows.
+      ...(method === 'GET' ? { cache: 'no-store' as RequestCache } : {}),
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader(), ...(opts.headers || {}) },
+    };
+    const res = await fetch(`${API_BASE}/api/${path}`, requestOpts);
     const text = await res.text();
     let payload: any = text;
     try { payload = text ? JSON.parse(text) : null; } catch { payload = text; }

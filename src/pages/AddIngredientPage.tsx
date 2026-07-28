@@ -115,7 +115,13 @@ export default function AddIngredientPage() {
       
       setStatus('Ingredient logged! ✓');
       setTimeout(() => {
-        navigate('/body?tab=Diet', { state: { mealAdded: true } });
+        navigate('/settings/meals', {
+          state: {
+            tab: 'library',
+            reloadAt: Date.now(),
+            mealCreated: created,
+          },
+        });
       }, 800);
     } catch (e: any) {
       console.error('Ingredient logging error:', e);
@@ -146,7 +152,7 @@ export default function AddIngredientPage() {
     <div className="pt-4 pb-nav px-4" style={{ backgroundColor: 'var(--bg)', minHeight: '100vh' }}>
       <div className="flex items-center gap-3 mb-4">
         <button
-          onClick={() => navigate('/body?tab=Diet')}
+          onClick={() => navigate('/settings/meals', { state: { tab: 'library' } })}
           className="w-9 h-9 rounded-xl flex items-center justify-center"
           style={{ backgroundColor: 'var(--surface)' }}
         >
