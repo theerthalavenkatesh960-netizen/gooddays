@@ -21,7 +21,34 @@ type Goal = {
   checklistCompleted?: number;
   progressPercent?: number;
   daysRemaining?: number | null;
+  weeklyLearningSummary?: { done: number; total: number };
 };
+
+type GoalLog = {
+  id: number;
+  content?: string;
+  date?: string;
+};
+
+function getWeekStartMonday(now: Date): string {
+  const start = new Date(now);
+  const day = start.getDay();
+  const diff = (day + 6) % 7;
+  start.setDate(start.getDate() - diff);
+  start.setHours(0, 0, 0, 0);
+  return start.toISOString().slice(0, 10);
+}
+
+function extractLearningWeeklyState(log: GoalLog): { isLearning: boolean; weeklyDone: boolean } {
+  if (!log.content) return { isLearning: false, weeklyDone: false };
+  try {
+    const parsed = JSON.parse(log.content);
+    if (!parsed || parsed.entryType !== 'learning') return { isLearning: false, weeklyDone: false };
+    return { isLearning: true, weeklyDone: Boolean(parsed.weeklyDone) };
+  } catch {
+    return { isLearning: false, weeklyDone: false };
+  }
+}
 
 function computeGoalProgress(goal: Goal): number {
   const goalType = String(goal.goalType || '').trim().toLowerCase();
@@ -66,7 +93,23 @@ export default function Goals() {
     if (showLoader) setLoading(true);
     try {
       const data = await api.getGoals();
-      setGoals(Array.isArray(data) ? data : []);
+      const baseGoals = Array.isArray(data) ? data : [];
+      const weekStart = getWeekStartMonday(new Date());
+
+      const withWeekly = await Promise.all(baseGoals.map(async (goal) => {
+        try {
+          const logs = await api.getGoalLogs(goal.id) as GoalLog[];
+          const weekLogs = (Array.isArray(logs) ? logs : []).filter(l => String(l.date || '').slice(0, 10) >= weekStart);
+          const learningFlags = weekLogs.map(extractLearningWeeklyState).filter(x => x.isLearning);
+          const done = learningFlags.filter(x => x.weeklyDone).length;
+          const total = learningFlags.length;
+          return { ...goal, weeklyLearningSummary: total > 0 ? { done, total } : undefined };
+        } catch {
+          return goal;
+        }
+      }));
+
+      setGoals(withWeekly);
     } finally {
       if (showLoader) setLoading(false);
     }
@@ -149,6 +192,11 @@ export default function Goals() {
                         ? `${goal.checklistCompleted ?? 0}/${goal.checklistTotal ?? 0} done`
                         : `${(goal.currentValue ?? 0).toLocaleString()}/${(goal.targetValue ?? 0).toLocaleString()} ${goal.unit ?? ''}`}
                     </p>
+                    {goal.weeklyLearningSummary && (
+                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--accent)' }}>
+                        This week: {goal.weeklyLearningSummary.done}/{goal.weeklyLearningSummary.total} learning entries done
+                      </p>
+                    )}
                   </div>
                   <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />
                 </div>

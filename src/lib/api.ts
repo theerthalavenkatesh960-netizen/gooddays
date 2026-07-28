@@ -1641,6 +1641,11 @@ export async function updateGoalLog(id: number, body: any) {
   return request(`goals/logs/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
+export async function deleteGoalLog(id: number) {
+  if (DUMMY_FLAGS.goals) return Promise.resolve({ success: true });
+  return request(`goals/logs/${id}`, { method: 'DELETE' });
+}
+
 export async function getFlashcards(goalId: number) {
   if (DUMMY_FLAGS.goals) return Promise.resolve([]);
   return request(`goals/${goalId}/flashcards`);
