@@ -55,6 +55,7 @@ public class AppDbContext : DbContext
 
     // Weekly Review entities
     public DbSet<WeeklyReview> WeeklyReviews { get; set; } = null!;
+    public DbSet<WeeklyRecommendationSnapshot> WeeklyRecommendationSnapshots { get; set; } = null!;
 
     // Meal planner entities
     public DbSet<MealIngredient> MealIngredients { get; set; } = null!;

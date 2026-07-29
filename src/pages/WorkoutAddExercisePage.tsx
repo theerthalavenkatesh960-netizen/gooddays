@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
 import * as api from '../lib/api';
-
-const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio', 'Full Body'];
+import { MUSCLE_GROUPS_DETAILED } from '../lib/config';
 
 export default function WorkoutAddExercisePage() {
   const navigate = useNavigate();
@@ -11,14 +10,34 @@ export default function WorkoutAddExercisePage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: '',
-    muscleGroup: 'Chest',
+    muscleGroup: 'Upper Chest',
     description: '',
     imageUrl: '',
+    videoUrl: '',
+    beginnerTips: '',
+    animationFrames: '',
+    commonMistakes: '',
     shareWithOthers: false,
   });
 
   async function save() {
     if (!form.name.trim()) return;
+    if (form.animationFrames.trim()) {
+      try {
+        JSON.parse(form.animationFrames);
+      } catch {
+        setStatus('Animation frames must be valid JSON array');
+        return;
+      }
+    }
+    if (form.commonMistakes.trim()) {
+      try {
+        JSON.parse(form.commonMistakes);
+      } catch {
+        setStatus('Common mistakes must be valid JSON array');
+        return;
+      }
+    }
     setSaving(true);
     try {
       await api.createExercise({
@@ -26,6 +45,10 @@ export default function WorkoutAddExercisePage() {
         muscleGroup: form.muscleGroup,
         description: form.description.trim(),
         imageUrl: form.imageUrl.trim(),
+        videoUrl: form.videoUrl.trim() || null,
+        beginnerTips: form.beginnerTips.trim() || null,
+        animationFrames: form.animationFrames.trim() || null,
+        commonMistakes: form.commonMistakes.trim() || null,
         shareWithOthers: form.shareWithOthers,
       });
       navigate('/settings/workout-library');
@@ -66,7 +89,17 @@ export default function WorkoutAddExercisePage() {
           className="w-full px-3 py-2 text-sm rounded-xl outline-none"
           style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
         >
-          {MUSCLE_GROUPS.map(group => <option key={group} value={group}>{group}</option>)}
+          {MUSCLE_GROUPS_DETAILED.map(group =>
+            group.children.length > 0 ? (
+              <optgroup key={group.parent} label={group.parent}>
+                {group.children.map(child => (
+                  <option key={child} value={child}>{child}</option>
+                ))}
+              </optgroup>
+            ) : (
+              <option key={group.parent} value={group.parent}>{group.parent}</option>
+            )
+          )}
         </select>
 
         <input
@@ -77,12 +110,84 @@ export default function WorkoutAddExercisePage() {
           style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
         />
 
+        <input
+          value={form.videoUrl}
+          onChange={e => setForm(p => ({ ...p, videoUrl: e.target.value }))}
+          placeholder="Form video/GIF URL (optional)"
+          className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+          style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+        />
+
+        <input
+          value={form.beginnerTips}
+          onChange={e => setForm(p => ({ ...p, beginnerTips: e.target.value }))}
+          placeholder="Beginner tips (comma-separated, e.g. Keep core tight, Control lowering)"
+          className="w-full px-3 py-2 text-sm rounded-xl outline-none"
+          style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+        />
+
         <textarea
           value={form.description}
           onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
           placeholder="Description / instructions"
           rows={4}
           className="w-full px-3 py-2 text-sm rounded-xl outline-none resize-none"
+          style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+        />
+
+        <div className="rounded-xl p-3 space-y-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Animation Frames JSON</p>
+            <button
+              type="button"
+              className="text-xs font-semibold"
+              style={{ color: 'var(--accent)' }}
+              onClick={() => setForm(p => ({
+                ...p,
+                animationFrames: JSON.stringify([
+                  {
+                    phase: 0,
+                    name: 'Starting Position',
+                    duration: 0.6,
+                    muscles: { [p.muscleGroup]: 0.1 },
+                    cue: 'Set your posture and brace your core',
+                  },
+                  {
+                    phase: 1,
+                    name: 'Concentric',
+                    duration: 1.2,
+                    muscles: { [p.muscleGroup]: 0.9 },
+                    cue: 'Perform the lift with control',
+                  },
+                  {
+                    phase: 2,
+                    name: 'Eccentric',
+                    duration: 1.8,
+                    muscles: { [p.muscleGroup]: 0.5 },
+                    cue: 'Lower slowly and keep tension',
+                  },
+                ], null, 2),
+              }))}
+            >
+              Insert Template
+            </button>
+          </div>
+          <textarea
+            value={form.animationFrames}
+            onChange={e => setForm(p => ({ ...p, animationFrames: e.target.value }))}
+            placeholder='[{"phase":0,"name":"Starting Position","duration":0.6,"muscles":{"Biceps – Long Head":0.1},"cue":"..."}]'
+            rows={8}
+            className="w-full px-3 py-2 text-xs rounded-xl outline-none resize-y font-mono"
+            style={{ backgroundColor: 'var(--surface)', color: 'var(--text-primary)' }}
+          />
+        </div>
+
+        <textarea
+          value={form.commonMistakes}
+          onChange={e => setForm(p => ({ ...p, commonMistakes: e.target.value }))}
+          placeholder='Common mistakes JSON (optional): [{"mistake":"Swinging body","correction":"Keep torso still"}]'
+          rows={4}
+          className="w-full px-3 py-2 text-xs rounded-xl outline-none resize-y font-mono"
           style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
         />
 

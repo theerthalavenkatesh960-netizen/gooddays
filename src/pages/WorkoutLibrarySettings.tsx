@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import * as api from '../lib/api';
 import MuscleVisualization from '../components/MuscleVisualization';
 import WeeklyCalendar from '../components/WeeklyCalendar';
+import { MUSCLE_GROUP_FILTER, matchesMuscleFilter } from '../lib/config';
 
 type Exercise = {
   id: number;
@@ -22,7 +23,7 @@ type RoutineMap = Record<string, RoutineEntry[]>;
 type SplitPreset = { id: number; name: string; dayConfigs: string; isActive: boolean };
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio', 'Full Body'];
+const MUSCLE_GROUPS = MUSCLE_GROUP_FILTER;
 
 const MUSCLE_MAP: Record<string, string> = {
   'Chest': 'chest',
@@ -259,7 +260,7 @@ export default function WorkoutLibrarySettings() {
 
   const filteredExercises = useMemo(() => {
     let result = exercises;
-    if (filterMuscle) result = result.filter(e => e.muscleGroup === filterMuscle);
+    if (filterMuscle) result = result.filter(e => matchesMuscleFilter(e.muscleGroup, filterMuscle));
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(e =>

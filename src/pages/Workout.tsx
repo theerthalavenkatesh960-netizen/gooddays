@@ -8,12 +8,13 @@ import {
 import { format, subDays } from 'date-fns';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
+import { MUSCLE_GROUP_FILTER, MUSCLE_GROUPS_DETAILED, matchesMuscleFilter } from '../lib/config';
 
 type Exercise = { id: number; name: string; muscleGroup: string; description?: string; imageUrl?: string; isCustom?: boolean };
 type WorkoutSet = { id?: number; exerciseId: number; setNumber: number; reps?: number; weightKg?: number; durationSeconds?: number; isCompleted: boolean; notes?: string };
 type WorkoutPlan = { id?: number; date: string; dayLabel?: string; plannedExercises: string; isCompleted: boolean; sets?: WorkoutSet[]; images?: { id: number; imageUrl: string; caption?: string }[] };
 
-const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio', 'Full Body'];
+const MUSCLE_GROUPS = MUSCLE_GROUP_FILTER;
 
 const TABS = [
   { id: 'today', label: "Today's Workout", shortLabel: 'Today', icon: Dumbbell },
@@ -229,7 +230,7 @@ export default function Workout() {
 
   const plannedExercises = todayPlan ? (() => { try { return JSON.parse(todayPlan.plannedExercises); } catch { return []; } })() : [];
 
-  const filteredExercises = filterMuscle === 'All' ? exercises : exercises.filter(e => e.muscleGroup === filterMuscle);
+  const filteredExercises = filterMuscle === 'All' ? exercises : exercises.filter(e => matchesMuscleFilter(e.muscleGroup, filterMuscle));
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -619,7 +620,7 @@ export default function Workout() {
                   ))}
                 </div>
                 <div className="space-y-2">
-                  {(filterMuscle === 'All' ? exercises : exercises.filter(e => e.muscleGroup === filterMuscle)).map(ex => {
+                  {(filterMuscle === 'All' ? exercises : exercises.filter(e => matchesMuscleFilter(e.muscleGroup, filterMuscle))).map(ex => {
                     const isSelected = selectedExercises.includes(ex.id);
                     return (
                       <button key={ex.id} onClick={() => setSelectedExercises(prev => isSelected ? prev.filter(id => id !== ex.id) : [...prev, ex.id])}
@@ -661,7 +662,15 @@ export default function Workout() {
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />
                 <select value={newExercise.muscleGroup} onChange={e => setNewExercise(p => ({ ...p, muscleGroup: e.target.value }))}
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400">
-                  {MUSCLE_GROUPS.map(mg => <option key={mg} value={mg}>{mg}</option>)}
+                  {MUSCLE_GROUPS_DETAILED.map(group =>
+                    group.children.length > 0 ? (
+                      <optgroup key={group.parent} label={group.parent}>
+                        {group.children.map(child => <option key={child} value={child}>{child}</option>)}
+                      </optgroup>
+                    ) : (
+                      <option key={group.parent} value={group.parent}>{group.parent}</option>
+                    )
+                  )}
                 </select>
                 <input value={newExercise.description} onChange={e => setNewExercise(p => ({ ...p, description: e.target.value }))} placeholder="Description (optional)"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-400" />

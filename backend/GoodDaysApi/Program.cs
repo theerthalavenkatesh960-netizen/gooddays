@@ -70,6 +70,8 @@ builder.Services.AddScoped<AiService>();
 
 // Register meal services
 builder.Services.AddScoped<MealMacroCalculatorService>();
+builder.Services.AddScoped<WeeklyGoalAdjustmentService>();
+builder.Services.AddHostedService<WeeklyReviewGenerationService>();
 
 // Register AI Chat Services
 builder.Services.AddScoped<IAiToolsRegistry, AiToolsRegistry>();

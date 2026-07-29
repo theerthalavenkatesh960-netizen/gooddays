@@ -1,6 +1,6 @@
 -- ===================================================================
 -- GoodDays Application - Full Database Schema (UP)
--- Combined from migrations: 001 → 014
+-- Combined from migrations: 001 → 016
 -- Description: Creates the complete schema (all tables, indexes)
 -- Run: psql -U postgres -d gooddays -f all_up.sql
 -- ===================================================================
@@ -334,6 +334,10 @@ CREATE TABLE IF NOT EXISTS exercises (
   muscle_group text NOT NULL,
   description text,
   image_url text,
+  video_url text,
+  beginner_tips text,
+  animation_frames jsonb DEFAULT '[]'::jsonb,
+  common_mistakes jsonb DEFAULT '[]'::jsonb,
   is_custom boolean DEFAULT false,
   user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE,
   created_at timestamptz DEFAULT now()
@@ -479,6 +483,17 @@ CREATE TABLE IF NOT EXISTS weekly_reviews (
   updated_at timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS weekly_recommendation_snapshots (
+  id SERIAL PRIMARY KEY,
+  user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  week_start timestamptz NOT NULL,
+  target_week_start timestamptz NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  snapshot_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  generated_at timestamptz NOT NULL DEFAULT now(),
+  decided_at timestamptz
+);
+
 -- 001 indexes
 CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON user_profiles(email);
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
@@ -506,6 +521,7 @@ CREATE INDEX IF NOT EXISTS idx_card_expenses_assigned_at ON card_expenses(assign
 CREATE INDEX IF NOT EXISTS idx_exercises_user_id ON exercises(user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_exercises_user_name_ci
   ON exercises (COALESCE(user_id, 0), lower(name));
+CREATE INDEX IF NOT EXISTS idx_exercises_has_animation ON exercises USING gin (animation_frames);
 CREATE INDEX IF NOT EXISTS idx_workout_split_presets_user_id ON workout_split_presets(user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_workout_split_presets_user_name_ci
   ON workout_split_presets (user_id, lower(name));
@@ -523,6 +539,7 @@ CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders(user_id);
 CREATE INDEX IF NOT EXISTS idx_reminder_logs_reminder_date ON reminder_logs(reminder_id, date);
 CREATE INDEX IF NOT EXISTS idx_journal_entries_user_date ON journal_entries(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_weekly_reviews_user_week ON weekly_reviews(user_id, week_start_date);
+CREATE INDEX IF NOT EXISTS idx_wrs_user_week ON weekly_recommendation_snapshots(user_id, week_start DESC);
 
 -- ===================================================================
 -- 002: MEAL PLANNER

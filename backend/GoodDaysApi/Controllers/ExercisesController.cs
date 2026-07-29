@@ -20,6 +20,10 @@ public class ExercisesController : ControllerBase
         public string MuscleGroup { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string? ImageUrl { get; set; }
+        public string? VideoUrl { get; set; }
+        public string? BeginnerTips { get; set; }
+        public string? AnimationFrames { get; set; }
+        public string? CommonMistakes { get; set; }
         public bool ShareWithOthers { get; set; }
     }
 
@@ -29,6 +33,10 @@ public class ExercisesController : ControllerBase
         public string MuscleGroup { get; set; } = string.Empty;
         public string? Description { get; set; }
         public string? ImageUrl { get; set; }
+        public string? VideoUrl { get; set; }
+        public string? BeginnerTips { get; set; }
+        public string? AnimationFrames { get; set; }
+        public string? CommonMistakes { get; set; }
         public bool? ShareWithOthers { get; set; }
     }
 
@@ -68,6 +76,10 @@ public class ExercisesController : ControllerBase
             MuscleGroup = body.MuscleGroup,
             Description = body.Description,
             ImageUrl = body.ImageUrl,
+            VideoUrl = body.VideoUrl,
+            BeginnerTips = body.BeginnerTips,
+            AnimationFrames = body.AnimationFrames,
+            CommonMistakes = body.CommonMistakes,
             UserId = body.ShareWithOthers ? null : userId,
             IsCustom = true,
             CreatedAt = DateTime.UtcNow,
@@ -88,6 +100,10 @@ public class ExercisesController : ControllerBase
         exercise.MuscleGroup = body.MuscleGroup;
         exercise.Description = body.Description;
         exercise.ImageUrl = body.ImageUrl;
+        exercise.VideoUrl = body.VideoUrl;
+        exercise.BeginnerTips = body.BeginnerTips;
+        exercise.AnimationFrames = body.AnimationFrames;
+        exercise.CommonMistakes = body.CommonMistakes;
         if (body.ShareWithOthers.HasValue)
         {
             exercise.UserId = body.ShareWithOthers.Value ? null : userId;

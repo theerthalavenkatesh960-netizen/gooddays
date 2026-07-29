@@ -2376,6 +2376,132 @@ export async function generateWeeklyReview(weekStart?: string) {
   return request(`weeklyreviews/generate${qs}`, { method: 'POST' });
 }
 
+export type WeeklyRecommendationResponse = {
+  weekStart: string;
+  targetWeekStart: string;
+  generatedAt: string;
+  mode: 'recommend-only';
+  filters: WeeklyRecommendationFilters;
+  signals: {
+    mealAdherence: number;
+    calorieAdherence: number;
+    macroAdherence: {
+      score: number;
+      proteinRatio: number;
+      carbsRatio: number;
+      fatsRatio: number;
+    };
+    workoutAdherence: number;
+    strengthProgress: {
+      score: number;
+      volumeChangeRatio: number;
+      prCount: number;
+    };
+    weightProgress: {
+      score: number;
+      weeklyChangeKg: number;
+      targetDirection: 'gain' | 'lose' | 'maintain' | 'unknown';
+      currentAverageKg?: number;
+      previousAverageKg?: number;
+      targetWeightKg?: number;
+      hasEnoughData: boolean;
+    };
+  };
+  summary: {
+    dailyCaloriesTarget?: number;
+    plannedWeeklyCalories: number;
+    actualWeeklyCalories: number;
+    plannedWorkoutDays: number;
+    completedWorkoutDays: number;
+    weeklyVolume: number;
+    previousWeeklyVolume: number;
+    prCount: number;
+  };
+  dailyNutrition: Array<{
+    date: string;
+    plannedMealCount: number;
+    loggedMealCount: number;
+    matchedPlannedMealCount: number;
+    plannedCalories: number;
+    actualCalories: number;
+    plannedProteinG: number;
+    actualProteinG: number;
+    plannedCarbsG: number;
+    actualCarbsG: number;
+    plannedFatsG: number;
+    actualFatsG: number;
+  }>;
+  recommendations: Array<{
+    domain: string;
+    priority: 'low' | 'medium' | 'high';
+    title: string;
+    proposedChange: string;
+    rationale: string;
+    confidence: number;
+  }>;
+  suggestedPlans: {
+    mealPlan: Record<string, Array<{ mealTemplateId: number; timeOfDay?: string }>>;
+    workoutRoutine: Record<string, Array<{ exerciseId: number; sets: number; reps: number }>>;
+  };
+};
+
+export type WeeklyRecommendationFilters = {
+  includeMealTemplateIds?: number[];
+  excludeMealTemplateIds?: number[];
+  includeMealNames?: string[];
+  excludeMealNames?: string[];
+  includeExerciseIds?: number[];
+  excludeExerciseIds?: number[];
+  includeMuscleGroups?: string[];
+  excludeMuscleGroups?: string[];
+};
+
+export async function generateWeeklyRecommendations(body?: {
+  weekStart?: string;
+  forNextWeek?: boolean;
+  filters?: WeeklyRecommendationFilters;
+}): Promise<{ snapshotId: number; result: WeeklyRecommendationResponse }> {
+  return request('weeklyreviews/recommendations/generate', {
+    method: 'POST',
+    body: JSON.stringify(body || {}),
+  });
+}
+
+export async function applyWeeklyRecommendations(body: {
+  targetWeekStart?: string;
+  mealPlan?: Record<string, Array<{ mealTemplateId: number; timeOfDay?: string }>>;
+  workoutRoutine?: Record<string, Array<{ exerciseId: number; sets: number; reps: number }>>;
+  workoutSplitName?: string;
+}) {
+  return request('weeklyreviews/recommendations/apply', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export type RecommendationSnapshot = {
+  id: number;
+  weekStart: string;
+  targetWeekStart: string;
+  status: 'pending' | 'approved' | 'dismissed' | 'partial';
+  generatedAt: string;
+  decidedAt?: string;
+};
+
+export async function getRecommendationSnapshots(): Promise<RecommendationSnapshot[]> {
+  return request('weeklyreviews/recommendations/snapshots');
+}
+
+export async function decideRecommendationSnapshot(
+  id: number,
+  status: 'approved' | 'dismissed' | 'partial',
+): Promise<{ id: number; status: string; decidedAt: string }> {
+  return request(`weeklyreviews/recommendations/snapshots/${id}/decide`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  });
+}
+
 // ─── DUMMY DATA (for development/testing without backend) ──────────────────
 
 const DUMMY_EXERCISES = [

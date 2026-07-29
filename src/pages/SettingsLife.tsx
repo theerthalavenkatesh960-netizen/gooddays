@@ -8,7 +8,7 @@ import * as api from '../lib/api';
 
 type LifeTab = 'Goals' | 'Journal' | 'Review';
 
-const LIFE_TABS: { id: LifeTab; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+const LIFE_TABS: { id: LifeTab; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Goals', label: 'Goals', icon: Target },
   { id: 'Journal', label: 'Journal', icon: BookOpen },
   { id: 'Review', label: 'Review', icon: BarChart2 },
@@ -170,11 +170,27 @@ function ReviewTab() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [generatingAdjustments, setGeneratingAdjustments] = useState(false);
+  const [applyingAdjustments, setApplyingAdjustments] = useState(false);
+  const [recommendation, setRecommendation] = useState<api.WeeklyRecommendationResponse | null>(null);
+  const [includeMeals, setIncludeMeals] = useState('');
+  const [excludeMeals, setExcludeMeals] = useState('');
+  const [includeMealNames, setIncludeMealNames] = useState('');
+  const [excludeMealNames, setExcludeMealNames] = useState('');
+  const [includeExercises, setIncludeExercises] = useState('');
+  const [excludeExercises, setExcludeExercises] = useState('');
+  const [includeMuscleGroups, setIncludeMuscleGroups] = useState('');
+  const [excludeMuscleGroups, setExcludeMuscleGroups] = useState('');
+  const [mealPlanDraft, setMealPlanDraft] = useState('');
+  const [workoutDraft, setWorkoutDraft] = useState('');
+  const [currentSnapshotId, setCurrentSnapshotId] = useState<number | null>(null);
+  const [snapshots, setSnapshots] = useState<api.RecommendationSnapshot[]>([]);
 
   useEffect(() => {
     api.getWeeklyReviews().then((data: any) => {
       setReviews(Array.isArray(data) ? data : []);
     }).catch(() => setReviews([])).finally(() => setLoading(false));
+    api.getRecommendationSnapshots().then(setSnapshots).catch(() => {});
   }, []);
 
   const handleGenerate = async () => {
@@ -186,6 +202,74 @@ function ReviewTab() {
       console.error(e);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleGenerateAdjustments = async () => {
+    const parseIds = (raw: string) =>
+      raw
+        .split(',')
+        .map(v => Number(v.trim()))
+        .filter(v => Number.isInteger(v) && v > 0);
+
+    setGeneratingAdjustments(true);
+    try {
+      const parseNames = (raw: string) => raw.split(',').map(v => v.trim()).filter(Boolean);
+      const resp = await api.generateWeeklyRecommendations({
+        forNextWeek: true,
+        filters: {
+          includeMealTemplateIds: parseIds(includeMeals),
+          excludeMealTemplateIds: parseIds(excludeMeals),
+          includeMealNames: parseNames(includeMealNames),
+          excludeMealNames: parseNames(excludeMealNames),
+          includeExerciseIds: parseIds(includeExercises),
+          excludeExerciseIds: parseIds(excludeExercises),
+          includeMuscleGroups: parseNames(includeMuscleGroups),
+          excludeMuscleGroups: parseNames(excludeMuscleGroups),
+        },
+      });
+      const result = resp.result;
+      setCurrentSnapshotId(resp.snapshotId);
+      setRecommendation(result);
+      setMealPlanDraft(JSON.stringify(result.suggestedPlans?.mealPlan || {}, null, 2));
+      setWorkoutDraft(JSON.stringify(result.suggestedPlans?.workoutRoutine || {}, null, 2));
+      api.getRecommendationSnapshots().then(setSnapshots).catch(() => {});
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setGeneratingAdjustments(false);
+    }
+  };
+
+  const handleApplyAdjustments = async () => {
+    if (!recommendation) return;
+
+    setApplyingAdjustments(true);
+    try {
+      const mealPlan = mealPlanDraft ? JSON.parse(mealPlanDraft) : undefined;
+      const workoutRoutine = workoutDraft ? JSON.parse(workoutDraft) : undefined;
+      await api.applyWeeklyRecommendations({
+        targetWeekStart: recommendation.targetWeekStart,
+        mealPlan,
+        workoutRoutine,
+        workoutSplitName: 'Adaptive Weekly Split',
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setApplyingAdjustments(false);
+    }
+  };
+
+  const handleDismissSnapshot = async () => {
+    if (!currentSnapshotId) return;
+    try {
+      await api.decideRecommendationSnapshot(currentSnapshotId, 'dismissed');
+      setRecommendation(null);
+      setCurrentSnapshotId(null);
+      api.getRecommendationSnapshots().then(setSnapshots).catch(() => {});
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -201,6 +285,26 @@ function ReviewTab() {
         <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
           Claude analyzes your week across tasks, workouts, finances, and goals to create a personalized review.
         </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+          <input value={includeMeals} onChange={e => setIncludeMeals(e.target.value)} placeholder="Include meal IDs (e.g. 1,5,9)"
+            className="h-9 rounded-lg px-3 text-xs" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+          <input value={excludeMeals} onChange={e => setExcludeMeals(e.target.value)} placeholder="Exclude meal IDs"
+            className="h-9 rounded-lg px-3 text-xs" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+          <input value={includeMealNames} onChange={e => setIncludeMealNames(e.target.value)} placeholder="Include meal names (e.g. Oats, Chicken)"
+            className="h-9 rounded-lg px-3 text-xs" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+          <input value={excludeMealNames} onChange={e => setExcludeMealNames(e.target.value)} placeholder="Exclude meal names"
+            className="h-9 rounded-lg px-3 text-xs" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+          <input value={includeExercises} onChange={e => setIncludeExercises(e.target.value)} placeholder="Include exercise IDs"
+            className="h-9 rounded-lg px-3 text-xs" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+          <input value={excludeExercises} onChange={e => setExcludeExercises(e.target.value)} placeholder="Exclude exercise IDs"
+            className="h-9 rounded-lg px-3 text-xs" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+          <input value={includeMuscleGroups} onChange={e => setIncludeMuscleGroups(e.target.value)} placeholder="Include muscle groups (e.g. chest, legs)"
+            className="h-9 rounded-lg px-3 text-xs" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+          <input value={excludeMuscleGroups} onChange={e => setExcludeMuscleGroups(e.target.value)} placeholder="Exclude muscle groups"
+            className="h-9 rounded-lg px-3 text-xs" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} />
+        </div>
+
         <button
           onClick={handleGenerate}
           disabled={generating}
@@ -216,7 +320,110 @@ function ReviewTab() {
             <><Sparkles size={14} /> Generate This Week's Review</>
           )}
         </button>
+
+        <button
+          onClick={handleGenerateAdjustments}
+          disabled={generatingAdjustments}
+          className="w-full mt-2 h-10 rounded-xl text-sm font-semibold press flex items-center justify-center gap-2 disabled:opacity-60"
+          style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+        >
+          {generatingAdjustments ? (
+            <>
+              <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--text-secondary)' }} />
+              Building recommendations...
+            </>
+          ) : (
+            <>Generate Meal + Workout Adjustments</>
+          )}
+        </button>
       </div>
+
+      {recommendation && (
+        <div className="p-4 rounded-2xl mb-5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>This Week's Auto-Adjustments</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{recommendation.targetWeekStart}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="rounded-lg p-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+              <p className="text-[10px] uppercase" style={{ color: 'var(--text-muted)' }}>Meal Adherence</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{Math.round(recommendation.signals.mealAdherence * 100)}%</p>
+            </div>
+            <div className="rounded-lg p-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+              <p className="text-[10px] uppercase" style={{ color: 'var(--text-muted)' }}>Workout Adherence</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{Math.round(recommendation.signals.workoutAdherence * 100)}%</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {recommendation.recommendations.slice(0, 3).map((item, idx) => (
+              <div key={`${item.domain}-${idx}`} className="rounded-lg p-2" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{item.title}</p>
+                <p className="text-[11px] mt-1" style={{ color: 'var(--text-secondary)' }}>{item.proposedChange}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 space-y-2">
+            <p className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Edit Suggested Meal Plan JSON</p>
+            <textarea
+              value={mealPlanDraft}
+              onChange={e => setMealPlanDraft(e.target.value)}
+              className="w-full h-32 rounded-lg p-2 text-[11px]"
+              style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            />
+
+            <p className="text-[11px] font-semibold uppercase" style={{ color: 'var(--text-muted)' }}>Edit Suggested Workout Routine JSON</p>
+            <textarea
+              value={workoutDraft}
+              onChange={e => setWorkoutDraft(e.target.value)}
+              className="w-full h-32 rounded-lg p-2 text-[11px]"
+              style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            />
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleApplyAdjustments}
+                disabled={applyingAdjustments}
+                className="flex-1 h-10 rounded-xl text-sm font-semibold text-white press disabled:opacity-60"
+                style={{ backgroundColor: 'var(--accent-green)' }}
+              >
+                {applyingAdjustments ? 'Applying...' : 'Apply Edited Plan'}
+              </button>
+              <button
+                onClick={handleDismissSnapshot}
+                className="h-10 px-4 rounded-xl text-sm font-semibold press"
+                style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {snapshots.length > 0 && (
+        <div className="mb-5">
+          <p className="text-xs font-semibold uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Recommendation History</p>
+          <div className="space-y-2">
+            {snapshots.slice(0, 5).map(s => (
+              <div key={s.id} className="flex items-center justify-between rounded-xl px-3 py-2" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div>
+                  <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Week of {s.weekStart}</p>
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>→ {s.targetWeekStart}</p>
+                </div>
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold" style={{
+                  backgroundColor: s.status === 'approved' ? 'var(--accent-green)22' : s.status === 'dismissed' ? 'var(--surface-elevated)' : 'var(--accent)22',
+                  color: s.status === 'approved' ? 'var(--accent-green)' : s.status === 'dismissed' ? 'var(--text-muted)' : 'var(--accent)',
+                }}>
+                  {s.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <p className="text-xs font-semibold uppercase mb-3" style={{ color: 'var(--text-muted)' }}>Past Reviews</p>
 
