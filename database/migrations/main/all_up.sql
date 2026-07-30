@@ -1065,6 +1065,147 @@ ALTER TABLE user_onboarding
   ADD COLUMN IF NOT EXISTS plan_adherence_score INTEGER;
 
 -- ===================================================================
+-- 008/009: AI PLANNER INDEXES (ensure present on upgrades)
+-- ===================================================================
+
+CREATE INDEX IF NOT EXISTS idx_user_ai_settings_user_id ON user_ai_settings(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_health_profiles_user_id ON user_health_profiles(user_id);
+
+-- ===================================================================
+-- 011: NORMALIZE meal_templates.ingredients_json FORMAT
+-- ===================================================================
+
+WITH normalized AS (
+  SELECT
+    mt.id AS meal_template_id,
+    jsonb_agg(
+      jsonb_strip_nulls(
+        jsonb_build_object(
+          'ingredientId',
+            COALESCE(
+              CASE WHEN (e->>'ingredientId') ~ '^[0-9]+$' THEN (e->>'ingredientId')::int END,
+              CASE WHEN (e->>'id') ~ '^[0-9]+$' THEN (e->>'id')::int END,
+              mi_by_name.id
+            ),
+          'name', COALESCE(NULLIF(e->>'name', ''), mi_by_id.name, mi_by_name.name),
+          'qty', COALESCE(
+            CASE WHEN (e->>'qty') ~ '^[0-9]+(\.[0-9]+)?$' THEN (e->>'qty')::numeric END,
+            1
+          ),
+          'unit', COALESCE(NULLIF(e->>'unit', ''), NULLIF(e->>'baseUnit', ''), mi_by_id.default_unit, mi_by_name.default_unit, 'unit')
+        )
+      )
+    ) AS normalized_json
+  FROM meal_templates mt
+  CROSS JOIN LATERAL jsonb_array_elements(
+    CASE
+      WHEN mt.ingredients_json IS NULL OR btrim(mt.ingredients_json) = '' THEN '[]'::jsonb
+      ELSE mt.ingredients_json::jsonb
+    END
+  ) e
+  LEFT JOIN meal_ingredients mi_by_id
+    ON mi_by_id.id = COALESCE(
+      CASE WHEN (e->>'ingredientId') ~ '^[0-9]+$' THEN (e->>'ingredientId')::int END,
+      CASE WHEN (e->>'id') ~ '^[0-9]+$' THEN (e->>'id')::int END
+    )
+  LEFT JOIN meal_ingredients mi_by_name
+    ON lower(mi_by_name.name) = lower(COALESCE(e->>'name', ''))
+  GROUP BY mt.id
+)
+UPDATE meal_templates mt
+SET ingredients_json = normalized.normalized_json::text
+FROM normalized
+WHERE mt.id = normalized.meal_template_id
+  AND mt.ingredients_json IS DISTINCT FROM normalized.normalized_json::text;
+
+-- ===================================================================
+-- 012: MAKE meal_ingredients GLOBAL (dedupe + drop user scope)
+-- ===================================================================
+
+CREATE TEMP TABLE _meal_ingredient_canonical AS
+SELECT
+  id AS old_id,
+  MIN(id) OVER (PARTITION BY lower(name)) AS canonical_id
+FROM meal_ingredients;
+
+WITH rewritten AS (
+  SELECT
+    mt.id AS meal_template_id,
+    jsonb_agg(
+      CASE
+        WHEN (e->>'ingredientId') ~ '^[0-9]+$' THEN
+          jsonb_set(
+            e,
+            '{ingredientId}',
+            to_jsonb(COALESCE(m.canonical_id, (e->>'ingredientId')::int))
+          )
+        ELSE e
+      END
+    ) AS new_json
+  FROM meal_templates mt
+  CROSS JOIN LATERAL jsonb_array_elements(
+    CASE
+      WHEN mt.ingredients_json IS NULL OR btrim(mt.ingredients_json) = '' THEN '[]'::jsonb
+      ELSE mt.ingredients_json::jsonb
+    END
+  ) e
+  LEFT JOIN _meal_ingredient_canonical m
+    ON m.old_id = CASE
+      WHEN (e->>'ingredientId') ~ '^[0-9]+$' THEN (e->>'ingredientId')::int
+    END
+  GROUP BY mt.id
+)
+UPDATE meal_templates mt
+SET ingredients_json = rewritten.new_json::text
+FROM rewritten
+WHERE mt.id = rewritten.meal_template_id
+  AND mt.ingredients_json IS DISTINCT FROM rewritten.new_json::text;
+
+DELETE FROM meal_ingredients mi
+USING _meal_ingredient_canonical map
+WHERE mi.id = map.old_id
+  AND map.old_id <> map.canonical_id;
+
+DROP INDEX IF EXISTS idx_meal_ingredients_user_id;
+DROP INDEX IF EXISTS ux_meal_ingredients_user_name_ci;
+ALTER TABLE meal_ingredients DROP CONSTRAINT IF EXISTS meal_ingredients_user_id_fkey;
+ALTER TABLE meal_ingredients DROP COLUMN IF EXISTS user_id;
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_meal_ingredients_name_ci
+  ON meal_ingredients (lower(name));
+
+-- ===================================================================
+-- 013: TASKS notes_json (upgrade safety)
+-- ===================================================================
+
+ALTER TABLE tasks
+ADD COLUMN IF NOT EXISTS notes_json text;
+
+-- ===================================================================
+-- 015: EXERCISE ANIMATION COLUMNS (upgrade safety + docs)
+-- ===================================================================
+
+ALTER TABLE exercises
+  ADD COLUMN IF NOT EXISTS video_url VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS beginner_tips TEXT,
+  ADD COLUMN IF NOT EXISTS animation_frames JSONB DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS common_mistakes JSONB DEFAULT '[]';
+
+CREATE INDEX IF NOT EXISTS idx_exercises_has_animation ON exercises USING gin (animation_frames);
+
+COMMENT ON COLUMN exercises.animation_frames IS
+  'JSON array of animation keyframes. Example: [{"phase": 0, "name": "Starting Position", "duration": 0.5, "muscles": {"biceps-long": 0.0}, "cue": "Stand straight"}]';
+
+COMMENT ON COLUMN exercises.common_mistakes IS
+  'JSON array of common mistakes. Example: [{"mistake": "Swinging weight", "correction": "Keep elbows tucked", "highlightedMuscles": ["biceps-long"]}]';
+
+COMMENT ON COLUMN exercises.beginner_tips IS
+  'Comma-separated form cues for beginners';
+
+COMMENT ON COLUMN exercises.video_url IS
+  'URL to GIF or MP4 video showing proper exercise form';
+
+-- ===================================================================
 -- 014: AI CHAT TABLES
 -- ===================================================================
 
