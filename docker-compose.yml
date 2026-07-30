@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+
+  # ── Ollama — local LLM ───────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: gooddays_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Pull model on first start (comment out after first run for speed)
+    # Run manually: docker exec gooddays_ollama ollama pull llama3.1:8b
+    restart: unless-stopped
+
+  # ── Python AI Service ─────────────────────────────────────────────────────────
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: gooddays_ai_service
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:password@host.docker.internal:5432/gooddays}
+      AI_PROVIDER: ${AI_PROVIDER:-local}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
+      CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
+      CLAUDE_MODEL: ${CLAUDE_MODEL:-claude-3-5-sonnet-latest}
+    depends_on:
+      - ollama
+    restart: unless-stopped
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface   # cache embedding model weights
+
+
+volumes:
+  ollama_data:
+  huggingface_cache:

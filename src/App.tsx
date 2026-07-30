@@ -36,6 +36,7 @@ import MealDayPickerPage from './pages/MealDayPickerPage';
 import RoutineExercisePickerPage from './pages/RoutineExercisePickerPage';
 import AiPlannerSettings from './pages/AiPlannerSettings';
 import { AiAnalysisPage } from './pages/AiAnalysisPage';
+import HealthAdvisor from './pages/HealthAdvisor';
 import ClerkCallback from './pages/ClerkCallback';
 import ClerkSsoCallback from './pages/ClerkSsoCallback';
 import SettingsLife from './pages/SettingsLife';
@@ -153,6 +154,9 @@ VITE_API_URL=https://gooddays.onrender.com
               {/* AI Chat interface */}
               <Route path="/ai-chat" element={<PrivateRoute><Layout><AiChat /></Layout></PrivateRoute>} />
               <Route path="/ai-chat/:conversationId" element={<PrivateRoute><Layout><AiChat /></Layout></PrivateRoute>} />
+
+              {/* AI Health Advisor — powered by Python AI service */}
+              <Route path="/health-advisor" element={<PrivateRoute><Layout><HealthAdvisor /></Layout></PrivateRoute>} />
 
               {/* Journal editor — full screen, no nav */}
               <Route path="/journal/new"      element={<PrivateRoute><JournalEditor /></PrivateRoute>} />

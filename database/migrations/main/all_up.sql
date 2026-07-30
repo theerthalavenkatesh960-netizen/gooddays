@@ -1237,4 +1237,41 @@ CREATE INDEX IF NOT EXISTS idx_ai_messages_conversation_id
 CREATE INDEX IF NOT EXISTS idx_ai_messages_user_created
   ON ai_messages(user_id, created_at DESC);
 
+-- ===================================================================
+-- 017: AI HEALTH ADVISOR — EMBEDDINGS + FEEDBACK
+-- ===================================================================
+
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS ai_embeddings (
+  id            SERIAL PRIMARY KEY,
+  user_id       INTEGER NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  record_type   TEXT NOT NULL,
+  record_date   DATE NOT NULL,
+  content_text  TEXT NOT NULL,
+  embedding     VECTOR(384) NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, record_type, record_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_embeddings_user_vector
+  ON ai_embeddings USING ivfflat (embedding vector_cosine_ops)
+  WITH (lists = 100);
+
+CREATE INDEX IF NOT EXISTS idx_ai_embeddings_user_type_date
+  ON ai_embeddings (user_id, record_type, record_date DESC);
+
+CREATE TABLE IF NOT EXISTS ai_advisor_feedback (
+  id               SERIAL PRIMARY KEY,
+  user_id          INTEGER NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  conversation_id  TEXT NOT NULL,
+  message_index    INTEGER NOT NULL,
+  satisfied        BOOLEAN NOT NULL,
+  comment          TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_advisor_feedback_user ON ai_advisor_feedback(user_id);
+
 COMMIT;
