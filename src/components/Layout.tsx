@@ -35,8 +35,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       </main>
 
       <nav className="bottom-nav">
-        <div className="flex items-center justify-around h-16 px-1">
-          {NAV_TABS.map(tab => {
+        <div className="grid grid-cols-5 items-center h-16 px-1">
+          {NAV_TABS.slice(0, 2).map(tab => {
             const Icon = tab.icon;
             const isActive = tab.path === '/'
               ? location.pathname === '/'
@@ -45,7 +45,28 @@ export default function Layout({ children }: { children: ReactNode }) {
               <button
                 key={tab.path}
                 onClick={() => navigate(tab.path)}
-                className="flex flex-col items-center gap-1 flex-1 py-2 press"
+                className="flex flex-col items-center gap-1 py-2 press"
+              >
+                <Icon size={20} style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }} />
+                <span className="text-[10px] font-medium" style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+
+          <div aria-hidden="true" className="w-full h-full" />
+
+          {NAV_TABS.slice(2).map(tab => {
+            const Icon = tab.icon;
+            const isActive = tab.path === '/'
+              ? location.pathname === '/'
+              : location.pathname.startsWith(tab.path);
+            return (
+              <button
+                key={tab.path}
+                onClick={() => navigate(tab.path)}
+                className="flex flex-col items-center gap-1 py-2 press"
               >
                 <Icon size={20} style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }} />
                 <span className="text-[10px] font-medium" style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>
