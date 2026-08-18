@@ -790,15 +790,12 @@ function DietTab() {
                         </div>
                       </div>
 
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
                           {meal.timing}
                         </span>
                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'var(--surface)', color: 'var(--accent)', border: '1px solid var(--border)' }}>
                           Logged ingredient
-                        </span>
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: on ? 'var(--accent)15' : 'var(--surface)', color: on ? 'var(--accent)' : 'var(--text-muted)', border: '1px solid var(--border)' }}>
-                          Tap to {on ? 'unlog' : 'log'}
                         </span>
                       </div>
 
@@ -859,25 +856,34 @@ function DietTab() {
           }
 
           return (
-            <div key={meal.id} className="relative mb-2">
+            <div key={meal.id} className="relative mb-3">
               <button
                 onClick={() => toggleMeal(meal.id)}
-                className="w-full text-left flex items-center gap-3 p-3 rounded-xl"
+                className="w-full text-left p-3 rounded-2xl"
                 style={{
-                  backgroundColor: on ? 'var(--accent)11' : 'var(--surface)',
-                  border: `1px solid ${on ? 'var(--accent)55' : 'var(--border)'}`,
-                  borderRadius: '12px',
+                  backgroundColor: on ? 'var(--accent)08' : 'var(--surface-elevated)',
+                  border: `1.5px solid ${on ? 'var(--accent)66' : 'var(--border)'}`,
+                  boxShadow: on ? '0 8px 20px rgba(99,102,241,0.14)' : '0 6px 16px rgba(15,23,42,0.08)',
                 }}
               >
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: on ? 'var(--accent)' : 'var(--surface-elevated)' }}>
-                  {on && <Check size={12} color="#fff" />}
+                <div className="flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center mt-0.5" style={{ backgroundColor: on ? 'var(--accent)' : 'var(--surface-elevated)' }}>
+                    {on && <Check size={13} color="#fff" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'var(--surface)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                        {meal.timing}
+                      </span>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md" style={{ backgroundColor: 'var(--surface)', color: 'var(--accent)', border: '1px solid var(--border)' }}>
+                        Planned meal
+                      </span>
+                    </div>
+                    {meal.recipe && <p className="text-[11px] truncate mt-1" style={{ color: 'var(--text-secondary)' }}>{meal.recipe}</p>}
+                    <p className="text-xs font-bold num mt-1" style={{ color: 'var(--accent-warm)' }}>{format2(total)} kcal</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{meal.name}</p>
-                  <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{meal.timing} · Planned · tap to {on ? 'unlog' : 'log'}</p>
-                  {meal.recipe && <p className="text-[11px] truncate" style={{ color: 'var(--text-secondary)' }}>{meal.recipe}</p>}
-                </div>
-                <span className="text-xs font-bold num" style={{ color: 'var(--accent-warm)' }}>{format2(total)}</span>
               </button>
             </div>
           );
