@@ -55,12 +55,15 @@ export default function Layout({ children }: { children: ReactNode }) {
             );
           })}
 
-          {/* Log button - positioned absolutely over the nav */}
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-0">
+          {/* Log button - floating above the nav items row */}
+          <div className="absolute left-1/2 -translate-x-1/2 -top-5 pointer-events-none">
             <button
               onClick={() => setLogOpen(true)}
-              className="w-14 h-14 -mb-6 rounded-full flex items-center justify-center shadow-lg press"
-              style={{ backgroundColor: 'var(--accent)' }}
+              className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg press pointer-events-auto"
+              style={{
+                backgroundColor: 'var(--accent)',
+                boxShadow: '0 10px 24px rgba(108, 99, 255, 0.4), 0 4px 8px rgba(0,0,0,0.2)',
+              }}
             >
               <Plus size={24} color="#fff" strokeWidth={2.5} />
             </button>

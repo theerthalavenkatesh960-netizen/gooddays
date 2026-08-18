@@ -707,11 +707,19 @@ function DietTab() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-2">
-        <span className="section-label">Today's Meals</span>
-        <div className="flex gap-2">
-          <button onClick={() => navigate('/meals/add-ingredient')} className="text-xs px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)' }}>Add Item</button>
-          <button onClick={() => navigate('/settings/meals')} className="text-xs" style={{ color: 'var(--accent)' }}>Manage</button>
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <span className="section-label pt-1">Today's Meals</span>
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+          <button
+            onClick={() => navigate('/meals/add-ingredient')}
+            className="text-xs px-2.5 py-1.5 rounded-lg font-semibold"
+            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent)', border: '1px solid var(--border)' }}
+          >
+            Add Item
+          </button>
+          <button onClick={() => navigate('/settings/meals')} className="text-xs font-medium px-1" style={{ color: 'var(--accent)' }}>
+            Manage
+          </button>
         </div>
       </div>
 
