@@ -5,6 +5,8 @@
 -- Run: psql -U postgres -d gooddays -f all_up.sql
 -- ===================================================================
 
+\set ON_ERROR_STOP on
+
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -292,10 +294,62 @@ SET user_id = (SELECT id FROM user_profiles ORDER BY id LIMIT 1)
 WHERE user_id IS NULL
   AND EXISTS (SELECT 1 FROM user_profiles);
 
+-- Backfill only when there is a single NULL profile row; avoids creating duplicate user_id assignments.
 UPDATE finance_budget_profiles
 SET user_id = (SELECT id FROM user_profiles ORDER BY id LIMIT 1)
 WHERE user_id IS NULL
+  AND (SELECT COUNT(*) FROM finance_budget_profiles WHERE user_id IS NULL) = 1
   AND EXISTS (SELECT 1 FROM user_profiles);
+
+-- Repair historical duplicates before enforcing unique user profile ownership.
+WITH ranked_profiles AS (
+  SELECT
+    id,
+    user_id,
+    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id::text DESC) AS rn,
+    FIRST_VALUE(id) OVER (PARTITION BY user_id ORDER BY created_at DESC, id::text DESC) AS keep_id
+  FROM finance_budget_profiles
+  WHERE user_id IS NOT NULL
+), duplicate_profiles AS (
+  SELECT id AS dup_id, keep_id
+  FROM ranked_profiles
+  WHERE rn > 1
+)
+UPDATE finance_fixed_expenses fe
+SET profile_id = dp.keep_id
+FROM duplicate_profiles dp
+WHERE fe.profile_id = dp.dup_id;
+
+WITH ranked_profiles AS (
+  SELECT
+    id,
+    user_id,
+    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id::text DESC) AS rn,
+    FIRST_VALUE(id) OVER (PARTITION BY user_id ORDER BY created_at DESC, id::text DESC) AS keep_id
+  FROM finance_budget_profiles
+  WHERE user_id IS NOT NULL
+), duplicate_profiles AS (
+  SELECT id AS dup_id, keep_id
+  FROM ranked_profiles
+  WHERE rn > 1
+)
+UPDATE finance_monthly_income_overrides mio
+SET profile_id = dp.keep_id
+FROM duplicate_profiles dp
+WHERE mio.profile_id = dp.dup_id;
+
+WITH ranked_profiles AS (
+  SELECT
+    id,
+    user_id,
+    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id::text DESC) AS rn
+  FROM finance_budget_profiles
+  WHERE user_id IS NOT NULL
+)
+DELETE FROM finance_budget_profiles fbp
+USING ranked_profiles rp
+WHERE fbp.id = rp.id
+  AND rp.rn > 1;
 
 CREATE TABLE IF NOT EXISTS finance_fixed_expenses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -610,6 +664,17 @@ CREATE TABLE IF NOT EXISTS weekly_meal_plans (
   updated_at timestamptz DEFAULT now()
 );
 
+WITH ranked AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (PARTITION BY lower(name) ORDER BY created_at DESC, id DESC) AS rn
+  FROM meal_ingredients
+)
+DELETE FROM meal_ingredients mi
+USING ranked r
+WHERE mi.id = r.id
+  AND r.rn > 1;
+
 CREATE UNIQUE INDEX IF NOT EXISTS ux_meal_ingredients_name_ci
   ON meal_ingredients (lower(name));
 CREATE INDEX IF NOT EXISTS idx_meal_templates_user_id ON meal_templates(user_id);
@@ -646,6 +711,17 @@ ALTER TABLE IF EXISTS meal_ingredients
   ADD COLUMN IF NOT EXISTS default_unit text DEFAULT 'unit',
   ADD COLUMN IF NOT EXISTS price_per_100g double precision,
   ADD COLUMN IF NOT EXISTS serving_size_g double precision;
+
+WITH ranked_master AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (PARTITION BY lower(name) ORDER BY updated_at DESC, id DESC) AS rn
+  FROM master_meal_templates
+)
+DELETE FROM master_meal_templates mmt
+USING ranked_master rm
+WHERE mmt.id = rm.id
+  AND rm.rn > 1;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_master_meal_templates_name ON master_meal_templates(lower(name));
 
