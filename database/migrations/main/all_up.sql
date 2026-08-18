@@ -9,6 +9,36 @@ BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+CREATE OR REPLACE FUNCTION gd_try_parse_jsonb(input_text text)
+RETURNS jsonb
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+BEGIN
+  RETURN input_text::jsonb;
+EXCEPTION WHEN others THEN
+  RETURN '[]'::jsonb;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION gd_try_parse_jsonb_array(input_text text)
+RETURNS jsonb
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  parsed jsonb;
+BEGIN
+  parsed := gd_try_parse_jsonb(input_text);
+  IF jsonb_typeof(parsed) = 'array' THEN
+    RETURN parsed;
+  END IF;
+  RETURN '[]'::jsonb;
+EXCEPTION WHEN others THEN
+  RETURN '[]'::jsonb;
+END;
+$$;
+
 -- ===================================================================
 -- 001: CORE TABLES
 -- ===================================================================
@@ -1100,7 +1130,7 @@ WITH normalized AS (
   CROSS JOIN LATERAL jsonb_array_elements(
     CASE
       WHEN mt.ingredients_json IS NULL OR btrim(mt.ingredients_json) = '' THEN '[]'::jsonb
-      ELSE mt.ingredients_json::jsonb
+      ELSE gd_try_parse_jsonb_array(mt.ingredients_json)
     END
   ) e
   LEFT JOIN meal_ingredients mi_by_id
@@ -1146,7 +1176,7 @@ WITH rewritten AS (
   CROSS JOIN LATERAL jsonb_array_elements(
     CASE
       WHEN mt.ingredients_json IS NULL OR btrim(mt.ingredients_json) = '' THEN '[]'::jsonb
-      ELSE mt.ingredients_json::jsonb
+      ELSE gd_try_parse_jsonb_array(mt.ingredients_json)
     END
   ) e
   LEFT JOIN _meal_ingredient_canonical m
@@ -1273,5 +1303,35 @@ CREATE TABLE IF NOT EXISTS ai_advisor_feedback (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ai_advisor_feedback_user ON ai_advisor_feedback(user_id);
+
+DO $$
+DECLARE
+  missing_columns text;
+BEGIN
+  SELECT string_agg(req.column_name, ', ' ORDER BY req.column_name)
+  INTO missing_columns
+  FROM (
+    VALUES
+      ('animation_frames'),
+      ('beginner_tips'),
+      ('common_mistakes'),
+      ('video_url')
+  ) AS req(column_name)
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns c
+    WHERE c.table_schema = 'public'
+      AND c.table_name = 'exercises'
+      AND c.column_name = req.column_name
+  );
+
+  IF missing_columns IS NOT NULL THEN
+    RAISE EXCEPTION 'all_up verification failed: exercises is missing required columns: %', missing_columns;
+  END IF;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS gd_try_parse_jsonb(text);
+DROP FUNCTION IF EXISTS gd_try_parse_jsonb_array(text);
 
 COMMIT;
