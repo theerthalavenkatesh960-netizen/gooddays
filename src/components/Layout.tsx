@@ -35,8 +35,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       </main>
 
       <nav className="bottom-nav">
-        <div className="flex items-center justify-around h-16 px-1">
-          {NAV_TABS.map(tab => {
+        <div className="grid grid-cols-5 items-center h-16 px-1">
+          {NAV_TABS.slice(0, 2).map(tab => {
             const Icon = tab.icon;
             const isActive = tab.path === '/'
               ? location.pathname === '/'
@@ -45,7 +45,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <button
                 key={tab.path}
                 onClick={() => navigate(tab.path)}
-                className="flex flex-col items-center gap-1 flex-1 py-2 press"
+                className="flex flex-col items-center gap-1 py-2 press"
               >
                 <Icon size={20} style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }} />
                 <span className="text-[10px] font-medium" style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>
@@ -55,12 +55,36 @@ export default function Layout({ children }: { children: ReactNode }) {
             );
           })}
 
-          {/* Log button - positioned absolutely over the nav */}
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-0">
+          <div aria-hidden="true" className="w-full h-full" />
+
+          {NAV_TABS.slice(2).map(tab => {
+            const Icon = tab.icon;
+            const isActive = tab.path === '/'
+              ? location.pathname === '/'
+              : location.pathname.startsWith(tab.path);
+            return (
+              <button
+                key={tab.path}
+                onClick={() => navigate(tab.path)}
+                className="flex flex-col items-center gap-1 py-2 press"
+              >
+                <Icon size={20} style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }} />
+                <span className="text-[10px] font-medium" style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+
+          {/* Log button - floating above the nav items row */}
+          <div className="absolute left-1/2 -translate-x-1/2 -top-5 pointer-events-none">
             <button
               onClick={() => setLogOpen(true)}
-              className="w-14 h-14 -mb-6 rounded-full flex items-center justify-center shadow-lg press"
-              style={{ backgroundColor: 'var(--accent)' }}
+              className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg press pointer-events-auto"
+              style={{
+                backgroundColor: 'var(--accent)',
+                boxShadow: '0 10px 24px rgba(108, 99, 255, 0.4), 0 4px 8px rgba(0,0,0,0.2)',
+              }}
             >
               <Plus size={24} color="#fff" strokeWidth={2.5} />
             </button>
