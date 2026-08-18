@@ -207,7 +207,14 @@ function popLoad() { _loadingCount = Math.max(0, _loadingCount - 1); if (_loadin
 async function request(path: string, opts: RequestInit = {}) {
   pushLoad();
   try {
-    const res = await fetch(`${API_BASE}/api/${path}`, { ...opts, headers: { 'Content-Type': 'application/json', ...getAuthHeader(), ...(opts.headers || {}) } });
+    const method = String(opts.method || 'GET').toUpperCase();
+    const requestOpts: RequestInit = {
+      ...opts,
+      // Avoid stale cached GET responses after create/update flows.
+      ...(method === 'GET' ? { cache: 'no-store' as RequestCache } : {}),
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader(), ...(opts.headers || {}) },
+    };
+    const res = await fetch(`${API_BASE}/api/${path}`, requestOpts);
     const text = await res.text();
     let payload: any = text;
     try { payload = text ? JSON.parse(text) : null; } catch { payload = text; }
@@ -322,6 +329,28 @@ export async function getAiPlannerSettings(): Promise<AiPlannerSettings> {
 
 export async function updateAiPlannerSettings(patch: Partial<AiPlannerSettings>): Promise<AiPlannerSettings> {
   return request('ai-planner/settings', { method: 'PUT', body: JSON.stringify(patch) });
+}
+
+export async function getAiChatConversations() {
+  return request('ai-chat');
+}
+
+export async function createAiChatConversation(title?: string) {
+  return request('ai-chat', {
+    method: 'POST',
+    body: JSON.stringify({ title: title ?? 'New Chat' }),
+  });
+}
+
+export async function getAiChatConversation(conversationId: string | number) {
+  return request(`ai-chat/${conversationId}`);
+}
+
+export async function sendAiChatMessage(conversationId: string | number, content: string) {
+  return request(`ai-chat/${conversationId}/message`, {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
 }
 
 export async function getHealthProfile(): Promise<HealthProfile> {
@@ -1612,6 +1641,11 @@ export async function updateGoalLog(id: number, body: any) {
   return request(`goals/logs/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
 
+export async function deleteGoalLog(id: number) {
+  if (DUMMY_FLAGS.goals) return Promise.resolve({ success: true });
+  return request(`goals/logs/${id}`, { method: 'DELETE' });
+}
+
 export async function getFlashcards(goalId: number) {
   if (DUMMY_FLAGS.goals) return Promise.resolve([]);
   return request(`goals/${goalId}/flashcards`);
@@ -2342,6 +2376,132 @@ export async function generateWeeklyReview(weekStart?: string) {
   return request(`weeklyreviews/generate${qs}`, { method: 'POST' });
 }
 
+export type WeeklyRecommendationResponse = {
+  weekStart: string;
+  targetWeekStart: string;
+  generatedAt: string;
+  mode: 'recommend-only';
+  filters: WeeklyRecommendationFilters;
+  signals: {
+    mealAdherence: number;
+    calorieAdherence: number;
+    macroAdherence: {
+      score: number;
+      proteinRatio: number;
+      carbsRatio: number;
+      fatsRatio: number;
+    };
+    workoutAdherence: number;
+    strengthProgress: {
+      score: number;
+      volumeChangeRatio: number;
+      prCount: number;
+    };
+    weightProgress: {
+      score: number;
+      weeklyChangeKg: number;
+      targetDirection: 'gain' | 'lose' | 'maintain' | 'unknown';
+      currentAverageKg?: number;
+      previousAverageKg?: number;
+      targetWeightKg?: number;
+      hasEnoughData: boolean;
+    };
+  };
+  summary: {
+    dailyCaloriesTarget?: number;
+    plannedWeeklyCalories: number;
+    actualWeeklyCalories: number;
+    plannedWorkoutDays: number;
+    completedWorkoutDays: number;
+    weeklyVolume: number;
+    previousWeeklyVolume: number;
+    prCount: number;
+  };
+  dailyNutrition: Array<{
+    date: string;
+    plannedMealCount: number;
+    loggedMealCount: number;
+    matchedPlannedMealCount: number;
+    plannedCalories: number;
+    actualCalories: number;
+    plannedProteinG: number;
+    actualProteinG: number;
+    plannedCarbsG: number;
+    actualCarbsG: number;
+    plannedFatsG: number;
+    actualFatsG: number;
+  }>;
+  recommendations: Array<{
+    domain: string;
+    priority: 'low' | 'medium' | 'high';
+    title: string;
+    proposedChange: string;
+    rationale: string;
+    confidence: number;
+  }>;
+  suggestedPlans: {
+    mealPlan: Record<string, Array<{ mealTemplateId: number; timeOfDay?: string }>>;
+    workoutRoutine: Record<string, Array<{ exerciseId: number; sets: number; reps: number }>>;
+  };
+};
+
+export type WeeklyRecommendationFilters = {
+  includeMealTemplateIds?: number[];
+  excludeMealTemplateIds?: number[];
+  includeMealNames?: string[];
+  excludeMealNames?: string[];
+  includeExerciseIds?: number[];
+  excludeExerciseIds?: number[];
+  includeMuscleGroups?: string[];
+  excludeMuscleGroups?: string[];
+};
+
+export async function generateWeeklyRecommendations(body?: {
+  weekStart?: string;
+  forNextWeek?: boolean;
+  filters?: WeeklyRecommendationFilters;
+}): Promise<{ snapshotId: number; result: WeeklyRecommendationResponse }> {
+  return request('weeklyreviews/recommendations/generate', {
+    method: 'POST',
+    body: JSON.stringify(body || {}),
+  });
+}
+
+export async function applyWeeklyRecommendations(body: {
+  targetWeekStart?: string;
+  mealPlan?: Record<string, Array<{ mealTemplateId: number; timeOfDay?: string }>>;
+  workoutRoutine?: Record<string, Array<{ exerciseId: number; sets: number; reps: number }>>;
+  workoutSplitName?: string;
+}) {
+  return request('weeklyreviews/recommendations/apply', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export type RecommendationSnapshot = {
+  id: number;
+  weekStart: string;
+  targetWeekStart: string;
+  status: 'pending' | 'approved' | 'dismissed' | 'partial';
+  generatedAt: string;
+  decidedAt?: string;
+};
+
+export async function getRecommendationSnapshots(): Promise<RecommendationSnapshot[]> {
+  return request('weeklyreviews/recommendations/snapshots');
+}
+
+export async function decideRecommendationSnapshot(
+  id: number,
+  status: 'approved' | 'dismissed' | 'partial',
+): Promise<{ id: number; status: string; decidedAt: string }> {
+  return request(`weeklyreviews/recommendations/snapshots/${id}/decide`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  });
+}
+
 // ─── DUMMY DATA (for development/testing without backend) ──────────────────
 
 const DUMMY_EXERCISES = [
@@ -2512,7 +2672,7 @@ export async function getMealTemplates() {
 
 export async function createMealTemplate(body: any) {
   if (DUMMY_FLAGS.meals) {
-    const newTemplate = { id: Math.max(...DUMMY_MEAL_TEMPLATES.map(m => m.id), 0) + 1, ...body, createdAt: new Date().toISOString() };
+    const newTemplate = { id: Math.max(...DUMMY_MEAL_TEMPLATES.map((m: any) => m.id), 0) + 1, ...body, createdAt: new Date().toISOString() };
     DUMMY_MEAL_TEMPLATES.push(newTemplate);
     saveMealTemplates();
     return Promise.resolve(newTemplate);
@@ -2522,7 +2682,7 @@ export async function createMealTemplate(body: any) {
 
 export async function deleteMealTemplate(id: number) {
   if (DUMMY_FLAGS.meals) {
-    const idx = DUMMY_MEAL_TEMPLATES.findIndex(m => m.id === id);
+    const idx = DUMMY_MEAL_TEMPLATES.findIndex((m: any) => m.id === id);
     if (idx >= 0) DUMMY_MEAL_TEMPLATES.splice(idx, 1);
     saveMealTemplates();
     return Promise.resolve({ success: true });
@@ -2532,7 +2692,7 @@ export async function deleteMealTemplate(id: number) {
 
 export async function updateMealTemplate(id: number, body: any) {
   if (DUMMY_FLAGS.meals) {
-    const item = DUMMY_MEAL_TEMPLATES.find(m => m.id === id);
+    const item = DUMMY_MEAL_TEMPLATES.find((m: any) => m.id === id);
     if (item) Object.assign(item, body);
     saveMealTemplates();
     return Promise.resolve(item);
@@ -2792,6 +2952,63 @@ export type QuickLogEntry = {
   createdAt: string;
 };
 
+export type MealTwinSuggestion = {
+  key: string;
+  label: string;
+  count: number;
+  lastDate: string;
+  quickLogId: number;
+  payload: Record<string, any>;
+};
+
+export type MealEstimateResult = {
+  captureText: string;
+  estimateStatus: 'estimated' | 'pending' | 'manual';
+  confidence: 'low' | 'medium' | 'high';
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatsG: number;
+  assumptions: string[];
+  debug?: {
+    topMatches?: Array<{
+      label: string;
+      score: number;
+      weight: number;
+      date: string;
+      calories: number;
+      proteinG: number;
+      carbsG: number;
+      fatsG: number;
+    }>;
+    adaptiveTuning?: {
+      matureProfile: boolean;
+      sampleCount: number;
+      activeDays: number;
+      minimumSimilarityCutoff: number;
+      mediumConfidenceCutoff: number;
+      highConfidenceCutoff: number;
+      blendDivisor: number;
+      blendMin: number;
+      blendMax: number;
+    };
+    usedDeltaClone?: boolean;
+    deltaBaseLabel?: string;
+    sampleCount?: number;
+  };
+};
+
+export type MealReviewItem = {
+  id: number;
+  date: string;
+  type: 'meal';
+  mealLabel: string;
+  estimateStatus: string;
+  confidence: string;
+  payload: Record<string, any>;
+  createdAt: string;
+};
+
 const DUMMY_QUICK_LOG_ENTRIES: QuickLogEntry[] = [];
 
 export async function logQuickEntry(type: 'workout' | 'meal' | 'expense' | 'water' | 'task', payload: Record<string, any>, date?: string) {
@@ -2867,5 +3084,128 @@ export async function getTodayQuickLogs() {
     return Promise.resolve(cloneAny(DUMMY_QUICK_LOG_ENTRIES.filter(e => e.date === today)));
   }
   return request('quicklog/today');
+}
+
+export async function getMealTwinSuggestions(limit = 8, lookbackDays = 45): Promise<MealTwinSuggestion[]> {
+  if (DUMMY_FLAGS.quickLog) {
+    const mealEntries = DUMMY_QUICK_LOG_ENTRIES
+      .filter(e => e.type === 'meal')
+      .slice()
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const grouped = new Map<string, MealTwinSuggestion>();
+    for (const entry of mealEntries) {
+      const label = String(entry.payload?.captureText || entry.payload?.mealName || 'Meal').trim();
+      if (!label) continue;
+      const key = label.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      const existing = grouped.get(key);
+      if (!existing) {
+        grouped.set(key, {
+          key,
+          label,
+          count: 1,
+          lastDate: entry.date,
+          quickLogId: entry.id,
+          payload: cloneAny(entry.payload),
+        });
+      } else {
+        existing.count += 1;
+        if (entry.date >= existing.lastDate) {
+          existing.lastDate = entry.date;
+          existing.quickLogId = entry.id;
+          existing.payload = cloneAny(entry.payload);
+          existing.label = label;
+        }
+      }
+    }
+    return Promise.resolve(Array.from(grouped.values()).slice(0, limit));
+  }
+  const params = new URLSearchParams();
+  params.set('limit', String(limit));
+  params.set('lookbackDays', String(lookbackDays));
+  return request(`quicklog/meal/twins?${params}`);
+}
+
+export async function estimateMealFromCapture(
+  captureText: string,
+  options?: { lookbackDays?: number; includeDebug?: boolean }
+): Promise<MealEstimateResult> {
+  if (DUMMY_FLAGS.quickLog) {
+    const fallback: MealEstimateResult = {
+      captureText,
+      estimateStatus: 'estimated',
+      confidence: captureText.trim().length > 18 ? 'medium' : 'low',
+      calories: 520,
+      proteinG: 24,
+      carbsG: 56,
+      fatsG: 18,
+      assumptions: ['dummy estimate based on text length'],
+    };
+    return Promise.resolve(fallback);
+  }
+  return request('quicklog/meal/estimate', {
+    method: 'POST',
+    body: JSON.stringify({
+      captureText,
+      lookbackDays: options?.lookbackDays,
+      includeDebug: options?.includeDebug,
+    }),
+  });
+}
+
+export async function getMealReviewQueue(from?: string, to?: string): Promise<MealReviewItem[]> {
+  if (DUMMY_FLAGS.quickLog) {
+    const fromKey = asDateKey(from || new Date(Date.now() - 14 * 86400000).toISOString());
+    const toKey = asDateKey(to || asDateKey());
+    return Promise.resolve(
+      DUMMY_QUICK_LOG_ENTRIES
+        .filter(e => e.type === 'meal' && e.date >= fromKey && e.date <= toKey)
+        .filter(e => Boolean(e.payload?.needsReview) || e.payload?.estimateStatus === 'pending' || e.payload?.confidence === 'low')
+        .map(e => ({
+          id: e.id,
+          date: e.date,
+          type: 'meal' as const,
+          mealLabel: String(e.payload?.captureText || e.payload?.mealName || 'Meal'),
+          estimateStatus: String(e.payload?.estimateStatus || 'pending'),
+          confidence: String(e.payload?.confidence || 'low'),
+          payload: cloneAny(e.payload),
+          createdAt: e.createdAt,
+        }))
+    );
+  }
+
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  return request(`quicklog/meal/review?${params}`);
+}
+
+export async function resolveMealReview(
+  id: number,
+  body: Partial<{
+    captureText: string;
+    calories: number;
+    proteinG: number;
+    carbsG: number;
+    fatsG: number;
+    estimateStatus: 'manual' | 'estimated';
+    confidence: 'low' | 'medium' | 'high';
+  }>
+) {
+  if (DUMMY_FLAGS.quickLog) {
+    const entry = DUMMY_QUICK_LOG_ENTRIES.find(e => e.id === id && e.type === 'meal');
+    if (!entry) throw new Error('Meal review item not found');
+    entry.payload = {
+      ...entry.payload,
+      ...body,
+      needsReview: false,
+      estimateStatus: body.estimateStatus || 'manual',
+      confidence: body.confidence || 'high',
+    };
+    return Promise.resolve(cloneAny(entry));
+  }
+  return request(`quicklog/meal/review/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
 }
 

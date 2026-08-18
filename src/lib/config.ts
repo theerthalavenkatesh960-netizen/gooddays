@@ -88,6 +88,100 @@ export const WORKOUT_TYPES = [
   { id: 'calisthenics', emoji: '🤸', name: 'Calisthenics', desc: 'Bodyweight moves' },
 ];
 
+// ─── Muscle Group Taxonomy ────────────────────────────────────────────────────
+// MUSCLE_GROUPS_DETAILED: used in add/edit exercise dropdowns.
+// MUSCLE_GROUP_FILTER: top-level groups used in filter tabs.
+// getMuscleParent: maps a granular group to its top-level parent for filtering.
+
+export const MUSCLE_GROUPS_DETAILED: { parent: string; children: string[] }[] = [
+  {
+    parent: 'Chest',
+    children: ['Upper Chest', 'Mid Chest', 'Lower Chest'],
+  },
+  {
+    parent: 'Back',
+    children: ['Lats', 'Upper Traps', 'Rhomboids', 'Lower Back'],
+  },
+  {
+    parent: 'Shoulders',
+    children: ['Front Delt', 'Side Delt', 'Rear Delt'],
+  },
+  {
+    parent: 'Arms',
+    children: [
+      'Biceps – Long Head',
+      'Biceps – Short Head',
+      'Triceps – Long Head',
+      'Triceps – Lateral Head',
+      'Triceps – Medial Head',
+      'Forearms',
+    ],
+  },
+  {
+    parent: 'Legs',
+    children: ['Quads', 'Hamstrings', 'Glutes', 'Calves', 'Hip Flexors'],
+  },
+  {
+    parent: 'Core',
+    children: ['Upper Abs', 'Lower Abs', 'Obliques'],
+  },
+  { parent: 'Cardio', children: [] },
+  { parent: 'Full Body', children: [] },
+];
+
+/** Flat list of all granular muscle group values for dropdowns. */
+export const MUSCLE_GROUPS: string[] = MUSCLE_GROUPS_DETAILED.flatMap(g =>
+  g.children.length > 0 ? g.children : [g.parent],
+);
+
+/** Top-level parent groups for filter tabs. */
+export const MUSCLE_GROUP_FILTER: string[] = MUSCLE_GROUPS_DETAILED.map(g => g.parent);
+
+/** Returns the top-level parent for a given muscle group string (supports legacy broad values). */
+export function getMuscleParent(muscleGroup: string): string {
+  const mg = muscleGroup.trim();
+  for (const group of MUSCLE_GROUPS_DETAILED) {
+    if (group.parent === mg) return mg;
+    if (group.children.includes(mg)) return group.parent;
+  }
+  return mg; // unknown — return as-is (backward compat)
+}
+
+/** Returns true if an exercise's muscleGroup matches the selected filter. */
+export function matchesMuscleFilter(exerciseMuscle: string, filter: string): boolean {
+  if (!filter || filter === 'All') return true;
+  if (exerciseMuscle === filter) return true;
+  return getMuscleParent(exerciseMuscle) === filter;
+}
+
+/** Granular muscle name to SVG body part ID mapping for advanced visualization. */
+export const MUSCLE_TO_SVG_ID: Record<string, string[]> = {
+  'Upper Chest': ['chest-upper-left', 'chest-upper-right'],
+  'Mid Chest': ['chest-mid-left', 'chest-mid-right'],
+  'Lower Chest': ['chest-lower-left', 'chest-lower-right'],
+  'Biceps – Long Head': ['biceps-long-left', 'biceps-long-right'],
+  'Biceps – Short Head': ['biceps-short-left', 'biceps-short-right'],
+  'Triceps – Long Head': ['triceps-long-left', 'triceps-long-right'],
+  'Triceps – Lateral Head': ['triceps-lateral-left', 'triceps-lateral-right'],
+  'Triceps – Medial Head': ['triceps-medial-left', 'triceps-medial-right'],
+  'Forearms': ['forearm-left', 'forearm-right'],
+  'Front Delt': ['shoulder-front-left', 'shoulder-front-right'],
+  'Side Delt': ['shoulder-side-left', 'shoulder-side-right'],
+  'Rear Delt': ['shoulder-rear-left', 'shoulder-rear-right'],
+  'Lats': ['lats-left', 'lats-right'],
+  'Upper Traps': ['traps-left', 'traps-right'],
+  'Rhomboids': ['rhomboids-left', 'rhomboids-right'],
+  'Lower Back': ['lower-back-left', 'lower-back-right'],
+  'Quads': ['quads-left', 'quads-right'],
+  'Hamstrings': ['hamstrings-left', 'hamstrings-right'],
+  'Glutes': ['glutes-left', 'glutes-right'],
+  'Calves': ['calves-left', 'calves-right'],
+  'Hip Flexors': ['hip-flexor-left', 'hip-flexor-right'],
+  'Upper Abs': ['abs-upper'],
+  'Lower Abs': ['abs-lower'],
+  'Obliques': ['obliques-left', 'obliques-right'],
+};
+
 export const MEAL_PREFERENCES = [
   { id: 'home-cooked', emoji: '🍳', name: 'Home Cooked', desc: 'Prepare own meals' },
   { id: 'meal-prep', emoji: '🍱', name: 'Meal Prep', desc: 'Batch cook weekly' },

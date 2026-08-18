@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import * as api from '../lib/api';
 import cardApi, { type CreditCard } from '../lib/cardApi';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
 interface LogSheetProps {
@@ -20,6 +20,25 @@ type SubSheet = 'expense' | 'workout' | 'meal' | 'refill' | 'task' | 'journal' |
 type ExerciseOption = { id: number; name: string; muscleGroup?: string };
 type MealTemplateOption = { id: number; name: string; timing?: string; ingredientsJson?: string };
 type MasterMealOption = { id: number; name: string; timing?: string; totalCaloriesKcal?: number; totalProteinG?: number };
+type QuickMealHistoryEntry = {
+  id: number;
+  date: string;
+  createdAt: string;
+  payload: Record<string, any>;
+  label: string;
+  normalizedLabel: string;
+};
+type ParsedMealIntent = {
+  original: string;
+  tokens: Array<{ qty: number | null; unit: string | null; item: string }>;
+};
+
+type MacroDraft = {
+  calories: string;
+  proteinG: string;
+  carbsG: string;
+  fatsG: string;
+};
 
 function normalizePlannedExerciseIds(rawPlannedExercises: unknown): number[] {
   let parsed: unknown = rawPlannedExercises;
@@ -67,6 +86,63 @@ function parseCaloriesAndProtein(ingredientsJson?: string): { calories: number; 
   }
 }
 
+function normalizeMealLabel(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function inferMealLabel(payload: Record<string, any>): string {
+  const captureText = String(payload?.captureText || '').trim();
+  if (captureText) return captureText;
+  const mealName = String(payload?.mealName || '').trim();
+  if (mealName) return mealName;
+  const fallback = String(payload?.description || '').trim();
+  return fallback || 'Meal';
+}
+
+function parseMealIntent(input: string): ParsedMealIntent {
+  const cleaned = input.replace(/\s+/g, ' ').trim();
+  const parts = cleaned
+    .split(/\s*(?:\+|,| and )\s*/i)
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  const tokens = parts.map(part => {
+    const match = part.match(/^(\d+(?:\.\d+)?)\s*(g|gram|grams|kg|ml|cup|cups|bowl|bowls|piece|pieces|roti|rotis)?\s+(.*)$/i);
+    if (!match) {
+      return { qty: null, unit: null, item: part };
+    }
+    return {
+      qty: Number(match[1]),
+      unit: match[2] ? match[2].toLowerCase() : null,
+      item: match[3].trim(),
+    };
+  });
+
+  return { original: cleaned, tokens };
+}
+
+function parseDeltaCommand(input: string): { daysBack: number; modifier: string } | null {
+  const trimmed = input.trim();
+  const yesterdayMatch = trimmed.match(/^same as yesterday(?:\s*(.*))?$/i);
+  if (yesterdayMatch) {
+    return { daysBack: 1, modifier: (yesterdayMatch[1] || '').trim() };
+  }
+
+  const daysAgoMatch = trimmed.match(/^same as (\d+)\s*days?\s*ago(?:\s*(.*))?$/i);
+  if (daysAgoMatch) {
+    const daysBack = Number(daysAgoMatch[1]);
+    if (Number.isFinite(daysBack) && daysBack > 0) {
+      return { daysBack, modifier: (daysAgoMatch[2] || '').trim() };
+    }
+  }
+
+  return null;
+}
+
 const QUICK_OPTIONS = [
   { id: 'expense',  label: 'Expense',    icon: DollarSign,      color: '#FF6B6B' },
   { id: 'workout',  label: 'Workout',    icon: Dumbbell,        color: '#4ECDC4' },
@@ -86,6 +162,7 @@ const EXPENSE_CATEGORIES = [
 
 export default function LogSheet({ onClose, userId }: LogSheetProps) {
   const navigate = useNavigate();
+  const showEstimateDebug = Boolean((import.meta as any).env?.DEV || (import.meta as any).env?.VITE_MEAL_ESTIMATE_DEBUG === 'true');
   const [sub, setSub] = useState<SubSheet>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -115,10 +192,17 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
   const [plannedMealsToday, setPlannedMealsToday] = useState<MealTemplateOption[]>([]);
   const [selectedMealId, setSelectedMealId] = useState<number | null>(null);
   const [selectedCatalogMealId, setSelectedCatalogMealId] = useState<number | null>(null);
-  const [mealPickMode, setMealPickMode] = useState<'existing' | 'create'>('existing');
+  const [mealPickMode, setMealPickMode] = useState<'existing' | 'create' | 'capture'>('existing');
   const [mealSearch, setMealSearch] = useState('');
   const [catalogMeals, setCatalogMeals] = useState<MasterMealOption[]>([]);
   const [loadingCatalogMeals, setLoadingCatalogMeals] = useState(false);
+  const [mealCaptureText, setMealCaptureText] = useState('');
+  const [quickMealHistory, setQuickMealHistory] = useState<QuickMealHistoryEntry[]>([]);
+  const [mealTwinSuggestions, setMealTwinSuggestions] = useState<api.MealTwinSuggestion[]>([]);
+  const [selectedMealTwinId, setSelectedMealTwinId] = useState<number | null>(null);
+  const [estimatingMeal, setEstimatingMeal] = useState(false);
+  const [mealEstimate, setMealEstimate] = useState<api.MealEstimateResult | null>(null);
+  const [captureMacroDraft, setCaptureMacroDraft] = useState<MacroDraft>({ calories: '', proteinG: '', carbsG: '', fatsG: '' });
   const [newMealName, setNewMealName] = useState('');
   const [newMealTiming, setNewMealTiming] = useState('snack');
   const [newMealCalories, setNewMealCalories] = useState('');
@@ -220,10 +304,13 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
         }
 
         if (sub === 'meal') {
-          const [templateData, weeklyPlan, todayLog] = await Promise.all([
+          const fromDate = format(subDays(new Date(), 30), 'yyyy-MM-dd');
+          const [templateData, weeklyPlan, todayLog, quickMealLogs, twins] = await Promise.all([
             api.getMealTemplates(),
             api.getWeeklyMealPlan() as Promise<any>,
             api.getDailyMealLog(today) as Promise<any>,
+            api.getQuickLogHistory(fromDate, today, 'meal') as Promise<any[]>,
+            api.getMealTwinSuggestions(8, 45).catch(() => []),
           ]);
 
           const templates: MealTemplateOption[] = Array.isArray(templateData)
@@ -252,6 +339,27 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
             setAllMealTemplates(templates);
             setPlannedMealsToday(plannedTodayList);
             setTodayMealIds(Array.isArray(todayLog?.mealIds) ? todayLog.mealIds.map((id: any) => Number(id)).filter((id: number) => Number.isFinite(id)) : []);
+            const recentMealHistory = (Array.isArray(quickMealLogs) ? quickMealLogs : [])
+              .map((entry: any) => {
+                const payload = entry?.payload && typeof entry.payload === 'object' ? entry.payload : {};
+                const label = inferMealLabel(payload);
+                const normalizedLabel = normalizeMealLabel(label);
+                const id = Number(entry?.id || 0);
+                const date = String(entry?.date || '');
+                const createdAt = String(entry?.createdAt || '');
+                if (!id || !date || !label) return null;
+                return {
+                  id,
+                  date,
+                  createdAt,
+                  payload,
+                  label,
+                  normalizedLabel,
+                } as QuickMealHistoryEntry;
+              })
+              .filter((entry): entry is QuickMealHistoryEntry => Boolean(entry));
+            setQuickMealHistory(recentMealHistory);
+            setMealTwinSuggestions(Array.isArray(twins) ? twins : []);
             const defaultMeal = plannedTodayList[0] ?? templates[0] ?? null;
             setMealPickMode('existing');
             setSelectedMealId(prev => prev ?? defaultMeal?.id ?? null);
@@ -338,6 +446,10 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
       setMealSearch('');
       setCatalogMeals([]);
       setSelectedCatalogMealId(null);
+      setMealCaptureText('');
+      setSelectedMealTwinId(null);
+      setMealEstimate(null);
+      setCaptureMacroDraft({ calories: '', proteinG: '', carbsG: '', fatsG: '' });
       setNewMealName('');
       setNewMealCalories('');
       setNewMealProtein('');
@@ -350,6 +462,30 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
       setJournalBody('');
     }
   }, [sub]);
+
+  const handleEstimateCaptureMeal = async () => {
+    const captureText = mealCaptureText.trim();
+    if (!captureText) {
+      setError('Describe your meal first, then estimate');
+      return;
+    }
+    setEstimatingMeal(true);
+    setError('');
+    try {
+      const estimate = await api.estimateMealFromCapture(captureText, { includeDebug: showEstimateDebug });
+      setMealEstimate(estimate);
+      setCaptureMacroDraft({
+        calories: String(Math.round(Number(estimate.calories || 0))),
+        proteinG: String(Math.round(Number(estimate.proteinG || 0))),
+        carbsG: String(Math.round(Number(estimate.carbsG || 0))),
+        fatsG: String(Math.round(Number(estimate.fatsG || 0))),
+      });
+    } catch (e: any) {
+      setError(e?.message || 'Could not estimate meal right now');
+    } finally {
+      setEstimatingMeal(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!userId) {
@@ -506,6 +642,63 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
             mealName,
             source,
           }, today);
+        } else if (mealPickMode === 'capture') {
+          const captureText = mealCaptureText.trim();
+          if (!captureText) {
+            setError('Describe your meal in one line');
+            return;
+          }
+
+          const intent = parseMealIntent(captureText);
+          const delta = parseDeltaCommand(captureText);
+          const payload: Record<string, any> = {
+            captureText,
+            mealName: captureText,
+            timingHint: newMealTiming,
+            source: 'capture-intent',
+            intent,
+            estimateStatus: mealEstimate?.estimateStatus || 'pending',
+            confidence: mealEstimate?.confidence || 'low',
+            needsReview: (mealEstimate?.confidence || 'low') === 'low',
+            assumptions: mealEstimate?.assumptions || [],
+          };
+
+          const calories = Number(captureMacroDraft.calories || 0);
+          const proteinG = Number(captureMacroDraft.proteinG || 0);
+          const carbsG = Number(captureMacroDraft.carbsG || 0);
+          const fatsG = Number(captureMacroDraft.fatsG || 0);
+          if ([calories, proteinG, carbsG, fatsG].some(v => Number.isFinite(v) && v > 0)) {
+            payload.calories = Number.isFinite(calories) ? calories : 0;
+            payload.proteinG = Number.isFinite(proteinG) ? proteinG : 0;
+            payload.carbsG = Number.isFinite(carbsG) ? carbsG : 0;
+            payload.fatsG = Number.isFinite(fatsG) ? fatsG : 0;
+          }
+
+          const selectedTwin = mealTwinSuggestions.find(entry => entry.quickLogId === selectedMealTwinId)
+            || quickMealHistory.find(entry => entry.id === selectedMealTwinId);
+          if (selectedTwin) {
+            payload.mealTwin = {
+              quickLogId: 'quickLogId' in selectedTwin ? selectedTwin.quickLogId : selectedTwin.id,
+              date: 'lastDate' in selectedTwin ? selectedTwin.lastDate : selectedTwin.date,
+              label: selectedTwin.label,
+            };
+          }
+
+          if (delta) {
+            const targetDate = format(subDays(new Date(), delta.daysBack), 'yyyy-MM-dd');
+            const baseline = quickMealHistory.find(entry => entry.date === targetDate)
+              || quickMealHistory.find(entry => entry.date < today);
+            payload.delta = {
+              command: captureText,
+              daysBack: delta.daysBack,
+              modifier: delta.modifier || null,
+              baseQuickLogId: baseline?.id ?? null,
+              baseDate: baseline?.date ?? targetDate,
+              baseLabel: baseline?.label ?? null,
+            };
+          }
+
+          await api.logQuickEntry('meal', payload, today);
         } else {
           const name = newMealName.trim();
           const calories = Number(newMealCalories || 0);
@@ -666,6 +859,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
     (sub === 'workout' && (selectedExerciseId !== null || workoutName.trim().length > 0)) ||
     (sub === 'meal' && (
       (mealPickMode === 'existing' && (selectedMealId !== null || selectedCatalogMealId !== null)) ||
+      (mealPickMode === 'capture' && mealCaptureText.trim().length > 0) ||
       (mealPickMode === 'create' && newMealName.trim().length > 0)
     )) ||
     (sub === 'refill' && selectedVehicleId !== null && Number(refillLitres) > 0 && Number(refillAmount) > 0 && Number(refillOdometer) > 0) ||
@@ -938,7 +1132,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
 
               {sub === 'meal' && (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={() => setMealPickMode('existing')}
                       className="h-8 rounded-xl text-[11px] font-semibold"
@@ -948,6 +1142,16 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
                       }}
                     >
                       Existing Meal
+                    </button>
+                    <button
+                      onClick={() => setMealPickMode('capture')}
+                      className="h-8 rounded-xl text-[11px] font-semibold"
+                      style={{
+                        backgroundColor: mealPickMode === 'capture' ? 'var(--accent)' : 'var(--surface-elevated)',
+                        color: mealPickMode === 'capture' ? '#fff' : 'var(--text-secondary)'
+                      }}
+                    >
+                      Quick Capture
                     </button>
                     <button
                       onClick={() => setMealPickMode('create')}
@@ -1057,6 +1261,171 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
                                 </button>
                               ))
                             )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : mealPickMode === 'capture' ? (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="section-label mb-2 block">Describe Meal</label>
+                        <textarea
+                          value={mealCaptureText}
+                          onChange={e => {
+                            setMealCaptureText(e.target.value);
+                            setMealEstimate(null);
+                          }}
+                          placeholder="e.g. chicken curry + 2 rotis"
+                          rows={3}
+                          className="w-full p-2.5 rounded-xl outline-none text-sm resize-none"
+                          style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                        />
+                        <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                          Tip: try "same as yesterday + 1 roti" for delta logging.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="section-label mb-2 block">Timing</label>
+                        <select
+                          value={newMealTiming}
+                          onChange={e => setNewMealTiming(e.target.value)}
+                          className="w-full p-2.5 rounded-xl outline-none text-xs"
+                          style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                        >
+                          <option value="breakfast">Breakfast</option>
+                          <option value="lunch">Lunch</option>
+                          <option value="dinner">Dinner</option>
+                          <option value="pre-workout">Pre-workout</option>
+                          <option value="post-workout">Post-workout</option>
+                          <option value="snack">Snack</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="section-label block">Estimate Macros</label>
+                          <button
+                            type="button"
+                            onClick={handleEstimateCaptureMeal}
+                            disabled={estimatingMeal || !mealCaptureText.trim()}
+                            className="text-[10px] font-semibold px-2 py-1 rounded-lg"
+                            style={{
+                              backgroundColor: 'var(--surface-elevated)',
+                              color: 'var(--accent)',
+                              opacity: (estimatingMeal || !mealCaptureText.trim()) ? 0.6 : 1,
+                            }}
+                          >
+                            {estimatingMeal ? 'Estimating...' : 'Estimate'}
+                          </button>
+                        </div>
+
+                        {mealEstimate && (
+                          <div className="mb-2 p-2 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)' }}>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Confidence</p>
+                              <span className="text-[10px] font-semibold uppercase" style={{ color: mealEstimate.confidence === 'low' ? '#f59e0b' : 'var(--accent-green)' }}>
+                                {mealEstimate.confidence}
+                              </span>
+                            </div>
+                            {mealEstimate.assumptions?.length > 0 && (
+                              <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                                {mealEstimate.assumptions[0]}
+                              </p>
+                            )}
+                            {showEstimateDebug && mealEstimate.debug && (
+                              <div className="mt-2 p-2 rounded-lg" style={{ backgroundColor: 'rgba(0,0,0,0.15)' }}>
+                                <p className="text-[10px] font-semibold" style={{ color: 'var(--text-primary)' }}>Debug</p>
+                                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                  samples {mealEstimate.debug.sampleCount ?? 0} • delta {mealEstimate.debug.usedDeltaClone ? 'yes' : 'no'}
+                                </p>
+                                {mealEstimate.debug.adaptiveTuning && (
+                                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                    cutoffs: {mealEstimate.debug.adaptiveTuning.minimumSimilarityCutoff.toFixed(2)} / {mealEstimate.debug.adaptiveTuning.mediumConfidenceCutoff.toFixed(2)} / {mealEstimate.debug.adaptiveTuning.highConfidenceCutoff.toFixed(2)}
+                                  </p>
+                                )}
+                                {Array.isArray(mealEstimate.debug.topMatches) && mealEstimate.debug.topMatches.length > 0 && (
+                                  <div className="mt-1 space-y-0.5">
+                                    {mealEstimate.debug.topMatches.slice(0, 2).map((match, idx) => (
+                                      <p key={`${match.label}-${idx}`} className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                        {match.label} ({match.score.toFixed(2)})
+                                      </p>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={captureMacroDraft.calories}
+                            onChange={e => setCaptureMacroDraft(prev => ({ ...prev, calories: e.target.value }))}
+                            placeholder="Calories"
+                            className="w-full p-2 rounded-xl outline-none text-xs num"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                          />
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={captureMacroDraft.proteinG}
+                            onChange={e => setCaptureMacroDraft(prev => ({ ...prev, proteinG: e.target.value }))}
+                            placeholder="Protein g"
+                            className="w-full p-2 rounded-xl outline-none text-xs num"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                          />
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={captureMacroDraft.carbsG}
+                            onChange={e => setCaptureMacroDraft(prev => ({ ...prev, carbsG: e.target.value }))}
+                            placeholder="Carbs g"
+                            className="w-full p-2 rounded-xl outline-none text-xs num"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                          />
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={captureMacroDraft.fatsG}
+                            onChange={e => setCaptureMacroDraft(prev => ({ ...prev, fatsG: e.target.value }))}
+                            placeholder="Fats g"
+                            className="w-full p-2 rounded-xl outline-none text-xs num"
+                            style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="section-label mb-2 block">Meal Twins</label>
+                        {mealTwinSuggestions.length === 0 ? (
+                          <p className="text-xs p-2.5 rounded-xl" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-muted)' }}>
+                            Log a few meals in capture mode to unlock one-tap twins.
+                          </p>
+                        ) : (
+                          <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                            {mealTwinSuggestions.map(suggestion => (
+                              <button
+                                key={`${suggestion.quickLogId}-${suggestion.lastDate}`}
+                                onClick={() => {
+                                  setMealCaptureText(suggestion.label);
+                                  setSelectedMealTwinId(suggestion.quickLogId);
+                                }}
+                                className="w-full text-left p-2.5 rounded-xl border"
+                                style={{
+                                  backgroundColor: selectedMealTwinId === suggestion.quickLogId ? 'var(--accent)22' : 'var(--surface-elevated)',
+                                  borderColor: selectedMealTwinId === suggestion.quickLogId ? 'var(--accent)' : 'var(--border)',
+                                  color: 'var(--text-primary)',
+                                }}
+                              >
+                                <p className="text-xs font-semibold">{suggestion.label}</p>
+                                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                  Used {suggestion.count}x • Last {suggestion.lastDate}
+                                </p>
+                              </button>
+                            ))}
                           </div>
                         )}
                       </div>

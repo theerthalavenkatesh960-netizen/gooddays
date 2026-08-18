@@ -224,7 +224,19 @@ export default function MealPlannerSettings() {
   useEffect(() => { loadAll(); }, []);
 
   useEffect(() => {
-    setTab((location.state as any)?.tab ?? 'weekly');
+    const state = (location.state as any) || {};
+    setTab(state?.tab ?? 'weekly');
+    if (state?.mealCreated && typeof state.mealCreated === 'object') {
+      setMeals(prev => {
+        const createdId = Number((state.mealCreated as any).id);
+        if (!Number.isFinite(createdId) || createdId <= 0) return prev;
+        if (prev.some(m => m.id === createdId)) return prev;
+        return [state.mealCreated as MealTemplate, ...prev];
+      });
+    }
+    if (state?.reloadAt) {
+      loadAll();
+    }
   }, [location.state]);
 
   async function openGenerateModal() {

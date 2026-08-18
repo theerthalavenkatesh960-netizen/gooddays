@@ -36,6 +36,7 @@ import MealDayPickerPage from './pages/MealDayPickerPage';
 import RoutineExercisePickerPage from './pages/RoutineExercisePickerPage';
 import AiPlannerSettings from './pages/AiPlannerSettings';
 import { AiAnalysisPage } from './pages/AiAnalysisPage';
+import HealthAdvisor from './pages/HealthAdvisor';
 import ClerkCallback from './pages/ClerkCallback';
 import ClerkSsoCallback from './pages/ClerkSsoCallback';
 import SettingsLife from './pages/SettingsLife';
@@ -47,7 +48,9 @@ import IngredientPickerPage from './pages/IngredientPickerPage';
 import ExerciseLoggerPage from './pages/ExerciseLoggerPage';
 import BodyAllPrsPage from './pages/BodyAllPrsPage';
 import BodyAllMealsPage from './pages/BodyAllMealsPage';
+import MealNeedsReviewPage from './pages/MealNeedsReviewPage';
 import LogIngredientPage from './pages/LogIngredientPage';
+import AiChat from './pages/AiChat';
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -112,6 +115,7 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/diet/add-ingredient" element={<PrivateRoute><Layout><AddIngredientPage /></Layout></PrivateRoute>} />
               <Route path="/body/progress/prs" element={<PrivateRoute><Layout><BodyAllPrsPage /></Layout></PrivateRoute>} />
               <Route path="/body/diet/meals" element={<PrivateRoute><Layout><BodyAllMealsPage /></Layout></PrivateRoute>} />
+              <Route path="/body/diet/meals/review" element={<PrivateRoute><Layout><MealNeedsReviewPage /></Layout></PrivateRoute>} />
               <Route path="/body/workout/exercise/:exerciseId/log" element={<PrivateRoute><Layout><ExerciseLoggerPage /></Layout></PrivateRoute>} />
               <Route path="/body/workout-log" element={<PrivateRoute><Layout><Workout /></Layout></PrivateRoute>} />
               <Route path="/finance"  element={<PrivateRoute><Layout><Finance /></Layout></PrivateRoute>} />
@@ -146,6 +150,13 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/settings/workout-library/pick" element={<PrivateRoute><Layout><RoutineExercisePickerPage /></Layout></PrivateRoute>} />
               <Route path="/settings/ai-planner" element={<PrivateRoute><Layout><AiPlannerSettings /></Layout></PrivateRoute>} />
               <Route path="/settings/ai-planner/analysis" element={<PrivateRoute><AiAnalysisPage /></PrivateRoute>} />
+
+              {/* AI Chat interface */}
+              <Route path="/ai-chat" element={<PrivateRoute><Layout><AiChat /></Layout></PrivateRoute>} />
+              <Route path="/ai-chat/:conversationId" element={<PrivateRoute><Layout><AiChat /></Layout></PrivateRoute>} />
+
+              {/* AI Health Advisor — powered by Python AI service */}
+              <Route path="/health-advisor" element={<PrivateRoute><Layout><HealthAdvisor /></Layout></PrivateRoute>} />
 
               {/* Journal editor — full screen, no nav */}
               <Route path="/journal/new"      element={<PrivateRoute><JournalEditor /></PrivateRoute>} />

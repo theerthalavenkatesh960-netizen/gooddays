@@ -55,6 +55,7 @@ public class AppDbContext : DbContext
 
     // Weekly Review entities
     public DbSet<WeeklyReview> WeeklyReviews { get; set; } = null!;
+    public DbSet<WeeklyRecommendationSnapshot> WeeklyRecommendationSnapshots { get; set; } = null!;
 
     // Meal planner entities
     public DbSet<MealIngredient> MealIngredients { get; set; } = null!;
@@ -93,6 +94,10 @@ public class AppDbContext : DbContext
     public DbSet<DailyRoutineSkip> DailyRoutineSkips { get; set; } = null!;
     public DbSet<DailyRoutineBlockOverride> DailyRoutineBlockOverrides { get; set; } = null!;
     public DbSet<DailyRoutineOverrideLog> DailyRoutineOverrideLogs { get; set; } = null!;
+
+    // AI Chat entities
+    public DbSet<AiConversation> AiConversations { get; set; } = null!;
+    public DbSet<AiMessage> AiMessages { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -451,5 +456,37 @@ public class AppDbContext : DbContext
             .HasOne(s => s.Vehicle).WithMany(v => v.Services).HasForeignKey(s => s.VehicleId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<VehicleIssue>()
             .HasOne(i => i.Vehicle).WithMany(v => v.Issues).HasForeignKey(i => i.VehicleId).OnDelete(DeleteBehavior.Cascade);
+
+        // AI Chat table mappings
+        modelBuilder.Entity<AiConversation>().ToTable("ai_conversations");
+        modelBuilder.Entity<AiMessage>().ToTable("ai_messages");
+
+        // AI Chat relationships
+        modelBuilder.Entity<AiConversation>()
+            .HasOne(c => c.User)
+            .WithMany()
+            .HasForeignKey(c => c.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<AiConversation>()
+            .HasIndex(c => c.UserId);
+
+        modelBuilder.Entity<AiMessage>()
+            .HasOne(m => m.Conversation)
+            .WithMany(c => c.Messages)
+            .HasForeignKey(m => m.ConversationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<AiMessage>()
+            .HasOne(m => m.User)
+            .WithMany()
+            .HasForeignKey(m => m.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<AiMessage>()
+            .HasIndex(m => m.ConversationId);
+
+        modelBuilder.Entity<AiMessage>()
+            .HasIndex(m => new { m.UserId, m.CreatedAt });
     }
 }

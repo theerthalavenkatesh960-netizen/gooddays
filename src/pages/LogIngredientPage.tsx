@@ -127,7 +127,13 @@ export default function LogIngredientPage() {
         : [];
 
       await (api as any).upsertDailyMealLog(today, Array.from(new Set([...existingIds, createdId])));
-      navigate('/body', { state: { mealAdded: true } });
+      navigate('/settings/meals', {
+        state: {
+          tab: 'library',
+          reloadAt: Date.now(),
+          mealCreated: created,
+        },
+      });
     } catch (e) {
       console.error('Failed to log:', e);
     } finally {
@@ -144,7 +150,7 @@ export default function LogIngredientPage() {
     <div className="min-h-screen p-4" style={{ backgroundColor: 'var(--background)' }}>
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={() => navigate('/body')} className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface)' }}>
+        <button onClick={() => navigate('/settings/meals', { state: { tab: 'library' } })} className="p-2 rounded-lg" style={{ backgroundColor: 'var(--surface)' }}>
           <ArrowLeft size={20} style={{ color: 'var(--text-primary)' }} />
         </button>
         <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Log Ingredient</h1>

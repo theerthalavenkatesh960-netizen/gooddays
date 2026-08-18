@@ -194,6 +194,13 @@ export default function BodyAllMealsPage() {
           <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>Meal Records</h1>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{baseRecords.length} unique meals across all time</p>
         </div>
+        <button
+          onClick={() => navigate('/body/diet/meals/review')}
+          className="ml-auto px-3 h-9 rounded-xl text-[11px] font-semibold"
+          style={{ backgroundColor: 'var(--surface)', color: 'var(--accent)', border: '1px solid var(--border)' }}
+        >
+          Needs Review
+        </button>
       </div>
 
       {/* Rank tab strip — horizontal scroll */}

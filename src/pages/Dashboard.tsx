@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Settings, CheckCircle2, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, GripVertical, LayoutDashboard, CheckSquare, Repeat, X, ListChecks, ChevronDown, ChevronUp } from 'lucide-react';
+import { MessageCircle, Settings, CheckCircle2, Dumbbell, Droplets, Target, Flame, ChevronRight, Zap, TrendingUp, Plus, RotateCcw, Trash2, Filter, CreditCard as Edit, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, GripVertical, LayoutDashboard, CheckSquare, Repeat, X, ListChecks, ChevronDown, ChevronUp, Brain } from 'lucide-react';
 import { format, isToday, parseISO, subDays, addDays, startOfWeek } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -672,6 +672,22 @@ function DashboardTab({
         <StatChip icon={Flame} label="Workout" value={workoutToday ? 'Logged' : `${workoutStreak}d streak`} color="var(--accent-warm)" empty={!workoutToday && workoutStreak === 0} />
         <StatChip icon={DollarSign} label="Monthly Net" value={monthlyNet === null ? '--' : `${monthlyNet >= 0 ? '+' : '-'}₹${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(monthlyNet))}`} color={monthlyNet !== null && monthlyNet >= 0 ? 'var(--accent-green)' : 'var(--accent-warm)'} empty={monthlyNet === null} />
       </div>
+
+      {/* AI Health Advisor banner */}
+      <button
+        onClick={() => navigate('/health-advisor')}
+        className="w-full mb-4 rounded-2xl p-4 flex items-center gap-3 press"
+        style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-green, var(--accent)))', border: 'none' }}
+      >
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+          <Brain size={20} className="text-white" />
+        </div>
+        <div className="flex-1 text-left">
+          <p className="text-sm font-bold text-white">AI Health Advisor</p>
+          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.75)' }}>Ask anything about your workouts, diet & progress</p>
+        </div>
+        <ChevronRight size={18} className="text-white opacity-70" />
+      </button>
 
       {/* Quick add row */}
       <div className="grid grid-cols-4 gap-2 mb-4">
@@ -2749,8 +2765,8 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <button className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
-            <Bell size={18} style={{ color: 'var(--text-secondary)' }} />
+          <button onClick={() => navigate('/ai-chat')} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
+            <MessageCircle size={18} style={{ color: 'var(--text-secondary)' }} />
           </button>
           <button onClick={() => navigate('/settings')} className="w-9 h-9 rounded-xl flex items-center justify-center press" style={{ backgroundColor: 'var(--surface)' }}>
             <Settings size={18} style={{ color: 'var(--text-secondary)' }} />

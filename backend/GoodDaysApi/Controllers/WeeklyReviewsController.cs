@@ -1,5 +1,6 @@
 using GoodDaysApi.Data;
 using GoodDaysApi.Models;
+using GoodDaysApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,12 +18,18 @@ public class WeeklyReviewsController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
     private readonly IHttpClientFactory _http;
+    private readonly WeeklyGoalAdjustmentService _weeklyGoalAdjustment;
 
-    public WeeklyReviewsController(AppDbContext db, IConfiguration config, IHttpClientFactory http)
+    public WeeklyReviewsController(
+        AppDbContext db,
+        IConfiguration config,
+        IHttpClientFactory http,
+        WeeklyGoalAdjustmentService weeklyGoalAdjustment)
     {
         _db = db;
         _config = config;
         _http = http;
+        _weeklyGoalAdjustment = weeklyGoalAdjustment;
     }
 
     private int GetUserId() => int.Parse(
@@ -109,6 +116,131 @@ public class WeeklyReviewsController : ControllerBase
         _db.WeeklyReviews.Add(body);
         await _db.SaveChangesAsync();
         return Ok(body);
+    }
+
+    // ── Weekly Recommendations (recommend-only) ─────────────────────────────
+    // POST /api/weeklyreviews/recommendations/generate?weekStart=2026-05-01
+    [HttpPost("recommendations/generate")]
+    public async Task<IActionResult> GenerateRecommendations([FromBody] WeeklyRecommendationGenerateRequest? body)
+    {
+        var userId = GetUserId();
+
+        DateTime startDate;
+        if (body is null || string.IsNullOrWhiteSpace(body.WeekStart) || !DateTime.TryParse(body.WeekStart, out startDate))
+        {
+            var today = DateTime.UtcNow.Date;
+            var dow = (int)today.DayOfWeek;
+            startDate = today.AddDays(dow == 0 ? -6 : -(dow - 1));
+        }
+
+        var result = await _weeklyGoalAdjustment.GenerateAsync(userId, startDate, body);
+
+        // Persist snapshot (pending until user decides)
+        var targetWeekStart = DateTime.TryParse(result.TargetWeekStart, out var tws) ? tws : startDate.AddDays(7);
+        var snapshot = new WeeklyRecommendationSnapshot
+        {
+            UserId = userId,
+            WeekStart = startDate,
+            TargetWeekStart = targetWeekStart,
+            Status = "pending",
+            SnapshotJson = JsonSerializer.Serialize(result),
+            GeneratedAt = DateTime.UtcNow,
+        };
+        _db.WeeklyRecommendationSnapshots.Add(snapshot);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { snapshotId = snapshot.Id, result });
+    }
+
+    // GET /api/weeklyreviews/recommendations/snapshots
+    [HttpGet("recommendations/snapshots")]
+    public async Task<IActionResult> GetSnapshots()
+    {
+        var userId = GetUserId();
+        var snapshots = await _db.WeeklyRecommendationSnapshots
+            .Where(s => s.UserId == userId)
+            .OrderByDescending(s => s.GeneratedAt)
+            .Take(20)
+            .Select(s => new
+            {
+                s.Id,
+                weekStart = s.WeekStart.ToString("yyyy-MM-dd"),
+                targetWeekStart = s.TargetWeekStart.ToString("yyyy-MM-dd"),
+                s.Status,
+                s.GeneratedAt,
+                s.DecidedAt,
+            })
+            .ToListAsync();
+        return Ok(snapshots);
+    }
+
+    // POST /api/weeklyreviews/recommendations/snapshots/{id}/decide
+    [HttpPost("recommendations/snapshots/{id:int}/decide")]
+    public async Task<IActionResult> DecideSnapshot(int id, [FromBody] DecideSnapshotRequest req)
+    {
+        var userId = GetUserId();
+        var snapshot = await _db.WeeklyRecommendationSnapshots
+            .FirstOrDefaultAsync(s => s.Id == id && s.UserId == userId);
+        if (snapshot is null) return NotFound();
+
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "approved", "dismissed", "partial" };
+        if (!allowed.Contains(req.Status)) return BadRequest("Status must be approved, dismissed, or partial.");
+
+        snapshot.Status = req.Status.ToLowerInvariant();
+        snapshot.DecidedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+        return Ok(new { snapshot.Id, snapshot.Status, snapshot.DecidedAt });
+    }
+
+    // POST /api/weeklyreviews/recommendations/apply
+    // Apply user-edited suggested meal/workout plans for a target week.
+    [HttpPost("recommendations/apply")]
+    public async Task<IActionResult> ApplyRecommendations([FromBody] ApplyWeeklyRecommendationsRequest body)
+    {
+        var userId = GetUserId();
+        var targetWeekStart = DateOnly.TryParse(body.TargetWeekStart, out var parsedStart)
+            ? parsedStart
+            : DateOnly.FromDateTime(DateTime.UtcNow.Date);
+
+        if ((body.MealPlan is null || body.MealPlan.Count == 0)
+            && (body.WorkoutRoutine is null || body.WorkoutRoutine.Count == 0))
+        {
+            return BadRequest("No plan updates provided. Pass mealPlan and/or workoutRoutine.");
+        }
+
+        if (body.MealPlan is not null && body.MealPlan.Count > 0)
+        {
+            await ApplyMealPlanAsync(userId, body.MealPlan, targetWeekStart);
+        }
+
+        if (body.WorkoutRoutine is not null && body.WorkoutRoutine.Count > 0)
+        {
+            await ApplyWorkoutRoutineAsync(userId, body.WorkoutRoutine, body.WorkoutSplitName);
+        }
+
+        await _db.SaveChangesAsync();
+
+        // Mark the most recent pending snapshot for this target week as approved/partial
+        var targetDt = targetWeekStart.ToDateTime(TimeOnly.MinValue);
+        var pendingSnapshot = await _db.WeeklyRecommendationSnapshots
+            .Where(s => s.UserId == userId && s.TargetWeekStart.Date == targetDt.Date && s.Status == "pending")
+            .OrderByDescending(s => s.GeneratedAt)
+            .FirstOrDefaultAsync();
+        if (pendingSnapshot is not null)
+        {
+            bool bothApplied = body.MealPlan?.Count > 0 && body.WorkoutRoutine?.Count > 0;
+            pendingSnapshot.Status = bothApplied ? "approved" : "partial";
+            pendingSnapshot.DecidedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
+
+        return Ok(new
+        {
+            applied = true,
+            targetWeekStart = targetWeekStart.ToString("yyyy-MM-dd"),
+            mealUpdated = body.MealPlan is not null && body.MealPlan.Count > 0,
+            workoutUpdated = body.WorkoutRoutine is not null && body.WorkoutRoutine.Count > 0,
+        });
     }
 
     // ── AI Generation ─────────────────────────────────────────────────────────
@@ -242,4 +374,194 @@ Reply with strict JSON only (no markdown). Use exactly these keys:
             return StatusCode(500, new { error = ex.Message });
         }
     }
+
+    private async Task ApplyMealPlanAsync(int userId, Dictionary<string, List<MealSuggestion>> mealPlan, DateOnly targetWeekStart)
+    {
+        var plan = await _db.WeeklyMealPlans.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (plan is null)
+        {
+            plan = new WeeklyMealPlan { UserId = userId, PlanJson = "{}", UpdatedAt = DateTime.UtcNow };
+            _db.WeeklyMealPlans.Add(plan);
+        }
+
+        Dictionary<string, List<object>> merged;
+        try
+        {
+            merged = ParseMealPlanForMerge(plan.PlanJson);
+        }
+        catch
+        {
+            merged = new Dictionary<string, List<object>>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        for (var i = 0; i < 7; i++)
+        {
+            var date = targetWeekStart.AddDays(i);
+            var dateKey = date.ToString("yyyy-MM-dd");
+            merged.Remove(dateKey);
+        }
+
+        foreach (var kv in mealPlan)
+        {
+            var key = NormalizeDateKey(kv.Key, targetWeekStart);
+            if (string.IsNullOrWhiteSpace(key)) continue;
+
+            var items = (kv.Value ?? new List<MealSuggestion>())
+                .Where(m => m.MealTemplateId > 0)
+                .DistinctBy(m => m.MealTemplateId)
+                .Select(m => (object)new { mealTemplateId = m.MealTemplateId, timeOfDay = m.TimeOfDay })
+                .ToList();
+            merged[key] = items;
+        }
+
+        plan.PlanJson = JsonSerializer.Serialize(merged);
+        plan.UpdatedAt = DateTime.UtcNow;
+    }
+
+    private async Task ApplyWorkoutRoutineAsync(
+        int userId,
+        Dictionary<string, List<WorkoutSuggestion>> workoutRoutine,
+        string? workoutSplitName)
+    {
+        var split = await _db.WorkoutSplitPresets
+            .Where(s => s.UserId == userId)
+            .OrderByDescending(s => s.IsActive)
+            .ThenByDescending(s => s.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (split is null)
+        {
+            split = new WorkoutSplitPreset
+            {
+                UserId = userId,
+                Name = string.IsNullOrWhiteSpace(workoutSplitName) ? "Adaptive Weekly Split" : workoutSplitName.Trim(),
+                DayConfigs = "{}",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+            };
+            _db.WorkoutSplitPresets.Add(split);
+        }
+
+        var normalized = new Dictionary<string, List<object>>(StringComparer.OrdinalIgnoreCase);
+        var allowedDays = new HashSet<string>(new[] { "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday" });
+        foreach (var day in allowedDays)
+        {
+            var entries = workoutRoutine.TryGetValue(day, out var source)
+                ? source
+                : new List<WorkoutSuggestion>();
+
+            normalized[day] = entries
+                .Where(e => e.ExerciseId > 0)
+                .Select(e => (object)new
+                {
+                    exerciseId = e.ExerciseId,
+                    sets = Math.Max(1, e.Sets <= 0 ? 3 : e.Sets),
+                    reps = Math.Max(1, e.Reps <= 0 ? 10 : e.Reps),
+                })
+                .ToList();
+        }
+
+        split.Name = string.IsNullOrWhiteSpace(workoutSplitName) ? split.Name : workoutSplitName.Trim();
+        split.DayConfigs = JsonSerializer.Serialize(normalized);
+        split.IsActive = true;
+
+        var others = await _db.WorkoutSplitPresets.Where(s => s.UserId == userId && s.Id != split.Id).ToListAsync();
+        foreach (var other in others)
+        {
+            other.IsActive = false;
+        }
+    }
+
+    private static string NormalizeDateKey(string rawKey, DateOnly targetWeekStart)
+    {
+        if (DateOnly.TryParse(rawKey, out var date))
+        {
+            return date.ToString("yyyy-MM-dd");
+        }
+
+        var day = rawKey.Trim().ToLowerInvariant();
+        var dayMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["monday"] = 0,
+            ["tuesday"] = 1,
+            ["wednesday"] = 2,
+            ["thursday"] = 3,
+            ["friday"] = 4,
+            ["saturday"] = 5,
+            ["sunday"] = 6,
+        };
+
+        if (!dayMap.TryGetValue(day, out var offset)) return string.Empty;
+        return targetWeekStart.AddDays(offset).ToString("yyyy-MM-dd");
+    }
+
+    private static Dictionary<string, List<object>> ParseMealPlanForMerge(string? json)
+    {
+        var result = new Dictionary<string, List<object>>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(json)) return result;
+
+        using var doc = JsonDocument.Parse(json);
+        if (doc.RootElement.ValueKind != JsonValueKind.Object) return result;
+
+        foreach (var day in doc.RootElement.EnumerateObject())
+        {
+            var rows = new List<object>();
+            if (day.Value.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in day.Value.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.Number && item.TryGetInt32(out var id) && id > 0)
+                    {
+                        rows.Add(new { mealTemplateId = id, timeOfDay = (string?)null });
+                        continue;
+                    }
+
+                    if (item.ValueKind != JsonValueKind.Object) continue;
+                    if (!TryReadMealTemplateId(item, out var mealId) || mealId <= 0) continue;
+                    var time = TryReadTimeOfDay(item);
+                    rows.Add(new { mealTemplateId = mealId, timeOfDay = time });
+                }
+            }
+
+            result[day.Name] = rows;
+        }
+
+        return result;
+    }
+
+    private static bool TryReadMealTemplateId(JsonElement item, out int mealId)
+    {
+        mealId = 0;
+        foreach (var prop in item.EnumerateObject())
+        {
+            var name = prop.Name.ToLowerInvariant();
+            if (name is not ("mealtemplateid" or "meal_template_id")) continue;
+            if (prop.Value.ValueKind == JsonValueKind.Number && prop.Value.TryGetInt32(out mealId)) return true;
+            if (prop.Value.ValueKind == JsonValueKind.String && int.TryParse(prop.Value.GetString(), out mealId)) return true;
+        }
+
+        return false;
+    }
+
+    private static string? TryReadTimeOfDay(JsonElement item)
+    {
+        foreach (var prop in item.EnumerateObject())
+        {
+            var name = prop.Name.ToLowerInvariant();
+            if (name is not ("timeofday" or "time_of_day")) continue;
+            return prop.Value.ValueKind == JsonValueKind.String ? prop.Value.GetString() : null;
+        }
+
+        return null;
+    }
 }
+
+public class ApplyWeeklyRecommendationsRequest
+{
+    public string? TargetWeekStart { get; set; }
+    public Dictionary<string, List<MealSuggestion>>? MealPlan { get; set; }
+    public Dictionary<string, List<WorkoutSuggestion>>? WorkoutRoutine { get; set; }
+    public string? WorkoutSplitName { get; set; }
+}
+
+public record DecideSnapshotRequest(string Status);

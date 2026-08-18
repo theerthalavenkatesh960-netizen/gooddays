@@ -349,6 +349,20 @@ public class GoalsController : ControllerBase
         return Ok(log);
     }
 
+    [HttpDelete("logs/{id}")]
+    public async Task<IActionResult> DeleteLog(int id)
+    {
+        var userId = GetUserId();
+        var log = await _db.GoalDailyLogs
+            .Include(l => l.Goal)
+            .FirstOrDefaultAsync(l => l.Id == id && l.Goal.UserId == userId);
+        if (log is null) return NotFound();
+
+        _db.GoalDailyLogs.Remove(log);
+        await _db.SaveChangesAsync();
+        return Ok();
+    }
+
     // ─── Checklist ───────────────────────────────────────────────────────
 
     [HttpGet("{goalId}/checklist-items")]

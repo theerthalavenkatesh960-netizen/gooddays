@@ -23,11 +23,25 @@ public class MealController : ControllerBase
         _macroCalculator = macroCalculator;
     }
 
-    private int GetUserId() => int.Parse(
-        User.FindFirst("userId")?.Value
-        ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-        ?? User.FindFirst("sub")?.Value
-        ?? throw new UnauthorizedAccessException("User id claim missing"));
+    private int GetUserId()
+    {
+        var candidates = new[]
+        {
+            User.FindFirst("userId")?.Value,
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+            User.FindFirst("sub")?.Value,
+        };
+
+        foreach (var value in candidates)
+        {
+            if (!string.IsNullOrWhiteSpace(value) && int.TryParse(value, out var userId))
+            {
+                return userId;
+            }
+        }
+
+        throw new UnauthorizedAccessException("User id claim missing or invalid");
+    }
 
     // ─── Ingredients ─────────────────────────────────────────────────────
 

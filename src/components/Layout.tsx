@@ -35,8 +35,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       </main>
 
       <nav className="bottom-nav">
-        <div className="flex items-center justify-around h-16 px-2">
-          {NAV_TABS.slice(0, 2).map(tab => {
+        <div className="flex items-center justify-around h-16 px-1">
+          {NAV_TABS.map(tab => {
             const Icon = tab.icon;
             const isActive = tab.path === '/'
               ? location.pathname === '/'
@@ -55,33 +55,16 @@ export default function Layout({ children }: { children: ReactNode }) {
             );
           })}
 
-          <div className="flex flex-col items-center flex-1">
+          {/* Log button - positioned absolutely over the nav */}
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-0">
             <button
               onClick={() => setLogOpen(true)}
-              className="w-14 h-14 -mt-6 rounded-full flex items-center justify-center shadow-lg press"
+              className="w-14 h-14 -mb-6 rounded-full flex items-center justify-center shadow-lg press"
               style={{ backgroundColor: 'var(--accent)' }}
             >
               <Plus size={24} color="#fff" strokeWidth={2.5} />
             </button>
-            <span className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--text-muted)' }}>Log</span>
           </div>
-
-          {NAV_TABS.slice(2).map(tab => {
-            const Icon = tab.icon;
-            const isActive = location.pathname.startsWith(tab.path);
-            return (
-              <button
-                key={tab.path}
-                onClick={() => navigate(tab.path)}
-                className="flex flex-col items-center gap-1 flex-1 py-2 press"
-              >
-                <Icon size={20} style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }} />
-                <span className="text-[10px] font-medium" style={{ color: isActive ? 'var(--accent)' : 'var(--text-muted)' }}>
-                  {tab.label}
-                </span>
-              </button>
-            );
-          })}
         </div>
       </nav>
 

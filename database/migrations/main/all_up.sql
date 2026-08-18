@@ -1,6 +1,6 @@
 -- ===================================================================
 -- GoodDays Application - Full Database Schema (UP)
--- Combined from migrations: 001 → 007
+-- Combined from migrations: 001 → 016
 -- Description: Creates the complete schema (all tables, indexes)
 -- Run: psql -U postgres -d gooddays -f all_up.sql
 -- ===================================================================
@@ -8,6 +8,36 @@
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE OR REPLACE FUNCTION gd_try_parse_jsonb(input_text text)
+RETURNS jsonb
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+BEGIN
+  RETURN input_text::jsonb;
+EXCEPTION WHEN others THEN
+  RETURN '[]'::jsonb;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION gd_try_parse_jsonb_array(input_text text)
+RETURNS jsonb
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  parsed jsonb;
+BEGIN
+  parsed := gd_try_parse_jsonb(input_text);
+  IF jsonb_typeof(parsed) = 'array' THEN
+    RETURN parsed;
+  END IF;
+  RETURN '[]'::jsonb;
+EXCEPTION WHEN others THEN
+  RETURN '[]'::jsonb;
+END;
+$$;
 
 -- ===================================================================
 -- 001: CORE TABLES
@@ -262,10 +292,62 @@ SET user_id = (SELECT id FROM user_profiles ORDER BY id LIMIT 1)
 WHERE user_id IS NULL
   AND EXISTS (SELECT 1 FROM user_profiles);
 
+-- Backfill only when there is a single NULL profile row; avoids creating duplicate user_id assignments.
 UPDATE finance_budget_profiles
 SET user_id = (SELECT id FROM user_profiles ORDER BY id LIMIT 1)
 WHERE user_id IS NULL
+  AND (SELECT COUNT(*) FROM finance_budget_profiles WHERE user_id IS NULL) = 1
   AND EXISTS (SELECT 1 FROM user_profiles);
+
+-- Repair historical duplicates before enforcing unique user profile ownership.
+WITH ranked_profiles AS (
+  SELECT
+    id,
+    user_id,
+    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id::text DESC) AS rn,
+    FIRST_VALUE(id) OVER (PARTITION BY user_id ORDER BY created_at DESC, id::text DESC) AS keep_id
+  FROM finance_budget_profiles
+  WHERE user_id IS NOT NULL
+), duplicate_profiles AS (
+  SELECT id AS dup_id, keep_id
+  FROM ranked_profiles
+  WHERE rn > 1
+)
+UPDATE finance_fixed_expenses fe
+SET profile_id = dp.keep_id
+FROM duplicate_profiles dp
+WHERE fe.profile_id = dp.dup_id;
+
+WITH ranked_profiles AS (
+  SELECT
+    id,
+    user_id,
+    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id::text DESC) AS rn,
+    FIRST_VALUE(id) OVER (PARTITION BY user_id ORDER BY created_at DESC, id::text DESC) AS keep_id
+  FROM finance_budget_profiles
+  WHERE user_id IS NOT NULL
+), duplicate_profiles AS (
+  SELECT id AS dup_id, keep_id
+  FROM ranked_profiles
+  WHERE rn > 1
+)
+UPDATE finance_monthly_income_overrides mio
+SET profile_id = dp.keep_id
+FROM duplicate_profiles dp
+WHERE mio.profile_id = dp.dup_id;
+
+WITH ranked_profiles AS (
+  SELECT
+    id,
+    user_id,
+    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id::text DESC) AS rn
+  FROM finance_budget_profiles
+  WHERE user_id IS NOT NULL
+)
+DELETE FROM finance_budget_profiles fbp
+USING ranked_profiles rp
+WHERE fbp.id = rp.id
+  AND rp.rn > 1;
 
 CREATE TABLE IF NOT EXISTS finance_fixed_expenses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -334,6 +416,10 @@ CREATE TABLE IF NOT EXISTS exercises (
   muscle_group text NOT NULL,
   description text,
   image_url text,
+  video_url text,
+  beginner_tips text,
+  animation_frames jsonb DEFAULT '[]'::jsonb,
+  common_mistakes jsonb DEFAULT '[]'::jsonb,
   is_custom boolean DEFAULT false,
   user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE,
   created_at timestamptz DEFAULT now()
@@ -479,6 +565,17 @@ CREATE TABLE IF NOT EXISTS weekly_reviews (
   updated_at timestamptz DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS weekly_recommendation_snapshots (
+  id SERIAL PRIMARY KEY,
+  user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
+  week_start timestamptz NOT NULL,
+  target_week_start timestamptz NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  snapshot_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  generated_at timestamptz NOT NULL DEFAULT now(),
+  decided_at timestamptz
+);
+
 -- 001 indexes
 CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON user_profiles(email);
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
@@ -523,6 +620,7 @@ CREATE INDEX IF NOT EXISTS idx_reminders_user_id ON reminders(user_id);
 CREATE INDEX IF NOT EXISTS idx_reminder_logs_reminder_date ON reminder_logs(reminder_id, date);
 CREATE INDEX IF NOT EXISTS idx_journal_entries_user_date ON journal_entries(user_id, date);
 CREATE INDEX IF NOT EXISTS idx_weekly_reviews_user_week ON weekly_reviews(user_id, week_start_date);
+CREATE INDEX IF NOT EXISTS idx_wrs_user_week ON weekly_recommendation_snapshots(user_id, week_start DESC);
 
 -- ===================================================================
 -- 002: MEAL PLANNER
@@ -563,6 +661,17 @@ CREATE TABLE IF NOT EXISTS weekly_meal_plans (
   updated_at timestamptz DEFAULT now()
 );
 
+WITH ranked AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (PARTITION BY lower(name) ORDER BY created_at DESC, id DESC) AS rn
+  FROM meal_ingredients
+)
+DELETE FROM meal_ingredients mi
+USING ranked r
+WHERE mi.id = r.id
+  AND r.rn > 1;
+
 CREATE UNIQUE INDEX IF NOT EXISTS ux_meal_ingredients_name_ci
   ON meal_ingredients (lower(name));
 CREATE INDEX IF NOT EXISTS idx_meal_templates_user_id ON meal_templates(user_id);
@@ -599,6 +708,17 @@ ALTER TABLE IF EXISTS meal_ingredients
   ADD COLUMN IF NOT EXISTS default_unit text DEFAULT 'unit',
   ADD COLUMN IF NOT EXISTS price_per_100g double precision,
   ADD COLUMN IF NOT EXISTS serving_size_g double precision;
+
+WITH ranked_master AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (PARTITION BY lower(name) ORDER BY updated_at DESC, id DESC) AS rn
+  FROM master_meal_templates
+)
+DELETE FROM master_meal_templates mmt
+USING ranked_master rm
+WHERE mmt.id = rm.id
+  AND rm.rn > 1;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_master_meal_templates_name ON master_meal_templates(lower(name));
 
@@ -1046,5 +1166,245 @@ ALTER TABLE user_onboarding
 
 ALTER TABLE user_onboarding
   ADD COLUMN IF NOT EXISTS plan_adherence_score INTEGER;
+
+-- ===================================================================
+-- 008/009: AI PLANNER INDEXES (ensure present on upgrades)
+-- ===================================================================
+
+CREATE INDEX IF NOT EXISTS idx_user_ai_settings_user_id ON user_ai_settings(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_health_profiles_user_id ON user_health_profiles(user_id);
+
+-- ===================================================================
+-- 011: NORMALIZE meal_templates.ingredients_json FORMAT
+-- ===================================================================
+
+WITH normalized AS (
+  SELECT
+    mt.id AS meal_template_id,
+    jsonb_agg(
+      jsonb_strip_nulls(
+        jsonb_build_object(
+          'ingredientId',
+            COALESCE(
+              CASE WHEN (e->>'ingredientId') ~ '^[0-9]+$' THEN (e->>'ingredientId')::int END,
+              CASE WHEN (e->>'id') ~ '^[0-9]+$' THEN (e->>'id')::int END,
+              mi_by_name.id
+            ),
+          'name', COALESCE(NULLIF(e->>'name', ''), mi_by_id.name, mi_by_name.name),
+          'qty', COALESCE(
+            CASE WHEN (e->>'qty') ~ '^[0-9]+(\.[0-9]+)?$' THEN (e->>'qty')::numeric END,
+            1
+          ),
+          'unit', COALESCE(NULLIF(e->>'unit', ''), NULLIF(e->>'baseUnit', ''), mi_by_id.default_unit, mi_by_name.default_unit, 'unit')
+        )
+      )
+    ) AS normalized_json
+  FROM meal_templates mt
+  CROSS JOIN LATERAL jsonb_array_elements(
+    CASE
+      WHEN mt.ingredients_json IS NULL OR btrim(mt.ingredients_json) = '' THEN '[]'::jsonb
+      ELSE gd_try_parse_jsonb_array(mt.ingredients_json)
+    END
+  ) e
+  LEFT JOIN meal_ingredients mi_by_id
+    ON mi_by_id.id = COALESCE(
+      CASE WHEN (e->>'ingredientId') ~ '^[0-9]+$' THEN (e->>'ingredientId')::int END,
+      CASE WHEN (e->>'id') ~ '^[0-9]+$' THEN (e->>'id')::int END
+    )
+  LEFT JOIN meal_ingredients mi_by_name
+    ON lower(mi_by_name.name) = lower(COALESCE(e->>'name', ''))
+  GROUP BY mt.id
+)
+UPDATE meal_templates mt
+SET ingredients_json = normalized.normalized_json::text
+FROM normalized
+WHERE mt.id = normalized.meal_template_id
+  AND mt.ingredients_json IS DISTINCT FROM normalized.normalized_json::text;
+
+-- ===================================================================
+-- 012: MAKE meal_ingredients GLOBAL (dedupe + drop user scope)
+-- ===================================================================
+
+CREATE TEMP TABLE _meal_ingredient_canonical AS
+SELECT
+  id AS old_id,
+  MIN(id) OVER (PARTITION BY lower(name)) AS canonical_id
+FROM meal_ingredients;
+
+WITH rewritten AS (
+  SELECT
+    mt.id AS meal_template_id,
+    jsonb_agg(
+      CASE
+        WHEN (e->>'ingredientId') ~ '^[0-9]+$' THEN
+          jsonb_set(
+            e,
+            '{ingredientId}',
+            to_jsonb(COALESCE(m.canonical_id, (e->>'ingredientId')::int))
+          )
+        ELSE e
+      END
+    ) AS new_json
+  FROM meal_templates mt
+  CROSS JOIN LATERAL jsonb_array_elements(
+    CASE
+      WHEN mt.ingredients_json IS NULL OR btrim(mt.ingredients_json) = '' THEN '[]'::jsonb
+      ELSE gd_try_parse_jsonb_array(mt.ingredients_json)
+    END
+  ) e
+  LEFT JOIN _meal_ingredient_canonical m
+    ON m.old_id = CASE
+      WHEN (e->>'ingredientId') ~ '^[0-9]+$' THEN (e->>'ingredientId')::int
+    END
+  GROUP BY mt.id
+)
+UPDATE meal_templates mt
+SET ingredients_json = rewritten.new_json::text
+FROM rewritten
+WHERE mt.id = rewritten.meal_template_id
+  AND mt.ingredients_json IS DISTINCT FROM rewritten.new_json::text;
+
+DELETE FROM meal_ingredients mi
+USING _meal_ingredient_canonical map
+WHERE mi.id = map.old_id
+  AND map.old_id <> map.canonical_id;
+
+DROP INDEX IF EXISTS idx_meal_ingredients_user_id;
+DROP INDEX IF EXISTS ux_meal_ingredients_user_name_ci;
+ALTER TABLE meal_ingredients DROP CONSTRAINT IF EXISTS meal_ingredients_user_id_fkey;
+ALTER TABLE meal_ingredients DROP COLUMN IF EXISTS user_id;
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_meal_ingredients_name_ci
+  ON meal_ingredients (lower(name));
+
+-- ===================================================================
+-- 013: TASKS notes_json (upgrade safety)
+-- ===================================================================
+
+ALTER TABLE tasks
+ADD COLUMN IF NOT EXISTS notes_json text;
+
+-- ===================================================================
+-- 015: EXERCISE ANIMATION COLUMNS (upgrade safety + docs)
+-- ===================================================================
+
+ALTER TABLE exercises
+  ADD COLUMN IF NOT EXISTS video_url VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS beginner_tips TEXT,
+  ADD COLUMN IF NOT EXISTS animation_frames JSONB DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS common_mistakes JSONB DEFAULT '[]';
+
+CREATE INDEX IF NOT EXISTS idx_exercises_has_animation ON exercises USING gin (animation_frames);
+
+COMMENT ON COLUMN exercises.animation_frames IS
+  'JSON array of animation keyframes. Example: [{"phase": 0, "name": "Starting Position", "duration": 0.5, "muscles": {"biceps-long": 0.0}, "cue": "Stand straight"}]';
+
+COMMENT ON COLUMN exercises.common_mistakes IS
+  'JSON array of common mistakes. Example: [{"mistake": "Swinging weight", "correction": "Keep elbows tucked", "highlightedMuscles": ["biceps-long"]}]';
+
+COMMENT ON COLUMN exercises.beginner_tips IS
+  'Comma-separated form cues for beginners';
+
+COMMENT ON COLUMN exercises.video_url IS
+  'URL to GIF or MP4 video showing proper exercise form';
+
+-- ===================================================================
+-- 014: AI CHAT TABLES
+-- ===================================================================
+
+CREATE TABLE IF NOT EXISTS ai_conversations (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL DEFAULT 'New Chat',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ai_messages (
+  id SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL,
+  action_taken TEXT,
+  tokens_used INTEGER,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_conversations_user_id
+  ON ai_conversations(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_messages_conversation_id
+  ON ai_messages(conversation_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_messages_user_created
+  ON ai_messages(user_id, created_at DESC);
+
+-- ===================================================================
+-- 017: AI HEALTH ADVISOR — EMBEDDINGS + FEEDBACK
+-- ===================================================================
+
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS ai_embeddings (
+  id            SERIAL PRIMARY KEY,
+  user_id       INTEGER NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  record_type   TEXT NOT NULL,
+  record_date   DATE NOT NULL,
+  content_text  TEXT NOT NULL,
+  embedding     VECTOR(384) NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, record_type, record_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_embeddings_user_vector
+  ON ai_embeddings USING ivfflat (embedding vector_cosine_ops)
+  WITH (lists = 100);
+
+CREATE INDEX IF NOT EXISTS idx_ai_embeddings_user_type_date
+  ON ai_embeddings (user_id, record_type, record_date DESC);
+
+CREATE TABLE IF NOT EXISTS ai_advisor_feedback (
+  id               SERIAL PRIMARY KEY,
+  user_id          INTEGER NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  conversation_id  TEXT NOT NULL,
+  message_index    INTEGER NOT NULL,
+  satisfied        BOOLEAN NOT NULL,
+  comment          TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_advisor_feedback_user ON ai_advisor_feedback(user_id);
+
+DO $$
+DECLARE
+  missing_columns text;
+BEGIN
+  SELECT string_agg(req.column_name, ', ' ORDER BY req.column_name)
+  INTO missing_columns
+  FROM (
+    VALUES
+      ('animation_frames'),
+      ('beginner_tips'),
+      ('common_mistakes'),
+      ('video_url')
+  ) AS req(column_name)
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns c
+    WHERE c.table_schema = 'public'
+      AND c.table_name = 'exercises'
+      AND c.column_name = req.column_name
+  );
+
+  IF missing_columns IS NOT NULL THEN
+    RAISE EXCEPTION 'all_up verification failed: exercises is missing required columns: %', missing_columns;
+  END IF;
+END;
+$$;
+
+DROP FUNCTION IF EXISTS gd_try_parse_jsonb(text);
+DROP FUNCTION IF EXISTS gd_try_parse_jsonb_array(text);
 
 COMMIT;

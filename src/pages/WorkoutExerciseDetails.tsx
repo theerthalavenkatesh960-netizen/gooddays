@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Dumbbell, Calendar, Repeat } from 'lucide-react';
 import * as api from '../lib/api';
+import { MUSCLE_GROUPS_DETAILED } from '../lib/config';
+import MuscleVisualization from '../components/MuscleVisualization';
+import ExerciseAnimationPlayer from '../components/ExerciseAnimationPlayer';
 
 type Exercise = {
   id: number;
@@ -9,6 +12,10 @@ type Exercise = {
   muscleGroup: string;
   description?: string;
   imageUrl?: string;
+  videoUrl?: string;
+  beginnerTips?: string;
+  animationFrames?: string;
+  commonMistakes?: string;
   userId?: number | null;
 };
 
@@ -154,14 +161,17 @@ export default function WorkoutExerciseDetails() {
                 className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
               <select value={form.muscleGroup} onChange={e => setForm(p => ({ ...p, muscleGroup: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
-                <option>Chest</option>
-                <option>Back</option>
-                <option>Shoulders</option>
-                <option>Arms</option>
-                <option>Legs</option>
-                <option>Core</option>
-                <option>Cardio</option>
-                <option>Full Body</option>
+                {MUSCLE_GROUPS_DETAILED.map(group =>
+                  group.children.length > 0 ? (
+                    <optgroup key={group.parent} label={group.parent}>
+                      {group.children.map(child => (
+                        <option key={child} value={child}>{child}</option>
+                      ))}
+                    </optgroup>
+                  ) : (
+                    <option key={group.parent} value={group.parent}>{group.parent}</option>
+                  )
+                )}
               </select>
               <input value={form.imageUrl} onChange={e => setForm(p => ({ ...p, imageUrl: e.target.value }))}
                 placeholder="Image URL" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
@@ -189,6 +199,26 @@ export default function WorkoutExerciseDetails() {
           )}
         </div>
       </div>
+
+      {!editing && (
+        <>
+          {/* Exercise Animation Player */}
+          <ExerciseAnimationPlayer
+            exerciseName={exercise.name}
+            muscleGroup={exercise.muscleGroup}
+            videoUrl={exercise.videoUrl}
+            beginnerTips={exercise.beginnerTips}
+            animationFrames={exercise.animationFrames}
+            commonMistakes={exercise.commonMistakes}
+          />
+
+          {/* Muscle Diagram */}
+          <div className="rounded-2xl p-4 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <p className="text-xs uppercase font-semibold mb-3" style={{ color: 'var(--text-muted)' }}>Muscle Focus</p>
+            <MuscleVisualization highlightMuscle={exercise.muscleGroup} height={420} />
+          </div>
+        </>
+      )}
 
       <div className="grid grid-cols-2 gap-2 mb-4">
         <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>

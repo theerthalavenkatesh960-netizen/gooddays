@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Dumbbell, Search, Check } from 'lucide-react';
 import * as api from '../lib/api';
+import { MUSCLE_GROUP_FILTER, matchesMuscleFilter } from '../lib/config';
 
 type Exercise = {
   id: number;
@@ -15,7 +16,7 @@ type PickerState = {
   day?: string;
 };
 
-const MUSCLE_GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio', 'Full Body'];
+const MUSCLE_GROUPS = ['All', ...MUSCLE_GROUP_FILTER];
 
 export default function RoutineExercisePickerPage() {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ export default function RoutineExercisePickerPage() {
 
   const filtered = useMemo(() => {
     let list = exercises;
-    if (muscle !== 'All') list = list.filter(e => e.muscleGroup === muscle);
+    if (muscle !== 'All') list = list.filter(e => matchesMuscleFilter(e.muscleGroup, muscle));
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(e => e.name.toLowerCase().includes(q) || e.muscleGroup.toLowerCase().includes(q));

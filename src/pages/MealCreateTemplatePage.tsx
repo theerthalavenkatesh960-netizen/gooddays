@@ -109,7 +109,7 @@ export default function MealCreateTemplatePage() {
         ingredientsJson: JSON.stringify(snapshots),
       });
 
-      navigate('/settings/meals');
+      navigate('/settings/meals', { state: { tab: 'library', reloadAt: Date.now() } });
     } catch (e: any) {
       setStatus(e?.message || 'Failed to create meal template');
     } finally {
