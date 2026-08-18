@@ -5,8 +5,6 @@
 -- Run: psql -U postgres -d gooddays -f all_up.sql
 -- ===================================================================
 
-\set ON_ERROR_STOP on
-
 BEGIN;
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
