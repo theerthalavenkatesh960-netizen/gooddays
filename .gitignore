@@ -34,3 +34,7 @@ dist-ssr
 .vs/
 *.user
 
+# Local secrets (never commit real credentials)
+backend/GoodDaysApi/appsettings.Development.json
+backend/GoodDaysApi/appsettings.Local.json
+
