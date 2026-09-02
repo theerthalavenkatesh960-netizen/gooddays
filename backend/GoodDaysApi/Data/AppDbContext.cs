@@ -12,6 +12,11 @@ public class AppDbContext : DbContext
     public DbSet<Expense> Expenses { get; set; } = null!;
     public DbSet<ConnectedEmailAccount> ConnectedEmailAccounts { get; set; } = null!;
     public DbSet<SyncedEmail> SyncedEmails { get; set; } = null!;
+    public DbSet<TransactionCandidate> TransactionCandidates { get; set; } = null!;
+    public DbSet<CardStatement> CardStatements { get; set; } = null!;
+    public DbSet<Order> Orders { get; set; } = null!;
+    public DbSet<OrderTransactionLink> OrderTransactionLinks { get; set; } = null!;
+    public DbSet<MerchantAlias> MerchantAliases { get; set; } = null!;
     public DbSet<GamificationEntry> GamificationEntries { get; set; } = null!;
     public DbSet<DailyTracking> DailyTrackings { get; set; } = null!;
     public DbSet<DailyNote> DailyNotes { get; set; } = null!;

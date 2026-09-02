@@ -13,6 +13,7 @@ import BankStatementImport from '../components/financial/BankStatementImport';
 import CreditCardComponent from '../components/financial/CreditCardComponent';
 import CardAnalyticsComponent from '../components/financial/CardAnalytics';
 import EnhancedCreditCardComponent from '../components/financial/EnhancedCreditCardComponent';
+import CardStatementsAndOrders from '../components/financial/CardStatementsAndOrders';
 import SpendingAlertBanner from '../components/financial/SpendingAlertBanner';
 import RewardRedemptionModal from '../components/financial/RewardRedemptionModal';
 import { generateSpendingAlert, SpendingAlert } from '../lib/spendingAlerts';
@@ -465,6 +466,9 @@ export default function Cards() {
                   }}
                 />
               )}
+
+              {/* Statement history + linked orders (from Gmail sync) */}
+              <CardStatementsAndOrders cardId={currentCard.id} />
 
               {/* Recent Transactions */}
               <motion.div

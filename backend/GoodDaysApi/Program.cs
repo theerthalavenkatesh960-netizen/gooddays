@@ -63,6 +63,11 @@ builder.Services.AddScoped<GoodDaysApi.Services.Gmail.Repositories.ISyncedEmailR
 builder.Services.AddScoped<ITransactionExtractionService, TransactionExtractionService>();
 builder.Services.AddScoped<IGmailService, GmailService>();
 builder.Services.AddScoped<IGmailSyncService, GmailSyncService>();
+builder.Services.AddScoped<GoodDaysApi.Services.Gmail.ICardMatchingService, GoodDaysApi.Services.Gmail.CardMatchingService>();
+builder.Services.AddScoped<GoodDaysApi.Services.Gmail.ICardStatementExtractionService, GoodDaysApi.Services.Gmail.CardStatementExtractionService>();
+builder.Services.AddScoped<GoodDaysApi.Services.Gmail.IOrderExtractionService, GoodDaysApi.Services.Gmail.OrderExtractionService>();
+builder.Services.AddScoped<GoodDaysApi.Services.Gmail.IOrderMatchingService, GoodDaysApi.Services.Gmail.OrderMatchingService>();
+builder.Services.AddScoped<GoodDaysApi.Services.Gmail.IMerchantAliasService, GoodDaysApi.Services.Gmail.MerchantAliasService>();
 builder.Services.AddHostedService<GmailSyncBackgroundWorker>();
 
 // Register AI Service

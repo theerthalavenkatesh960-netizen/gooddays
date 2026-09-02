@@ -32,6 +32,34 @@ public class Expense
     [Column("source_type")]
     public string? SourceType { get; set; }
 
+    [Column("direction")]
+    public string Direction { get; set; } = "DEBIT";
+
+    [Column("transaction_type")]
+    public string TransactionType { get; set; } = "OTHER";
+
+    [Column("transaction_status")]
+    public string TransactionStatus { get; set; } = "UNKNOWN";
+
+    [Column("payment_instrument_type")]
+    public string PaymentInstrumentType { get; set; } = "UNKNOWN";
+
+    [Column("institution_name")]
+    public string? InstitutionName { get; set; }
+
+    [Column("instrument_last4")]
+    public string? InstrumentLast4 { get; set; }
+
+    [Column("extraction_version")]
+    public string ExtractionVersion { get; set; } = "v2.0";
+
+    [Column("evidence_json")]
+    public string EvidenceJson { get; set; } = "{}";
+
+    // originally detected merchant text, kept even after a manual correction, used as the alias lookup key
+    [Column("raw_merchant")]
+    public string? RawMerchant { get; set; }
+
     [Column("is_reviewed")]
     public bool IsReviewed { get; set; } = true;
 

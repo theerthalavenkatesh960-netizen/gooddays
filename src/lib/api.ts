@@ -526,6 +526,13 @@ export async function bulkSetCategoryFinanceGmailTransactions(expenseIds: number
   });
 }
 
+export async function updateFinanceGmailMerchant(expenseId: number, merchant: string, category?: string, applyToFuture = true) {
+  return request('finance/gmail/merchant', {
+    method: 'POST',
+    body: JSON.stringify({ expenseId, merchant, category, applyToFuture }),
+  });
+}
+
 // Daily tracking (sleep/workout/phone/sunlight/mood)
 export type DailyTracking = {
   id: number;

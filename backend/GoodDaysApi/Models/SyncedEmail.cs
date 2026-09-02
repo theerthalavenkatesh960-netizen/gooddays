@@ -29,6 +29,30 @@ public class SyncedEmail
     [Column("processed_at")]
     public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
 
+    [Column("subject")]
+    public string Subject { get; set; } = string.Empty;
+
+    [Column("snippet")]
+    public string Snippet { get; set; } = string.Empty;
+
+    [Column("body_text")]
+    public string BodyText { get; set; } = string.Empty;
+
+    [Column("sender")]
+    public string? Sender { get; set; }
+
+    [Column("processing_status")]
+    public string ProcessingStatus { get; set; } = "PROCESSED";
+
+    [Column("parser_name")]
+    public string ParserName { get; set; } = "GenericTransactionParser";
+
+    [Column("extraction_version")]
+    public string ExtractionVersion { get; set; } = "v2.0";
+
+    [Column("processing_error")]
+    public string? ProcessingError { get; set; }
+
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 }

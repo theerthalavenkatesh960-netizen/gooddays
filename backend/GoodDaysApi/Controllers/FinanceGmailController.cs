@@ -15,17 +15,20 @@ public class FinanceGmailController : ControllerBase
     private readonly IGmailSyncService _gmailSyncService;
     private readonly IConfiguration _configuration;
     private readonly AppDbContext _db;
+    private readonly IMerchantAliasService _merchantAlias;
 
     public FinanceGmailController(
         IGmailService gmailService,
         IGmailSyncService gmailSyncService,
         IConfiguration configuration,
-        AppDbContext db)
+        AppDbContext db,
+        IMerchantAliasService merchantAlias)
     {
         _gmailService = gmailService;
         _gmailSyncService = gmailSyncService;
         _configuration = configuration;
         _db = db;
+        _merchantAlias = merchantAlias;
     }
 
     [HttpGet("connect")]
@@ -185,6 +188,39 @@ public class FinanceGmailController : ControllerBase
         return Ok(new { updated = items.Count });
     }
 
+    [HttpPost("merchant")]
+    [Authorize]
+    public async Task<IActionResult> UpdateMerchant([FromBody] GmailMerchantCorrectionRequest request, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        if (string.IsNullOrWhiteSpace(request.Merchant))
+        {
+            return BadRequest(new { message = "Merchant is required." });
+        }
+
+        var expense = await _db.Expenses.FirstOrDefaultAsync(
+            x => x.Id == request.ExpenseId && x.UserId == userId.Value && x.SourceType == "gmail", cancellationToken);
+        if (expense == null) return NotFound();
+
+        var provider = string.IsNullOrWhiteSpace(expense.InstitutionName) ? string.Empty : $" [{expense.InstitutionName}]";
+        expense.Description = $"{request.Merchant}{provider}";
+        if (!string.IsNullOrWhiteSpace(request.Category))
+        {
+            expense.Category = request.Category;
+        }
+        expense.IsReviewed = true;
+        expense.ReviewedAt = DateTime.UtcNow;
+
+        if (request.ApplyToFuture && !string.IsNullOrWhiteSpace(expense.RawMerchant))
+        {
+            await _merchantAlias.UpsertAsync(userId.Value, expense.RawMerchant, request.Merchant, request.Category, cancellationToken);
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return Ok(new { updated = true, expense.Description, expense.Category });
+    }
+
     [HttpPost("category")]
     [Authorize]
     public async Task<IActionResult> BulkCategory([FromBody] GmailBulkCategoryRequest request, CancellationToken cancellationToken)
@@ -215,6 +251,54 @@ public class FinanceGmailController : ControllerBase
         return Ok(new { updated = items.Count });
     }
 
+    [HttpGet("candidates")]
+    [Authorize]
+    public async Task<IActionResult> Candidates([FromQuery] string? status, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var query = _db.TransactionCandidates.Where(x => x.UserId == userId.Value);
+        if (!string.IsNullOrWhiteSpace(status)) query = query.Where(x => x.Status == status);
+
+        var items = await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Select(x => new
+            {
+                x.Id,
+                x.SourceMessageId,
+                x.SourceThreadId,
+                x.Status,
+                x.EvidenceJson,
+                x.Error,
+                x.ExtractionVersion,
+                x.CreatedAt
+            })
+            .ToListAsync(cancellationToken);
+
+        return Ok(items);
+    }
+
+    [HttpPost("candidates/{id:guid}/status")]
+    [Authorize]
+    public async Task<IActionResult> UpdateCandidateStatus(Guid id, [FromBody] CandidateStatusRequest request, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        var allowed = new[] { "NEEDS_REVIEW", "REJECTED" };
+        if (!allowed.Contains(request.Status, StringComparer.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { message = "Only NEEDS_REVIEW or REJECTED is allowed until a candidate is explicitly promoted." });
+        }
+
+        var candidate = await _db.TransactionCandidates.FirstOrDefaultAsync(
+            x => x.Id == id && x.UserId == userId.Value, cancellationToken);
+        if (candidate == null) return NotFound();
+        candidate.Status = request.Status.ToUpperInvariant();
+        await _db.SaveChangesAsync(cancellationToken);
+        return Ok(new { updated = true });
+    }
+
     private int? GetCurrentUserId()
     {
         var userIdClaim =
@@ -231,5 +315,11 @@ public class FinanceGmailController : ControllerBase
     }
 }
 
+public class CandidateStatusRequest
+{
+    public string Status { get; set; } = "NEEDS_REVIEW";
+}
+
 public record GmailBulkReviewRequest(List<int> ExpenseIds, bool IsReviewed);
 public record GmailBulkCategoryRequest(List<int> ExpenseIds, string Category, bool MarkReviewedOnCategoryChange = true);
+public record GmailMerchantCorrectionRequest(int ExpenseId, string Merchant, string? Category, bool ApplyToFuture = true);

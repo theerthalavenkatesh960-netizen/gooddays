@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using GoodDaysApi.Services.Gmail.Models;
 
@@ -10,11 +11,13 @@ public class TransactionExtractionService : ITransactionExtractionService
         @"(?:(?:INR|Rs\.?|₹)\s*)(\d{1,3}(?:,\d{2,3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    private static readonly Regex DebitedRegex = new(@"\b(debited|spent|payment|paid)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex CreditedRegex = new(@"\b(credited|received|refund|deposited)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex MerchantRegex = new(@"\b(?:at|to|from)\s+([A-Za-z0-9\-\.\s]{2,40})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex DebitRegex = new(@"\b(debited|spent|charged|purchase|purchased|withdrawn|paid|sent)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex CreditRegex = new(@"\b(credited|received|refund(?:ed)?|deposited|salary|cashback)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex EventRegex = new(@"\b(transaction|authorization|declined|failed|reversed|pending)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex MerchantRegex = new(@"\b(?:at|to)\s+([A-Za-z0-9\-\.\s]{2,40}?)(?=\s+(?:for|on|with|using|txn|ref|$))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex RefRegex = new(@"\b(?:ref(?:erence)?\s*(?:no|number)?|utr|txn(?:\s*id)?)\s*[:#-]?\s*([A-Za-z0-9\-]{6,30})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex DateRegex = new(@"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex Last4Regex = new(@"(?:ending|ends|last\s*4|xxxx|\*{2,})\s*[-#:]?\s*(?:\*{0,4}|x{0,4})?(\d{4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly string[] ProviderKeywords =
     {
@@ -56,7 +59,9 @@ public class TransactionExtractionService : ITransactionExtractionService
     public bool TryExtract(string subject, string snippet, string body, out ExtractedTransaction transaction)
     {
         var text = string.Join(" ", new[] { subject, snippet, body }.Where(x => !string.IsNullOrWhiteSpace(x)));
-        transaction = new ExtractedTransaction { RawSnippet = text.Length > 300 ? text[..300] : text };
+        transaction = new ExtractedTransaction();
+
+        if (string.IsNullOrWhiteSpace(text) || IsNonTransaction(text)) return false;
 
         var amountMatch = AmountRegex.Match(text);
         if (!amountMatch.Success)
@@ -72,25 +77,37 @@ public class TransactionExtractionService : ITransactionExtractionService
 
         transaction.Amount = amount;
         transaction.Currency = "INR";
-        transaction.ConfidenceScore = 0.45m;
+        transaction.ConfidenceScore = 0.30m;
 
-        var hasDebit = DebitedRegex.IsMatch(text);
-        var hasCredit = CreditedRegex.IsMatch(text);
-        transaction.TransactionType = hasDebit ? "debit" : hasCredit ? "credit" : "debit";
-        if (hasDebit || hasCredit) transaction.ConfidenceScore += 0.20m;
+        var hasDebit = DebitRegex.IsMatch(text);
+        var hasCredit = CreditRegex.IsMatch(text);
+        if (!hasDebit && !hasCredit && !EventRegex.IsMatch(text)) return false;
+        transaction.Direction = hasCredit && !hasDebit ? "CREDIT" : "DEBIT";
+        transaction.TransactionType = InferTransactionType(text, transaction.Direction);
+        transaction.TransactionStatus = text.Contains("declined", StringComparison.OrdinalIgnoreCase) || text.Contains("failed", StringComparison.OrdinalIgnoreCase) ? "FAILED" :
+            text.Contains("reversed", StringComparison.OrdinalIgnoreCase) ? "REVERSED" :
+            text.Contains("pending", StringComparison.OrdinalIgnoreCase) || text.Contains("authorization", StringComparison.OrdinalIgnoreCase) ? "PENDING" : "COMPLETED";
+        transaction.ConfidenceScore += 0.25m;
+
+        transaction.InstrumentType = InferInstrumentType(text);
+        if (transaction.InstrumentType == "UNKNOWN") return false;
+        transaction.ConfidenceScore += 0.20m;
+
+        var last4Match = Last4Regex.Match(text);
+        if (last4Match.Success) transaction.InstrumentLast4 = last4Match.Groups[1].Value;
 
         var merchantMatch = MerchantRegex.Match(text);
         if (merchantMatch.Success)
         {
             transaction.Merchant = merchantMatch.Groups[1].Value.Trim();
-            transaction.ConfidenceScore += 0.15m;
+            transaction.ConfidenceScore += 0.10m;
         }
 
         var refMatch = RefRegex.Match(text);
         if (refMatch.Success)
         {
             transaction.ReferenceNumber = refMatch.Groups[1].Value.Trim();
-            transaction.ConfidenceScore += 0.10m;
+            transaction.ConfidenceScore += 0.05m;
         }
 
         var dateMatch = DateRegex.Match(text);
@@ -104,11 +121,22 @@ public class TransactionExtractionService : ITransactionExtractionService
         transaction.ProviderOrBank = provider;
         if (!string.IsNullOrWhiteSpace(provider)) transaction.ConfidenceScore += 0.05m;
 
-        transaction.SuggestedCategory = InferCategory(text, transaction.TransactionType);
+        transaction.SuggestedCategory = InferCategory(text, transaction.Direction);
         if (!string.Equals(transaction.SuggestedCategory, "Other", StringComparison.OrdinalIgnoreCase))
         {
-            transaction.ConfidenceScore += 0.10m;
+            transaction.ConfidenceScore += 0.05m;
         }
+
+        transaction.EvidenceJson = JsonSerializer.Serialize(new
+        {
+            amount = amountMatch.Value,
+            merchant = merchantMatch.Success ? merchantMatch.Value : null,
+            instrument = transaction.InstrumentType,
+            last4 = transaction.InstrumentLast4,
+            reference = transaction.ReferenceNumber,
+            direction = transaction.Direction,
+            status = transaction.TransactionStatus
+        });
 
         if (transaction.ConfidenceScore > 0.98m)
         {
@@ -118,9 +146,34 @@ public class TransactionExtractionService : ITransactionExtractionService
         return true;
     }
 
-    private static string InferCategory(string text, string transactionType)
+    public IReadOnlyList<ExtractedTransaction> ExtractMany(string subject, string snippet, string body)
     {
-        if (string.Equals(transactionType, "credit", StringComparison.OrdinalIgnoreCase))
+        var text = string.Join(" ", new[] { subject, snippet, body }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        var matches = AmountRegex.Matches(text);
+        if (matches.Count <= 1)
+        {
+            return TryExtract(subject, snippet, body, out var single)
+                ? new[] { single }
+                : Array.Empty<ExtractedTransaction>();
+        }
+
+        var results = new List<ExtractedTransaction>();
+        var segments = Regex.Split(text, @"[.!?\r\n]+");
+        foreach (var segment in segments.Where(x => AmountRegex.IsMatch(x)))
+        {
+            if (TryExtract(subject, string.Empty, segment, out var transaction)
+                && results.All(x => x.EvidenceJson != transaction.EvidenceJson))
+            {
+                results.Add(transaction);
+            }
+        }
+
+        return results;
+    }
+
+    private static string InferCategory(string text, string direction)
+    {
+        if (string.Equals(direction, "CREDIT", StringComparison.OrdinalIgnoreCase))
         {
             return "Other";
         }
@@ -134,5 +187,34 @@ public class TransactionExtractionService : ITransactionExtractionService
         }
 
         return "Other";
+    }
+
+    private static bool IsNonTransaction(string text)
+    {
+        var exclusions = new[] { "minimum amount due", "total amount due", "payment due date", "credit limit", "available balance", "statement balance", "one time password", "otp", "verify your login", "loan offer", "apply now", "cashback offer" };
+        return exclusions.Any(x => text.Contains(x, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string InferInstrumentType(string text)
+    {
+        if (Regex.IsMatch(text, @"\bupi\b|vpa|utr", RegexOptions.IgnoreCase)) return "UPI";
+        if (Regex.IsMatch(text, @"\b(?:credit\s+card|card\s+account)\b", RegexOptions.IgnoreCase)) return "CREDIT_CARD";
+        if (Regex.IsMatch(text, @"\bdebit\s+card\b", RegexOptions.IgnoreCase)) return "DEBIT_CARD";
+        if (Regex.IsMatch(text, @"\b(?:bank|savings|current)\s+account\b|account\s+(?:number|ending|debited|credited)", RegexOptions.IgnoreCase)) return "BANK_ACCOUNT";
+        if (Regex.IsMatch(text, @"\bwallet\b", RegexOptions.IgnoreCase)) return "WALLET";
+        return "UNKNOWN";
+    }
+
+    private static string InferTransactionType(string text, string direction)
+    {
+        if (Regex.IsMatch(text, @"\brefund(?:ed)?\b", RegexOptions.IgnoreCase)) return "REFUND";
+        if (Regex.IsMatch(text, @"\breversed\b", RegexOptions.IgnoreCase)) return "REVERSAL";
+        if (Regex.IsMatch(text, @"\b(?:card|credit card)\s+payment\b", RegexOptions.IgnoreCase)) return "PAYMENT";
+        if (Regex.IsMatch(text, @"\b(?:salary|payroll)\b", RegexOptions.IgnoreCase)) return "SALARY";
+        if (Regex.IsMatch(text, @"\b(?:withdrawn|cash withdrawal|atm)\b", RegexOptions.IgnoreCase)) return "WITHDRAWAL";
+        if (Regex.IsMatch(text, @"\b(?:transfer|transferred)\b", RegexOptions.IgnoreCase)) return "TRANSFER";
+        if (Regex.IsMatch(text, @"\b(?:fee|charge)\b", RegexOptions.IgnoreCase)) return "FEE";
+        if (Regex.IsMatch(text, @"\b(?:bill|biller)\b", RegexOptions.IgnoreCase)) return "BILL_PAYMENT";
+        return direction == "CREDIT" ? "DEPOSIT" : "PURCHASE";
     }
 }

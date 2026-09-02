@@ -15,7 +15,7 @@ public class SyncedEmailRepository : ISyncedEmailRepository
 
     public Task<bool> ExistsAsync(int userId, string gmailMessageId, CancellationToken cancellationToken = default)
     {
-        return _db.SyncedEmails.AnyAsync(x => x.UserId == userId && x.GmailMessageId == gmailMessageId, cancellationToken);
+        return _db.SyncedEmails.AnyAsync(x => x.UserId == userId && x.GmailMessageId == gmailMessageId && x.ProcessingStatus == "PROCESSED", cancellationToken);
     }
 
     public async Task AddAsync(SyncedEmail item, CancellationToken cancellationToken = default)
@@ -27,7 +27,7 @@ public class SyncedEmailRepository : ISyncedEmailRepository
     public Task<DateTime?> GetLatestInternalDateAsync(int userId, CancellationToken cancellationToken = default)
     {
         return _db.SyncedEmails
-            .Where(x => x.UserId == userId)
+            .Where(x => x.UserId == userId && x.ProcessingStatus == "PROCESSED")
             .OrderByDescending(x => x.InternalDate)
             .Select(x => (DateTime?)x.InternalDate)
             .FirstOrDefaultAsync(cancellationToken);

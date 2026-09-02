@@ -363,6 +363,22 @@ export const cardApi = {
   },
 
   /**
+   * Get statement history for a specific card
+   */
+  getCardStatements: async (cardId: string): Promise<any[]> => {
+    if (USE_DUMMY_FINANCE) return Promise.resolve([]);
+    return request(`cards/${cardId}/statements`);
+  },
+
+  /**
+   * Get orders linked to transactions on a specific card
+   */
+  getCardOrders: async (cardId: string): Promise<any[]> => {
+    if (USE_DUMMY_FINANCE) return Promise.resolve([]);
+    return request(`cards/${cardId}/orders`);
+  },
+
+  /**
    * Get analytics for a specific card
    */
   getCardAnalytics: async (

@@ -117,6 +117,52 @@ public class CardsController : ControllerBase
         return Ok(expenses);
     }
 
+    // GET /api/cards/{id}/statements
+    [HttpGet("{id}/statements")]
+    public async Task<IActionResult> GetCardStatements(Guid id)
+    {
+        var cardExists = await _db.CreditCards.AnyAsync(c => c.Id == id);
+        if (!cardExists) return NotFound();
+
+        var statements = await _db.CardStatements
+            .Where(s => s.CardId == id)
+            .OrderByDescending(s => s.StatementDate ?? s.CreatedAt)
+            .ToListAsync();
+        return Ok(statements);
+    }
+
+    // GET /api/cards/{id}/orders
+    [HttpGet("{id}/orders")]
+    public async Task<IActionResult> GetCardOrders(Guid id)
+    {
+        var cardExists = await _db.CreditCards.AnyAsync(c => c.Id == id);
+        if (!cardExists) return NotFound();
+
+        var expenseIds = await _db.CardExpenses
+            .Where(ce => ce.CardId == id)
+            .Select(ce => ce.ExpenseId)
+            .ToListAsync();
+
+        var orders = await _db.OrderTransactionLinks
+            .Where(link => expenseIds.Contains(link.ExpenseId))
+            .Include(link => link.Order)
+            .Include(link => link.Expense)
+            .OrderByDescending(link => link.Order!.OrderDate ?? link.Order!.CreatedAt)
+            .Select(link => new
+            {
+                link.Id,
+                link.Status,
+                link.MatchScore,
+                link.MatchMethod,
+                Order = link.Order,
+                ExpenseId = link.ExpenseId,
+                ExpenseAmount = link.Expense!.Amount,
+                ExpenseDate = link.Expense!.Date
+            })
+            .ToListAsync();
+        return Ok(orders);
+    }
+
     // GET /api/cards/{id}/analytics
     [HttpGet("{id}/analytics")]
     public async Task<IActionResult> GetCardAnalytics(Guid id, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)

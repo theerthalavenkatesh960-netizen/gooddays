@@ -165,7 +165,15 @@ ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS external_reference varchar(120),
   ADD COLUMN IF NOT EXISTS source_type varchar(50),
   ADD COLUMN IF NOT EXISTS is_reviewed boolean NOT NULL DEFAULT true,
-  ADD COLUMN IF NOT EXISTS reviewed_at timestamp without time zone NULL;
+  ADD COLUMN IF NOT EXISTS reviewed_at timestamp without time zone NULL,
+  ADD COLUMN IF NOT EXISTS direction varchar(20) NOT NULL DEFAULT 'DEBIT',
+  ADD COLUMN IF NOT EXISTS transaction_type varchar(40) NOT NULL DEFAULT 'OTHER',
+  ADD COLUMN IF NOT EXISTS transaction_status varchar(20) NOT NULL DEFAULT 'UNKNOWN',
+  ADD COLUMN IF NOT EXISTS payment_instrument_type varchar(30) NOT NULL DEFAULT 'UNKNOWN',
+  ADD COLUMN IF NOT EXISTS institution_name varchar(120),
+  ADD COLUMN IF NOT EXISTS instrument_last4 varchar(4),
+  ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
+  ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 -- Ensure Clerk auth column exists when upgrading already-existing user_profiles table.
 ALTER TABLE IF EXISTS user_profiles
@@ -1069,13 +1077,113 @@ CREATE TABLE IF NOT EXISTS synced_emails (
     gmail_message_id varchar(200) NOT NULL,
     thread_id varchar(200) NULL,
     internal_date timestamp without time zone NOT NULL,
-    processed_at timestamp without time zone NOT NULL DEFAULT now()
+    processed_at timestamp without time zone NOT NULL DEFAULT now(),
+    subject text NOT NULL DEFAULT '',
+    snippet text NOT NULL DEFAULT '',
+    body_text text NOT NULL DEFAULT '',
+    sender varchar(255) NULL,
+    processing_status varchar(30) NOT NULL DEFAULT 'PROCESSED',
+    parser_name varchar(100) NOT NULL DEFAULT 'GenericTransactionParser',
+    extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
+    processing_error text NULL
 );
+
+ALTER TABLE IF EXISTS synced_emails
+  ADD COLUMN IF NOT EXISTS subject text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS snippet text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS body_text text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS sender varchar(255),
+  ADD COLUMN IF NOT EXISTS processing_status varchar(30) NOT NULL DEFAULT 'PROCESSED',
+  ADD COLUMN IF NOT EXISTS parser_name varchar(100) NOT NULL DEFAULT 'GenericTransactionParser',
+  ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
+  ADD COLUMN IF NOT EXISTS processing_error text;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_synced_emails_user_message
     ON synced_emails(user_id, gmail_message_id);
 
--- Indexes for expense Gmail columns
+CREATE TABLE IF NOT EXISTS transaction_candidates (
+  id uuid PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  source_message_id varchar(200) NOT NULL,
+  source_thread_id varchar(200) NULL,
+  status varchar(30) NOT NULL DEFAULT 'NEEDS_REVIEW',
+  evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  error text NULL,
+  extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
+  created_at timestamp without time zone NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_transaction_candidates_user_message
+  ON transaction_candidates(user_id, source_message_id);
+
+CREATE TABLE IF NOT EXISTS card_statements (
+    id uuid PRIMARY KEY,
+    user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    card_id uuid NULL REFERENCES credit_cards(id) ON DELETE SET NULL,
+    institution_name varchar(120) NULL,
+    card_last4 varchar(4) NULL,
+    statement_date timestamp without time zone NULL,
+    due_date timestamp without time zone NULL,
+    statement_balance numeric NULL,
+    minimum_amount_due numeric NULL,
+    total_amount_due numeric NULL,
+    available_credit_limit numeric NULL,
+    credit_limit numeric NULL,
+    currency varchar(10) NOT NULL DEFAULT 'INR',
+    source_message_id varchar(200) NULL,
+    extraction_version varchar(20) NOT NULL DEFAULT 'v1.0',
+    confidence_score numeric NOT NULL DEFAULT 0,
+    evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamp without time zone NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_card_statements_user_card
+    ON card_statements(user_id, card_id);
+
+CREATE TABLE IF NOT EXISTS orders (
+    id uuid PRIMARY KEY,
+    user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    merchant varchar(120) NULL,
+    order_number varchar(120) NULL,
+    order_date timestamp without time zone NULL,
+    total_amount numeric NULL,
+    currency varchar(10) NOT NULL DEFAULT 'INR',
+    source_message_id varchar(200) NULL,
+    evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamp without time zone NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_orders_user_id ON orders(user_id);
+
+CREATE TABLE IF NOT EXISTS order_transaction_links (
+    id uuid PRIMARY KEY,
+    order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    expense_id integer NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+    match_score numeric NOT NULL DEFAULT 0,
+    match_method varchar(60) NOT NULL DEFAULT 'AMOUNT_DATE',
+    status varchar(30) NOT NULL DEFAULT 'NEEDS_REVIEW',
+    evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamp without time zone NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_order_transaction_links_order_expense
+    ON order_transaction_links(order_id, expense_id);
+
+CREATE TABLE IF NOT EXISTS merchant_aliases (
+    id uuid PRIMARY KEY,
+    user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    raw_merchant_key varchar(200) NOT NULL,
+    corrected_merchant varchar(200) NOT NULL,
+    corrected_category varchar(60) NULL,
+    created_at timestamp without time zone NOT NULL DEFAULT now(),
+    updated_at timestamp without time zone NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_merchant_aliases_user_key
+    ON merchant_aliases(user_id, raw_merchant_key);
+
+ALTER TABLE IF EXISTS expenses
+  ADD COLUMN IF NOT EXISTS raw_merchant text;
 CREATE INDEX IF NOT EXISTS ix_expenses_user_gmail_message_id
     ON expenses(user_id, gmail_message_id);
 

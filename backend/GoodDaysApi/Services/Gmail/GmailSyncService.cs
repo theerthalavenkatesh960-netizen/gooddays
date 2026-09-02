@@ -20,6 +20,11 @@ public class GmailSyncService : IGmailSyncService
     private readonly ITransactionExtractionService _extraction;
     private readonly IConnectedEmailAccountRepository _accounts;
     private readonly ISyncedEmailRepository _syncedEmails;
+    private readonly ICardMatchingService _cardMatching;
+    private readonly ICardStatementExtractionService _statementExtraction;
+    private readonly IOrderExtractionService _orderExtraction;
+    private readonly IOrderMatchingService _orderMatching;
+    private readonly IMerchantAliasService _merchantAlias;
     private readonly ILogger<GmailSyncService> _logger;
 
     public GmailSyncService(
@@ -29,6 +34,11 @@ public class GmailSyncService : IGmailSyncService
         ITransactionExtractionService extraction,
         IConnectedEmailAccountRepository accounts,
         ISyncedEmailRepository syncedEmails,
+        ICardMatchingService cardMatching,
+        ICardStatementExtractionService statementExtraction,
+        IOrderExtractionService orderExtraction,
+        IOrderMatchingService orderMatching,
+        IMerchantAliasService merchantAlias,
         ILogger<GmailSyncService> logger)
     {
         _db = db;
@@ -37,6 +47,11 @@ public class GmailSyncService : IGmailSyncService
         _extraction = extraction;
         _accounts = accounts;
         _syncedEmails = syncedEmails;
+        _cardMatching = cardMatching;
+        _statementExtraction = statementExtraction;
+        _orderExtraction = orderExtraction;
+        _orderMatching = orderMatching;
+        _merchantAlias = merchantAlias;
         _logger = logger;
     }
 
@@ -104,82 +119,162 @@ public class GmailSyncService : IGmailSyncService
                 continue;
             }
 
-            if (!_extraction.TryExtract(message.Subject, message.Snippet, message.BodyText, out var tx))
+            if (_statementExtraction.TryExtract(message.Subject, message.Snippet, message.BodyText, out var statement) && statement.ConfidenceScore >= 0.60m)
+            {
+                statement.UserId = userId;
+                statement.SourceMessageId = message.MessageId;
+                statement.CardId = await _cardMatching.TryMatchCardAsync(userId, statement.CardLast4, statement.InstitutionName, cancellationToken);
+                _db.CardStatements.Add(statement);
+                if (statement.CardId != null)
+                {
+                    var card = await _db.CreditCards.FindAsync(new object?[] { statement.CardId.Value }, cancellationToken);
+                    if (card != null)
+                    {
+                        if (statement.StatementBalance.HasValue) card.CurrentBalance = statement.StatementBalance.Value;
+                        if (statement.CreditLimit.HasValue) card.CreditLimit = statement.CreditLimit.Value;
+                        card.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
+                await RecordEmailAsync(userId, message, "PROCESSED", null, cancellationToken);
+                continue;
+            }
+
+            if (_orderExtraction.TryExtract(message.Subject, message.Snippet, message.BodyText, out var order))
+            {
+                order.UserId = userId;
+                order.SourceMessageId = message.MessageId;
+                _db.Orders.Add(order);
+                await _db.SaveChangesAsync(cancellationToken);
+                await _orderMatching.TryLinkOrderAsync(userId, order, cancellationToken);
+                await RecordEmailAsync(userId, message, "PROCESSED", null, cancellationToken);
+                continue;
+            }
+
+            var transactions = _extraction.ExtractMany(message.Subject, message.Snippet, message.BodyText);
+            if (transactions.Count == 0)
             {
                 result.ParseFailed++;
-                await _syncedEmails.AddAsync(new SyncedEmail
-                {
-                    UserId = userId,
-                    GmailMessageId = message.MessageId,
-                    ThreadId = message.ThreadId,
-                    InternalDate = message.InternalDateUtc,
-                    ProcessedAt = DateTime.UtcNow
-                }, cancellationToken);
+                await SaveCandidateAsync(userId, message, "NEEDS_REVIEW", "No high-confidence transaction evidence.", cancellationToken);
+                await RecordEmailAsync(userId, message, "NEEDS_REVIEW", "No high-confidence transaction evidence.", cancellationToken);
                 continue;
             }
 
-            if (tx.ConfidenceScore < 0.50m)
+            var needsReview = false;
+            foreach (var tx in transactions)
             {
-                result.ParseFailed++;
-                await _syncedEmails.AddAsync(new SyncedEmail
+                if (tx.ConfidenceScore < 0.70m || tx.TransactionStatus != "COMPLETED")
+                {
+                    result.ParseFailed++;
+                    needsReview = true;
+                    await SaveCandidateAsync(userId, message, tx.TransactionStatus == "COMPLETED" ? "NEEDS_REVIEW" : tx.TransactionStatus, tx.EvidenceJson, cancellationToken);
+                    continue;
+                }
+
+                result.Parsed++;
+                if (await IsDuplicateTransactionAsync(userId, message.MessageId, tx, message.InternalDateUtc, cancellationToken))
+                {
+                    result.DuplicatesSkipped++;
+                    continue;
+                }
+
+                var rawMerchant = tx.Merchant;
+                var resolvedAlias = await _merchantAlias.ResolveAsync(userId, rawMerchant, cancellationToken);
+                if (resolvedAlias != null)
+                {
+                    tx.Merchant = resolvedAlias.Value.merchant;
+                    if (!string.IsNullOrWhiteSpace(resolvedAlias.Value.category))
+                    {
+                        tx.SuggestedCategory = resolvedAlias.Value.category!;
+                    }
+                }
+
+                var expense = new Expense
                 {
                     UserId = userId,
+                    Description = BuildDescription(tx),
+                    Amount = tx.Amount,
+                    Category = tx.SuggestedCategory,
+                    Date = tx.TransactionDateUtc ?? message.InternalDateUtc,
+                    CreatedAt = DateTime.UtcNow,
                     GmailMessageId = message.MessageId,
-                    ThreadId = message.ThreadId,
-                    InternalDate = message.InternalDateUtc,
-                    ProcessedAt = DateTime.UtcNow
-                }, cancellationToken);
-                continue;
+                    ExternalReference = tx.ReferenceNumber,
+                    SourceType = "gmail",
+                    Direction = tx.Direction,
+                    TransactionType = tx.TransactionType,
+                    TransactionStatus = tx.TransactionStatus,
+                    PaymentInstrumentType = tx.InstrumentType,
+                    InstitutionName = tx.ProviderOrBank,
+                    InstrumentLast4 = tx.InstrumentLast4,
+                    ExtractionVersion = "v2.0",
+                    EvidenceJson = tx.EvidenceJson,
+                    RawMerchant = rawMerchant,
+                    IsReviewed = false,
+                    ReviewedAt = null
+                };
+
+                _db.Expenses.Add(expense);
+                await _db.SaveChangesAsync(cancellationToken);
+                result.Created++;
+                await _cardMatching.TryLinkExpenseToCardAsync(userId, expense, cancellationToken);
             }
 
-            result.Parsed++;
-            if (await IsDuplicateTransactionAsync(userId, message.MessageId, tx, message.InternalDateUtc, cancellationToken))
-            {
-                result.DuplicatesSkipped++;
-                await _syncedEmails.AddAsync(new SyncedEmail
-                {
-                    UserId = userId,
-                    GmailMessageId = message.MessageId,
-                    ThreadId = message.ThreadId,
-                    InternalDate = message.InternalDateUtc,
-                    ProcessedAt = DateTime.UtcNow
-                }, cancellationToken);
-                continue;
-            }
-
-            var expense = new Expense
-            {
-                UserId = userId,
-                Description = BuildDescription(tx),
-                Amount = tx.Amount,
-                Category = tx.SuggestedCategory,
-                Date = tx.TransactionDateUtc ?? message.InternalDateUtc,
-                CreatedAt = DateTime.UtcNow,
-                GmailMessageId = message.MessageId,
-                ExternalReference = tx.ReferenceNumber,
-                SourceType = "gmail",
-                IsReviewed = false,
-                ReviewedAt = null
-            };
-
-            _db.Expenses.Add(expense);
-            await _db.SaveChangesAsync(cancellationToken);
-            result.Created++;
-
-            await _syncedEmails.AddAsync(new SyncedEmail
-            {
-                UserId = userId,
-                GmailMessageId = message.MessageId,
-                ThreadId = message.ThreadId,
-                InternalDate = message.InternalDateUtc,
-                ProcessedAt = DateTime.UtcNow
-            }, cancellationToken);
+            await RecordEmailAsync(userId, message, needsReview ? "NEEDS_REVIEW" : "PROCESSED", null, cancellationToken);
         }
 
         account.LastSyncedUtc = DateTime.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
 
         return result;
+    }
+
+    private async Task SaveCandidateAsync(int userId, GmailMessageLite message, string status, string evidenceOrError, CancellationToken cancellationToken)
+    {
+        var candidate = await _db.TransactionCandidates.FirstOrDefaultAsync(
+            x => x.UserId == userId && x.SourceMessageId == message.MessageId, cancellationToken);
+        if (candidate == null)
+        {
+            _db.TransactionCandidates.Add(new TransactionCandidate
+            {
+                UserId = userId,
+                SourceMessageId = message.MessageId,
+                SourceThreadId = message.ThreadId,
+                Status = status,
+                EvidenceJson = evidenceOrError.StartsWith("{", StringComparison.Ordinal) ? evidenceOrError : "{}",
+                Error = evidenceOrError.StartsWith("{", StringComparison.Ordinal) ? null : evidenceOrError
+            });
+        }
+        else
+        {
+            candidate.Status = status;
+            candidate.Error = evidenceOrError.StartsWith("{", StringComparison.Ordinal) ? null : evidenceOrError;
+            if (evidenceOrError.StartsWith("{", StringComparison.Ordinal)) candidate.EvidenceJson = evidenceOrError;
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task RecordEmailAsync(int userId, GmailMessageLite message, string status, string? error, CancellationToken cancellationToken)
+    {
+        var existing = await _db.SyncedEmails.FirstOrDefaultAsync(
+            x => x.UserId == userId && x.GmailMessageId == message.MessageId, cancellationToken);
+        if (existing == null)
+        {
+            _db.SyncedEmails.Add(new SyncedEmail
+            {
+                UserId = userId,
+                GmailMessageId = message.MessageId,
+                ThreadId = message.ThreadId,
+                InternalDate = message.InternalDateUtc,
+                Subject = message.Subject,
+                Snippet = message.Snippet,
+                BodyText = message.BodyText,
+                Sender = message.From,
+                ProcessingStatus = status,
+                ProcessingError = error,
+                ExtractionVersion = "v2.0"
+            });
+            await _db.SaveChangesAsync(cancellationToken);
+        }
     }
 
     public async Task<int> SyncAllConnectedAsync(CancellationToken cancellationToken = default)

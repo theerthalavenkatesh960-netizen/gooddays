@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Circle, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Circle, RefreshCw, Pencil, Check, X } from 'lucide-react';
 import * as api from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContextApi';
 
@@ -16,6 +16,9 @@ export default function GmailReviewTab() {
   const [selected, setSelected] = useState<number[]>([]);
   const [reviewFilter, setReviewFilter] = useState<'all' | 'reviewed' | 'unreviewed'>('unreviewed');
   const [bulkCategory, setBulkCategory] = useState('Food');
+  const [editingMerchantId, setEditingMerchantId] = useState<number | null>(null);
+  const [merchantDraft, setMerchantDraft] = useState('');
+  const [savingMerchant, setSavingMerchant] = useState(false);
 
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const allVisibleSelected = rows.length > 0 && rows.every(r => selectedSet.has(r.id));
@@ -64,6 +67,29 @@ export default function GmailReviewTab() {
   const toggleSingleReview = async (row: any) => {
     await api.bulkReviewFinanceGmailTransactions([row.id], !row.isReviewed);
     await load();
+  };
+
+  const startEditMerchant = (row: any) => {
+    setEditingMerchantId(row.id);
+    setMerchantDraft(row.description || '');
+  };
+
+  const cancelEditMerchant = () => {
+    setEditingMerchantId(null);
+    setMerchantDraft('');
+  };
+
+  const saveMerchant = async (row: any) => {
+    if (!merchantDraft.trim()) return;
+    setSavingMerchant(true);
+    try {
+      // applyToFuture: true learns this correction so the same detected merchant text auto-corrects on future syncs
+      await api.updateFinanceGmailMerchant(row.id, merchantDraft.trim(), row.category, true);
+      cancelEditMerchant();
+      await load();
+    } finally {
+      setSavingMerchant(false);
+    }
   };
 
   return (
@@ -129,7 +155,30 @@ export default function GmailReviewTab() {
           <div key={row.id} className="p-3 border-b last:border-b-0 flex items-start gap-3" style={{ borderColor: 'var(--border)' }}>
             <input type="checkbox" checked={selectedSet.has(row.id)} onChange={() => toggle(row.id)} className="mt-1" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{row.description || 'Transaction'}</p>
+              {editingMerchantId === row.id ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    autoFocus
+                    value={merchantDraft}
+                    onChange={(e) => setMerchantDraft(e.target.value)}
+                    className="h-8 px-2 rounded-lg text-sm flex-1 outline-none"
+                    style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                  />
+                  <button onClick={() => saveMerchant(row)} disabled={savingMerchant} className="h-8 w-8 rounded-lg flex items-center justify-center press disabled:opacity-60" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
+                    <Check size={13} />
+                  </button>
+                  <button onClick={cancelEditMerchant} className="h-8 w-8 rounded-lg flex items-center justify-center press" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                    <X size={13} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{row.description || 'Transaction'}</p>
+                  <button onClick={() => startEditMerchant(row)} className="press flex-shrink-0" style={{ color: 'var(--text-muted)' }}>
+                    <Pencil size={12} />
+                  </button>
+                </div>
+              )}
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{row.category || 'Other'}</span>
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>₹{Number(row.amount || 0).toFixed(2)}</span>
