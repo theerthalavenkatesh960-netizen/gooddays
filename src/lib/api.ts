@@ -560,6 +560,17 @@ export async function getFinanceGmailSettings() {
   return request('finance/gmail/settings');
 }
 
+export async function getFinanceGmailTransactionDetail(id: number) {
+  return request(`finance/gmail/transactions/${id}`);
+}
+
+export async function decideFinanceGmailTransaction(id: number, decision: 'APPROVE' | 'REJECT') {
+  return request(`finance/gmail/transactions/${id}/decision`, {
+    method: 'POST',
+    body: JSON.stringify({ decision }),
+  });
+}
+
 export async function updateFinanceGmailSettings(payload: any) {
   return request('finance/gmail/settings', {
     method: 'PUT',

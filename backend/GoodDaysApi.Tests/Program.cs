@@ -18,6 +18,19 @@ void Check(string name, bool condition)
     }
 }
 
+void CheckFn(string name, Func<bool> assertion)
+{
+    try
+    {
+        Check(name, assertion());
+    }
+    catch (Exception ex)
+    {
+        failed++;
+        Console.WriteLine($"FAIL: {name} ({ex.GetType().Name})");
+    }
+}
+
 Check("credit card purchase", parser.TryExtract("SBI Credit Card ending 4521 was charged INR 1,249 at Amazon on 1/9/2026", "", "", out var creditCard)
     && creditCard.InstrumentType == "CREDIT_CARD"
     && creditCard.Direction == "DEBIT"
@@ -95,6 +108,184 @@ Check("amazon pay wallet spend stays wallet", parser.TryExtract(
     && walletSpend.SourceInstrumentType == "WALLET"
     && walletSpend.ProviderOrBank == "Amazon Pay"
     && walletSpend.InstrumentType != "CREDIT_CARD");
+
+// Regression suite for real-world Indian bank formats that previously fell through to NEEDS_REVIEW.
+
+Check("real HDFC alert with available balance in same email", parser.TryExtract(
+    "Alert: Update on your HDFC Bank Account",
+    "",
+    "Dear Customer, Rs.500.00 has been debited from account XX1234 to VPA merchant@upi on 03-09-26. Your UPI transaction reference number is 123456789012. Avl Bal: Rs.12,345.67",
+    out var hdfcAlert)
+    && hdfcAlert.Amount == 500m
+    && hdfcAlert.Direction == "DEBIT"
+    && hdfcAlert.TransactionStatus == "COMPLETED");
+
+Check("html email with rupee entity is parsed", parser.TryExtract(
+    "Transaction alert",
+    "",
+    "<html><body><table><tr><td>Your HDFC Bank Credit Card ending 4521 has been charged &#8377;2,499.00 at BigBasket</td></tr></table></body></html>",
+    out var htmlEmail)
+    && htmlEmail.Amount == 2499m
+    && htmlEmail.InstrumentType == "CREDIT_CARD"
+    && htmlEmail.InstrumentLast4 == "4521");
+
+Check("a/c shorthand recognised as bank account", parser.TryExtract(
+    "Transaction alert",
+    "",
+    "Your A/c XX9876 is debited by Rs.1,500.00 on 03-09-26",
+    out var acShorthand)
+    && acShorthand.InstrumentType == "BANK_ACCOUNT"
+    && acShorthand.Amount == 1500m);
+
+Check("fraud footer does not flip completed to failed", parser.TryExtract(
+    "Transaction alert",
+    "",
+    "Your ICICI Bank Credit Card XX4444 has been charged Rs.799.00 at Netflix. If you have not performed this transaction, report unauthorised activity immediately.",
+    out var footerEmail)
+    && footerEmail.TransactionStatus == "COMPLETED"
+    && footerEmail.Amount == 799m);
+
+Check("suffix currency format is parsed", parser.TryExtract(
+    "Transaction alert",
+    "",
+    "Your Axis Bank Debit Card ending 7788 was used for 349.00 INR at Swiggy",
+    out var suffixAmount)
+    && suffixAmount.Amount == 349m
+    && suffixAmount.InstrumentType == "DEBIT_CARD");
+
+Check("statement-only email still rejected", !parser.TryExtract(
+    "Your credit card statement is ready",
+    "",
+    "Total amount due Rs.15,000.00. Minimum amount due Rs.750.00. Payment due date 20-09-26. Available credit limit Rs.85,000.00",
+    out _));
+
+// ── Real Gmail formats ────────────────────────────────────────────────────
+
+Check("REAL: HDFC UPI debit from account", parser.TryExtract(
+    "You have done a UPI txn. Check details!", "", GoodDaysApi.Tests.RealEmailSamples.HdfcUpiDebit, out var rHdfcDebit)
+    && rHdfcDebit.Amount == 22666m
+    && rHdfcDebit.Direction == "DEBIT"
+    && rHdfcDebit.InstrumentType == "BANK_ACCOUNT"
+    && rHdfcDebit.InstrumentLast4 == "0530"
+    && rHdfcDebit.ReferenceNumber == "270770299058");
+
+Check("REAL: HDFC UPI credit to account", parser.TryExtract(
+    "Money received in your account", "", GoodDaysApi.Tests.RealEmailSamples.HdfcUpiCredit, out var rHdfcCredit)
+    && rHdfcCredit.Amount == 2750m
+    && rHdfcCredit.Direction == "CREDIT"
+    && rHdfcCredit.InstrumentType == "BANK_ACCOUNT"
+    && rHdfcCredit.InstrumentLast4 == "0530");
+
+Check("REAL: HDFC NACH EMI debit", parser.TryExtract(
+    "Debit alert", "", GoodDaysApi.Tests.RealEmailSamples.HdfcNachEmi, out var rNach)
+    && rNach.Amount == 13709m
+    && rNach.Direction == "DEBIT"
+    && rNach.InstrumentType == "BANK_ACCOUNT"
+    && rNach.InstrumentLast4 == "0530"
+    && rNach.TransactionDateUtc?.Year == 2026);
+
+CheckFn("REAL: Amazon Pay FASTag toll is single wallet debit", () =>
+{
+    var many = parser.ExtractMany("Toll payment successful", "", GoodDaysApi.Tests.RealEmailSamples.AmazonPayFastag);
+    return many.Count == 1
+        && many[0].Amount == 76m
+        && many[0].Direction == "DEBIT"
+        && many[0].InstrumentType == "WALLET";
+});
+
+Check("REAL: Zerodha deposit is a transfer out of account", parser.TryExtract(
+    "Funds added", "", GoodDaysApi.Tests.RealEmailSamples.ZerodhaDeposit, out var rZerodha)
+    && rZerodha.Amount == 390000m
+    && rZerodha.InstrumentType == "BANK_ACCOUNT"
+    && rZerodha.InstrumentLast4 == "0530"
+    && rZerodha.TransactionType == "TRANSFER");
+
+Check("REAL: Axis label-value credit card txn", parser.TryExtract(
+    "Transaction alert on Axis Bank Credit Card", "", GoodDaysApi.Tests.RealEmailSamples.AxisCreditCard, out var rAxis)
+    && rAxis.Amount == 67547m
+    && rAxis.InstrumentType == "CREDIT_CARD"
+    && rAxis.InstrumentLast4 == "3949"
+    && rAxis.Merchant?.Contains("FLIPKART", StringComparison.OrdinalIgnoreCase) == true);
+
+CheckFn("REAL: Axis email yields exactly one transaction", () =>
+    parser.ExtractMany("Transaction alert", "", GoodDaysApi.Tests.RealEmailSamples.AxisCreditCard).Count == 1);
+
+Check("REAL: SBI card spend via UPI stays a credit card", parser.TryExtract(
+    "Transaction alert", "", GoodDaysApi.Tests.RealEmailSamples.SbiCardUpiSpend, out var rSbi)
+    && rSbi.Amount == 3706.08m
+    && rSbi.InstrumentType == "CREDIT_CARD"
+    && rSbi.InstrumentLast4 == "0697"
+    && rSbi.ReferenceNumber == "624425455781"
+    && rSbi.Merchant?.Contains("AXISMAXLIFE", StringComparison.OrdinalIgnoreCase) == true);
+
+Check("REAL: Amazon Pay payment to merchant", parser.TryExtract(
+    "Your payment to SWIGGY was Approved", "", GoodDaysApi.Tests.RealEmailSamples.AmazonPayToMerchant, out var rApay, "payments-messages@amazon.in")
+    && rApay.Amount == 335m
+    && rApay.Direction == "DEBIT"
+    && rApay.InstrumentType == "WALLET");
+
+CheckFn("REAL: Swiggy itemised bill picks total paid", () =>
+{
+    var order = new OrderExtractionService();
+    return order.TryExtract("Order delivered", "", GoodDaysApi.Tests.RealEmailSamples.SwiggyOrderItemised, out var o, "noreply@swiggy.in", new[] { "swiggy.in" })
+        && o.TotalAmount == 800m;
+});
+
+// ── Learned issuer knowledge ──────────────────────────────────────────────
+
+Check("INTEL: NACH mandate debit is classified as EMI", parser.TryExtract(
+    "Debit alert", "", GoodDaysApi.Tests.RealEmailSamples.HdfcNachEmi, out var iEmi, "nachautoemailer@hdfcbank.bank.in")
+    && iEmi.TransactionType == "BILL_PAYMENT"
+    && iEmi.SuggestedCategory == "EMI"
+    && iEmi.ProviderOrBank == "HDFC");
+
+Check("INTEL: UMRN alone implies recurring mandate without sender hint", parser.TryExtract(
+    "Debit alert", "", GoodDaysApi.Tests.RealEmailSamples.HdfcNachEmi, out var iUmrn)
+    && iUmrn.TransactionType == "BILL_PAYMENT");
+
+CheckFn("INTEL: issuer profile fills institution the body never states", () =>
+{
+    parser.TryExtract("Transaction alert", "", "Rs.500.00 spent on your Credit Card ending 1234 at BigBazaar on 01-09-26", out var withSender, "onlinesbicard@sbicard.com");
+    parser.TryExtract("Transaction alert", "", "Rs.500.00 spent on your Credit Card ending 1234 at BigBazaar on 01-09-26", out var withoutSender);
+    return withSender.ProviderOrBank == "SBI Card"
+        && withoutSender.ProviderOrBank == null
+        && withSender.ConfidenceScore > withoutSender.ConfidenceScore;
+});
+
+// ── Transaction detail richness ───────────────────────────────────────────
+
+Check("DETAIL: UPI debit captures payee name and VPA", parser.TryExtract(
+    "UPI txn", "", GoodDaysApi.Tests.RealEmailSamples.HdfcUpiDebit, out var dUpi, "alerts@hdfcbank.bank.in")
+    && dUpi.CounterpartyName == "MAGANTI V S S KRISHNA SANDEEP"
+    && dUpi.CounterpartyIdentifier == "maganti.s@axl");
+
+Check("DETAIL: UPI credit captures sender name", parser.TryExtract(
+    "Money received", "", GoodDaysApi.Tests.RealEmailSamples.HdfcUpiCredit, out var dCredit, "alerts@hdfcbank.bank.in")
+    && dCredit.CounterpartyName?.Contains("RAGHUSALA", StringComparison.OrdinalIgnoreCase) == true);
+
+Check("DETAIL: NACH debit captures biller as counterparty", parser.TryExtract(
+    "Debit alert", "", GoodDaysApi.Tests.RealEmailSamples.HdfcNachEmi, out var dNach, "nachautoemailer@hdfcbank.bank.in")
+    && dNach.CounterpartyName?.Contains("Kisetsu", StringComparison.OrdinalIgnoreCase) == true);
+
+CheckFn("DETAIL: display title includes merchant and instrument", () =>
+{
+    var title = TransactionExtractionService.BuildDisplayTitle("FLIPKART IN", "Axis", "CREDIT_CARD", "3949", "PURCHASE", "DEBIT");
+    return title == "FLIPKART IN · Axis Credit Card ••3949";
+});
+
+CheckFn("DETAIL: title falls back to a readable type when merchant is unknown", () =>
+    TransactionExtractionService.BuildDisplayTitle(null, "HDFC", "BANK_ACCOUNT", "0530", "BILL_PAYMENT", "DEBIT")
+        == "Auto-debit · HDFC A/c ••0530");
+
+CheckFn("DETAIL: order line items are extracted with quantity and amount", () =>
+{
+    var order = new OrderExtractionService();
+    var items = order.ExtractItems("Order delivered", "", GoodDaysApi.Tests.RealEmailSamples.SwiggyOrderItemised);
+    return items.Count >= 2
+        && items.Any(i => i.Name.Contains("Paya Shorba", StringComparison.OrdinalIgnoreCase) && i.Quantity == 1 && i.Amount == 275m)
+        && items.Any(i => i.Name.Contains("Chicken", StringComparison.OrdinalIgnoreCase) && i.Amount == 495m)
+        && !items.Any(i => i.Name.Contains("Taxes", StringComparison.OrdinalIgnoreCase));
+});
 
 Console.WriteLine($"{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

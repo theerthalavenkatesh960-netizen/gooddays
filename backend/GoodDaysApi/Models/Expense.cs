@@ -62,6 +62,21 @@ public class Expense
     [Column("destination_instrument_name")]
     public string? DestinationInstrumentName { get; set; }
 
+    [Column("merchant_name")]
+    public string? MerchantName { get; set; }
+
+    [Column("counterparty_name")]
+    public string? CounterpartyName { get; set; }
+
+    [Column("counterparty_identifier")]
+    public string? CounterpartyIdentifier { get; set; }
+
+    [Column("currency")]
+    public string Currency { get; set; } = "INR";
+
+    [Column("confidence_score")]
+    public decimal ConfidenceScore { get; set; }
+
     [Column("extraction_version")]
     public string ExtractionVersion { get; set; } = "v2.0";
 

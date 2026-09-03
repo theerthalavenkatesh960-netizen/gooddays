@@ -19,6 +19,7 @@ public class FinanceGmailController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IMerchantAliasService _merchantAlias;
     private readonly ITokenEncryptionService _tokenEncryption;
+    private readonly ISenderReliabilityService _senderReliability;
     private readonly GmailOptions _gmailOptions;
 
     public FinanceGmailController(
@@ -28,6 +29,7 @@ public class FinanceGmailController : ControllerBase
         AppDbContext db,
         IMerchantAliasService merchantAlias,
         ITokenEncryptionService tokenEncryption,
+        ISenderReliabilityService senderReliability,
         IOptions<GmailOptions> gmailOptions)
     {
         _gmailService = gmailService;
@@ -36,6 +38,7 @@ public class FinanceGmailController : ControllerBase
         _db = db;
         _merchantAlias = merchantAlias;
         _tokenEncryption = tokenEncryption;
+        _senderReliability = senderReliability;
         _gmailOptions = gmailOptions.Value;
     }
 
@@ -155,6 +158,7 @@ public class FinanceGmailController : ControllerBase
                 x.Id,
                 x.Description,
                 x.Amount,
+                x.Currency,
                 x.Category,
                 x.Date,
                 x.CreatedAt,
@@ -162,11 +166,141 @@ public class FinanceGmailController : ControllerBase
                 x.ExternalReference,
                 x.SourceType,
                 x.IsReviewed,
-                x.ReviewedAt
+                x.ReviewedAt,
+                x.Direction,
+                x.TransactionType,
+                x.TransactionStatus,
+                x.PaymentInstrumentType,
+                x.InstitutionName,
+                x.InstrumentLast4,
+                x.SourceInstrumentType,
+                x.SourceInstrumentLast4,
+                x.DestinationInstrumentType,
+                x.DestinationInstrumentName,
+                x.MerchantName,
+                x.CounterpartyName,
+                x.CounterpartyIdentifier,
+                x.ConfidenceScore
             })
             .ToListAsync(cancellationToken);
 
         return Ok(items);
+    }
+
+    [HttpGet("transactions/{id:int}")]
+    [Authorize]
+    public async Task<IActionResult> TransactionDetail(int id, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var expense = await _db.Expenses.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId.Value, cancellationToken);
+        if (expense == null) return NotFound();
+
+        var card = await _db.CardExpenses.AsNoTracking()
+            .Where(ce => ce.ExpenseId == id)
+            .Join(_db.CreditCards, ce => ce.CardId, c => c.Id, (ce, c) => new { c.Id, c.Name, c.Issuer, c.Last4Digits })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var orders = await _db.OrderTransactionLinks.AsNoTracking()
+            .Where(link => link.ExpenseId == id)
+            .Include(link => link.Order)
+            .Select(link => new
+            {
+                link.Status,
+                link.MatchScore,
+                link.MatchMethod,
+                Order = link.Order,
+                Items = _db.OrderItems.Where(i => i.OrderId == link.OrderId)
+                    .OrderBy(i => i.LineNumber)
+                    .Select(i => new { i.Name, i.Quantity, i.Amount })
+                    .ToList()
+            })
+            .ToListAsync(cancellationToken);
+
+        var email = await _db.SyncedEmails.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.UserId == userId.Value && x.GmailMessageId == expense.GmailMessageId, cancellationToken);
+
+        return Ok(new
+        {
+            expense.Id,
+            expense.Description,
+            expense.Amount,
+            expense.Currency,
+            expense.Category,
+            expense.Date,
+            expense.CreatedAt,
+            expense.Direction,
+            expense.TransactionType,
+            expense.TransactionStatus,
+            expense.PaymentInstrumentType,
+            expense.InstitutionName,
+            expense.InstrumentLast4,
+            expense.SourceInstrumentType,
+            expense.SourceInstrumentLast4,
+            expense.DestinationInstrumentType,
+            expense.DestinationInstrumentName,
+            expense.MerchantName,
+            expense.CounterpartyName,
+            expense.CounterpartyIdentifier,
+            expense.ExternalReference,
+            expense.ConfidenceScore,
+            expense.ExtractionVersion,
+            expense.EvidenceJson,
+            expense.IsReviewed,
+            expense.ReviewedAt,
+            Card = card,
+            Orders = orders,
+            SourceEmail = email == null ? null : new
+            {
+                email.Sender,
+                email.InternalDate,
+                Subject = ReadStoredEmailText(email.Subject, email.IsContentEncrypted),
+                Snippet = ReadStoredEmailText(email.Snippet, email.IsContentEncrypted),
+                BodyText = ReadStoredEmailText(email.BodyText, email.IsContentEncrypted)
+            }
+        });
+    }
+
+    [HttpPost("transactions/{id:int}/decision")]
+    [Authorize]
+    public async Task<IActionResult> DecideTransaction(int id, [FromBody] TransactionDecisionRequest request, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var expense = await _db.Expenses
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId.Value && x.SourceType == "gmail", cancellationToken);
+        if (expense == null) return NotFound();
+
+        var email = await _db.SyncedEmails
+            .FirstOrDefaultAsync(x => x.UserId == userId.Value && x.GmailMessageId == expense.GmailMessageId, cancellationToken);
+
+        if (string.Equals(request.Decision, "REJECT", StringComparison.OrdinalIgnoreCase))
+        {
+            _db.Expenses.Remove(expense);
+            if (email != null)
+            {
+                email.ProcessingStatus = "REJECTED";
+                email.ProcessingError = "Rejected during review.";
+                email.ProcessedAt = DateTime.UtcNow;
+                await _senderReliability.RecordOutcomeAsync(userId.Value, email.Sender, confirmed: false, cancellationToken);
+            }
+
+            await _db.SaveChangesAsync(cancellationToken);
+            return Ok(new { decision = "REJECTED" });
+        }
+
+        expense.IsReviewed = true;
+        expense.ReviewedAt = DateTime.UtcNow;
+        if (email != null)
+        {
+            await _senderReliability.RecordOutcomeAsync(userId.Value, email.Sender, confirmed: true, cancellationToken);
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return Ok(new { decision = "APPROVED" });
     }
 
     [HttpPost("review")]
@@ -312,6 +446,7 @@ public class FinanceGmailController : ControllerBase
                 syncedEmail.ProcessingStatus = "REJECTED";
                 syncedEmail.ProcessingError = "Rejected during manual review.";
                 syncedEmail.ProcessedAt = DateTime.UtcNow;
+                await _senderReliability.RecordOutcomeAsync(userId.Value, syncedEmail.Sender, confirmed: false, cancellationToken);
             }
         }
         await _db.SaveChangesAsync(cancellationToken);
@@ -369,6 +504,7 @@ public class FinanceGmailController : ControllerBase
             syncedEmail.ProcessingStatus = "PROCESSED";
             syncedEmail.ProcessingError = null;
             syncedEmail.ProcessedAt = DateTime.UtcNow;
+            await _senderReliability.RecordOutcomeAsync(userId.Value, syncedEmail.Sender, confirmed: true, cancellationToken);
         }
 
         await _db.SaveChangesAsync(cancellationToken);
@@ -496,3 +632,4 @@ public record PromoteCandidateRequest(
     string? DestinationInstrumentType = null,
     string? DestinationInstrumentName = null);
 public record GmailSyncSettingsDto(string[] FinanceSenderAllowlist, string[] BlockedSenderPatterns, string[] TrustedOrderDomains);
+public record TransactionDecisionRequest(string Decision);

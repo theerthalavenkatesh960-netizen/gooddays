@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Circle, RefreshCw, Pencil, Check, X } from 'lucide-react';
+import { CheckCircle2, Circle, RefreshCw, Pencil, Check, X, ChevronRight } from 'lucide-react';
 import * as api from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContextApi';
+import TransactionDetailModal from './TransactionDetailModal';
 
 const CATEGORIES = [
   'Food', 'Groceries', 'Transport', 'Fuel', 'Home', 'Rent', 'Utilities', 'Internet',
@@ -23,6 +24,7 @@ export default function GmailReviewTab() {
   const [promoteCandidateId, setPromoteCandidateId] = useState<string | null>(null);
   const [promoteForm, setPromoteForm] = useState({ amount: '', merchant: '', category: 'Other', date: '', paymentInstrumentType: 'UNKNOWN' });
   const [previewEmail, setPreviewEmail] = useState<any | null>(null);
+  const [detailId, setDetailId] = useState<number | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState({ financeSenderAllowlist: '', blockedSenderPatterns: '', trustedOrderDomains: '' });
 
@@ -115,6 +117,11 @@ export default function GmailReviewTab() {
 
   const rejectCandidate = async (id: string) => {
     await api.updateFinanceGmailCandidateStatus(id, 'REJECTED');
+    await load();
+  };
+
+  const decide = async (id: number, decision: 'APPROVE' | 'REJECT') => {
+    await api.decideFinanceGmailTransaction(id, decision);
     await load();
   };
 
@@ -266,16 +273,43 @@ export default function GmailReviewTab() {
                   </button>
                 </div>
               )}
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{row.category || 'Other'}</span>
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>₹{Number(row.amount || 0).toFixed(2)}</span>
+                <span className="text-xs num" style={{ color: row.direction === 'CREDIT' ? 'var(--accent-green)' : 'var(--text-muted)' }}>
+                  {row.direction === 'CREDIT' ? '+' : '−'}₹{Number(row.amount || 0).toFixed(2)}
+                </span>
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date(row.date || row.createdAt).toLocaleDateString()}</span>
+                {row.transactionType && row.transactionType !== 'PURCHASE' && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                    {row.transactionType}
+                  </span>
+                )}
               </div>
+              {(row.counterpartyName || row.instrumentLast4) && (
+                <p className="text-[11px] mt-1 truncate" style={{ color: 'var(--text-muted)' }}>
+                  {[row.counterpartyName, row.institutionName, row.instrumentLast4 ? `••${row.instrumentLast4}` : null].filter(Boolean).join(' · ')}
+                </p>
+              )}
             </div>
-            <button onClick={() => toggleSingleReview(row)} className="h-8 px-2 rounded-lg text-xs font-semibold press flex items-center gap-1" style={{ backgroundColor: 'var(--surface-elevated)', color: row.isReviewed ? 'var(--accent-green)' : 'var(--text-secondary)' }}>
-              {row.isReviewed ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-              {row.isReviewed ? 'Reviewed' : 'Unreviewed'}
-            </button>
+            <div className="flex flex-col gap-1 flex-shrink-0">
+              <button onClick={() => setDetailId(row.id)} className="h-8 px-2 rounded-lg text-xs font-semibold press flex items-center gap-1" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                Details <ChevronRight size={12} />
+              </button>
+              {!row.isReviewed ? (
+                <div className="flex gap-1">
+                  <button onClick={() => decide(row.id, 'APPROVE')} className="h-8 px-2 rounded-lg text-xs font-semibold text-white press" style={{ backgroundColor: 'var(--accent)' }}>
+                    Approve
+                  </button>
+                  <button onClick={() => decide(row.id, 'REJECT')} className="h-8 px-2 rounded-lg text-xs font-semibold press" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                    Reject
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => toggleSingleReview(row)} className="h-8 px-2 rounded-lg text-xs font-semibold press flex items-center gap-1" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--accent-green)' }}>
+                  <CheckCircle2 size={13} /> Reviewed
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -349,6 +383,13 @@ export default function GmailReviewTab() {
             </pre>
           </div>
         </div>
+      )}
+      {detailId != null && (
+        <TransactionDetailModal
+          transactionId={detailId}
+          onClose={() => setDetailId(null)}
+          onChanged={() => load()}
+        />
       )}
     </div>
   );

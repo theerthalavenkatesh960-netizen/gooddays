@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -27,6 +28,7 @@ public class GmailSyncService : IGmailSyncService
     private readonly IOrderExtractionService _orderExtraction;
     private readonly IOrderMatchingService _orderMatching;
     private readonly IMerchantAliasService _merchantAlias;
+    private readonly ISenderReliabilityService _senderReliability;
     private readonly ITokenEncryptionService _tokenEncryption;
     private readonly ILogger<GmailSyncService> _logger;
 
@@ -43,6 +45,7 @@ public class GmailSyncService : IGmailSyncService
         IOrderExtractionService orderExtraction,
         IOrderMatchingService orderMatching,
         IMerchantAliasService merchantAlias,
+        ISenderReliabilityService senderReliability,
         ITokenEncryptionService tokenEncryption,
         ILogger<GmailSyncService> logger)
     {
@@ -58,6 +61,7 @@ public class GmailSyncService : IGmailSyncService
         _orderExtraction = orderExtraction;
         _orderMatching = orderMatching;
         _merchantAlias = merchantAlias;
+        _senderReliability = senderReliability;
         _tokenEncryption = tokenEncryption;
         _logger = logger;
     }
@@ -65,6 +69,7 @@ public class GmailSyncService : IGmailSyncService
     public async Task<GmailSyncResult> SyncUserAsync(int userId, bool forceInitialSync = false, CancellationToken cancellationToken = default)
     {
         var result = new GmailSyncResult();
+        var startedAt = Stopwatch.StartNew();
 
         var account = await _db.ConnectedEmailAccounts
             .FirstOrDefaultAsync(x => x.UserId == userId && x.Provider == Provider, cancellationToken);
@@ -104,11 +109,18 @@ public class GmailSyncService : IGmailSyncService
         messages = messages
             .GroupBy(x => x.messageId)
             .Select(g => g.First())
+            .Take(Math.Max(1, _options.MaxMessagesPerSync))
             .ToList();
 
         foreach (var messageRef in messages)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (startedAt.Elapsed >= TimeSpan.FromSeconds(Math.Max(5, _options.MaxSyncDurationSeconds)))
+            {
+                _logger.LogInformation("Gmail sync stopped early for user {UserId} after {ElapsedSeconds}s. Scanned {Scanned} messages in this batch.", userId, startedAt.Elapsed.TotalSeconds, result.Scanned);
+                break;
+            }
+
             result.Scanned++;
 
             if (await _syncedEmails.ExistsAsync(userId, messageRef.messageId, cancellationToken))
@@ -160,6 +172,14 @@ public class GmailSyncService : IGmailSyncService
                 {
                     _db.Orders.Add(order);
                     await _db.SaveChangesAsync(cancellationToken);
+
+                    var lineItems = _orderExtraction.ExtractItems(message.Subject, message.Snippet, message.BodyText);
+                    foreach (var item in lineItems)
+                    {
+                        item.OrderId = order.Id;
+                        _db.OrderItems.Add(item);
+                    }
+                    if (lineItems.Count > 0) await _db.SaveChangesAsync(cancellationToken);
                 }
                 else
                 {
@@ -174,7 +194,7 @@ public class GmailSyncService : IGmailSyncService
                 continue;
             }
 
-            var transactions = _extraction.ExtractMany(message.Subject, message.Snippet, message.BodyText);
+            var transactions = _extraction.ExtractMany(message.Subject, message.Snippet, message.BodyText, message.From);
             if (transactions.Count == 0)
             {
                 result.ParseFailed++;
@@ -184,9 +204,11 @@ public class GmailSyncService : IGmailSyncService
             }
 
             var needsReview = false;
+            var senderAdjustment = await _senderReliability.GetConfidenceAdjustmentAsync(userId, message.From, cancellationToken);
             foreach (var tx in transactions)
             {
-                if (tx.ConfidenceScore < 0.70m || tx.TransactionStatus != "COMPLETED")
+                var effectiveConfidence = tx.ConfidenceScore + senderAdjustment;
+                if (effectiveConfidence < 0.70m || tx.TransactionStatus != "COMPLETED")
                 {
                     result.ParseFailed++;
                     needsReview = true;
@@ -233,7 +255,12 @@ public class GmailSyncService : IGmailSyncService
                     SourceInstrumentLast4 = tx.SourceInstrumentLast4,
                     DestinationInstrumentType = tx.DestinationInstrumentType,
                     DestinationInstrumentName = tx.DestinationInstrumentName,
-                    ExtractionVersion = "v2.0",
+                    MerchantName = tx.Merchant,
+                    CounterpartyName = tx.CounterpartyName,
+                    CounterpartyIdentifier = tx.CounterpartyIdentifier,
+                    Currency = tx.Currency,
+                    ConfidenceScore = tx.ConfidenceScore,
+                    ExtractionVersion = "v3.0",
                     EvidenceJson = tx.EvidenceJson,
                     RawMerchant = rawMerchant,
                     IsReviewed = false,
@@ -347,11 +374,13 @@ public class GmailSyncService : IGmailSyncService
         var list = new List<(string messageId, string? threadId)>();
         string? pageToken = null;
         var pageCount = 0;
+        var pageSize = Math.Clamp(_options.ListPageSize, 1, 500);
+        var maxPages = Math.Max(1, _options.MaxPagesPerQuery);
 
         do
         {
             pageCount++;
-            var url = $"https://gmail.googleapis.com/gmail/v1/users/me/messages?q={Uri.EscapeDataString(query)}&maxResults=100";
+            var url = $"https://gmail.googleapis.com/gmail/v1/users/me/messages?q={Uri.EscapeDataString(query)}&maxResults={pageSize}";
             if (!string.IsNullOrWhiteSpace(pageToken))
             {
                 url += $"&pageToken={Uri.EscapeDataString(pageToken)}";
@@ -390,7 +419,7 @@ public class GmailSyncService : IGmailSyncService
             pageToken = json.RootElement.TryGetProperty("nextPageToken", out var nextEl)
                 ? nextEl.GetString()
                 : null;
-        } while (!string.IsNullOrWhiteSpace(pageToken) && pageCount < 10);
+        } while (!string.IsNullOrWhiteSpace(pageToken) && pageCount < maxPages);
 
         return list;
     }
@@ -468,25 +497,31 @@ public class GmailSyncService : IGmailSyncService
 
     private static string ExtractBodyText(JsonElement payload)
     {
-        var chunks = new List<string>();
-        WalkPayload(payload, chunks);
+        var plainChunks = new List<string>();
+        var htmlChunks = new List<string>();
+        WalkPayload(payload, plainChunks, htmlChunks);
+
+        // Plain-text parts carry the same content with far less markup noise, so prefer them when present.
+        var chunks = plainChunks.Any(c => !string.IsNullOrWhiteSpace(c)) ? plainChunks : htmlChunks;
         return string.Join("\n", chunks.Where(c => !string.IsNullOrWhiteSpace(c)));
     }
 
-    private static void WalkPayload(JsonElement part, List<string> chunks)
+    private static void WalkPayload(JsonElement part, List<string> plainChunks, List<string> htmlChunks)
     {
         if (part.TryGetProperty("mimeType", out var mimeEl))
         {
             var mime = mimeEl.GetString();
-            if (mime != null && (mime.Equals("text/plain", StringComparison.OrdinalIgnoreCase) || mime.Equals("text/html", StringComparison.OrdinalIgnoreCase)))
+            var isPlain = mime != null && mime.Equals("text/plain", StringComparison.OrdinalIgnoreCase);
+            var isHtml = mime != null && mime.Equals("text/html", StringComparison.OrdinalIgnoreCase);
+
+            if ((isPlain || isHtml)
+                && part.TryGetProperty("body", out var bodyEl)
+                && bodyEl.TryGetProperty("data", out var dataEl))
             {
-                if (part.TryGetProperty("body", out var bodyEl) && bodyEl.TryGetProperty("data", out var dataEl))
+                var decoded = DecodeBase64Url(dataEl.GetString());
+                if (!string.IsNullOrWhiteSpace(decoded))
                 {
-                    var decoded = DecodeBase64Url(dataEl.GetString());
-                    if (!string.IsNullOrWhiteSpace(decoded))
-                    {
-                        chunks.Add(decoded);
-                    }
+                    (isPlain ? plainChunks : htmlChunks).Add(decoded);
                 }
             }
         }
@@ -495,7 +530,7 @@ public class GmailSyncService : IGmailSyncService
         {
             foreach (var child in partsEl.EnumerateArray())
             {
-                WalkPayload(child, chunks);
+                WalkPayload(child, plainChunks, htmlChunks);
             }
         }
     }
@@ -554,9 +589,13 @@ public class GmailSyncService : IGmailSyncService
 
     private static string BuildDescription(ExtractedTransaction tx)
     {
-        var merchant = string.IsNullOrWhiteSpace(tx.Merchant) ? "Transaction" : tx.Merchant;
-        var provider = string.IsNullOrWhiteSpace(tx.ProviderOrBank) ? string.Empty : $" [{tx.ProviderOrBank}]";
-        return $"{merchant}{provider}";
+        return TransactionExtractionService.BuildDisplayTitle(
+            tx.CounterpartyName ?? tx.Merchant,
+            tx.ProviderOrBank,
+            tx.InstrumentType,
+            tx.InstrumentLast4,
+            tx.TransactionType,
+            tx.Direction);
     }
 
     private static string MergeOrderEvidence(string existingEvidenceJson, string newEvidenceJson, string sourceMessageId)

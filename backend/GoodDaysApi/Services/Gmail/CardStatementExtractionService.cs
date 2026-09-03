@@ -26,7 +26,7 @@ public class CardStatementExtractionService : ICardStatementExtractionService
 
     public bool TryExtract(string subject, string snippet, string body, out CardStatement statement)
     {
-        var text = string.Join(" ", new[] { subject, snippet, body }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        var text = EmailTextNormalizer.BuildSearchText(subject, snippet, body);
         statement = new CardStatement();
 
         if (!StatementKeywordRegex.IsMatch(text)) return false;

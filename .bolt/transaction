@@ -419,3 +419,25 @@ Amount Paid
 
 ₨. 67547
 
+
+
+
+BEGIN;
+
+DELETE FROM order_items;
+DELETE FROM order_transaction_links;
+DELETE FROM card_expenses
+WHERE expense_id IN (SELECT id FROM expenses WHERE source_type = 'gmail');
+
+DELETE FROM orders;
+DELETE FROM card_statements;
+DELETE FROM transaction_candidates;
+DELETE FROM expenses WHERE source_type = 'gmail';
+DELETE FROM synced_emails;
+
+-- Without this the re-sync only looks at mail newer than your last sync and imports almost nothing.
+UPDATE connected_email_accounts
+SET last_synced_utc = NULL
+WHERE provider = 'gmail';
+
+COMMIT;

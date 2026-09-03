@@ -176,6 +176,11 @@ ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS source_instrument_last4 varchar(4),
   ADD COLUMN IF NOT EXISTS destination_instrument_type varchar(30),
   ADD COLUMN IF NOT EXISTS destination_instrument_name varchar(120),
+  ADD COLUMN IF NOT EXISTS merchant_name varchar(120),
+  ADD COLUMN IF NOT EXISTS counterparty_name varchar(120),
+  ADD COLUMN IF NOT EXISTS counterparty_identifier varchar(120),
+  ADD COLUMN IF NOT EXISTS currency varchar(10) NOT NULL DEFAULT 'INR',
+  ADD COLUMN IF NOT EXISTS confidence_score numeric NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
   ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb;
 
@@ -1279,6 +1284,17 @@ WHERE a.ctid < b.ctid
 CREATE UNIQUE INDEX IF NOT EXISTS ix_order_transaction_links_order_expense
     ON order_transaction_links(order_id, expense_id);
 
+CREATE TABLE IF NOT EXISTS order_items (
+    id uuid PRIMARY KEY,
+    order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    name varchar(200) NOT NULL,
+    quantity integer NOT NULL DEFAULT 1,
+    amount numeric NULL,
+    line_number integer NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS ix_order_items_order_id ON order_items(order_id);
+
 CREATE TABLE IF NOT EXISTS merchant_aliases (
     id uuid PRIMARY KEY,
     user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -1304,6 +1320,18 @@ CREATE TABLE IF NOT EXISTS gmail_sync_preferences (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_gmail_sync_preferences_user
   ON gmail_sync_preferences(user_id);
+
+CREATE TABLE IF NOT EXISTS gmail_sender_stats (
+  id uuid PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  sender_key varchar(200) NOT NULL,
+  confirmed_count integer NOT NULL DEFAULT 0,
+  rejected_count integer NOT NULL DEFAULT 0,
+  last_seen_utc timestamp without time zone NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_gmail_sender_stats_user_sender
+  ON gmail_sender_stats(user_id, sender_key);
 
 ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS raw_merchant text;

@@ -17,6 +17,8 @@ public class ExtractedTransaction
     public string? DestinationInstrumentType { get; set; }
     public string? DestinationInstrumentName { get; set; }
     public string? ReferenceNumber { get; set; }
+    public string? CounterpartyName { get; set; }
+    public string? CounterpartyIdentifier { get; set; }
     public string SuggestedCategory { get; set; } = "Other";
     public decimal ConfidenceScore { get; set; }
     public string EvidenceJson { get; set; } = "{}";
