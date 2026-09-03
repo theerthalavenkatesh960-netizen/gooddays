@@ -93,7 +93,7 @@ public class GmailSyncService : IGmailSyncService
             return result;
         }
 
-        var initialSince = DateTime.UtcNow.AddDays(-120);
+        var initialSince = DateTime.UtcNow.AddDays(-Math.Max(1, _options.InitialSyncDays));
         var latestSynced = await _syncedEmails.GetLatestInternalDateAsync(userId, cancellationToken)
                            ?? account.LastSyncedUtc;
         var incrementalSince = latestSynced.HasValue
@@ -105,19 +105,26 @@ public class GmailSyncService : IGmailSyncService
         var syncSettings = await GetSyncSettingsAsync(userId, cancellationToken);
         foreach (var query in BuildGmailQueries(since, syncSettings))
         {
+            if (string.IsNullOrWhiteSpace(query)) continue;
             messages.AddRange(await ListCandidateMessagesAsync(accessToken, query, cancellationToken));
         }
 
+        // Gmail lists newest-first; a truncated backfill would then only ever cover the most recent days.
         messages = messages
             .GroupBy(x => x.messageId)
             .Select(g => g.First())
+            .Reverse()
             .Take(Math.Max(1, _options.MaxMessagesPerSync))
             .ToList();
+
+        var timeBudget = TimeSpan.FromSeconds(Math.Max(5, forceInitialSync
+            ? _options.MaxFullSyncDurationSeconds
+            : _options.MaxSyncDurationSeconds));
 
         foreach (var messageRef in messages)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (startedAt.Elapsed >= TimeSpan.FromSeconds(Math.Max(5, _options.MaxSyncDurationSeconds)))
+            if (startedAt.Elapsed >= timeBudget)
             {
                 _logger.LogInformation("Gmail sync stopped early for user {UserId} after {ElapsedSeconds}s. Scanned {Scanned} messages in this batch.", userId, startedAt.Elapsed.TotalSeconds, result.Scanned);
                 break;
@@ -199,6 +206,12 @@ public class GmailSyncService : IGmailSyncService
             var transactions = _extraction.ExtractMany(message.Subject, message.Snippet, message.BodyText, message.From);
             if (transactions.Count == 0)
             {
+                if (!_extraction.HasMonetaryAmount(message.Subject, message.Snippet, message.BodyText))
+                {
+                    await RecordEmailAsync(userId, message, "IGNORED_NO_AMOUNT", "No currency amount found in email.", cancellationToken);
+                    continue;
+                }
+
                 result.ParseFailed++;
                 await SaveCandidateAsync(userId, message, "NEEDS_REVIEW", "No high-confidence transaction evidence.", cancellationToken);
                 await RecordEmailAsync(userId, message, "NEEDS_REVIEW", "No high-confidence transaction evidence.", cancellationToken);
@@ -618,7 +631,7 @@ public class GmailSyncService : IGmailSyncService
     private IEnumerable<string> BuildGmailQueries(DateTime since, GmailSyncSettings syncSettings)
     {
         yield return BuildFinanceQuery(since, syncSettings.FinanceSenderAllowlist);
-        yield return BuildOrderQuery(since);
+        yield return BuildOrderQuery(since, syncSettings.TrustedOrderDomains);
         yield return BuildWalletQuery(since);
         yield return BuildInvestmentQuery(since);
     }
@@ -663,9 +676,13 @@ public class GmailSyncService : IGmailSyncService
         return $"({positiveTerms}) {exclusions} after:{datePart}";
     }
 
-    private string BuildOrderQuery(DateTime since)
+    // Every non-finance lane is sender-scoped; an unrestricted "delivered"/"invoice" scan matches most of a mailbox.
+    private string BuildOrderQuery(DateTime since, IEnumerable<string> trustedOrderDomains)
     {
         var datePart = since.ToString("yyyy/MM/dd");
+        var senderFilter = BuildSenderFilter(trustedOrderDomains);
+        if (string.IsNullOrWhiteSpace(senderFilter)) return string.Empty;
+
         var positiveTerms = string.Join(" OR ", new[]
         {
             "\"order confirmed\"",
@@ -673,46 +690,48 @@ public class GmailSyncService : IGmailSyncService
             "\"order number\"",
             "\"order id\"",
             "\"invoice\"",
-            "\"shipped\"",
+            "\"total paid\"",
+            "\"bill details\"",
             "\"delivered\""
         });
-        var exclusions = string.Join(" ", new[]
-        {
-            "-newsletter",
-            "-wishlist"
-        });
 
-        return $"({positiveTerms}) {exclusions} after:{datePart}";
+        return $"{senderFilter}({positiveTerms}) -newsletter -wishlist after:{datePart}";
     }
 
     private string BuildWalletQuery(DateTime since)
     {
         var datePart = since.ToString("yyyy/MM/dd");
+        var senderFilter = BuildSenderFilter(_options.WalletSenderAllowlist);
+        if (string.IsNullOrWhiteSpace(senderFilter)) return string.Empty;
+
         var positiveTerms = string.Join(" OR ", new[]
         {
             "\"Amazon Pay\"",
-            "\"Paytm wallet\"",
-            "\"PhonePe wallet\"",
             "\"wallet balance\"",
             "\"added money\"",
             "\"money added\"",
             "\"wallet loaded\"",
             "\"paid using wallet\"",
-            "\"paid using Amazon Pay\"",
-            "\"toll payment\""
-        });
-        var exclusions = string.Join(" ", new[]
-        {
-            "-newsletter"
+            "\"toll payment\"",
+            "\"payment to\""
         });
 
-        return $"({positiveTerms}) {exclusions} after:{datePart}";
+        return $"{senderFilter}({positiveTerms}) -newsletter after:{datePart}";
     }
 
-    private static string BuildInvestmentQuery(DateTime since)
+    private string BuildInvestmentQuery(DateTime since)
     {
         var datePart = since.ToString("yyyy/MM/dd");
-        return $"(\"Zerodha\" OR \"Groww\" OR \"INDmoney\" OR \"IND Money\") (\"fund added\" OR \"funds added\" OR \"add funds\" OR \"investment\" OR \"SIP\" OR \"mutual fund\" OR \"equity\" OR \"deposited\") -newsletter after:{datePart}";
+        var positiveTerms = "(\"fund added\" OR \"funds added\" OR \"add funds\" OR \"deposited\" OR \"SIP\" OR \"mutual fund\" OR \"equity\")";
+
+        var senderFilter = BuildSenderFilter(_options.InvestmentSenderAllowlist);
+        if (!string.IsNullOrWhiteSpace(senderFilter))
+        {
+            return $"{senderFilter}{positiveTerms} -newsletter after:{datePart}";
+        }
+
+        // Without known investment senders, require the platform name so this stays narrow.
+        return $"(\"Zerodha\" OR \"Groww\" OR \"INDmoney\" OR \"IND Money\") {positiveTerms} -newsletter after:{datePart}";
     }
 
     private static string BuildSenderFilter(IEnumerable<string> senders)

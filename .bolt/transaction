@@ -452,3 +452,7 @@ SET last_synced_utc = NULL
 WHERE provider = 'gmail';
 
 COMMIT;
+
+SELECT date_trunc('month', date) AS month, COUNT(*)
+FROM expenses WHERE source_type = 'gmail'
+GROUP BY 1 ORDER BY 1;

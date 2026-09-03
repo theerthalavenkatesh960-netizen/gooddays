@@ -84,6 +84,13 @@ public class TransactionExtractionService : ITransactionExtractionService
         return TryBuildFromDocument(fullText, from, out transaction);
     }
 
+    /// An email with no currency figure anywhere cannot be a transaction, so it is not worth queuing for review.
+    public bool HasMonetaryAmount(string subject, string snippet, string body)
+    {
+        var fullText = EmailTextNormalizer.BuildSearchText(subject, snippet, body);
+        return !string.IsNullOrWhiteSpace(fullText) && AmountRegex.IsMatch(fullText);
+    }
+
     // The anchor is the sentence that actually states the money movement; surrounding text is only fallback evidence.
     private static List<string> FindAnchorSentences(string fullText)
     {
