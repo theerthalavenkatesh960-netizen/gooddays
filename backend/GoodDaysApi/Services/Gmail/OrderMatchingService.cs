@@ -23,8 +23,9 @@ public class OrderMatchingService : IOrderMatchingService
     {
         if (order.TotalAmount == null) return;
 
-        var windowStart = (order.OrderDate ?? order.CreatedAt).AddDays(-3);
-        var windowEnd = (order.OrderDate ?? order.CreatedAt).AddDays(7);
+        var anchor = AsUtc(order.OrderDate ?? order.CreatedAt);
+        var windowStart = anchor.AddDays(-3);
+        var windowEnd = anchor.AddDays(7);
 
         var candidates = await _db.Expenses
             .Where(x => x.UserId == userId
@@ -48,12 +49,20 @@ public class OrderMatchingService : IOrderMatchingService
         }
 
         var match = candidates[0];
-        var daysApart = Math.Abs(((order.OrderDate ?? order.CreatedAt) - (match.Date ?? match.CreatedAt)).TotalDays);
+        var daysApart = Math.Abs((anchor - AsUtc(match.Date ?? match.CreatedAt)).TotalDays);
         var score = daysApart <= 3 ? 0.85m : 0.60m;
         var status = score >= 0.80m ? "VALIDATED" : "NEEDS_REVIEW";
 
         await AddLinkAsync(order, match, score, "AMOUNT_DATE", status, cancellationToken);
     }
+
+    // orders.order_date is a naive timestamp, so values read back are Unspecified and cannot be compared to timestamptz columns.
+    private static DateTime AsUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+    };
 
     private async Task AddLinkAsync(Order order, Expense expense, decimal score, string method, string status, CancellationToken cancellationToken)
     {

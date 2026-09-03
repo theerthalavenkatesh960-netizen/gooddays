@@ -154,7 +154,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   external_reference varchar(120),
   source_type varchar(50),
   is_reviewed boolean NOT NULL DEFAULT true,
-  reviewed_at timestamp without time zone NULL,
+  reviewed_at timestamptz NULL,
   date timestamptz NOT NULL DEFAULT now(),
   created_at timestamptz DEFAULT now()
 );
@@ -165,7 +165,7 @@ ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS external_reference varchar(120),
   ADD COLUMN IF NOT EXISTS source_type varchar(50),
   ADD COLUMN IF NOT EXISTS is_reviewed boolean NOT NULL DEFAULT true,
-  ADD COLUMN IF NOT EXISTS reviewed_at timestamp without time zone NULL,
+  ADD COLUMN IF NOT EXISTS reviewed_at timestamptz NULL,
   ADD COLUMN IF NOT EXISTS direction varchar(20) NOT NULL DEFAULT 'DEBIT',
   ADD COLUMN IF NOT EXISTS transaction_type varchar(40) NOT NULL DEFAULT 'OTHER',
   ADD COLUMN IF NOT EXISTS transaction_status varchar(20) NOT NULL DEFAULT 'UNKNOWN',
@@ -1075,9 +1075,9 @@ CREATE TABLE IF NOT EXISTS connected_email_accounts (
     provider varchar(50) NOT NULL,
     access_token_encrypted text NOT NULL,
     refresh_token_encrypted text NOT NULL,
-    token_expiry_utc timestamp without time zone NOT NULL,
-    last_synced_utc timestamp without time zone NULL,
-    created_at timestamp without time zone NOT NULL DEFAULT now()
+    token_expiry_utc timestamptz NOT NULL,
+    last_synced_utc timestamptz NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_connected_email_accounts_user_provider
@@ -1088,8 +1088,8 @@ CREATE TABLE IF NOT EXISTS synced_emails (
     user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
     gmail_message_id varchar(200) NOT NULL,
     thread_id varchar(200) NULL,
-    internal_date timestamp without time zone NOT NULL,
-    processed_at timestamp without time zone NOT NULL DEFAULT now(),
+    internal_date timestamptz NOT NULL,
+    processed_at timestamptz NOT NULL DEFAULT now(),
     subject text NOT NULL DEFAULT '',
     snippet text NOT NULL DEFAULT '',
     body_text text NOT NULL DEFAULT '',
@@ -1123,7 +1123,7 @@ CREATE TABLE IF NOT EXISTS transaction_candidates (
   evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
   error text NULL,
   extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
-  created_at timestamp without time zone NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 ALTER TABLE IF EXISTS transaction_candidates
@@ -1132,7 +1132,7 @@ ALTER TABLE IF EXISTS transaction_candidates
   ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS error text,
   ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
-  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 
 ALTER TABLE IF EXISTS transaction_candidates
   ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(gd_try_parse_jsonb(evidence_json::text), '{}'::jsonb);
@@ -1152,8 +1152,8 @@ CREATE TABLE IF NOT EXISTS card_statements (
     card_id uuid NULL REFERENCES credit_cards(id) ON DELETE SET NULL,
     institution_name varchar(120) NULL,
     card_last4 varchar(4) NULL,
-    statement_date timestamp without time zone NULL,
-    due_date timestamp without time zone NULL,
+    statement_date timestamptz NULL,
+    due_date timestamptz NULL,
     statement_balance numeric NULL,
     minimum_amount_due numeric NULL,
     total_amount_due numeric NULL,
@@ -1164,15 +1164,15 @@ CREATE TABLE IF NOT EXISTS card_statements (
     extraction_version varchar(20) NOT NULL DEFAULT 'v1.0',
     confidence_score numeric NOT NULL DEFAULT 0,
     evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamp without time zone NOT NULL DEFAULT now()
+    created_at timestamptz NOT NULL DEFAULT now()
 );
 
 ALTER TABLE IF EXISTS card_statements
   ADD COLUMN IF NOT EXISTS card_id uuid,
   ADD COLUMN IF NOT EXISTS institution_name varchar(120),
   ADD COLUMN IF NOT EXISTS card_last4 varchar(4),
-  ADD COLUMN IF NOT EXISTS statement_date timestamp without time zone,
-  ADD COLUMN IF NOT EXISTS due_date timestamp without time zone,
+  ADD COLUMN IF NOT EXISTS statement_date timestamptz,
+  ADD COLUMN IF NOT EXISTS due_date timestamptz,
   ADD COLUMN IF NOT EXISTS statement_balance numeric,
   ADD COLUMN IF NOT EXISTS minimum_amount_due numeric,
   ADD COLUMN IF NOT EXISTS total_amount_due numeric,
@@ -1183,7 +1183,7 @@ ALTER TABLE IF EXISTS card_statements
   ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v1.0',
   ADD COLUMN IF NOT EXISTS confidence_score numeric NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 
 ALTER TABLE IF EXISTS card_statements
   ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(gd_try_parse_jsonb(evidence_json::text), '{}'::jsonb);
@@ -1207,23 +1207,23 @@ CREATE TABLE IF NOT EXISTS orders (
     user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
     merchant varchar(120) NULL,
     order_number varchar(120) NULL,
-    order_date timestamp without time zone NULL,
+    order_date timestamptz NULL,
     total_amount numeric NULL,
     currency varchar(10) NOT NULL DEFAULT 'INR',
     source_message_id varchar(200) NULL,
     evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamp without time zone NOT NULL DEFAULT now()
+    created_at timestamptz NOT NULL DEFAULT now()
 );
 
 ALTER TABLE IF EXISTS orders
   ADD COLUMN IF NOT EXISTS merchant varchar(120),
   ADD COLUMN IF NOT EXISTS order_number varchar(120),
-  ADD COLUMN IF NOT EXISTS order_date timestamp without time zone,
+  ADD COLUMN IF NOT EXISTS order_date timestamptz,
   ADD COLUMN IF NOT EXISTS total_amount numeric,
   ADD COLUMN IF NOT EXISTS currency varchar(10) NOT NULL DEFAULT 'INR',
   ADD COLUMN IF NOT EXISTS source_message_id varchar(200),
   ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 
 ALTER TABLE IF EXISTS orders
   ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(gd_try_parse_jsonb(evidence_json::text), '{}'::jsonb);
@@ -1262,7 +1262,7 @@ CREATE TABLE IF NOT EXISTS order_transaction_links (
     match_method varchar(60) NOT NULL DEFAULT 'AMOUNT_DATE',
     status varchar(30) NOT NULL DEFAULT 'NEEDS_REVIEW',
     evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-    created_at timestamp without time zone NOT NULL DEFAULT now()
+    created_at timestamptz NOT NULL DEFAULT now()
 );
 
 ALTER TABLE IF EXISTS order_transaction_links
@@ -1270,7 +1270,7 @@ ALTER TABLE IF EXISTS order_transaction_links
   ADD COLUMN IF NOT EXISTS match_method varchar(60) NOT NULL DEFAULT 'AMOUNT_DATE',
   ADD COLUMN IF NOT EXISTS status varchar(30) NOT NULL DEFAULT 'NEEDS_REVIEW',
   ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 
 ALTER TABLE IF EXISTS order_transaction_links
   ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(gd_try_parse_jsonb(evidence_json::text), '{}'::jsonb);
@@ -1301,8 +1301,8 @@ CREATE TABLE IF NOT EXISTS merchant_aliases (
     raw_merchant_key varchar(200) NOT NULL,
     corrected_merchant varchar(200) NOT NULL,
     corrected_category varchar(60) NULL,
-    created_at timestamp without time zone NOT NULL DEFAULT now(),
-    updated_at timestamp without time zone NOT NULL DEFAULT now()
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_merchant_aliases_user_key
@@ -1314,8 +1314,8 @@ CREATE TABLE IF NOT EXISTS gmail_sync_preferences (
   finance_sender_allowlist text NOT NULL DEFAULT '',
   blocked_sender_patterns text NOT NULL DEFAULT '',
   trusted_order_domains text NOT NULL DEFAULT '',
-  created_at timestamp without time zone NOT NULL DEFAULT now(),
-  updated_at timestamp without time zone NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_gmail_sync_preferences_user
@@ -1327,11 +1327,50 @@ CREATE TABLE IF NOT EXISTS gmail_sender_stats (
   sender_key varchar(200) NOT NULL,
   confirmed_count integer NOT NULL DEFAULT 0,
   rejected_count integer NOT NULL DEFAULT 0,
-  last_seen_utc timestamp without time zone NOT NULL DEFAULT now()
+  last_seen_utc timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_gmail_sender_stats_user_sender
   ON gmail_sender_stats(user_id, sender_key);
+
+
+-- Upgrade path only: fresh installs already declare these as timestamptz above.
+-- Npgsql refuses to write DateTime.UtcNow into a naive timestamp column, so any survivor is converted here.
+DO $$
+DECLARE
+  col record;
+BEGIN
+  FOR col IN
+    SELECT table_name, column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND data_type = 'timestamp without time zone'
+      AND (table_name::text, column_name::text) IN (
+        ('connected_email_accounts', 'token_expiry_utc'),
+        ('connected_email_accounts', 'last_synced_utc'),
+        ('connected_email_accounts', 'created_at'),
+        ('synced_emails', 'internal_date'),
+        ('synced_emails', 'processed_at'),
+        ('transaction_candidates', 'created_at'),
+        ('card_statements', 'statement_date'),
+        ('card_statements', 'due_date'),
+        ('card_statements', 'created_at'),
+        ('orders', 'order_date'),
+        ('orders', 'created_at'),
+        ('order_transaction_links', 'created_at'),
+        ('merchant_aliases', 'created_at'),
+        ('merchant_aliases', 'updated_at'),
+        ('gmail_sync_preferences', 'created_at'),
+        ('gmail_sync_preferences', 'updated_at'),
+        ('gmail_sender_stats', 'last_seen_utc'),
+        ('expenses', 'reviewed_at')
+      )
+  LOOP
+    EXECUTE format(
+      'ALTER TABLE %I ALTER COLUMN %I TYPE timestamptz USING %I AT TIME ZONE ''UTC''',
+      col.table_name, col.column_name, col.column_name);
+  END LOOP;
+END $$;
 
 ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS raw_merchant text;

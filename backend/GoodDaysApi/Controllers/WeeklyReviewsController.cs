@@ -38,6 +38,19 @@ public class WeeklyReviewsController : ControllerBase
         ?? User.FindFirst("sub")?.Value
         ?? throw new UnauthorizedAccessException("User id claim missing"));
 
+    // Parsed dates are Kind=Unspecified, which Npgsql refuses to compare against timestamptz columns.
+    private static bool TryParseUtcDate(string? value, out DateTime parsed)
+    {
+        if (DateTime.TryParse(value, out var raw))
+        {
+            parsed = raw.Kind == DateTimeKind.Utc ? raw : DateTime.SpecifyKind(raw, DateTimeKind.Utc);
+            return true;
+        }
+
+        parsed = default;
+        return false;
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -62,7 +75,7 @@ public class WeeklyReviewsController : ControllerBase
     public async Task<IActionResult> GetWeekSummary(string weekStart)
     {
         var userId = GetUserId();
-        if (!DateTime.TryParse(weekStart, out var startDate)) return BadRequest();
+        if (!TryParseUtcDate(weekStart, out var startDate)) return BadRequest();
         var endDate = startDate.AddDays(7);
 
         // Aggregate stats for the week
@@ -126,7 +139,7 @@ public class WeeklyReviewsController : ControllerBase
         var userId = GetUserId();
 
         DateTime startDate;
-        if (body is null || string.IsNullOrWhiteSpace(body.WeekStart) || !DateTime.TryParse(body.WeekStart, out startDate))
+        if (body is null || string.IsNullOrWhiteSpace(body.WeekStart) || !TryParseUtcDate(body.WeekStart, out startDate))
         {
             var today = DateTime.UtcNow.Date;
             var dow = (int)today.DayOfWeek;
@@ -136,7 +149,7 @@ public class WeeklyReviewsController : ControllerBase
         var result = await _weeklyGoalAdjustment.GenerateAsync(userId, startDate, body);
 
         // Persist snapshot (pending until user decides)
-        var targetWeekStart = DateTime.TryParse(result.TargetWeekStart, out var tws) ? tws : startDate.AddDays(7);
+        var targetWeekStart = TryParseUtcDate(result.TargetWeekStart, out var tws) ? tws : startDate.AddDays(7);
         var snapshot = new WeeklyRecommendationSnapshot
         {
             UserId = userId,
@@ -221,7 +234,7 @@ public class WeeklyReviewsController : ControllerBase
         await _db.SaveChangesAsync();
 
         // Mark the most recent pending snapshot for this target week as approved/partial
-        var targetDt = targetWeekStart.ToDateTime(TimeOnly.MinValue);
+        var targetDt = DateTime.SpecifyKind(targetWeekStart.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
         var pendingSnapshot = await _db.WeeklyRecommendationSnapshots
             .Where(s => s.UserId == userId && s.TargetWeekStart.Date == targetDt.Date && s.Status == "pending")
             .OrderByDescending(s => s.GeneratedAt)
@@ -253,7 +266,7 @@ public class WeeklyReviewsController : ControllerBase
 
         // Resolve week start date (Monday)
         DateTime startDate;
-        if (string.IsNullOrEmpty(weekStart) || !DateTime.TryParse(weekStart, out startDate))
+        if (string.IsNullOrEmpty(weekStart) || !TryParseUtcDate(weekStart, out startDate))
         {
             var today = DateTime.UtcNow.Date;
             var dow = (int)today.DayOfWeek;
