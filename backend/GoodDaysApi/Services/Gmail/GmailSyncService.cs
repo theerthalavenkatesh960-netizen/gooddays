@@ -27,6 +27,7 @@ public class GmailSyncService : IGmailSyncService
     private readonly IOrderExtractionService _orderExtraction;
     private readonly IOrderMatchingService _orderMatching;
     private readonly IMerchantAliasService _merchantAlias;
+    private readonly ITokenEncryptionService _tokenEncryption;
     private readonly ILogger<GmailSyncService> _logger;
 
     public GmailSyncService(
@@ -42,6 +43,7 @@ public class GmailSyncService : IGmailSyncService
         IOrderExtractionService orderExtraction,
         IOrderMatchingService orderMatching,
         IMerchantAliasService merchantAlias,
+        ITokenEncryptionService tokenEncryption,
         ILogger<GmailSyncService> logger)
     {
         _db = db;
@@ -56,6 +58,7 @@ public class GmailSyncService : IGmailSyncService
         _orderExtraction = orderExtraction;
         _orderMatching = orderMatching;
         _merchantAlias = merchantAlias;
+        _tokenEncryption = tokenEncryption;
         _logger = logger;
     }
 
@@ -92,7 +95,8 @@ public class GmailSyncService : IGmailSyncService
 
         var since = forceInitialSync ? initialSince : incrementalSince;
         var messages = new List<(string messageId, string? threadId)>();
-        foreach (var query in BuildGmailQueries(since))
+        var syncSettings = await GetSyncSettingsAsync(userId, cancellationToken);
+        foreach (var query in BuildGmailQueries(since, syncSettings))
         {
             messages.AddRange(await ListCandidateMessagesAsync(accessToken, query, cancellationToken));
         }
@@ -130,32 +134,19 @@ public class GmailSyncService : IGmailSyncService
                 continue;
             }
 
-            if (_statementExtraction.TryExtract(message.Subject, message.Snippet, message.BodyText, out var statement) && statement.ConfidenceScore >= 0.60m)
+            if (IsBlockedSender(message.From, syncSettings.BlockedSenderPatterns))
             {
-                statement.UserId = userId;
-                statement.SourceMessageId = message.MessageId;
-                statement.CardId = await _cardMatching.TryMatchCardAsync(userId, statement.CardLast4, statement.InstitutionName, cancellationToken);
-                var existingStatement = await _db.CardStatements.FirstOrDefaultAsync(
-                    x => x.UserId == userId && x.SourceMessageId == message.MessageId, cancellationToken);
-                if (existingStatement == null)
-                {
-                    _db.CardStatements.Add(statement);
-                }
-                if (statement.CardId != null)
-                {
-                    var card = await _db.CreditCards.FindAsync(new object?[] { statement.CardId.Value }, cancellationToken);
-                    if (card != null)
-                    {
-                        if (statement.StatementBalance.HasValue) card.CurrentBalance = statement.StatementBalance.Value;
-                        if (statement.CreditLimit.HasValue) card.CreditLimit = statement.CreditLimit.Value;
-                        card.UpdatedAt = DateTime.UtcNow;
-                    }
-                }
-                await RecordEmailAsync(userId, message, "PROCESSED", null, cancellationToken);
+                await RecordEmailAsync(userId, message, "IGNORED_BLOCKED_SENDER", "Sender matches blocked finance/order pattern.", cancellationToken);
                 continue;
             }
 
-            if (_orderExtraction.TryExtract(message.Subject, message.Snippet, message.BodyText, out var order, message.From))
+            if (_statementExtraction.TryExtract(message.Subject, message.Snippet, message.BodyText, out var statement) && statement.ConfidenceScore >= 0.60m)
+            {
+                await RecordEmailAsync(userId, message, "IGNORED_STATEMENT", "Statement parsing is disabled for Gmail sync.", cancellationToken);
+                continue;
+            }
+
+            if (_orderExtraction.TryExtract(message.Subject, message.Snippet, message.BodyText, out var order, message.From, syncSettings.TrustedOrderDomains))
             {
                 order.UserId = userId;
                 order.SourceMessageId = message.MessageId;
@@ -302,27 +293,29 @@ public class GmailSyncService : IGmailSyncService
                 GmailMessageId = message.MessageId,
                 ThreadId = message.ThreadId,
                 InternalDate = message.InternalDateUtc,
-                Subject = message.Subject,
-                Snippet = message.Snippet,
-                BodyText = message.BodyText,
+                Subject = _tokenEncryption.Encrypt(message.Subject ?? string.Empty),
+                Snippet = _tokenEncryption.Encrypt(message.Snippet ?? string.Empty),
+                BodyText = _tokenEncryption.Encrypt(message.BodyText ?? string.Empty),
                 Sender = message.From,
                 ProcessingStatus = status,
                 ProcessingError = error,
-                ExtractionVersion = "v2.0"
+                ExtractionVersion = "v2.0",
+                IsContentEncrypted = true
             });
         }
         else
         {
             existing.ThreadId = message.ThreadId;
             existing.InternalDate = message.InternalDateUtc;
-            existing.Subject = message.Subject;
-            existing.Snippet = message.Snippet;
-            existing.BodyText = message.BodyText;
+            existing.Subject = _tokenEncryption.Encrypt(message.Subject ?? string.Empty);
+            existing.Snippet = _tokenEncryption.Encrypt(message.Snippet ?? string.Empty);
+            existing.BodyText = _tokenEncryption.Encrypt(message.BodyText ?? string.Empty);
             existing.Sender = message.From;
             existing.ProcessingStatus = status;
             existing.ProcessingError = error;
             existing.ProcessedAt = DateTime.UtcNow;
             existing.ExtractionVersion = "v2.0";
+            existing.IsContentEncrypted = true;
         }
 
         await _db.SaveChangesAsync(cancellationToken);
@@ -577,17 +570,17 @@ public class GmailSyncService : IGmailSyncService
         });
     }
 
-    private IEnumerable<string> BuildGmailQueries(DateTime since)
+    private IEnumerable<string> BuildGmailQueries(DateTime since, GmailSyncSettings syncSettings)
     {
-        yield return BuildFinanceQuery(since);
+        yield return BuildFinanceQuery(since, syncSettings.FinanceSenderAllowlist);
         yield return BuildOrderQuery(since);
         yield return BuildWalletQuery(since);
     }
 
-    private string BuildFinanceQuery(DateTime since)
+    private string BuildFinanceQuery(DateTime since, IEnumerable<string> financeSenderAllowlist)
     {
         var datePart = since.ToString("yyyy/MM/dd");
-        var senderFilter = BuildSenderFilter(_options.FinanceSenderAllowlist);
+        var senderFilter = BuildSenderFilter(financeSenderAllowlist);
         var positiveTerms = string.Join(" OR ", new[]
         {
             "\"payment\"",
@@ -598,10 +591,7 @@ public class GmailSyncService : IGmailSyncService
             "\"charged\"",
             "\"transaction alert\"",
             "\"UPI\"",
-            "\"UTR\"",
-            "\"statement\"",
-            "\"minimum amount due\"",
-            "\"total amount due\""
+            "\"UTR\""
         });
         var exclusions = string.Join(" ", new[]
         {
@@ -686,4 +676,32 @@ public class GmailSyncService : IGmailSyncService
 
         return senderTerms.Length == 0 ? string.Empty : $"({string.Join(" OR ", senderTerms)}) ";
     }
+
+    private bool IsBlockedSender(string? from, IEnumerable<string> blockedSenderPatterns)
+    {
+        if (string.IsNullOrWhiteSpace(from)) return false;
+        return blockedSenderPatterns.Any(pattern =>
+            !string.IsNullOrWhiteSpace(pattern)
+            && from.Contains(pattern, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task<GmailSyncSettings> GetSyncSettingsAsync(int userId, CancellationToken cancellationToken)
+    {
+        var prefs = await _db.GmailSyncPreferences.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+        return new GmailSyncSettings(
+            ParseLines(prefs?.FinanceSenderAllowlist).DefaultIfEmpty().Any(x => !string.IsNullOrWhiteSpace(x)) ? ParseLines(prefs?.FinanceSenderAllowlist) : _options.FinanceSenderAllowlist,
+            ParseLines(prefs?.BlockedSenderPatterns).DefaultIfEmpty().Any(x => !string.IsNullOrWhiteSpace(x)) ? ParseLines(prefs?.BlockedSenderPatterns) : _options.BlockedSenderPatterns,
+            ParseLines(prefs?.TrustedOrderDomains).DefaultIfEmpty().Any(x => !string.IsNullOrWhiteSpace(x)) ? ParseLines(prefs?.TrustedOrderDomains) : _options.TrustedOrderDomains);
+    }
+
+    private static string[] ParseLines(string? value)
+    {
+        return (value ?? string.Empty)
+            .Split(new[] { '\r', '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private record GmailSyncSettings(string[] FinanceSenderAllowlist, string[] BlockedSenderPatterns, string[] TrustedOrderDomains);
 }

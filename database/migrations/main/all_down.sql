@@ -44,6 +44,7 @@ DROP INDEX IF EXISTS ix_expenses_user_source_reviewed;
 DROP INDEX IF EXISTS ix_expenses_user_external_reference;
 DROP INDEX IF EXISTS ix_expenses_user_gmail_message_id;
 DROP INDEX IF EXISTS ix_transaction_candidates_user_message;
+DROP INDEX IF EXISTS ix_gmail_sync_preferences_user;
 DROP INDEX IF EXISTS ix_merchant_aliases_user_key;
 DROP INDEX IF EXISTS ix_order_transaction_links_order_expense;
 DROP INDEX IF EXISTS ix_orders_user_id;
@@ -55,6 +56,7 @@ DROP INDEX IF EXISTS ix_synced_emails_user_message;
 DROP INDEX IF EXISTS ix_connected_email_accounts_user_provider;
 
 DROP TABLE IF EXISTS merchant_aliases;
+DROP TABLE IF EXISTS gmail_sync_preferences;
 DROP TABLE IF EXISTS order_transaction_links;
 DROP TABLE IF EXISTS orders;
 DROP TABLE IF EXISTS card_statements;
@@ -76,6 +78,7 @@ ALTER TABLE expenses
     DROP COLUMN IF EXISTS parser_name,
     DROP COLUMN IF EXISTS extraction_version,
     DROP COLUMN IF EXISTS processing_error,
+    DROP COLUMN IF EXISTS is_content_encrypted,
     DROP COLUMN IF EXISTS direction,
     DROP COLUMN IF EXISTS transaction_type,
     DROP COLUMN IF EXISTS transaction_status,

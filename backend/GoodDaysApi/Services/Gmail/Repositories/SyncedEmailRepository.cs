@@ -15,7 +15,14 @@ public class SyncedEmailRepository : ISyncedEmailRepository
 
     public Task<bool> ExistsAsync(int userId, string gmailMessageId, CancellationToken cancellationToken = default)
     {
-        return _db.SyncedEmails.AnyAsync(x => x.UserId == userId && x.GmailMessageId == gmailMessageId && x.ProcessingStatus == "PROCESSED", cancellationToken);
+        return _db.SyncedEmails.AnyAsync(
+            x => x.UserId == userId
+                 && x.GmailMessageId == gmailMessageId
+                 && (x.ProcessingStatus == "PROCESSED"
+                     || x.ProcessingStatus == "IGNORED_STATEMENT"
+                     || x.ProcessingStatus == "IGNORED_BLOCKED_SENDER"
+                     || x.ProcessingStatus == "REJECTED"),
+            cancellationToken);
     }
 
     public async Task AddAsync(SyncedEmail item, CancellationToken cancellationToken = default)

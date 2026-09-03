@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileText, Package } from 'lucide-react';
+import { FileText, Package, Scale } from 'lucide-react';
 import cardApi from '../../lib/cardApi';
 
 interface Props {
@@ -9,24 +9,54 @@ interface Props {
 export default function CardStatementsAndOrders({ cardId }: Props) {
   const [statements, setStatements] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const [reconciliation, setReconciliation] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!cardId) return;
     setLoading(true);
-    Promise.all([cardApi.getCardStatements(cardId), cardApi.getCardOrders(cardId)])
-      .then(([s, o]) => {
+    Promise.all([cardApi.getCardStatements(cardId), cardApi.getCardOrders(cardId), cardApi.getCardReconciliation(cardId)])
+      .then(([s, o, r]) => {
         setStatements(Array.isArray(s) ? s : []);
         setOrders(Array.isArray(o) ? o : []);
+        setReconciliation(r || null);
       })
       .finally(() => setLoading(false));
   }, [cardId]);
 
   if (loading) return null;
-  if (statements.length === 0 && orders.length === 0) return null;
+  if (statements.length === 0 && orders.length === 0 && !reconciliation) return null;
 
   return (
     <div className="space-y-3">
+      {reconciliation && (
+        <div className="rounded-2xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-2 mb-2">
+            <Scale size={14} style={{ color: 'var(--text-secondary)' }} />
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Reconciliation</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div>
+              <p style={{ color: 'var(--text-muted)' }}>Gmail total</p>
+              <p className="font-bold num" style={{ color: 'var(--text-primary)' }}>₹{Number(reconciliation.gmailTotal || 0).toFixed(2)}</p>
+            </div>
+            <div>
+              <p style={{ color: 'var(--text-muted)' }}>Imported total</p>
+              <p className="font-bold num" style={{ color: 'var(--text-primary)' }}>₹{Number(reconciliation.importedTotal || 0).toFixed(2)}</p>
+            </div>
+            <div>
+              <p style={{ color: 'var(--text-muted)' }}>Matched</p>
+              <p className="font-bold num" style={{ color: 'var(--accent)' }}>{reconciliation.matchedCount || 0}</p>
+            </div>
+          </div>
+          {(reconciliation.unmatchedGmailCount > 0 || reconciliation.unmatchedImportedCount > 0) && (
+            <p className="text-xs mt-2" style={{ color: 'var(--accent-warm)' }}>
+              {reconciliation.unmatchedGmailCount || 0} Gmail and {reconciliation.unmatchedImportedCount || 0} imported transactions need review.
+            </p>
+          )}
+        </div>
+      )}
+
       {statements.length > 0 && (
         <div className="rounded-2xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <div className="flex items-center gap-2 mb-2">

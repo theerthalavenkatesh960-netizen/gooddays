@@ -53,6 +53,9 @@ public class SyncedEmail
     [Column("processing_error")]
     public string? ProcessingError { get; set; }
 
+    [Column("is_content_encrypted")]
+    public bool IsContentEncrypted { get; set; }
+
     [ForeignKey(nameof(UserId))]
     public User? User { get; set; }
 }

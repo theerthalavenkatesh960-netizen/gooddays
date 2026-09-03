@@ -15,6 +15,7 @@ import CardAnalyticsComponent from '../components/financial/CardAnalytics';
 import EnhancedCreditCardComponent from '../components/financial/EnhancedCreditCardComponent';
 import CardStatementsAndOrders from '../components/financial/CardStatementsAndOrders';
 import AccountsAndWalletsPanel from '../components/financial/AccountsAndWalletsPanel';
+import UnlinkedCardTransactionsPanel from '../components/financial/UnlinkedCardTransactionsPanel';
 import SpendingAlertBanner from '../components/financial/SpendingAlertBanner';
 import RewardRedemptionModal from '../components/financial/RewardRedemptionModal';
 import { generateSpendingAlert, SpendingAlert } from '../lib/spendingAlerts';
@@ -67,6 +68,7 @@ export default function Cards() {
   const [isSavingCard, setIsSavingCard] = useState(false);
   const [alerts, setAlerts] = useState<SpendingAlert[]>([]);
   const [accountInstruments, setAccountInstruments] = useState<AccountInstrumentSummary[]>([]);
+  const [unlinkedCardTransactions, setUnlinkedCardTransactions] = useState<any[]>([]);
   const [dateRange] = useState({
     start: startOfMonth(new Date()),
     end: endOfMonth(new Date())
@@ -77,6 +79,7 @@ export default function Cards() {
     try {
       const fetchedCards = await cardApi.getCards(user.id);
       const fetchedInstruments = await cardApi.getAccountInstruments(user.id).catch(() => []);
+      const fetchedUnlinked = await cardApi.getUnlinkedCardTransactions(user.id).catch(() => []);
       
       // Fetch analytics for each card
       const withAnalytics = await Promise.all(
@@ -98,6 +101,7 @@ export default function Cards() {
 
       setCards(withAnalytics);
       setAccountInstruments(fetchedInstruments);
+  setUnlinkedCardTransactions(fetchedUnlinked);
 
       // Generate alerts for all cards
       const cardAlerts = withAnalytics
@@ -147,6 +151,11 @@ export default function Cards() {
   }).format(value || 0)}`;
 
   const formatCount = (value: number) => new Intl.NumberFormat('en-IN').format(value || 0);
+
+  const assignExpenseToCard = async (cardId: string, expenseId: number) => {
+    await cardApi.assignExpenseToCard(cardId, expenseId);
+    await loadCards();
+  };
 
   const openAddCardModal = () => {
     setEditingCardId(null);
@@ -390,6 +399,7 @@ export default function Cards() {
               className="space-y-4"
             >
               <AccountsAndWalletsPanel instruments={accountInstruments} />
+              <UnlinkedCardTransactionsPanel cards={cards} transactions={unlinkedCardTransactions} onAssign={assignExpenseToCard} />
 
               <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-5">
                 {cards.map((card, idx) => (

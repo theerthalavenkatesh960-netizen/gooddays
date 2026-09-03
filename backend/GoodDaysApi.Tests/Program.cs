@@ -58,6 +58,21 @@ Check("generic order merchant from sender", orderParser.TryExtract(
     "alerts@bookmyshow.com")
     && bookMyShowOrder.Merchant == "BookMyShow"
     && bookMyShowOrder.TotalAmount == 799m);
+Check("trusted order sender can provide merchant", orderParser.TryExtract(
+    "Your order is confirmed",
+    "Order ID AP12345 total INR 299",
+    "Order confirmed on 2/9/2026",
+    out var apolloOrder,
+    "orders@apollo247.com",
+    new[] { "apollo247.com" })
+    && apolloOrder.Merchant == "Apollo247");
+Check("untrusted order sender without merchant text rejected", !orderParser.TryExtract(
+    "Your order is confirmed",
+    "Order ID XX12345 total INR 299",
+    "Order confirmed on 2/9/2026",
+    out _,
+    "orders@example-random.com",
+    new[] { "apollo247.com" }));
 
 Check("amazon pay wallet top-up funded by credit card", parser.TryExtract(
     "Amazon Pay wallet loaded",

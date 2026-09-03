@@ -533,6 +533,40 @@ export async function updateFinanceGmailMerchant(expenseId: number, merchant: st
   });
 }
 
+export async function getFinanceGmailCandidates(status = 'NEEDS_REVIEW') {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return request(`finance/gmail/candidates${query}`);
+}
+
+export async function updateFinanceGmailCandidateStatus(id: string, status: 'NEEDS_REVIEW' | 'REJECTED') {
+  return request(`finance/gmail/candidates/${id}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function promoteFinanceGmailCandidate(id: string, payload: any) {
+  return request(`finance/gmail/candidates/${id}/promote`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getFinanceGmailCandidateEmail(id: string) {
+  return request(`finance/gmail/candidates/${id}/email`);
+}
+
+export async function getFinanceGmailSettings() {
+  return request('finance/gmail/settings');
+}
+
+export async function updateFinanceGmailSettings(payload: any) {
+  return request('finance/gmail/settings', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
 // Daily tracking (sleep/workout/phone/sunlight/mood)
 export type DailyTracking = {
   id: number;

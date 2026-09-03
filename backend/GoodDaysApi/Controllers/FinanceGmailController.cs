@@ -1,9 +1,11 @@
 using GoodDaysApi.DTOs.Gmail;
 using GoodDaysApi.Data;
+using GoodDaysApi.Models;
 using GoodDaysApi.Services.Gmail;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace GoodDaysApi.Controllers;
 
@@ -16,19 +18,25 @@ public class FinanceGmailController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly AppDbContext _db;
     private readonly IMerchantAliasService _merchantAlias;
+    private readonly ITokenEncryptionService _tokenEncryption;
+    private readonly GmailOptions _gmailOptions;
 
     public FinanceGmailController(
         IGmailService gmailService,
         IGmailSyncService gmailSyncService,
         IConfiguration configuration,
         AppDbContext db,
-        IMerchantAliasService merchantAlias)
+        IMerchantAliasService merchantAlias,
+        ITokenEncryptionService tokenEncryption,
+        IOptions<GmailOptions> gmailOptions)
     {
         _gmailService = gmailService;
         _gmailSyncService = gmailSyncService;
         _configuration = configuration;
         _db = db;
         _merchantAlias = merchantAlias;
+        _tokenEncryption = tokenEncryption;
+        _gmailOptions = gmailOptions.Value;
     }
 
     [HttpGet("connect")]
@@ -295,8 +303,158 @@ public class FinanceGmailController : ControllerBase
             x => x.Id == id && x.UserId == userId.Value, cancellationToken);
         if (candidate == null) return NotFound();
         candidate.Status = request.Status.ToUpperInvariant();
+        if (candidate.Status == "REJECTED")
+        {
+            var syncedEmail = await _db.SyncedEmails.FirstOrDefaultAsync(
+                x => x.UserId == userId.Value && x.GmailMessageId == candidate.SourceMessageId, cancellationToken);
+            if (syncedEmail != null)
+            {
+                syncedEmail.ProcessingStatus = "REJECTED";
+                syncedEmail.ProcessingError = "Rejected during manual review.";
+                syncedEmail.ProcessedAt = DateTime.UtcNow;
+            }
+        }
         await _db.SaveChangesAsync(cancellationToken);
         return Ok(new { updated = true });
+    }
+
+    [HttpPost("candidates/{id:guid}/promote")]
+    [Authorize]
+    public async Task<IActionResult> PromoteCandidate(Guid id, [FromBody] PromoteCandidateRequest request, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        if (request.Amount <= 0 || string.IsNullOrWhiteSpace(request.Merchant))
+        {
+            return BadRequest(new { message = "Amount and merchant are required." });
+        }
+
+        var candidate = await _db.TransactionCandidates.FirstOrDefaultAsync(
+            x => x.Id == id && x.UserId == userId.Value, cancellationToken);
+        if (candidate == null) return NotFound();
+
+        var expense = new Expense
+        {
+            UserId = userId.Value,
+            Description = request.Merchant,
+            Amount = request.Amount,
+            Category = request.Category ?? "Other",
+            Date = request.TransactionDate ?? DateTime.UtcNow,
+            GmailMessageId = candidate.SourceMessageId,
+            SourceType = "gmail",
+            Direction = request.Direction,
+            TransactionType = request.TransactionType,
+            TransactionStatus = "COMPLETED",
+            PaymentInstrumentType = request.PaymentInstrumentType,
+            InstitutionName = request.InstitutionName,
+            InstrumentLast4 = request.InstrumentLast4,
+            SourceInstrumentType = request.SourceInstrumentType,
+            SourceInstrumentLast4 = request.SourceInstrumentLast4,
+            DestinationInstrumentType = request.DestinationInstrumentType,
+            DestinationInstrumentName = request.DestinationInstrumentName,
+            ExtractionVersion = "manual-review-v1",
+            EvidenceJson = candidate.EvidenceJson,
+            RawMerchant = request.Merchant,
+            IsReviewed = true,
+            ReviewedAt = DateTime.UtcNow
+        };
+
+        _db.Expenses.Add(expense);
+        candidate.Status = "PROMOTED";
+
+        var syncedEmail = await _db.SyncedEmails.FirstOrDefaultAsync(
+            x => x.UserId == userId.Value && x.GmailMessageId == candidate.SourceMessageId, cancellationToken);
+        if (syncedEmail != null)
+        {
+            syncedEmail.ProcessingStatus = "PROCESSED";
+            syncedEmail.ProcessingError = null;
+            syncedEmail.ProcessedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return Ok(expense);
+    }
+
+    [HttpGet("settings")]
+    [Authorize]
+    public async Task<IActionResult> Settings(CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var prefs = await _db.GmailSyncPreferences.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId.Value, cancellationToken);
+        return Ok(new GmailSyncSettingsDto(
+            LinesOrDefaults(prefs?.FinanceSenderAllowlist, _gmailOptions.FinanceSenderAllowlist),
+            LinesOrDefaults(prefs?.BlockedSenderPatterns, _gmailOptions.BlockedSenderPatterns),
+            LinesOrDefaults(prefs?.TrustedOrderDomains, _gmailOptions.TrustedOrderDomains)));
+    }
+
+    [HttpPut("settings")]
+    [Authorize]
+    public async Task<IActionResult> UpdateSettings([FromBody] GmailSyncSettingsDto request, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var prefs = await _db.GmailSyncPreferences.FirstOrDefaultAsync(x => x.UserId == userId.Value, cancellationToken);
+        if (prefs == null)
+        {
+            prefs = new GmailSyncPreference { UserId = userId.Value };
+            _db.GmailSyncPreferences.Add(prefs);
+        }
+
+        prefs.FinanceSenderAllowlist = string.Join('\n', request.FinanceSenderAllowlist ?? Array.Empty<string>());
+        prefs.BlockedSenderPatterns = string.Join('\n', request.BlockedSenderPatterns ?? Array.Empty<string>());
+        prefs.TrustedOrderDomains = string.Join('\n', request.TrustedOrderDomains ?? Array.Empty<string>());
+        prefs.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(cancellationToken);
+        return Ok(request);
+    }
+
+    [HttpGet("candidates/{id:guid}/email")]
+    [Authorize]
+    public async Task<IActionResult> CandidateEmail(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var candidate = await _db.TransactionCandidates.FirstOrDefaultAsync(
+            x => x.Id == id && x.UserId == userId.Value, cancellationToken);
+        if (candidate == null) return NotFound();
+
+        var email = await _db.SyncedEmails.FirstOrDefaultAsync(
+            x => x.UserId == userId.Value && x.GmailMessageId == candidate.SourceMessageId, cancellationToken);
+        if (email == null) return NotFound();
+
+        return Ok(new
+        {
+            email.GmailMessageId,
+            email.ThreadId,
+            email.Sender,
+            email.InternalDate,
+            email.ProcessingStatus,
+            email.ProcessingError,
+            Subject = ReadStoredEmailText(email.Subject, email.IsContentEncrypted),
+            Snippet = ReadStoredEmailText(email.Snippet, email.IsContentEncrypted),
+            BodyText = ReadStoredEmailText(email.BodyText, email.IsContentEncrypted)
+        });
+    }
+
+    private string ReadStoredEmailText(string value, bool isEncrypted)
+    {
+        if (!isEncrypted) return value;
+        try { return _tokenEncryption.Decrypt(value); }
+        catch { return string.Empty; }
+    }
+
+    private static string[] LinesOrDefaults(string? value, string[] defaults)
+    {
+        var lines = (value ?? string.Empty)
+            .Split(new[] { '\r', '\n', ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return lines.Length == 0 ? defaults : lines;
     }
 
     private int? GetCurrentUserId()
@@ -323,3 +481,18 @@ public class CandidateStatusRequest
 public record GmailBulkReviewRequest(List<int> ExpenseIds, bool IsReviewed);
 public record GmailBulkCategoryRequest(List<int> ExpenseIds, string Category, bool MarkReviewedOnCategoryChange = true);
 public record GmailMerchantCorrectionRequest(int ExpenseId, string Merchant, string? Category, bool ApplyToFuture = true);
+public record PromoteCandidateRequest(
+    decimal Amount,
+    string Merchant,
+    string? Category,
+    DateTime? TransactionDate,
+    string Direction = "DEBIT",
+    string TransactionType = "PURCHASE",
+    string PaymentInstrumentType = "UNKNOWN",
+    string? InstitutionName = null,
+    string? InstrumentLast4 = null,
+    string? SourceInstrumentType = null,
+    string? SourceInstrumentLast4 = null,
+    string? DestinationInstrumentType = null,
+    string? DestinationInstrumentName = null);
+public record GmailSyncSettingsDto(string[] FinanceSenderAllowlist, string[] BlockedSenderPatterns, string[] TrustedOrderDomains);

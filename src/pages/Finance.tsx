@@ -103,7 +103,8 @@ function TransactionsTab() {
   });
   const visibleExpenses = gmailOnly ? monthExpenses.filter(e => (e.sourceType || '').toLowerCase() === 'gmail') : monthExpenses;
 
-  const variableExpense = monthExpenses.reduce((s, e) => s + (e.amount ?? 0), 0);
+  const spendExpenses = monthExpenses.filter(e => (e.transactionType || '').toUpperCase() !== 'TRANSFER');
+  const variableExpense = spendExpenses.reduce((s, e) => s + (e.amount ?? 0), 0);
   const fixedExpense = (budgetProfile?.fixedExpenses ?? []).reduce((s: number, f: any) => s + (f.effectiveAmount ?? f.amount ?? 0), 0);
   const totalExpense = variableExpense + fixedExpense;
   const totalIncome = Number(budgetProfile?.effectiveMonthlyIncome ?? budgetProfile?.monthlyIncome ?? 0);

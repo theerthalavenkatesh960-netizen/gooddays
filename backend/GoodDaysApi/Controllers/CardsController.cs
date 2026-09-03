@@ -79,6 +79,48 @@ public class CardsController : ControllerBase
         return Ok(instruments);
     }
 
+    // GET /api/cards/user/{userId}/unlinked-card-transactions
+    [HttpGet("user/{userId}/unlinked-card-transactions")]
+    public async Task<IActionResult> GetUnlinkedCardTransactions(int userId)
+    {
+        var linkedExpenseIds = await _db.CardExpenses.Select(x => x.ExpenseId).ToListAsync();
+        var transactions = await _db.Expenses
+            .Where(e => e.UserId == userId
+                        && e.SourceType == "gmail"
+                        && (e.PaymentInstrumentType == "CREDIT_CARD" || e.PaymentInstrumentType == "DEBIT_CARD")
+                        && !linkedExpenseIds.Contains(e.Id))
+            .OrderByDescending(e => e.Date ?? e.CreatedAt)
+            .Take(100)
+            .ToListAsync();
+
+        return Ok(transactions);
+    }
+
+    // POST /api/cards/{id}/assign-expense
+    [HttpPost("{id}/assign-expense")]
+    public async Task<IActionResult> AssignExpenseToCard(Guid id, [FromBody] AssignExpenseToCardRequest request)
+    {
+        var card = await _db.CreditCards.FindAsync(id);
+        if (card == null) return NotFound();
+
+        var expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == request.ExpenseId && e.UserId == card.UserId);
+        if (expense == null) return NotFound();
+
+        var existing = await _db.CardExpenses.FirstOrDefaultAsync(e => e.ExpenseId == expense.Id);
+        if (existing == null)
+        {
+            _db.CardExpenses.Add(new CardExpense { CardId = id, ExpenseId = expense.Id, AssignedAt = DateTime.UtcNow });
+        }
+        else
+        {
+            existing.CardId = id;
+            existing.AssignedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(new { updated = true });
+    }
+
     private static string GetInstrumentKey(Expense expense)
     {
         if (expense.DestinationInstrumentType == "WALLET") return expense.DestinationInstrumentName ?? "Wallet";
@@ -230,6 +272,51 @@ public class CardsController : ControllerBase
         return Ok(orders);
     }
 
+    // GET /api/cards/{id}/reconciliation
+    [HttpGet("{id}/reconciliation")]
+    public async Task<IActionResult> GetCardReconciliation(Guid id, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
+    {
+        var card = await _db.CreditCards.FindAsync(id);
+        if (card == null) return NotFound();
+
+        var query = _db.CardExpenses.Where(ce => ce.CardId == id).Include(ce => ce.Expense).AsQueryable();
+        if (startDate.HasValue) query = query.Where(ce => ce.Expense!.Date >= startDate);
+        if (endDate.HasValue) query = query.Where(ce => ce.Expense!.Date <= endDate);
+
+        var expenses = await query.Select(ce => ce.Expense!).Where(e => e.TransactionType != "TRANSFER").ToListAsync();
+        var gmail = expenses.Where(e => e.SourceType == "gmail").ToList();
+        var imported = expenses.Where(e => e.SourceType != "gmail").ToList();
+
+        var matchedGmailIds = new HashSet<int>();
+        var matchedImportedIds = new HashSet<int>();
+        foreach (var gmailExpense in gmail)
+        {
+            var match = imported.FirstOrDefault(importedExpense =>
+                !matchedImportedIds.Contains(importedExpense.Id)
+                && importedExpense.Amount == gmailExpense.Amount
+                && importedExpense.Date.HasValue
+                && gmailExpense.Date.HasValue
+                && Math.Abs((importedExpense.Date.Value.Date - gmailExpense.Date.Value.Date).TotalDays) <= 2);
+            if (match != null)
+            {
+                matchedGmailIds.Add(gmailExpense.Id);
+                matchedImportedIds.Add(match.Id);
+            }
+        }
+
+        return Ok(new
+        {
+            cardId = id,
+            gmailTotal = gmail.Sum(e => e.Amount),
+            importedTotal = imported.Sum(e => e.Amount),
+            matchedCount = matchedGmailIds.Count,
+            unmatchedGmailCount = gmail.Count(e => !matchedGmailIds.Contains(e.Id)),
+            unmatchedImportedCount = imported.Count(e => !matchedImportedIds.Contains(e.Id)),
+            unmatchedGmail = gmail.Where(e => !matchedGmailIds.Contains(e.Id)).Take(10),
+            unmatchedImported = imported.Where(e => !matchedImportedIds.Contains(e.Id)).Take(10)
+        });
+    }
+
     // GET /api/cards/{id}/analytics
     [HttpGet("{id}/analytics")]
     public async Task<IActionResult> GetCardAnalytics(Guid id, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
@@ -246,7 +333,9 @@ public class CardsController : ControllerBase
         if (endDate.HasValue)
             query = query.Where(ce => ce.Expense!.Date <= endDate);
 
-        var cardExpenses = await query.ToListAsync();
+        var cardExpenses = await query
+            .Where(ce => ce.Expense!.TransactionType != "TRANSFER")
+            .ToListAsync();
 
         // Group by category
         var byCategory = cardExpenses
@@ -310,3 +399,5 @@ public record UpdateCardRequest(
     int? RewardPointsBalance,
     string? Status
 );
+
+public record AssignExpenseToCardRequest(int ExpenseId);

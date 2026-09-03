@@ -1100,7 +1100,8 @@ ALTER TABLE IF EXISTS synced_emails
   ADD COLUMN IF NOT EXISTS processing_status varchar(30) NOT NULL DEFAULT 'PROCESSED',
   ADD COLUMN IF NOT EXISTS parser_name varchar(100) NOT NULL DEFAULT 'GenericTransactionParser',
   ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
-  ADD COLUMN IF NOT EXISTS processing_error text;
+  ADD COLUMN IF NOT EXISTS processing_error text,
+  ADD COLUMN IF NOT EXISTS is_content_encrypted boolean NOT NULL DEFAULT false;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_synced_emails_user_message
     ON synced_emails(user_id, gmail_message_id);
@@ -1197,6 +1198,19 @@ CREATE TABLE IF NOT EXISTS merchant_aliases (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_merchant_aliases_user_key
     ON merchant_aliases(user_id, raw_merchant_key);
+
+CREATE TABLE IF NOT EXISTS gmail_sync_preferences (
+  id uuid PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  finance_sender_allowlist text NOT NULL DEFAULT '',
+  blocked_sender_patterns text NOT NULL DEFAULT '',
+  trusted_order_domains text NOT NULL DEFAULT '',
+  created_at timestamp without time zone NOT NULL DEFAULT now(),
+  updated_at timestamp without time zone NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_gmail_sync_preferences_user
+  ON gmail_sync_preferences(user_id);
 
 ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS raw_merchant text;

@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
     public DbSet<Order> Orders { get; set; } = null!;
     public DbSet<OrderTransactionLink> OrderTransactionLinks { get; set; } = null!;
     public DbSet<MerchantAlias> MerchantAliases { get; set; } = null!;
+    public DbSet<GmailSyncPreference> GmailSyncPreferences { get; set; } = null!;
     public DbSet<GamificationEntry> GamificationEntries { get; set; } = null!;
     public DbSet<DailyTracking> DailyTrackings { get; set; } = null!;
     public DbSet<DailyNote> DailyNotes { get; set; } = null!;

@@ -7,7 +7,7 @@ namespace GoodDaysApi.Services.Gmail;
 
 public interface IOrderExtractionService
 {
-    bool TryExtract(string subject, string snippet, string body, out Order order, string? from = null);
+    bool TryExtract(string subject, string snippet, string body, out Order order, string? from = null, IEnumerable<string>? trustedDomains = null);
 }
 
 public class OrderExtractionService : IOrderExtractionService
@@ -20,7 +20,7 @@ public class OrderExtractionService : IOrderExtractionService
     private static readonly Regex MerchantPhraseRegex = new(@"\b(?:from|by|seller|merchant)\s+([A-Za-z0-9][A-Za-z0-9\s&.'-]{2,50})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly string[] KnownMerchants = { "Amazon", "Flipkart", "Myntra", "Swiggy", "Zomato", "Ajio", "Nykaa", "BigBasket", "BookMyShow", "Apollo" };
 
-    public bool TryExtract(string subject, string snippet, string body, out Order order, string? from = null)
+    public bool TryExtract(string subject, string snippet, string body, out Order order, string? from = null, IEnumerable<string>? trustedDomains = null)
     {
         var text = string.Join(" ", new[] { subject, snippet, body }.Where(x => !string.IsNullOrWhiteSpace(x)));
         order = new Order();
@@ -36,7 +36,7 @@ public class OrderExtractionService : IOrderExtractionService
         order.TotalAmount = amount;
         order.Currency = "INR";
 
-        var merchant = ExtractMerchant(text, from);
+        var merchant = ExtractMerchant(text, from, trustedDomains);
         if (merchant == null) return false;
         order.Merchant = merchant;
 
@@ -64,7 +64,7 @@ public class OrderExtractionService : IOrderExtractionService
         return true;
     }
 
-    private static string? ExtractMerchant(string text, string? from)
+    private static string? ExtractMerchant(string text, string? from, IEnumerable<string>? trustedDomains)
     {
         var known = KnownMerchants.FirstOrDefault(m => text.Contains(m, StringComparison.OrdinalIgnoreCase));
         if (known != null) return known;
@@ -80,6 +80,7 @@ public class OrderExtractionService : IOrderExtractionService
         if (!emailMatch.Success) return null;
 
         var domain = emailMatch.Groups[1].Value.ToLowerInvariant();
+        if (trustedDomains?.Any(d => domain.EndsWith(d, StringComparison.OrdinalIgnoreCase)) != true) return null;
         var root = domain.Split('.', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(part =>
             part.Length > 2 && part is not "mail" and not "email" and not "notify" and not "noreply" and not "no-reply");
 

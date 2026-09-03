@@ -19,6 +19,12 @@ export default function GmailReviewTab() {
   const [editingMerchantId, setEditingMerchantId] = useState<number | null>(null);
   const [merchantDraft, setMerchantDraft] = useState('');
   const [savingMerchant, setSavingMerchant] = useState(false);
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [promoteCandidateId, setPromoteCandidateId] = useState<string | null>(null);
+  const [promoteForm, setPromoteForm] = useState({ amount: '', merchant: '', category: 'Other', date: '', paymentInstrumentType: 'UNKNOWN' });
+  const [previewEmail, setPreviewEmail] = useState<any | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState({ financeSenderAllowlist: '', blockedSenderPatterns: '', trustedOrderDomains: '' });
 
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const allVisibleSelected = rows.length > 0 && rows.every(r => selectedSet.has(r.id));
@@ -28,8 +34,12 @@ export default function GmailReviewTab() {
     setLoading(true);
     try {
       const reviewed = reviewFilter === 'all' ? undefined : reviewFilter === 'reviewed';
-      const data = await api.getFinanceGmailTransactions(reviewed);
+      const [data, candidateData] = await Promise.all([
+        api.getFinanceGmailTransactions(reviewed),
+        api.getFinanceGmailCandidates('NEEDS_REVIEW').catch(() => []),
+      ]);
       setRows(Array.isArray(data) ? data : []);
+      setCandidates(Array.isArray(candidateData) ? candidateData : []);
       setSelected([]);
     } finally {
       setLoading(false);
@@ -39,6 +49,17 @@ export default function GmailReviewTab() {
   useEffect(() => {
     load().catch(() => undefined);
   }, [user, reviewFilter]);
+
+  useEffect(() => {
+    if (!user) return;
+    api.getFinanceGmailSettings().then((settings: any) => {
+      setSettingsDraft({
+        financeSenderAllowlist: (settings.financeSenderAllowlist || []).join('\n'),
+        blockedSenderPatterns: (settings.blockedSenderPatterns || []).join('\n'),
+        trustedOrderDomains: (settings.trustedOrderDomains || []).join('\n'),
+      });
+    }).catch(() => undefined);
+  }, [user]);
 
   const toggle = (id: number) => {
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -92,6 +113,47 @@ export default function GmailReviewTab() {
     }
   };
 
+  const rejectCandidate = async (id: string) => {
+    await api.updateFinanceGmailCandidateStatus(id, 'REJECTED');
+    await load();
+  };
+
+  const startPromoteCandidate = (candidate: any) => {
+    setPromoteCandidateId(candidate.id);
+    setPromoteForm({ amount: '', merchant: '', category: 'Other', date: new Date().toISOString().slice(0, 10), paymentInstrumentType: 'UNKNOWN' });
+  };
+
+  const promoteCandidate = async (candidate: any) => {
+    const amount = Number(promoteForm.amount);
+    if (!amount || !promoteForm.merchant.trim()) return;
+    await api.promoteFinanceGmailCandidate(candidate.id, {
+      amount,
+      merchant: promoteForm.merchant.trim(),
+      category: promoteForm.category,
+      transactionDate: promoteForm.date ? new Date(`${promoteForm.date}T12:00:00`).toISOString() : null,
+      direction: 'DEBIT',
+      transactionType: 'PURCHASE',
+      paymentInstrumentType: promoteForm.paymentInstrumentType,
+      sourceInstrumentType: promoteForm.paymentInstrumentType,
+    });
+    setPromoteCandidateId(null);
+    await load();
+  };
+
+  const previewCandidateEmail = async (candidate: any) => {
+    const email = await api.getFinanceGmailCandidateEmail(candidate.id);
+    setPreviewEmail(email);
+  };
+
+  const saveSettings = async () => {
+    await api.updateFinanceGmailSettings({
+      financeSenderAllowlist: settingsDraft.financeSenderAllowlist.split(/\r?\n|,|;/).map(x => x.trim()).filter(Boolean),
+      blockedSenderPatterns: settingsDraft.blockedSenderPatterns.split(/\r?\n|,|;/).map(x => x.trim()).filter(Boolean),
+      trustedOrderDomains: settingsDraft.trustedOrderDomains.split(/\r?\n|,|;/).map(x => x.trim()).filter(Boolean),
+    });
+    setShowSettings(false);
+  };
+
   return (
     <div className="px-4">
       <div className="rounded-2xl p-3 mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -143,8 +205,33 @@ export default function GmailReviewTab() {
           <button onClick={bulkSetCategory} disabled={selected.length === 0} className="h-8 px-3 rounded-lg text-xs font-semibold press disabled:opacity-60" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
             Apply Category
           </button>
+          <button onClick={() => setShowSettings(v => !v)} className="h-8 px-3 rounded-lg text-xs font-semibold press ml-auto" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+            Sync Settings
+          </button>
         </div>
       </div>
+
+      {showSettings && (
+        <div className="rounded-2xl p-3 mb-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <label className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              Finance senders
+              <textarea value={settingsDraft.financeSenderAllowlist} onChange={(e) => setSettingsDraft(s => ({ ...s, financeSenderAllowlist: e.target.value }))} className="mt-1 w-full min-h-24 p-2 rounded-lg text-xs outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            </label>
+            <label className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              Blocked senders/patterns
+              <textarea value={settingsDraft.blockedSenderPatterns} onChange={(e) => setSettingsDraft(s => ({ ...s, blockedSenderPatterns: e.target.value }))} className="mt-1 w-full min-h-24 p-2 rounded-lg text-xs outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            </label>
+            <label className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              Trusted order domains
+              <textarea value={settingsDraft.trustedOrderDomains} onChange={(e) => setSettingsDraft(s => ({ ...s, trustedOrderDomains: e.target.value }))} className="mt-1 w-full min-h-24 p-2 rounded-lg text-xs outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            </label>
+          </div>
+          <button onClick={saveSettings} className="mt-2 h-8 px-3 rounded-lg text-xs font-semibold text-white press" style={{ backgroundColor: 'var(--accent)' }}>
+            Save Settings
+          </button>
+        </div>
+      )}
 
       <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
         {loading ? (
@@ -192,6 +279,77 @@ export default function GmailReviewTab() {
           </div>
         ))}
       </div>
+
+      {candidates.length > 0 && (
+        <div className="rounded-2xl overflow-hidden mt-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="p-3 border-b" style={{ borderColor: 'var(--border)' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Needs review</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Emails that were not promoted to transactions</p>
+          </div>
+          {candidates.map((candidate) => (
+            <div key={candidate.id} className="p-3 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{candidate.status}</p>
+                  <p className="text-xs mt-1 break-words" style={{ color: 'var(--text-muted)' }}>
+                    {candidate.error || candidate.evidenceJson || candidate.sourceMessageId}
+                  </p>
+                </div>
+                <button
+                  onClick={() => rejectCandidate(candidate.id)}
+                  className="h-8 px-3 rounded-lg text-xs font-semibold press flex-shrink-0"
+                  style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}
+                >
+                  Reject
+                </button>
+              </div>
+              <button onClick={() => previewCandidateEmail(candidate)} className="mt-2 h-8 px-3 rounded-lg text-xs font-semibold press" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                Preview email
+              </button>
+              {promoteCandidateId === candidate.id ? (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3">
+                  <input value={promoteForm.merchant} onChange={(e) => setPromoteForm(f => ({ ...f, merchant: e.target.value }))} placeholder="Merchant" className="h-8 px-2 rounded-lg text-xs outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+                  <input value={promoteForm.amount} onChange={(e) => setPromoteForm(f => ({ ...f, amount: e.target.value }))} placeholder="Amount" type="number" className="h-8 px-2 rounded-lg text-xs outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+                  <input value={promoteForm.date} onChange={(e) => setPromoteForm(f => ({ ...f, date: e.target.value }))} type="date" className="h-8 px-2 rounded-lg text-xs outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+                  <select value={promoteForm.paymentInstrumentType} onChange={(e) => setPromoteForm(f => ({ ...f, paymentInstrumentType: e.target.value }))} className="h-8 px-2 rounded-lg text-xs outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
+                    {['UNKNOWN', 'CREDIT_CARD', 'DEBIT_CARD', 'BANK_ACCOUNT', 'UPI', 'WALLET', 'CASH'].map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                  <div className="flex gap-1">
+                    <button onClick={() => promoteCandidate(candidate)} className="h-8 px-2 rounded-lg text-xs font-semibold text-white press" style={{ backgroundColor: 'var(--accent)' }}>Create</button>
+                    <button onClick={() => setPromoteCandidateId(null)} className="h-8 px-2 rounded-lg text-xs font-semibold press" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => startPromoteCandidate(candidate)} className="mt-2 h-8 px-3 rounded-lg text-xs font-semibold press" style={{ backgroundColor: 'var(--accent)', color: '#fff' }}>
+                  Create transaction
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {previewEmail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+          <div className="w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{previewEmail.subject || 'Email preview'}</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{previewEmail.sender} · {previewEmail.internalDate ? new Date(previewEmail.internalDate).toLocaleString() : ''}</p>
+              </div>
+              <button onClick={() => setPreviewEmail(null)} className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                <X size={14} />
+              </button>
+            </div>
+            <div className="rounded-xl p-3 mb-3 text-xs whitespace-pre-wrap" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+              {previewEmail.snippet}
+            </div>
+            <pre className="text-xs whitespace-pre-wrap break-words rounded-xl p-3" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}>
+              {previewEmail.bodyText || 'No body captured.'}
+            </pre>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
