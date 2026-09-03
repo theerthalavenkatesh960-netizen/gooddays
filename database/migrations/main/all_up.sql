@@ -180,7 +180,7 @@ ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 ALTER TABLE IF EXISTS expenses
-  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(evidence_json::jsonb, '{}'::jsonb);
+  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(gd_try_parse_jsonb(evidence_json::text), '{}'::jsonb);
 
 -- Ensure Clerk auth column exists when upgrading already-existing user_profiles table.
 ALTER TABLE IF EXISTS user_profiles
@@ -1122,7 +1122,15 @@ CREATE TABLE IF NOT EXISTS transaction_candidates (
 );
 
 ALTER TABLE IF EXISTS transaction_candidates
-  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(evidence_json::jsonb, '{}'::jsonb);
+  ADD COLUMN IF NOT EXISTS source_thread_id varchar(200),
+  ADD COLUMN IF NOT EXISTS status varchar(30) NOT NULL DEFAULT 'NEEDS_REVIEW',
+  ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS error text,
+  ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
+  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
+
+ALTER TABLE IF EXISTS transaction_candidates
+  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(gd_try_parse_jsonb(evidence_json::text), '{}'::jsonb);
 
 DELETE FROM transaction_candidates a
 USING transaction_candidates b
@@ -1155,7 +1163,25 @@ CREATE TABLE IF NOT EXISTS card_statements (
 );
 
 ALTER TABLE IF EXISTS card_statements
-  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(evidence_json::jsonb, '{}'::jsonb);
+  ADD COLUMN IF NOT EXISTS card_id uuid,
+  ADD COLUMN IF NOT EXISTS institution_name varchar(120),
+  ADD COLUMN IF NOT EXISTS card_last4 varchar(4),
+  ADD COLUMN IF NOT EXISTS statement_date timestamp without time zone,
+  ADD COLUMN IF NOT EXISTS due_date timestamp without time zone,
+  ADD COLUMN IF NOT EXISTS statement_balance numeric,
+  ADD COLUMN IF NOT EXISTS minimum_amount_due numeric,
+  ADD COLUMN IF NOT EXISTS total_amount_due numeric,
+  ADD COLUMN IF NOT EXISTS available_credit_limit numeric,
+  ADD COLUMN IF NOT EXISTS credit_limit numeric,
+  ADD COLUMN IF NOT EXISTS currency varchar(10) NOT NULL DEFAULT 'INR',
+  ADD COLUMN IF NOT EXISTS source_message_id varchar(200),
+  ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v1.0',
+  ADD COLUMN IF NOT EXISTS confidence_score numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
+
+ALTER TABLE IF EXISTS card_statements
+  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(gd_try_parse_jsonb(evidence_json::text), '{}'::jsonb);
 
 CREATE INDEX IF NOT EXISTS ix_card_statements_user_card
     ON card_statements(user_id, card_id);
@@ -1185,7 +1211,17 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 
 ALTER TABLE IF EXISTS orders
-  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(evidence_json::jsonb, '{}'::jsonb);
+  ADD COLUMN IF NOT EXISTS merchant varchar(120),
+  ADD COLUMN IF NOT EXISTS order_number varchar(120),
+  ADD COLUMN IF NOT EXISTS order_date timestamp without time zone,
+  ADD COLUMN IF NOT EXISTS total_amount numeric,
+  ADD COLUMN IF NOT EXISTS currency varchar(10) NOT NULL DEFAULT 'INR',
+  ADD COLUMN IF NOT EXISTS source_message_id varchar(200),
+  ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
+
+ALTER TABLE IF EXISTS orders
+  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(gd_try_parse_jsonb(evidence_json::text), '{}'::jsonb);
 
 CREATE INDEX IF NOT EXISTS ix_orders_user_id ON orders(user_id);
 
@@ -1225,7 +1261,14 @@ CREATE TABLE IF NOT EXISTS order_transaction_links (
 );
 
 ALTER TABLE IF EXISTS order_transaction_links
-  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(evidence_json::jsonb, '{}'::jsonb);
+  ADD COLUMN IF NOT EXISTS match_score numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS match_method varchar(60) NOT NULL DEFAULT 'AMOUNT_DATE',
+  ADD COLUMN IF NOT EXISTS status varchar(30) NOT NULL DEFAULT 'NEEDS_REVIEW',
+  ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
+
+ALTER TABLE IF EXISTS order_transaction_links
+  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(gd_try_parse_jsonb(evidence_json::text), '{}'::jsonb);
 
 DELETE FROM order_transaction_links a
 USING order_transaction_links b
@@ -1244,53 +1287,6 @@ CREATE TABLE IF NOT EXISTS merchant_aliases (
     corrected_category varchar(60) NULL,
     created_at timestamp without time zone NOT NULL DEFAULT now(),
     updated_at timestamp without time zone NOT NULL DEFAULT now()
-
-  ALTER TABLE IF EXISTS transaction_candidates
-    ADD COLUMN IF NOT EXISTS source_thread_id varchar(200),
-    ADD COLUMN IF NOT EXISTS status varchar(30) NOT NULL DEFAULT 'NEEDS_REVIEW',
-    ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-    ADD COLUMN IF NOT EXISTS error text,
-    ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
-    ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
-
-
-ALTER TABLE IF EXISTS card_statements
-  ADD COLUMN IF NOT EXISTS card_id uuid NULL REFERENCES credit_cards(id) ON DELETE SET NULL,
-  ADD COLUMN IF NOT EXISTS institution_name varchar(120),
-  ADD COLUMN IF NOT EXISTS card_last4 varchar(4),
-  ADD COLUMN IF NOT EXISTS statement_date timestamp without time zone,
-  ADD COLUMN IF NOT EXISTS due_date timestamp without time zone,
-  ADD COLUMN IF NOT EXISTS statement_balance numeric,
-  ADD COLUMN IF NOT EXISTS minimum_amount_due numeric,
-  ADD COLUMN IF NOT EXISTS total_amount_due numeric,
-  ADD COLUMN IF NOT EXISTS available_credit_limit numeric,
-  ADD COLUMN IF NOT EXISTS credit_limit numeric,
-  ADD COLUMN IF NOT EXISTS currency varchar(10) NOT NULL DEFAULT 'INR',
-  ADD COLUMN IF NOT EXISTS source_message_id varchar(200),
-  ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v1.0',
-  ADD COLUMN IF NOT EXISTS confidence_score numeric NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
-
-
-ALTER TABLE IF EXISTS orders
-  ADD COLUMN IF NOT EXISTS merchant varchar(120),
-  ADD COLUMN IF NOT EXISTS order_number varchar(120),
-  ADD COLUMN IF NOT EXISTS order_date timestamp without time zone,
-  ADD COLUMN IF NOT EXISTS total_amount numeric,
-  ADD COLUMN IF NOT EXISTS currency varchar(10) NOT NULL DEFAULT 'INR',
-  ADD COLUMN IF NOT EXISTS source_message_id varchar(200),
-  ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
-
-
-ALTER TABLE IF EXISTS order_transaction_links
-  ADD COLUMN IF NOT EXISTS match_score numeric NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS match_method varchar(60) NOT NULL DEFAULT 'AMOUNT_DATE',
-  ADD COLUMN IF NOT EXISTS status varchar(30) NOT NULL DEFAULT 'NEEDS_REVIEW',
-  ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
-  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
-
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_merchant_aliases_user_key
