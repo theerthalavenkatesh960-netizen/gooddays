@@ -58,7 +58,7 @@ public class CardStatement
     [Column("confidence_score")]
     public decimal ConfidenceScore { get; set; }
 
-    [Column("evidence_json")]
+    [Column("evidence_json", TypeName = "jsonb")]
     public string EvidenceJson { get; set; } = "{}";
 
     [Column("created_at")]

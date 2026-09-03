@@ -7,7 +7,7 @@ namespace GoodDaysApi.Services.Gmail;
 
 public interface IOrderExtractionService
 {
-    bool TryExtract(string subject, string snippet, string body, out Order order);
+    bool TryExtract(string subject, string snippet, string body, out Order order, string? from = null);
 }
 
 public class OrderExtractionService : IOrderExtractionService
@@ -17,9 +17,10 @@ public class OrderExtractionService : IOrderExtractionService
     private static readonly Regex OrderNumberRegex = new(@"order\s*(?:number|no|id)\s*[:#-]?\s*([A-Za-z0-9\-]{5,30})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex DateRegex = new(@"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    private static readonly string[] KnownMerchants = { "Amazon", "Flipkart", "Myntra", "Swiggy", "Zomato", "Ajio", "Nykaa", "BigBasket" };
+    private static readonly Regex MerchantPhraseRegex = new(@"\b(?:from|by|seller|merchant)\s+([A-Za-z0-9][A-Za-z0-9\s&.'-]{2,50})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly string[] KnownMerchants = { "Amazon", "Flipkart", "Myntra", "Swiggy", "Zomato", "Ajio", "Nykaa", "BigBasket", "BookMyShow", "Apollo" };
 
-    public bool TryExtract(string subject, string snippet, string body, out Order order)
+    public bool TryExtract(string subject, string snippet, string body, out Order order, string? from = null)
     {
         var text = string.Join(" ", new[] { subject, snippet, body }.Where(x => !string.IsNullOrWhiteSpace(x)));
         order = new Order();
@@ -35,8 +36,8 @@ public class OrderExtractionService : IOrderExtractionService
         order.TotalAmount = amount;
         order.Currency = "INR";
 
-        var merchant = KnownMerchants.FirstOrDefault(m => text.Contains(m, StringComparison.OrdinalIgnoreCase));
-        if (merchant == null) return false; // do not guess an unknown merchant
+        var merchant = ExtractMerchant(text, from);
+        if (merchant == null) return false;
         order.Merchant = merchant;
 
         var orderNumberMatch = OrderNumberRegex.Match(text);
@@ -54,11 +55,35 @@ public class OrderExtractionService : IOrderExtractionService
         order.EvidenceJson = JsonSerializer.Serialize(new
         {
             merchant = order.Merchant,
+            merchantSource = KnownMerchants.Contains(order.Merchant, StringComparer.OrdinalIgnoreCase) ? "EMAIL_TEXT" : "SENDER_DOMAIN",
             amount = order.TotalAmount,
             orderNumber = order.OrderNumber,
             orderDate = order.OrderDate
         });
 
         return true;
+    }
+
+    private static string? ExtractMerchant(string text, string? from)
+    {
+        var known = KnownMerchants.FirstOrDefault(m => text.Contains(m, StringComparison.OrdinalIgnoreCase));
+        if (known != null) return known;
+
+        var phraseMatch = MerchantPhraseRegex.Match(text);
+        if (phraseMatch.Success)
+        {
+            return phraseMatch.Groups[1].Value.Trim().TrimEnd('.', ',', ':');
+        }
+
+        if (string.IsNullOrWhiteSpace(from)) return null;
+        var emailMatch = Regex.Match(from, @"@([A-Za-z0-9.-]+)", RegexOptions.IgnoreCase);
+        if (!emailMatch.Success) return null;
+
+        var domain = emailMatch.Groups[1].Value.ToLowerInvariant();
+        var root = domain.Split('.', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(part =>
+            part.Length > 2 && part is not "mail" and not "email" and not "notify" and not "noreply" and not "no-reply");
+
+        if (string.IsNullOrWhiteSpace(root)) return null;
+        return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(root.Replace('-', ' '));
     }
 }

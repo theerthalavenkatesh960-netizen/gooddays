@@ -82,6 +82,32 @@ export interface CardAnalytics {
   endDate?: string;
 }
 
+export interface AccountInstrumentSummary {
+  name: string;
+  type: 'WALLET' | 'BANK_ACCOUNT' | 'UPI' | 'OTHER';
+  topUps: number;
+  spends: number;
+  refunds: number;
+  estimatedBalance: number;
+  debits: number;
+  credits: number;
+  last4?: string;
+  transactionCount: number;
+  latestActivity?: string;
+  recentTransactions: Array<{
+    id: number;
+    description: string;
+    amount: number;
+    category?: string;
+    date?: string;
+    direction: string;
+    transactionType: string;
+    sourceInstrumentType?: string;
+    destinationInstrumentType?: string;
+    destinationInstrumentName?: string;
+  }>;
+}
+
 let DUMMY_CARDS: CreditCard[] = [
   {
     id: 'd9d9e3d5-4f92-4cb7-ae21-2d589d9f0001',
@@ -227,6 +253,11 @@ export const cardApi = {
       return Promise.resolve(getDummyCardsForUser(userId));
     }
     return request(`cards/user/${userId}`);
+  },
+
+  getAccountInstruments: async (userId: number): Promise<AccountInstrumentSummary[]> => {
+    if (USE_DUMMY_FINANCE) return Promise.resolve([]);
+    return request(`cards/user/${userId}/instruments`);
   },
 
   /**

@@ -7,4 +7,5 @@ public class GmailOptions
     public string RedirectUri { get; set; } = string.Empty;
     public string FrontendRedirectAfterCallback { get; set; } = string.Empty;
     public string OAuthStateSecret { get; set; } = string.Empty;
+    public string[] FinanceSenderAllowlist { get; set; } = Array.Empty<string>();
 }

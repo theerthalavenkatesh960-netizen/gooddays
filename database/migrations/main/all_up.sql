@@ -172,6 +172,10 @@ ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS payment_instrument_type varchar(30) NOT NULL DEFAULT 'UNKNOWN',
   ADD COLUMN IF NOT EXISTS institution_name varchar(120),
   ADD COLUMN IF NOT EXISTS instrument_last4 varchar(4),
+  ADD COLUMN IF NOT EXISTS source_instrument_type varchar(30),
+  ADD COLUMN IF NOT EXISTS source_instrument_last4 varchar(4),
+  ADD COLUMN IF NOT EXISTS destination_instrument_type varchar(30),
+  ADD COLUMN IF NOT EXISTS destination_instrument_name varchar(120),
   ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
   ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb;
 
@@ -1140,6 +1144,10 @@ CREATE TABLE IF NOT EXISTS card_statements (
 CREATE INDEX IF NOT EXISTS ix_card_statements_user_card
     ON card_statements(user_id, card_id);
 
+CREATE UNIQUE INDEX IF NOT EXISTS ix_card_statements_user_message
+  ON card_statements(user_id, source_message_id)
+  WHERE source_message_id IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS orders (
     id uuid PRIMARY KEY,
     user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
@@ -1154,6 +1162,14 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 
 CREATE INDEX IF NOT EXISTS ix_orders_user_id ON orders(user_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_user_merchant_order_number
+  ON orders(user_id, merchant, order_number)
+  WHERE merchant IS NOT NULL AND order_number IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_user_message
+  ON orders(user_id, source_message_id)
+  WHERE source_message_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS order_transaction_links (
     id uuid PRIMARY KEY,

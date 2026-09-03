@@ -27,6 +27,73 @@ public class CardsController : ControllerBase
         return Ok(cards);
     }
 
+    // GET /api/cards/user/{userId}/instruments
+    [HttpGet("user/{userId}/instruments")]
+    public async Task<IActionResult> GetUserInstruments(int userId)
+    {
+        var instrumentExpenses = await _db.Expenses
+            .Where(e => e.UserId == userId
+                        && e.SourceType == "gmail"
+                        && (e.PaymentInstrumentType == "WALLET"
+                            || e.PaymentInstrumentType == "BANK_ACCOUNT"
+                            || e.PaymentInstrumentType == "UPI"
+                            || e.SourceInstrumentType == "WALLET"
+                            || e.DestinationInstrumentType == "WALLET"))
+            .OrderByDescending(e => e.Date ?? e.CreatedAt)
+            .ToListAsync();
+
+        var instruments = instrumentExpenses
+            .GroupBy(GetInstrumentKey)
+            .Select(g => new
+            {
+                name = g.Key,
+                type = ResolveInstrumentType(g.First()),
+                topUps = g.Where(e => e.DestinationInstrumentType == "WALLET").Sum(e => e.Amount),
+                spends = g.Where(e => e.SourceInstrumentType == "WALLET" && e.Direction == "DEBIT").Sum(e => e.Amount),
+                refunds = g.Where(e => e.PaymentInstrumentType == "WALLET" && e.Direction == "CREDIT").Sum(e => e.Amount),
+                estimatedBalance = g.Where(e => e.DestinationInstrumentType == "WALLET").Sum(e => e.Amount)
+                    + g.Where(e => e.PaymentInstrumentType == "WALLET" && e.Direction == "CREDIT").Sum(e => e.Amount)
+                    - g.Where(e => e.SourceInstrumentType == "WALLET" && e.Direction == "DEBIT").Sum(e => e.Amount),
+                debits = g.Where(e => e.Direction == "DEBIT").Sum(e => e.Amount),
+                credits = g.Where(e => e.Direction == "CREDIT").Sum(e => e.Amount),
+                last4 = g.First().InstrumentLast4,
+                transactionCount = g.Count(),
+                latestActivity = g.Max(e => e.Date ?? e.CreatedAt),
+                recentTransactions = g.Take(5).Select(e => new
+                {
+                    e.Id,
+                    e.Description,
+                    e.Amount,
+                    e.Category,
+                    e.Date,
+                    e.Direction,
+                    e.TransactionType,
+                    e.SourceInstrumentType,
+                    e.DestinationInstrumentType,
+                    e.DestinationInstrumentName
+                })
+            })
+            .OrderByDescending(w => w.latestActivity)
+            .ToList();
+
+        return Ok(instruments);
+    }
+
+    private static string GetInstrumentKey(Expense expense)
+    {
+        if (expense.DestinationInstrumentType == "WALLET") return expense.DestinationInstrumentName ?? "Wallet";
+        if (expense.SourceInstrumentType == "WALLET") return expense.InstitutionName ?? "Wallet";
+        if (expense.PaymentInstrumentType == "UPI") return expense.InstitutionName ?? "UPI";
+        if (expense.PaymentInstrumentType == "BANK_ACCOUNT") return $"{expense.InstitutionName ?? "Bank Account"} {expense.InstrumentLast4 ?? string.Empty}".Trim();
+        return expense.InstitutionName ?? expense.PaymentInstrumentType ?? "Instrument";
+    }
+
+    private static string ResolveInstrumentType(Expense expense)
+    {
+        if (expense.DestinationInstrumentType == "WALLET" || expense.SourceInstrumentType == "WALLET") return "WALLET";
+        return expense.PaymentInstrumentType ?? "OTHER";
+    }
+
     // GET /api/cards/{id}
     [HttpGet("{id}")]
     public async Task<IActionResult> GetCard(Guid id)

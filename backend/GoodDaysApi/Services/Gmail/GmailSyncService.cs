@@ -7,6 +7,7 @@ using GoodDaysApi.Models;
 using GoodDaysApi.Services.Gmail.Models;
 using GoodDaysApi.Services.Gmail.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace GoodDaysApi.Services.Gmail;
 
@@ -17,6 +18,7 @@ public class GmailSyncService : IGmailSyncService
     private readonly AppDbContext _db;
     private readonly HttpClient _httpClient;
     private readonly IGmailService _gmailService;
+    private readonly GmailOptions _options;
     private readonly ITransactionExtractionService _extraction;
     private readonly IConnectedEmailAccountRepository _accounts;
     private readonly ISyncedEmailRepository _syncedEmails;
@@ -31,6 +33,7 @@ public class GmailSyncService : IGmailSyncService
         AppDbContext db,
         IHttpClientFactory httpClientFactory,
         IGmailService gmailService,
+        IOptions<GmailOptions> options,
         ITransactionExtractionService extraction,
         IConnectedEmailAccountRepository accounts,
         ISyncedEmailRepository syncedEmails,
@@ -44,6 +47,7 @@ public class GmailSyncService : IGmailSyncService
         _db = db;
         _httpClient = httpClientFactory.CreateClient();
         _gmailService = gmailService;
+        _options = options.Value;
         _extraction = extraction;
         _accounts = accounts;
         _syncedEmails = syncedEmails;
@@ -87,9 +91,16 @@ public class GmailSyncService : IGmailSyncService
                               ?? initialSince;
 
         var since = forceInitialSync ? initialSince : incrementalSince;
-        var query = BuildFinanceQuery(since);
+        var messages = new List<(string messageId, string? threadId)>();
+        foreach (var query in BuildGmailQueries(since))
+        {
+            messages.AddRange(await ListCandidateMessagesAsync(accessToken, query, cancellationToken));
+        }
 
-        var messages = await ListCandidateMessagesAsync(accessToken, query, cancellationToken);
+        messages = messages
+            .GroupBy(x => x.messageId)
+            .Select(g => g.First())
+            .ToList();
 
         foreach (var messageRef in messages)
         {
@@ -124,7 +135,12 @@ public class GmailSyncService : IGmailSyncService
                 statement.UserId = userId;
                 statement.SourceMessageId = message.MessageId;
                 statement.CardId = await _cardMatching.TryMatchCardAsync(userId, statement.CardLast4, statement.InstitutionName, cancellationToken);
-                _db.CardStatements.Add(statement);
+                var existingStatement = await _db.CardStatements.FirstOrDefaultAsync(
+                    x => x.UserId == userId && x.SourceMessageId == message.MessageId, cancellationToken);
+                if (existingStatement == null)
+                {
+                    _db.CardStatements.Add(statement);
+                }
                 if (statement.CardId != null)
                 {
                     var card = await _db.CreditCards.FindAsync(new object?[] { statement.CardId.Value }, cancellationToken);
@@ -139,12 +155,29 @@ public class GmailSyncService : IGmailSyncService
                 continue;
             }
 
-            if (_orderExtraction.TryExtract(message.Subject, message.Snippet, message.BodyText, out var order))
+            if (_orderExtraction.TryExtract(message.Subject, message.Snippet, message.BodyText, out var order, message.From))
             {
                 order.UserId = userId;
                 order.SourceMessageId = message.MessageId;
-                _db.Orders.Add(order);
-                await _db.SaveChangesAsync(cancellationToken);
+                var existingOrder = await _db.Orders.FirstOrDefaultAsync(
+                    x => x.UserId == userId
+                         && (x.SourceMessageId == message.MessageId
+                             || (!string.IsNullOrWhiteSpace(order.OrderNumber)
+                                 && x.OrderNumber == order.OrderNumber
+                                 && x.Merchant == order.Merchant)), cancellationToken);
+                if (existingOrder == null)
+                {
+                    _db.Orders.Add(order);
+                    await _db.SaveChangesAsync(cancellationToken);
+                }
+                else
+                {
+                    existingOrder.TotalAmount ??= order.TotalAmount;
+                    existingOrder.OrderDate ??= order.OrderDate;
+                    existingOrder.EvidenceJson = MergeOrderEvidence(existingOrder.EvidenceJson, order.EvidenceJson, message.MessageId);
+                    order = existingOrder;
+                    await _db.SaveChangesAsync(cancellationToken);
+                }
                 await _orderMatching.TryLinkOrderAsync(userId, order, cancellationToken);
                 await RecordEmailAsync(userId, message, "PROCESSED", null, cancellationToken);
                 continue;
@@ -205,6 +238,10 @@ public class GmailSyncService : IGmailSyncService
                     PaymentInstrumentType = tx.InstrumentType,
                     InstitutionName = tx.ProviderOrBank,
                     InstrumentLast4 = tx.InstrumentLast4,
+                    SourceInstrumentType = tx.SourceInstrumentType,
+                    SourceInstrumentLast4 = tx.SourceInstrumentLast4,
+                    DestinationInstrumentType = tx.DestinationInstrumentType,
+                    DestinationInstrumentName = tx.DestinationInstrumentName,
                     ExtractionVersion = "v2.0",
                     EvidenceJson = tx.EvidenceJson,
                     RawMerchant = rawMerchant,
@@ -273,8 +310,22 @@ public class GmailSyncService : IGmailSyncService
                 ProcessingError = error,
                 ExtractionVersion = "v2.0"
             });
-            await _db.SaveChangesAsync(cancellationToken);
         }
+        else
+        {
+            existing.ThreadId = message.ThreadId;
+            existing.InternalDate = message.InternalDateUtc;
+            existing.Subject = message.Subject;
+            existing.Snippet = message.Snippet;
+            existing.BodyText = message.BodyText;
+            existing.Sender = message.From;
+            existing.ProcessingStatus = status;
+            existing.ProcessingError = error;
+            existing.ProcessedAt = DateTime.UtcNow;
+            existing.ExtractionVersion = "v2.0";
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<int> SyncAllConnectedAsync(CancellationToken cancellationToken = default)
@@ -515,9 +566,124 @@ public class GmailSyncService : IGmailSyncService
         return $"{merchant}{provider}";
     }
 
-    private static string BuildFinanceQuery(DateTime since)
+    private static string MergeOrderEvidence(string existingEvidenceJson, string newEvidenceJson, string sourceMessageId)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            previous = JsonSerializer.Deserialize<JsonElement>(string.IsNullOrWhiteSpace(existingEvidenceJson) ? "{}" : existingEvidenceJson),
+            latest = JsonSerializer.Deserialize<JsonElement>(string.IsNullOrWhiteSpace(newEvidenceJson) ? "{}" : newEvidenceJson),
+            additionalSourceMessageId = sourceMessageId,
+            mergedAt = DateTime.UtcNow
+        });
+    }
+
+    private IEnumerable<string> BuildGmailQueries(DateTime since)
+    {
+        yield return BuildFinanceQuery(since);
+        yield return BuildOrderQuery(since);
+        yield return BuildWalletQuery(since);
+    }
+
+    private string BuildFinanceQuery(DateTime since)
     {
         var datePart = since.ToString("yyyy/MM/dd");
-        return $"category:updates (debited OR credited OR transaction OR spent OR received OR upi) after:{datePart}";
+        var senderFilter = BuildSenderFilter(_options.FinanceSenderAllowlist);
+        var positiveTerms = string.Join(" OR ", new[]
+        {
+            "\"payment\"",
+            "\"payment made\"",
+            "\"payment received\"",
+            "\"debited\"",
+            "\"credited\"",
+            "\"charged\"",
+            "\"transaction alert\"",
+            "\"UPI\"",
+            "\"UTR\"",
+            "\"statement\"",
+            "\"minimum amount due\"",
+            "\"total amount due\""
+        });
+        var exclusions = string.Join(" ", new[]
+        {
+            "-offer",
+            "-offers",
+            "-sale",
+            "-discount",
+            "-coupon",
+            "-promo",
+            "-promotion",
+            "-newsletter",
+            "-otp",
+            "-login",
+            "-kyc",
+            "-loan",
+            "-pre-approved"
+        });
+        return $"category:updates {senderFilter}({positiveTerms}) {exclusions} after:{datePart}";
+    }
+
+    private string BuildOrderQuery(DateTime since)
+    {
+        var datePart = since.ToString("yyyy/MM/dd");
+        var positiveTerms = string.Join(" OR ", new[]
+        {
+            "\"order confirmed\"",
+            "\"order placed\"",
+            "\"order number\"",
+            "\"order id\"",
+            "\"invoice\"",
+            "\"shipped\"",
+            "\"delivered\""
+        });
+        var exclusions = string.Join(" ", new[]
+        {
+            "-newsletter",
+            "-promotion",
+            "-promo",
+            "-coupon",
+            "-wishlist"
+        });
+
+        return $"category:updates ({positiveTerms}) {exclusions} after:{datePart}";
+    }
+
+    private string BuildWalletQuery(DateTime since)
+    {
+        var datePart = since.ToString("yyyy/MM/dd");
+        var positiveTerms = string.Join(" OR ", new[]
+        {
+            "\"Amazon Pay\"",
+            "\"Paytm wallet\"",
+            "\"PhonePe wallet\"",
+            "\"wallet balance\"",
+            "\"added money\"",
+            "\"money added\"",
+            "\"wallet loaded\"",
+            "\"paid using wallet\"",
+            "\"paid using Amazon Pay\""
+        });
+        var exclusions = string.Join(" ", new[]
+        {
+            "-offer",
+            "-offers",
+            "-sale",
+            "-discount",
+            "-coupon",
+            "-promo",
+            "-promotion",
+            "-newsletter"
+        });
+
+        return $"category:updates ({positiveTerms}) {exclusions} after:{datePart}";
+    }
+
+    private static string BuildSenderFilter(IEnumerable<string> senders)
+    {
+        var senderTerms = senders
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => $"from:{s.Trim()}")
+            .ToArray();
+
+        return senderTerms.Length == 0 ? string.Empty : $"({string.Join(" OR ", senderTerms)}) ";
     }
 }

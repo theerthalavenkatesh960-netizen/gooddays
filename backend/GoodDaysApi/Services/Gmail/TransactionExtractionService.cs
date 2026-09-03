@@ -11,13 +11,14 @@ public class TransactionExtractionService : ITransactionExtractionService
         @"(?:(?:INR|Rs\.?|₹)\s*)(\d{1,3}(?:,\d{2,3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    private static readonly Regex DebitRegex = new(@"\b(debited|spent|charged|purchase|purchased|withdrawn|paid|sent)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex DebitRegex = new(@"\b(debited|spent|charged|purchase|purchased|withdrawn|paid|sent|added|loaded|top\s*up)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex CreditRegex = new(@"\b(credited|received|refund(?:ed)?|deposited|salary|cashback)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex EventRegex = new(@"\b(transaction|authorization|declined|failed|reversed|pending)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex MerchantRegex = new(@"\b(?:at|to)\s+([A-Za-z0-9\-\.\s]{2,40}?)(?=\s+(?:for|on|with|using|txn|ref|$))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex RefRegex = new(@"\b(?:ref(?:erence)?\s*(?:no|number)?|utr|txn(?:\s*id)?)\s*[:#-]?\s*([A-Za-z0-9\-]{6,30})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex DateRegex = new(@"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex Last4Regex = new(@"(?:ending|ends|last\s*4|xxxx|\*{2,})\s*[-#:]?\s*(?:\*{0,4}|x{0,4})?(\d{4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex WalletRegex = new(@"\b(amazon\s*pay|paytm|phonepe|mobikwik|freecharge|wallet|balance)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly string[] ProviderKeywords =
     {
@@ -96,6 +97,8 @@ public class TransactionExtractionService : ITransactionExtractionService
         var last4Match = Last4Regex.Match(text);
         if (last4Match.Success) transaction.InstrumentLast4 = last4Match.Groups[1].Value;
 
+        ApplyInstrumentFlow(text, transaction);
+
         var merchantMatch = MerchantRegex.Match(text);
         if (merchantMatch.Success)
         {
@@ -118,8 +121,11 @@ public class TransactionExtractionService : ITransactionExtractionService
         }
 
         var provider = ProviderKeywords.FirstOrDefault(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
-        transaction.ProviderOrBank = provider;
-        if (!string.IsNullOrWhiteSpace(provider)) transaction.ConfidenceScore += 0.05m;
+        if (!string.IsNullOrWhiteSpace(provider))
+        {
+            transaction.ProviderOrBank = provider;
+            transaction.ConfidenceScore += 0.05m;
+        }
 
         transaction.SuggestedCategory = InferCategory(text, transaction.Direction);
         if (!string.Equals(transaction.SuggestedCategory, "Other", StringComparison.OrdinalIgnoreCase))
@@ -133,6 +139,10 @@ public class TransactionExtractionService : ITransactionExtractionService
             merchant = merchantMatch.Success ? merchantMatch.Value : null,
             instrument = transaction.InstrumentType,
             last4 = transaction.InstrumentLast4,
+            sourceInstrumentType = transaction.SourceInstrumentType,
+            sourceInstrumentLast4 = transaction.SourceInstrumentLast4,
+            destinationInstrumentType = transaction.DestinationInstrumentType,
+            destinationInstrumentName = transaction.DestinationInstrumentName,
             reference = transaction.ReferenceNumber,
             direction = transaction.Direction,
             status = transaction.TransactionStatus
@@ -197,11 +207,64 @@ public class TransactionExtractionService : ITransactionExtractionService
 
     private static string InferInstrumentType(string text)
     {
+        if (Regex.IsMatch(text, @"\b(?:amazon\s*pay|paytm|phonepe|mobikwik|freecharge)\s+(?:wallet|balance)\b|\bwallet\b", RegexOptions.IgnoreCase)) return "WALLET";
         if (Regex.IsMatch(text, @"\bupi\b|vpa|utr", RegexOptions.IgnoreCase)) return "UPI";
         if (Regex.IsMatch(text, @"\b(?:credit\s+card|card\s+account)\b", RegexOptions.IgnoreCase)) return "CREDIT_CARD";
         if (Regex.IsMatch(text, @"\bdebit\s+card\b", RegexOptions.IgnoreCase)) return "DEBIT_CARD";
         if (Regex.IsMatch(text, @"\b(?:bank|savings|current)\s+account\b|account\s+(?:number|ending|debited|credited)", RegexOptions.IgnoreCase)) return "BANK_ACCOUNT";
-        if (Regex.IsMatch(text, @"\bwallet\b", RegexOptions.IgnoreCase)) return "WALLET";
+        return "UNKNOWN";
+    }
+
+    private static void ApplyInstrumentFlow(string text, ExtractedTransaction transaction)
+    {
+        var walletName = ExtractWalletName(text);
+        var isWalletTopUp = walletName != null && Regex.IsMatch(text, @"\b(?:add(?:ed)?|load(?:ed)?|top\s*up|recharge(?:d)?)\b", RegexOptions.IgnoreCase);
+
+        transaction.SourceInstrumentType = transaction.InstrumentType;
+        transaction.SourceInstrumentLast4 = transaction.InstrumentLast4;
+
+        if (isWalletTopUp)
+        {
+            var fundingInstrumentType = InferNonWalletInstrumentType(text);
+            if (fundingInstrumentType != "UNKNOWN")
+            {
+                transaction.InstrumentType = fundingInstrumentType;
+                transaction.SourceInstrumentType = fundingInstrumentType;
+                transaction.SourceInstrumentLast4 = transaction.InstrumentLast4;
+            }
+            transaction.TransactionType = "TRANSFER";
+            transaction.SuggestedCategory = "Transfer";
+            transaction.DestinationInstrumentType = "WALLET";
+            transaction.DestinationInstrumentName = walletName;
+            if (transaction.InstrumentType == "WALLET")
+            {
+                transaction.Direction = "CREDIT";
+            }
+            return;
+        }
+
+        if (transaction.InstrumentType == "WALLET" && walletName != null)
+        {
+            transaction.ProviderOrBank = walletName;
+            transaction.SourceInstrumentType = "WALLET";
+        }
+    }
+
+    private static string? ExtractWalletName(string text)
+    {
+        var match = WalletRegex.Match(text);
+        if (!match.Success) return null;
+        var value = match.Groups[1].Value;
+        if (value.Equals("balance", StringComparison.OrdinalIgnoreCase) || value.Equals("wallet", StringComparison.OrdinalIgnoreCase)) return "Wallet";
+        return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(value.ToLowerInvariant()).Replace("Pay", "Pay", StringComparison.Ordinal);
+    }
+
+    private static string InferNonWalletInstrumentType(string text)
+    {
+        if (Regex.IsMatch(text, @"\bupi\b|vpa|utr", RegexOptions.IgnoreCase)) return "UPI";
+        if (Regex.IsMatch(text, @"\b(?:credit\s+card|card\s+account)\b", RegexOptions.IgnoreCase)) return "CREDIT_CARD";
+        if (Regex.IsMatch(text, @"\bdebit\s+card\b", RegexOptions.IgnoreCase)) return "DEBIT_CARD";
+        if (Regex.IsMatch(text, @"\b(?:bank|savings|current)\s+account\b|account\s+(?:number|ending|debited|credited)", RegexOptions.IgnoreCase)) return "BANK_ACCOUNT";
         return "UNKNOWN";
     }
 

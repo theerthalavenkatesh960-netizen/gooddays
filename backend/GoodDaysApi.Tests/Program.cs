@@ -49,5 +49,37 @@ Check("multiple transactions detected", multiple.Count == 2
     && multiple.Any(x => x.Amount == 1249m && x.Merchant?.Contains("Amazon", StringComparison.OrdinalIgnoreCase) == true)
     && multiple.Any(x => x.Amount == 499m && x.Merchant?.Contains("Swiggy", StringComparison.OrdinalIgnoreCase) == true));
 
+var orderParser = new OrderExtractionService();
+Check("generic order merchant from sender", orderParser.TryExtract(
+    "Your booking is confirmed",
+    "Order ID BMS12345 total INR 799",
+    "Your order from BookMyShow is confirmed on 2/9/2026",
+    out var bookMyShowOrder,
+    "alerts@bookmyshow.com")
+    && bookMyShowOrder.Merchant == "BookMyShow"
+    && bookMyShowOrder.TotalAmount == 799m);
+
+Check("amazon pay wallet top-up funded by credit card", parser.TryExtract(
+    "Amazon Pay wallet loaded",
+    "",
+    "Added INR 1000 to Amazon Pay wallet from HDFC Credit Card ending 1234 on 3/9/2026",
+    out var walletTopUp)
+    && walletTopUp.TransactionType == "TRANSFER"
+    && walletTopUp.InstrumentType == "CREDIT_CARD"
+    && walletTopUp.SourceInstrumentType == "CREDIT_CARD"
+    && walletTopUp.SourceInstrumentLast4 == "1234"
+    && walletTopUp.DestinationInstrumentType == "WALLET"
+    && walletTopUp.DestinationInstrumentName == "Amazon Pay");
+
+Check("amazon pay wallet spend stays wallet", parser.TryExtract(
+    "Amazon Pay payment successful",
+    "",
+    "Paid INR 349 to Apollo using Amazon Pay balance on 3/9/2026",
+    out var walletSpend)
+    && walletSpend.InstrumentType == "WALLET"
+    && walletSpend.SourceInstrumentType == "WALLET"
+    && walletSpend.ProviderOrBank == "Amazon Pay"
+    && walletSpend.InstrumentType != "CREDIT_CARD");
+
 Console.WriteLine($"{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

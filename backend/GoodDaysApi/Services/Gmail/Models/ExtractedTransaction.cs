@@ -12,6 +12,10 @@ public class ExtractedTransaction
     public DateTime? TransactionDateUtc { get; set; }
     public string? ProviderOrBank { get; set; }
     public string? InstrumentLast4 { get; set; }
+    public string? SourceInstrumentType { get; set; }
+    public string? SourceInstrumentLast4 { get; set; }
+    public string? DestinationInstrumentType { get; set; }
+    public string? DestinationInstrumentName { get; set; }
     public string? ReferenceNumber { get; set; }
     public string SuggestedCategory { get; set; } = "Other";
     public decimal ConfidenceScore { get; set; }

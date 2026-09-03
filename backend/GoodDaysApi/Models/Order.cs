@@ -34,7 +34,7 @@ public class Order
     [MaxLength(200)]
     public string? SourceMessageId { get; set; }
 
-    [Column("evidence_json")]
+    [Column("evidence_json", TypeName = "jsonb")]
     public string EvidenceJson { get; set; } = "{}";
 
     [Column("created_at")]

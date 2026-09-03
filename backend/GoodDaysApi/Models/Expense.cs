@@ -50,10 +50,22 @@ public class Expense
     [Column("instrument_last4")]
     public string? InstrumentLast4 { get; set; }
 
+    [Column("source_instrument_type")]
+    public string? SourceInstrumentType { get; set; }
+
+    [Column("source_instrument_last4")]
+    public string? SourceInstrumentLast4 { get; set; }
+
+    [Column("destination_instrument_type")]
+    public string? DestinationInstrumentType { get; set; }
+
+    [Column("destination_instrument_name")]
+    public string? DestinationInstrumentName { get; set; }
+
     [Column("extraction_version")]
     public string ExtractionVersion { get; set; } = "v2.0";
 
-    [Column("evidence_json")]
+    [Column("evidence_json", TypeName = "jsonb")]
     public string EvidenceJson { get; set; } = "{}";
 
     // originally detected merchant text, kept even after a manual correction, used as the alias lookup key

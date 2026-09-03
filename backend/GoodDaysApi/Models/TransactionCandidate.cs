@@ -28,7 +28,7 @@ public class TransactionCandidate
     [MaxLength(30)]
     public string Status { get; set; } = "NEEDS_REVIEW";
 
-    [Column("evidence_json")]
+    [Column("evidence_json", TypeName = "jsonb")]
     public string EvidenceJson { get; set; } = "{}";
 
     [Column("error")]
