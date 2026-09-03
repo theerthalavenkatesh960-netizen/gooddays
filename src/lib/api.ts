@@ -571,6 +571,13 @@ export async function decideFinanceGmailTransaction(id: number, decision: 'APPRO
   });
 }
 
+export async function decideFinanceGmailTransactions(expenseIds: number[], decision: 'APPROVE' | 'REJECT') {
+  return request('finance/gmail/transactions/decision', {
+    method: 'POST',
+    body: JSON.stringify({ expenseIds, decision }),
+  });
+}
+
 export async function updateFinanceGmailSettings(payload: any) {
   return request('finance/gmail/settings', {
     method: 'PUT',

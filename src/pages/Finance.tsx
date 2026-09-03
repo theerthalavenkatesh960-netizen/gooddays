@@ -369,59 +369,58 @@ function TransactionsTab() {
                 const instrument = [exp.institutionName, exp.instrumentLast4 ? `••${exp.instrumentLast4}` : null]
                   .filter(Boolean).join(' ');
                 return (
-                  <div key={exp.id ?? i} className="flex items-start gap-3 p-3 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: color + '22' }}>
-                      <DollarSign size={16} style={{ color }} />
+                  <div key={exp.id ?? i} className="flex items-start gap-2.5 p-3 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: color + '22' }}>
+                      <DollarSign size={15} style={{ color }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                      <p className="text-[13px] leading-5 font-semibold break-words" style={{ color: 'var(--text-primary)' }}>
                         {title}
                       </p>
 
                       {(counterparty || instrument) && (
-                        <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>
+                        <p className="text-[11px] leading-4 mt-0.5 break-words" style={{ color: 'var(--text-secondary)' }}>
                           {isCredit ? 'From' : 'To'} {counterparty || '—'}{instrument ? ` · ${instrument}` : ''}
                         </p>
                       )}
 
-                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: color + '22', color }}>
-                          {exp.category || 'Other'}
-                        </span>
-                        {isTransfer && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                            Transfer
+                      <div className="flex items-end justify-between gap-2 mt-2">
+                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: color + '22', color }}>
+                            {exp.category || 'Other'}
                           </span>
-                        )}
-                        {isGmail && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
-                            Gmail
+                          {isTransfer && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                              Transfer
+                            </span>
+                          )}
+                          {isGmail && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
+                              Gmail
+                            </span>
+                          )}
+                          {isGmail && exp.isReviewed === false && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--accent-warm)22', color: 'var(--accent-warm)' }}>
+                              Needs review
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span className="text-[13px] font-bold num" style={{ color: isCredit ? 'var(--accent-green)' : 'var(--accent-warm)' }}>
+                            {isCredit ? '+' : '-'}{formatMoney(exp.amount ?? 0)}
                           </span>
-                        )}
-                        {isGmail && exp.isReviewed === false && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--accent-warm)22', color: 'var(--accent-warm)' }}>
-                            Needs review
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      <span className="text-sm font-bold num" style={{ color: isCredit ? 'var(--accent-green)' : 'var(--accent-warm)' }}>
-                        {isCredit ? '+' : '-'}{formatMoney(exp.amount ?? 0)}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        {isGmail && (
-                          <button onClick={() => setDetailId(exp.id)} className="w-8 h-8 rounded-lg flex items-center justify-center press" style={{ color: 'var(--text-secondary)' }} aria-label="View details">
-                            <Info size={14} />
+                          {isGmail && (
+                            <button onClick={() => setDetailId(exp.id)} className="w-7 h-7 rounded-lg flex items-center justify-center press" style={{ color: 'var(--text-secondary)' }} aria-label="View details">
+                              <Info size={13} />
+                            </button>
+                          )}
+                          <button onClick={() => openEdit(exp)} className="w-7 h-7 rounded-lg flex items-center justify-center press" style={{ color: 'var(--text-secondary)' }}>
+                            <Pencil size={13} />
                           </button>
-                        )}
-                        <button onClick={() => openEdit(exp)} className="w-8 h-8 rounded-lg flex items-center justify-center press" style={{ color: 'var(--text-secondary)' }}>
-                          <Pencil size={14} />
-                        </button>
-                        <button onClick={() => deleteTransaction(exp.id)} className="w-8 h-8 rounded-lg flex items-center justify-center press" style={{ color: '#ef4444' }}>
-                          <Trash2 size={14} />
-                        </button>
+                          <button onClick={() => deleteTransaction(exp.id)} className="w-7 h-7 rounded-lg flex items-center justify-center press" style={{ color: '#ef4444' }}>
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -15,7 +15,7 @@ public class TransactionExtractionService : ITransactionExtractionService
         $@"(?:(?:INR|Rs\.?|₹)\s*({NumberPattern}))|(?:({NumberPattern})\s*(?:INR|Rs\.?|₹))",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    private static readonly Regex DebitRegex = new(@"\b(debited|debit|spent|charged|purchase|purchased|withdrawn|withdrawal|paid|payment\s+of|sent|added|loaded|top\s*up|used|swiped|transacted)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex DebitRegex = new(@"\b(debited|debit|spent|charged|purchase|purchased|withdrawn|withdrawal|paid|payment\s+of|sent|added|loaded|top\s*up|used|swiped|transacted|processed)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex CreditRegex = new(@"\b(credited|credit|received|refund(?:ed)?|deposited|salary|cashback)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex EventRegex = new(@"\b(transaction|authorization|declined|failed|reversed|pending)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex MerchantRegex = new(@"\b(?:at|to|towards)\s+(?:VPA\s+)?([A-Za-z0-9\-\.&' ]{2,40}?)(?=\s+(?:for|on|with|using|txn|ref|via|is|was|$))", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -186,6 +186,7 @@ public class TransactionExtractionService : ITransactionExtractionService
 
         ApplyIssuerKnowledge(transaction, fullText, from);
         ApplyCounterparty(transaction, anchor, fullText);
+        ApplyInvestmentKnowledge(transaction, fullText, from);
 
         transaction.EvidenceJson = JsonSerializer.Serialize(new
         {
@@ -394,6 +395,22 @@ public class TransactionExtractionService : ITransactionExtractionService
 
         transaction.CounterpartyName ??= transaction.Merchant;
         transaction.Merchant ??= transaction.CounterpartyName;
+    }
+
+    // An investment platform is a destination account; transfers there must not become ordinary spend.
+    private static void ApplyInvestmentKnowledge(ExtractedTransaction transaction, string fullText, string? from)
+    {
+        var destination = IssuerProfiles.ResolveInvestmentDestination(fullText, from);
+        if (destination == null || !IssuerProfiles.HasInvestmentIntent(fullText)) return;
+
+        transaction.TransactionType = "TRANSFER";
+        transaction.SuggestedCategory = "Investments";
+        transaction.DestinationInstrumentType = "INVESTMENT_ACCOUNT";
+        transaction.DestinationInstrumentName = destination.Name;
+        transaction.CounterpartyName = destination.Name;
+        transaction.Merchant = destination.Name;
+
+        if (transaction.Direction == "CREDIT") transaction.Direction = "DEBIT";
     }
 
     /// Human-readable label such as "FLIPKART IN · Axis Credit Card ••3949".

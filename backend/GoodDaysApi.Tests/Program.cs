@@ -287,5 +287,28 @@ CheckFn("DETAIL: order line items are extracted with quantity and amount", () =>
         && !items.Any(i => i.Name.Contains("Taxes", StringComparison.OrdinalIgnoreCase));
 });
 
+// ── Investment destinations ───────────────────────────────────────────────
+
+Check("INVESTMENT: Zerodha equity funding becomes investment transfer", parser.TryExtract(
+    "Funds added to Zerodha", "", GoodDaysApi.Tests.RealEmailSamples.ZerodhaDeposit, out var zerodhaInvestment, "alerts@hdfcbank.bank.in")
+    && zerodhaInvestment.TransactionType == "TRANSFER"
+    && zerodhaInvestment.SuggestedCategory == "Investments"
+    && zerodhaInvestment.DestinationInstrumentType == "INVESTMENT_ACCOUNT"
+    && zerodhaInvestment.DestinationInstrumentName == "Zerodha"
+    && zerodhaInvestment.Direction == "DEBIT");
+
+Check("INVESTMENT: Groww SIP becomes investment transfer", parser.TryExtract(
+    "SIP successful", "", "Your SIP investment of INR 5,000 in a Groww mutual fund has been successfully processed from your bank account ending 0530 on 03-09-2026", out var growwSip, "noreply@groww.in")
+    && growwSip.TransactionType == "TRANSFER"
+    && growwSip.SuggestedCategory == "Investments"
+    && growwSip.DestinationInstrumentName == "Groww"
+    && growwSip.InstrumentType == "BANK_ACCOUNT");
+
+Check("INVESTMENT: INDmoney funds added becomes investment transfer", parser.TryExtract(
+    "Funds added", "", "INR 2,000 has been added to your INDmoney investment account from HDFC account ending 0530", out var indmoneyFunding, "updates@indmoney.com")
+    && indmoneyFunding.TransactionType == "TRANSFER"
+    && indmoneyFunding.DestinationInstrumentName == "INDmoney"
+    && indmoneyFunding.DestinationInstrumentType == "INVESTMENT_ACCOUNT");
+
 Console.WriteLine($"{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;

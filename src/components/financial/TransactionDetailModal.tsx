@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Mail, CreditCard, Package, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { X, Mail, CreditCard, Package, ArrowDownLeft, ArrowUpRight, Pencil } from 'lucide-react';
 import * as api from '../../lib/api';
 
 interface Props {
@@ -7,6 +7,12 @@ interface Props {
   onClose: () => void;
   onChanged?: () => void;
 }
+
+const CATEGORIES = [
+  'Food', 'Groceries', 'Transport', 'Fuel', 'Home', 'Rent', 'Utilities', 'Internet',
+  'Subscriptions', 'Personal', 'Medical', 'Gym', 'Self Care', 'Fun', 'Shopping',
+  'Education', 'Books', 'Coffee', 'Travel', 'Investments', 'Transfer', 'Lending', 'EMI', 'Other'
+];
 
 const money = (v: number, currency = 'INR') =>
   `${currency === 'INR' ? '₹' : ''}${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0)}`;
@@ -26,17 +32,39 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ description: '', category: 'Other', amount: '', date: '' });
 
   useEffect(() => {
     setLoading(true);
     api.getFinanceGmailTransactionDetail(transactionId)
-      .then(setDetail)
+      .then(d => {
+        setDetail(d);
+        setForm({
+          description: d.description || '',
+          category: d.category || 'Other',
+          amount: String(d.amount ?? ''),
+          date: d.date ? new Date(d.date).toISOString().slice(0, 10) : '',
+        });
+      })
       .finally(() => setLoading(false));
   }, [transactionId]);
+
+  const saveEdits = async () => {
+    const amount = Number(form.amount);
+    await api.updateExpense(
+      transactionId,
+      form.description.trim() || undefined,
+      amount > 0 ? amount : undefined,
+      form.category,
+      form.date ? new Date(`${form.date}T12:00:00`) : undefined,
+    );
+  };
 
   const decide = async (decision: 'APPROVE' | 'REJECT') => {
     setBusy(true);
     try {
+      if (decision === 'APPROVE') await saveEdits();
       await api.decideFinanceGmailTransaction(transactionId, decision);
       onChanged?.();
       onClose();
@@ -56,21 +84,56 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
           <>
             <div className="p-4 border-b sticky top-0" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}>
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     {isCredit ? <ArrowDownLeft size={16} style={{ color: 'var(--accent-green)' }} /> : <ArrowUpRight size={16} style={{ color: 'var(--accent-warm)' }} />}
-                    <p className="text-base font-bold num" style={{ color: isCredit ? 'var(--accent-green)' : 'var(--text-primary)' }}>
-                      {isCredit ? '+' : '−'}{money(detail.amount, detail.currency)}
-                    </p>
+                    {editing ? (
+                      <input
+                        value={form.amount}
+                        onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))}
+                        type="number"
+                        className="h-8 px-2 rounded-lg text-sm font-bold w-28 outline-none"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      />
+                    ) : (
+                      <p className="text-base font-bold num" style={{ color: isCredit ? 'var(--accent-green)' : 'var(--text-primary)' }}>
+                        {isCredit ? '+' : '−'}{money(detail.amount, detail.currency)}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-sm font-semibold mt-1 break-words" style={{ color: 'var(--text-primary)' }}>{detail.description}</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                    {detail.date ? new Date(detail.date).toLocaleString() : ''}
-                  </p>
+                  {editing ? (
+                    <input
+                      value={form.description}
+                      onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+                      placeholder="Title"
+                      className="mt-1.5 h-8 px-2 rounded-lg text-sm w-full outline-none"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
+                  ) : (
+                    <p className="text-sm font-semibold mt-1 break-words" style={{ color: 'var(--text-primary)' }}>{detail.description}</p>
+                  )}
+                  {editing ? (
+                    <input
+                      value={form.date}
+                      onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))}
+                      type="date"
+                      className="mt-1.5 h-8 px-2 rounded-lg text-xs outline-none"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
+                  ) : (
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      {detail.date ? new Date(detail.date).toLocaleString() : ''}
+                    </p>
+                  )}
                 </div>
-                <button onClick={onClose} className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                  <X size={14} />
-                </button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={() => setEditing(v => !v)} className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: editing ? 'var(--accent)' : 'var(--surface-elevated)', color: editing ? '#fff' : 'var(--text-secondary)' }} aria-label="Edit transaction">
+                    <Pencil size={13} />
+                  </button>
+                  <button onClick={onClose} className="h-8 w-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                    <X size={14} />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -80,7 +143,21 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
                 <Row label="Type" value={detail.transactionType} />
                 <Row label="Direction" value={detail.direction} />
                 <Row label="Status" value={detail.transactionStatus} />
-                <Row label="Category" value={detail.category} />
+                {editing ? (
+                  <div className="flex justify-between items-center gap-3 py-1.5">
+                    <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>Category</span>
+                    <select
+                      value={form.category}
+                      onChange={(e) => setForm(f => ({ ...f, category: e.target.value }))}
+                      className="h-8 px-2 rounded-lg text-xs outline-none"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    >
+                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                ) : (
+                  <Row label="Category" value={detail.category} />
+                )}
                 <Row label="Reference" value={detail.externalReference} />
                 <Row label="Confidence" value={detail.confidenceScore != null ? `${Math.round(detail.confidenceScore * 100)}%` : null} />
               </section>
@@ -148,11 +225,22 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
             </div>
 
             <div className="p-4 border-t flex gap-2 sticky bottom-0" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}>
-              <button onClick={() => decide('REJECT')} disabled={busy} className="flex-1 h-10 rounded-xl text-sm font-semibold press disabled:opacity-60" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-                Reject
-              </button>
-              <button onClick={() => decide('APPROVE')} disabled={busy || detail.isReviewed} className="flex-1 h-10 rounded-xl text-sm font-semibold text-white press disabled:opacity-60" style={{ backgroundColor: 'var(--accent)' }}>
-                {detail.isReviewed ? 'Approved' : 'Approve'}
+              {editing ? (
+                <button
+                  onClick={async () => { setBusy(true); try { await saveEdits(); setEditing(false); onChanged?.(); } finally { setBusy(false); } }}
+                  disabled={busy}
+                  className="flex-1 h-10 rounded-xl text-sm font-semibold text-white press disabled:opacity-60"
+                  style={{ backgroundColor: 'var(--accent)' }}
+                >
+                  Save changes
+                </button>
+              ) : (
+                <button onClick={() => decide('REJECT')} disabled={busy} className="flex-1 h-10 rounded-xl text-sm font-semibold press disabled:opacity-60" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                  Reject
+                </button>
+              )}
+              <button onClick={() => decide('APPROVE')} disabled={busy || detail.isReviewed} className="flex-1 h-10 rounded-xl text-sm font-semibold text-white press disabled:opacity-60" style={{ backgroundColor: editing ? 'var(--accent-green)' : 'var(--accent)' }}>
+                {detail.isReviewed ? 'Approved' : editing ? 'Save & Approve' : 'Approve'}
               </button>
             </div>
           </>

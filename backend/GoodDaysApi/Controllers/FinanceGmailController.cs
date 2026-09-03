@@ -303,6 +303,54 @@ public class FinanceGmailController : ControllerBase
         return Ok(new { decision = "APPROVED" });
     }
 
+    [HttpPost("transactions/decision")]
+    [Authorize]
+    public async Task<IActionResult> DecideTransactions([FromBody] TransactionBulkDecisionRequest request, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        if (request.ExpenseIds == null || request.ExpenseIds.Count == 0) return BadRequest(new { message = "At least one transaction is required." });
+        if (request.Decision is not ("APPROVE" or "REJECT")) return BadRequest(new { message = "Decision must be APPROVE or REJECT." });
+
+        var expenses = await _db.Expenses
+            .Where(x => x.UserId == userId.Value && x.SourceType == "gmail" && request.ExpenseIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        var messageIds = expenses.Where(x => !string.IsNullOrWhiteSpace(x.GmailMessageId)).Select(x => x.GmailMessageId!).ToList();
+        var emails = await _db.SyncedEmails
+            .Where(x => x.UserId == userId.Value && messageIds.Contains(x.GmailMessageId))
+            .ToListAsync(cancellationToken);
+
+        foreach (var expense in expenses)
+        {
+            var email = emails.FirstOrDefault(x => x.GmailMessageId == expense.GmailMessageId);
+            var rejected = request.Decision == "REJECT";
+            if (rejected)
+            {
+                _db.Expenses.Remove(expense);
+                if (email != null)
+                {
+                    email.ProcessingStatus = "REJECTED";
+                    email.ProcessingError = "Rejected during bulk review.";
+                    email.ProcessedAt = DateTime.UtcNow;
+                    await _senderReliability.RecordOutcomeAsync(userId.Value, email.Sender, confirmed: false, cancellationToken);
+                }
+            }
+            else
+            {
+                expense.IsReviewed = true;
+                expense.ReviewedAt = DateTime.UtcNow;
+                if (email != null)
+                {
+                    await _senderReliability.RecordOutcomeAsync(userId.Value, email.Sender, confirmed: true, cancellationToken);
+                }
+            }
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return Ok(new { updated = expenses.Count, decision = request.Decision });
+    }
+
     [HttpPost("review")]
     [Authorize]
     public async Task<IActionResult> BulkReview([FromBody] GmailBulkReviewRequest request, CancellationToken cancellationToken)
@@ -575,7 +623,18 @@ public class FinanceGmailController : ControllerBase
 
         var email = await _db.SyncedEmails.FirstOrDefaultAsync(
             x => x.UserId == userId.Value && x.GmailMessageId == candidate.SourceMessageId, cancellationToken);
-        if (email == null) return NotFound();
+        if (email == null)
+        {
+            return Ok(new
+            {
+                candidate.SourceMessageId,
+                Sender = (string?)null,
+                InternalDate = candidate.CreatedAt,
+                Subject = "Source email is unavailable",
+                Snippet = candidate.Error,
+                BodyText = "This candidate was created before source-email audit storage was enabled. Re-syncing will create a readable source record for future candidates."
+            });
+        }
 
         return Ok(new
         {
@@ -652,3 +711,4 @@ public record PromoteCandidateRequest(
     string? DestinationInstrumentName = null);
 public record GmailSyncSettingsDto(string[] FinanceSenderAllowlist, string[] BlockedSenderPatterns, string[] TrustedOrderDomains);
 public record TransactionDecisionRequest(string Decision);
+public record TransactionBulkDecisionRequest(List<int> ExpenseIds, string Decision);

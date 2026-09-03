@@ -614,6 +614,7 @@ public class GmailSyncService : IGmailSyncService
         yield return BuildFinanceQuery(since, syncSettings.FinanceSenderAllowlist);
         yield return BuildOrderQuery(since);
         yield return BuildWalletQuery(since);
+        yield return BuildInvestmentQuery(since);
     }
 
     private string BuildFinanceQuery(DateTime since, IEnumerable<string> financeSenderAllowlist)
@@ -704,6 +705,12 @@ public class GmailSyncService : IGmailSyncService
         });
 
         return $"category:updates ({positiveTerms}) {exclusions} after:{datePart}";
+    }
+
+    private static string BuildInvestmentQuery(DateTime since)
+    {
+        var datePart = since.ToString("yyyy/MM/dd");
+        return $"category:updates (\"Zerodha\" OR \"Groww\" OR \"INDmoney\" OR \"IND Money\") (\"fund added\" OR \"funds added\" OR \"add funds\" OR \"investment\" OR \"SIP\" OR \"mutual fund\" OR \"equity\") -newsletter -promotion -offer after:{datePart}";
     }
 
     private static string BuildSenderFilter(IEnumerable<string> senders)

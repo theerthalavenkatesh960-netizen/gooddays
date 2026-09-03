@@ -75,9 +75,9 @@ export default function GmailReviewTab() {
     setSelected(rows.map(r => r.id));
   };
 
-  const bulkMark = async (isReviewed: boolean) => {
+  const bulkDecide = async (decision: 'APPROVE' | 'REJECT') => {
     if (selected.length === 0) return;
-    await api.bulkReviewFinanceGmailTransactions(selected, isReviewed);
+    await api.decideFinanceGmailTransactions(selected, decision);
     await load();
   };
 
@@ -195,11 +195,11 @@ export default function GmailReviewTab() {
           <button onClick={selectAllToggle} className="h-8 px-3 rounded-lg text-xs font-semibold press" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
             {allVisibleSelected ? 'Clear Selection' : 'Select All'}
           </button>
-          <button onClick={() => bulkMark(true)} disabled={selected.length === 0} className="h-8 px-3 rounded-lg text-xs font-semibold text-white press disabled:opacity-60" style={{ backgroundColor: 'var(--accent)' }}>
-            Mark Reviewed
+          <button onClick={() => bulkDecide('APPROVE')} disabled={selected.length === 0} className="h-8 px-3 rounded-lg text-xs font-semibold text-white press disabled:opacity-60" style={{ backgroundColor: 'var(--accent)' }}>
+            Approve Selected
           </button>
-          <button onClick={() => bulkMark(false)} disabled={selected.length === 0} className="h-8 px-3 rounded-lg text-xs font-semibold press disabled:opacity-60" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
-            Mark Unreviewed
+          <button onClick={() => bulkDecide('REJECT')} disabled={selected.length === 0} className="h-8 px-3 rounded-lg text-xs font-semibold press disabled:opacity-60" style={{ backgroundColor: 'var(--surface-elevated)', color: '#ef4444' }}>
+            Reject Selected
           </button>
           <select
             value={bulkCategory}
