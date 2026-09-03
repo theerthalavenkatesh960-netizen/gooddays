@@ -32,6 +32,8 @@ public class TransactionExtractionService : ITransactionExtractionService
     private static readonly Regex CounterpartyParenRegex = new(@"\(\s*(?:VPA\s*[:\-]?\s*)?([A-Za-z][A-Za-z0-9 .&'\-]{3,60}?)\s*\)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex SenderLabelRegex = new(@"\b(?:sender|payer|received\s+from|from)\s*[:\-]\s*([A-Za-z][A-Za-z0-9 .&'\-]{2,60})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex TowardsRegex = new(@"\b(?:towards|paid\s+to|payment\s+to|deposited\s+to|transferred\s+to)\s+(?:VPA\s+)?([A-Za-z0-9][A-Za-z0-9 .&'\-/]{2,60})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    // Strips a trailing status verb phrase a greedy merchant/counterparty match can accidentally swallow, e.g. "SWIGGY was Approved".
+    private static readonly Regex TrailingStatusRegex = new(@"\s+(?:was|is|has\s+been)\s+(?:approved|successful(?:ly)?|completed|declined|failed|pending|processed)\b.*$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly string[] ProviderKeywords =
     {
@@ -468,6 +470,7 @@ public class TransactionExtractionService : ITransactionExtractionService
     private static string CleanMerchant(string raw)
     {
         var cleaned = raw.Trim().Trim('*', '-', ':', '.', ' ');
+        cleaned = TrailingStatusRegex.Replace(cleaned, string.Empty).Trim();
         return cleaned.Length > 60 ? cleaned[..60].Trim() : cleaned;
     }
 

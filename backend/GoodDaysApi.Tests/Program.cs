@@ -224,6 +224,14 @@ Check("REAL: Amazon Pay payment to merchant", parser.TryExtract(
     && rApay.Direction == "DEBIT"
     && rApay.InstrumentType == "WALLET");
 
+Check("REAL: Amazon Pay counterparty does not swallow trailing verb", rApay.CounterpartyName == "SWIGGY");
+
+CheckFn("REAL: Amazon Pay display title has no trailing verb noise", () =>
+{
+    var title = TransactionExtractionService.BuildDisplayTitle(rApay.CounterpartyName ?? rApay.Merchant, rApay.ProviderOrBank, rApay.InstrumentType, rApay.InstrumentLast4, rApay.TransactionType, rApay.Direction);
+    return !title.Contains("was Approved", StringComparison.OrdinalIgnoreCase) && !title.Contains("Paid to", StringComparison.OrdinalIgnoreCase);
+});
+
 CheckFn("REAL: Swiggy itemised bill picks total paid", () =>
 {
     var order = new OrderExtractionService();

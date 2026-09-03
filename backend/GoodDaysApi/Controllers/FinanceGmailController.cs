@@ -97,12 +97,12 @@ public class FinanceGmailController : ControllerBase
 
     [HttpPost("sync")]
     [Authorize]
-    public async Task<IActionResult> Sync(CancellationToken cancellationToken)
+    public async Task<IActionResult> Sync([FromQuery] bool full = true, CancellationToken cancellationToken = default)
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
 
-        var result = await _gmailSyncService.SyncUserAsync(userId.Value, false, cancellationToken);
+        var result = await _gmailSyncService.SyncUserAsync(userId.Value, full, cancellationToken);
         return Ok(result);
     }
 

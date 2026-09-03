@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, Mail, CreditCard, Package, ArrowDownLeft, ArrowUpRight, Pencil } from 'lucide-react';
 import * as api from '../../lib/api';
+import { formatTxDateTime } from '../../lib/config';
 
 interface Props {
   transactionId: number;
@@ -122,7 +123,7 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
                     />
                   ) : (
                     <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                      {detail.date ? new Date(detail.date).toLocaleString() : ''}
+                      {detail.date ? formatTxDateTime(detail.date) : ''}
                     </p>
                   )}
                 </div>

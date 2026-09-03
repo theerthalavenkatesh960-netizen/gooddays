@@ -9,6 +9,7 @@ import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from
 import { useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
+import { formatTxDateTime } from '../lib/config';
 import TransactionDetailModal from '../components/financial/TransactionDetailModal';
 
 
@@ -378,11 +379,14 @@ function TransactionsTab() {
                         {title}
                       </p>
 
-                      {(counterparty || instrument) && (
-                        <p className="text-[11px] leading-4 mt-0.5 break-words" style={{ color: 'var(--text-secondary)' }}>
-                          {isCredit ? 'From' : 'To'} {counterparty || '—'}{instrument ? ` · ${instrument}` : ''}
-                        </p>
-                      )}
+                      <p className="text-[11px] leading-4 mt-0.5 break-words" style={{ color: 'var(--text-secondary)' }}>
+                        {counterparty || instrument ? (
+                          <span>{isCredit ? 'From' : 'To'} {counterparty || '—'}{instrument ? ` · ${instrument}` : ''} · </span>
+                        ) : null}
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          {formatTxDateTime(exp.date ?? exp.createdAt ?? exp.created_at)}
+                        </span>
+                      </p>
 
                       <div className="flex items-end justify-between gap-2 mt-2">
                         <div className="flex items-center gap-1.5 flex-wrap min-w-0">

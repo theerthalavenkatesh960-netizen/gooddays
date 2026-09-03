@@ -93,10 +93,12 @@ public class GmailSyncService : IGmailSyncService
             return result;
         }
 
-        var initialSince = DateTime.UtcNow.AddDays(-90);
-        var incrementalSince = await _syncedEmails.GetLatestInternalDateAsync(userId, cancellationToken)
-                              ?? account.LastSyncedUtc
-                              ?? initialSince;
+        var initialSince = DateTime.UtcNow.AddDays(-120);
+        var latestSynced = await _syncedEmails.GetLatestInternalDateAsync(userId, cancellationToken)
+                           ?? account.LastSyncedUtc;
+        var incrementalSince = latestSynced.HasValue
+            ? (latestSynced.Value.AddDays(-2) < initialSince ? initialSince : latestSynced.Value.AddDays(-2))
+            : initialSince;
 
         var since = forceInitialSync ? initialSince : incrementalSince;
         var messages = new List<(string messageId, string? threadId)>();
@@ -234,13 +236,17 @@ public class GmailSyncService : IGmailSyncService
                     }
                 }
 
+                var transactionDate = tx.TransactionDateUtc.HasValue
+                    ? DateTime.SpecifyKind(tx.TransactionDateUtc.Value.Date + message.InternalDateUtc.TimeOfDay, DateTimeKind.Utc)
+                    : message.InternalDateUtc;
+
                 var expense = new Expense
                 {
                     UserId = userId,
                     Description = BuildDescription(tx),
                     Amount = tx.Amount,
                     Category = tx.SuggestedCategory,
-                    Date = tx.TransactionDateUtc ?? message.InternalDateUtc,
+                    Date = transactionDate,
                     CreatedAt = DateTime.UtcNow,
                     GmailMessageId = message.MessageId,
                     ExternalReference = tx.ReferenceNumber,
@@ -628,28 +634,33 @@ public class GmailSyncService : IGmailSyncService
             "\"payment received\"",
             "\"debited\"",
             "\"credited\"",
+            "\"spent\"",
             "\"charged\"",
             "\"transaction alert\"",
             "\"UPI\"",
-            "\"UTR\""
+            "\"UTR\"",
+            "\"transacted\"",
+            "\"withdrawn\"",
+            "\"deposited\"",
+            "\"transferred\"",
+            "\"sent\"",
+            "\"received\""
         });
+
+        // When specific bank/issuer senders are whitelisted, avoid footer-matching exclusions like -loan / -offers
+        if (!string.IsNullOrWhiteSpace(senderFilter))
+        {
+            return $"{senderFilter}({positiveTerms}) after:{datePart}";
+        }
+
         var exclusions = string.Join(" ", new[]
         {
-            "-offer",
-            "-offers",
-            "-sale",
-            "-discount",
-            "-coupon",
-            "-promo",
-            "-promotion",
             "-newsletter",
             "-otp",
             "-login",
-            "-kyc",
-            "-loan",
-            "-pre-approved"
+            "-kyc"
         });
-        return $"category:updates {senderFilter}({positiveTerms}) {exclusions} after:{datePart}";
+        return $"({positiveTerms}) {exclusions} after:{datePart}";
     }
 
     private string BuildOrderQuery(DateTime since)
@@ -668,13 +679,10 @@ public class GmailSyncService : IGmailSyncService
         var exclusions = string.Join(" ", new[]
         {
             "-newsletter",
-            "-promotion",
-            "-promo",
-            "-coupon",
             "-wishlist"
         });
 
-        return $"category:updates ({positiveTerms}) {exclusions} after:{datePart}";
+        return $"({positiveTerms}) {exclusions} after:{datePart}";
     }
 
     private string BuildWalletQuery(DateTime since)
@@ -690,27 +698,21 @@ public class GmailSyncService : IGmailSyncService
             "\"money added\"",
             "\"wallet loaded\"",
             "\"paid using wallet\"",
-            "\"paid using Amazon Pay\""
+            "\"paid using Amazon Pay\"",
+            "\"toll payment\""
         });
         var exclusions = string.Join(" ", new[]
         {
-            "-offer",
-            "-offers",
-            "-sale",
-            "-discount",
-            "-coupon",
-            "-promo",
-            "-promotion",
             "-newsletter"
         });
 
-        return $"category:updates ({positiveTerms}) {exclusions} after:{datePart}";
+        return $"({positiveTerms}) {exclusions} after:{datePart}";
     }
 
     private static string BuildInvestmentQuery(DateTime since)
     {
         var datePart = since.ToString("yyyy/MM/dd");
-        return $"category:updates (\"Zerodha\" OR \"Groww\" OR \"INDmoney\" OR \"IND Money\") (\"fund added\" OR \"funds added\" OR \"add funds\" OR \"investment\" OR \"SIP\" OR \"mutual fund\" OR \"equity\") -newsletter -promotion -offer after:{datePart}";
+        return $"(\"Zerodha\" OR \"Groww\" OR \"INDmoney\" OR \"IND Money\") (\"fund added\" OR \"funds added\" OR \"add funds\" OR \"investment\" OR \"SIP\" OR \"mutual fund\" OR \"equity\" OR \"deposited\") -newsletter after:{datePart}";
     }
 
     private static string BuildSenderFilter(IEnumerable<string> senders)

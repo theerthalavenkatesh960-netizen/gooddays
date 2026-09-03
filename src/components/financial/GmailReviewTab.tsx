@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Circle, RefreshCw, Pencil, Check, X, ChevronRight } from 'lucide-react';
 import * as api from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContextApi';
+import { formatTxDateTime } from '../../lib/config';
 import TransactionDetailModal from './TransactionDetailModal';
 
 const CATEGORIES = [
   'Food', 'Groceries', 'Transport', 'Fuel', 'Home', 'Rent', 'Utilities', 'Internet',
   'Subscriptions', 'Personal', 'Medical', 'Gym', 'Self Care', 'Fun', 'Shopping',
-  'Education', 'Books', 'Coffee', 'Travel', 'Other'
+  'Education', 'Books', 'Coffee', 'Travel', 'Investments', 'Transfer', 'Lending', 'EMI', 'Other'
 ];
 
 export default function GmailReviewTab() {
@@ -278,7 +279,7 @@ export default function GmailReviewTab() {
                 <span className="text-xs num" style={{ color: row.direction === 'CREDIT' ? 'var(--accent-green)' : 'var(--text-muted)' }}>
                   {row.direction === 'CREDIT' ? '+' : '−'}₹{Number(row.amount || 0).toFixed(2)}
                 </span>
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{new Date(row.date || row.createdAt).toLocaleDateString()}</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatTxDateTime(row.date || row.createdAt)}</span>
                 {row.transactionType && row.transactionType !== 'PURCHASE' && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
                     {row.transactionType}
@@ -328,7 +329,7 @@ export default function GmailReviewTab() {
                     {candidate.subject || candidate.sender || 'Unrecognised email'}
                   </p>
                   <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
-                    {[candidate.sender, candidate.receivedAt ? new Date(candidate.receivedAt).toLocaleDateString() : null]
+                    {[candidate.sender, candidate.receivedAt ? formatTxDateTime(candidate.receivedAt) : null]
                       .filter(Boolean).join(' · ')}
                   </p>
                   {candidate.snippet && (
