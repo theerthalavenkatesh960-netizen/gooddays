@@ -324,10 +324,26 @@ export default function GmailReviewTab() {
             <div key={candidate.id} className="p-3 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{candidate.status}</p>
-                  <p className="text-xs mt-1 break-words" style={{ color: 'var(--text-muted)' }}>
-                    {candidate.error || candidate.evidenceJson || candidate.sourceMessageId}
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                    {candidate.subject || candidate.sender || 'Unrecognised email'}
                   </p>
+                  <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
+                    {[candidate.sender, candidate.receivedAt ? new Date(candidate.receivedAt).toLocaleDateString() : null]
+                      .filter(Boolean).join(' · ')}
+                  </p>
+                  {candidate.snippet && (
+                    <p className="text-[11px] mt-1 line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
+                      {candidate.snippet}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                      {candidate.status}
+                    </span>
+                    {candidate.error && (
+                      <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{candidate.error}</span>
+                    )}
+                  </div>
                 </div>
                 <button
                   onClick={() => rejectCandidate(candidate.id)}

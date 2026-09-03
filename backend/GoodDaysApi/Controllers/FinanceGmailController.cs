@@ -258,7 +258,7 @@ public class FinanceGmailController : ControllerBase
                 email.InternalDate,
                 Subject = ReadStoredEmailText(email.Subject, email.IsContentEncrypted),
                 Snippet = ReadStoredEmailText(email.Snippet, email.IsContentEncrypted),
-                BodyText = ReadStoredEmailText(email.BodyText, email.IsContentEncrypted)
+                BodyText = ReadStoredEmailBody(email.BodyText, email.IsContentEncrypted)
             }
         });
     }
@@ -403,20 +403,35 @@ public class FinanceGmailController : ControllerBase
         var query = _db.TransactionCandidates.Where(x => x.UserId == userId.Value);
         if (!string.IsNullOrWhiteSpace(status)) query = query.Where(x => x.Status == status);
 
-        var items = await query
+        var candidates = await query
             .OrderByDescending(x => x.CreatedAt)
-            .Select(x => new
-            {
-                x.Id,
-                x.SourceMessageId,
-                x.SourceThreadId,
-                x.Status,
-                x.EvidenceJson,
-                x.Error,
-                x.ExtractionVersion,
-                x.CreatedAt
-            })
+            .Take(200)
             .ToListAsync(cancellationToken);
+
+        var messageIds = candidates.Select(c => c.SourceMessageId).ToList();
+        var emails = await _db.SyncedEmails.AsNoTracking()
+            .Where(e => e.UserId == userId.Value && messageIds.Contains(e.GmailMessageId))
+            .ToListAsync(cancellationToken);
+
+        var items = candidates.Select(candidate =>
+        {
+            var email = emails.FirstOrDefault(e => e.GmailMessageId == candidate.SourceMessageId);
+            return new
+            {
+                candidate.Id,
+                candidate.SourceMessageId,
+                candidate.SourceThreadId,
+                candidate.Status,
+                candidate.EvidenceJson,
+                candidate.Error,
+                candidate.ExtractionVersion,
+                candidate.CreatedAt,
+                Subject = email == null ? null : ReadStoredEmailText(email.Subject, email.IsContentEncrypted),
+                Snippet = email == null ? null : ReadStoredEmailText(email.Snippet, email.IsContentEncrypted),
+                Sender = email?.Sender,
+                ReceivedAt = email?.InternalDate
+            };
+        }).ToList();
 
         return Ok(items);
     }
@@ -572,7 +587,7 @@ public class FinanceGmailController : ControllerBase
             email.ProcessingError,
             Subject = ReadStoredEmailText(email.Subject, email.IsContentEncrypted),
             Snippet = ReadStoredEmailText(email.Snippet, email.IsContentEncrypted),
-            BodyText = ReadStoredEmailText(email.BodyText, email.IsContentEncrypted)
+            BodyText = ReadStoredEmailBody(email.BodyText, email.IsContentEncrypted)
         });
     }
 
@@ -582,6 +597,10 @@ public class FinanceGmailController : ControllerBase
         try { return _tokenEncryption.Decrypt(value); }
         catch { return string.Empty; }
     }
+
+    // Stored bodies are frequently raw HTML, so previews are normalised into readable text.
+    private string ReadStoredEmailBody(string value, bool isEncrypted) =>
+        EmailTextNormalizer.Normalize(ReadStoredEmailText(value, isEncrypted));
 
     private static string[] LinesOrDefaults(string? value, string[] defaults)
     {

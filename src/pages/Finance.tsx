@@ -3,15 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   DollarSign, TrendingUp, ChevronRight, ChevronLeft,
   Plus, Wallet, BarChart3,
-  ArrowUpRight, ArrowDownRight, Trash2, Pencil, Mail, RefreshCw, Unplug
+  ArrowUpRight, ArrowDownRight, Trash2, Pencil, Mail, RefreshCw, Unplug, Info
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
+import TransactionDetailModal from '../components/financial/TransactionDetailModal';
 
 
-type Tab = 'Transactions' | 'Buckets' | 'Investments';
+type Tab = 'Transactions' | 'Buckets' | 'Investments' | 'Analytics';
 
 const FINANCE_TABS: { id: string; label: string; icon: React.ComponentType<{ size?: string | number }> }[] = [
   { id: 'Transactions', label: 'Transactions', icon: DollarSign },
@@ -52,6 +53,7 @@ function TransactionsTab() {
   const [gmailStatus, setGmailStatus] = useState<any>(null);
   const [syncingGmail, setSyncingGmail] = useState(false);
   const [gmailOnly, setGmailOnly] = useState(false);
+  const [detailId, setDetailId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [budgetProfile, setBudgetProfile] = useState<any>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -359,34 +361,68 @@ function TransactionsTab() {
             <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               {grouped[date].map((exp, i) => {
                 const color = categoryColors[exp.category] ?? '#8888A0';
+                const isGmail = (exp.sourceType || '').toLowerCase() === 'gmail';
+                const isCredit = (exp.direction || '').toUpperCase() === 'CREDIT';
+                const isTransfer = (exp.transactionType || '').toUpperCase() === 'TRANSFER';
+                const title = exp.description || exp.note || exp.merchantName || exp.counterpartyName || exp.category || 'Transaction';
+                const counterparty = exp.counterpartyName || exp.merchantName;
+                const instrument = [exp.institutionName, exp.instrumentLast4 ? `••${exp.instrumentLast4}` : null]
+                  .filter(Boolean).join(' ');
                 return (
-                  <div key={exp.id ?? i} className="flex items-center gap-3 p-3 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: color + '22' }}>
+                  <div key={exp.id ?? i} className="flex items-start gap-3 p-3 border-b last:border-b-0" style={{ borderColor: 'var(--border)' }}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: color + '22' }}>
                       <DollarSign size={16} style={{ color }} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-                        {exp.note || exp.category}
+                        {title}
                       </p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{exp.category}</p>
-                        {(exp.sourceType || '').toLowerCase() === 'gmail' && (
+
+                      {(counterparty || instrument) && (
+                        <p className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>
+                          {isCredit ? 'From' : 'To'} {counterparty || '—'}{instrument ? ` · ${instrument}` : ''}
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: color + '22', color }}>
+                          {exp.category || 'Other'}
+                        </span>
+                        {isTransfer && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }}>
+                            Transfer
+                          </span>
+                        )}
+                        {isGmail && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>
                             Gmail
                           </span>
                         )}
+                        {isGmail && exp.isReviewed === false && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--accent-warm)22', color: 'var(--accent-warm)' }}>
+                            Needs review
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <span className="text-sm font-bold num" style={{ color: 'var(--accent-warm)' }}>
-                      -{formatMoney(exp.amount ?? 0)}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => openEdit(exp)} className="w-8 h-8 rounded-lg flex items-center justify-center press" style={{ color: 'var(--text-secondary)' }}>
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => deleteTransaction(exp.id)} className="w-8 h-8 rounded-lg flex items-center justify-center press" style={{ color: '#ef4444' }}>
-                        <Trash2 size={14} />
-                      </button>
+
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className="text-sm font-bold num" style={{ color: isCredit ? 'var(--accent-green)' : 'var(--accent-warm)' }}>
+                        {isCredit ? '+' : '-'}{formatMoney(exp.amount ?? 0)}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {isGmail && (
+                          <button onClick={() => setDetailId(exp.id)} className="w-8 h-8 rounded-lg flex items-center justify-center press" style={{ color: 'var(--text-secondary)' }} aria-label="View details">
+                            <Info size={14} />
+                          </button>
+                        )}
+                        <button onClick={() => openEdit(exp)} className="w-8 h-8 rounded-lg flex items-center justify-center press" style={{ color: 'var(--text-secondary)' }}>
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => deleteTransaction(exp.id)} className="w-8 h-8 rounded-lg flex items-center justify-center press" style={{ color: '#ef4444' }}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -394,6 +430,14 @@ function TransactionsTab() {
             </div>
           </div>
         ))
+      )}
+
+      {detailId != null && (
+        <TransactionDetailModal
+          transactionId={detailId}
+          onClose={() => setDetailId(null)}
+          onChanged={loadTransactions}
+        />
       )}
     </div>
   );
