@@ -179,6 +179,9 @@ ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
   ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb;
 
+ALTER TABLE IF EXISTS expenses
+  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(evidence_json::jsonb, '{}'::jsonb);
+
 -- Ensure Clerk auth column exists when upgrading already-existing user_profiles table.
 ALTER TABLE IF EXISTS user_profiles
   ADD COLUMN IF NOT EXISTS clerk_id text;
@@ -1118,6 +1121,15 @@ CREATE TABLE IF NOT EXISTS transaction_candidates (
   created_at timestamp without time zone NOT NULL DEFAULT now()
 );
 
+ALTER TABLE IF EXISTS transaction_candidates
+  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(evidence_json::jsonb, '{}'::jsonb);
+
+DELETE FROM transaction_candidates a
+USING transaction_candidates b
+WHERE a.ctid < b.ctid
+  AND a.user_id = b.user_id
+  AND a.source_message_id = b.source_message_id;
+
 CREATE UNIQUE INDEX IF NOT EXISTS ix_transaction_candidates_user_message
   ON transaction_candidates(user_id, source_message_id);
 
@@ -1142,8 +1154,18 @@ CREATE TABLE IF NOT EXISTS card_statements (
     created_at timestamp without time zone NOT NULL DEFAULT now()
 );
 
+ALTER TABLE IF EXISTS card_statements
+  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(evidence_json::jsonb, '{}'::jsonb);
+
 CREATE INDEX IF NOT EXISTS ix_card_statements_user_card
     ON card_statements(user_id, card_id);
+
+DELETE FROM card_statements a
+USING card_statements b
+WHERE a.ctid < b.ctid
+  AND a.user_id = b.user_id
+  AND a.source_message_id = b.source_message_id
+  AND a.source_message_id IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_card_statements_user_message
   ON card_statements(user_id, source_message_id)
@@ -1162,11 +1184,30 @@ CREATE TABLE IF NOT EXISTS orders (
     created_at timestamp without time zone NOT NULL DEFAULT now()
 );
 
+ALTER TABLE IF EXISTS orders
+  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(evidence_json::jsonb, '{}'::jsonb);
+
 CREATE INDEX IF NOT EXISTS ix_orders_user_id ON orders(user_id);
+
+DELETE FROM orders a
+USING orders b
+WHERE a.ctid < b.ctid
+  AND a.user_id = b.user_id
+  AND a.merchant = b.merchant
+  AND a.order_number = b.order_number
+  AND a.merchant IS NOT NULL
+  AND a.order_number IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_user_merchant_order_number
   ON orders(user_id, merchant, order_number)
   WHERE merchant IS NOT NULL AND order_number IS NOT NULL;
+
+DELETE FROM orders a
+USING orders b
+WHERE a.ctid < b.ctid
+  AND a.user_id = b.user_id
+  AND a.source_message_id = b.source_message_id
+  AND a.source_message_id IS NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_user_message
   ON orders(user_id, source_message_id)
@@ -1183,6 +1224,15 @@ CREATE TABLE IF NOT EXISTS order_transaction_links (
     created_at timestamp without time zone NOT NULL DEFAULT now()
 );
 
+ALTER TABLE IF EXISTS order_transaction_links
+  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(evidence_json::jsonb, '{}'::jsonb);
+
+DELETE FROM order_transaction_links a
+USING order_transaction_links b
+WHERE a.ctid < b.ctid
+  AND a.order_id = b.order_id
+  AND a.expense_id = b.expense_id;
+
 CREATE UNIQUE INDEX IF NOT EXISTS ix_order_transaction_links_order_expense
     ON order_transaction_links(order_id, expense_id);
 
@@ -1194,6 +1244,53 @@ CREATE TABLE IF NOT EXISTS merchant_aliases (
     corrected_category varchar(60) NULL,
     created_at timestamp without time zone NOT NULL DEFAULT now(),
     updated_at timestamp without time zone NOT NULL DEFAULT now()
+
+  ALTER TABLE IF EXISTS transaction_candidates
+    ADD COLUMN IF NOT EXISTS source_thread_id varchar(200),
+    ADD COLUMN IF NOT EXISTS status varchar(30) NOT NULL DEFAULT 'NEEDS_REVIEW',
+    ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+    ADD COLUMN IF NOT EXISTS error text,
+    ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
+    ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
+
+
+ALTER TABLE IF EXISTS card_statements
+  ADD COLUMN IF NOT EXISTS card_id uuid NULL REFERENCES credit_cards(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS institution_name varchar(120),
+  ADD COLUMN IF NOT EXISTS card_last4 varchar(4),
+  ADD COLUMN IF NOT EXISTS statement_date timestamp without time zone,
+  ADD COLUMN IF NOT EXISTS due_date timestamp without time zone,
+  ADD COLUMN IF NOT EXISTS statement_balance numeric,
+  ADD COLUMN IF NOT EXISTS minimum_amount_due numeric,
+  ADD COLUMN IF NOT EXISTS total_amount_due numeric,
+  ADD COLUMN IF NOT EXISTS available_credit_limit numeric,
+  ADD COLUMN IF NOT EXISTS credit_limit numeric,
+  ADD COLUMN IF NOT EXISTS currency varchar(10) NOT NULL DEFAULT 'INR',
+  ADD COLUMN IF NOT EXISTS source_message_id varchar(200),
+  ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v1.0',
+  ADD COLUMN IF NOT EXISTS confidence_score numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
+
+
+ALTER TABLE IF EXISTS orders
+  ADD COLUMN IF NOT EXISTS merchant varchar(120),
+  ADD COLUMN IF NOT EXISTS order_number varchar(120),
+  ADD COLUMN IF NOT EXISTS order_date timestamp without time zone,
+  ADD COLUMN IF NOT EXISTS total_amount numeric,
+  ADD COLUMN IF NOT EXISTS currency varchar(10) NOT NULL DEFAULT 'INR',
+  ADD COLUMN IF NOT EXISTS source_message_id varchar(200),
+  ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
+
+
+ALTER TABLE IF EXISTS order_transaction_links
+  ADD COLUMN IF NOT EXISTS match_score numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS match_method varchar(60) NOT NULL DEFAULT 'AMOUNT_DATE',
+  ADD COLUMN IF NOT EXISTS status varchar(30) NOT NULL DEFAULT 'NEEDS_REVIEW',
+  ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS created_at timestamp without time zone NOT NULL DEFAULT now();
+
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_merchant_aliases_user_key
