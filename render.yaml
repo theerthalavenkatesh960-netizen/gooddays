@@ -12,3 +12,15 @@ services:
         sync: false
       - key: Jwt__Key
         sync: false
+      - key: Google__ClientId
+        sync: false
+      - key: Google__ClientSecret
+        sync: false
+      - key: Google__OAuthStateSecret
+        sync: false
+      - key: Google__RedirectUri
+        sync: false
+      - key: Google__FrontendRedirectAfterCallback
+        sync: false
+      - key: Encryption__Key
+        sync: false

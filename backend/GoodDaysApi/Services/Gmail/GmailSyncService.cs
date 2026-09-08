@@ -138,6 +138,9 @@ public class GmailSyncService : IGmailSyncService
                 continue;
             }
 
+            // Fetching hundreds of messages back-to-back trips Gmail's per-user rate limit; a small pace keeps well under it.
+            await Task.Delay(60, cancellationToken);
+
             GmailMessageLite? message;
             try
             {
@@ -395,10 +398,10 @@ public class GmailSyncService : IGmailSyncService
         var pageCount = 0;
         var pageSize = Math.Clamp(_options.ListPageSize, 1, 500);
         var maxPages = Math.Max(1, _options.MaxPagesPerQuery);
+        var rateLimitRetries = 0;
 
-        do
+        while (true)
         {
-            pageCount++;
             var url = $"https://gmail.googleapis.com/gmail/v1/users/me/messages?q={Uri.EscapeDataString(query)}&maxResults={pageSize}";
             if (!string.IsNullOrWhiteSpace(pageToken))
             {
@@ -411,9 +414,21 @@ public class GmailSyncService : IGmailSyncService
             var response = await _httpClient.SendAsync(request, cancellationToken);
             if (response.StatusCode == (HttpStatusCode)429)
             {
-                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+                // A 429 on the very first page previously aborted the whole lane silently, since pageToken was still
+                // null and the old do-while condition treated that as "nothing left to fetch". Retry the same page instead.
+                rateLimitRetries++;
+                if (rateLimitRetries > 5)
+                {
+                    _logger.LogWarning("Gmail list messages rate-limited repeatedly, giving up on this query after {Count} messages. Query: {Query}", list.Count, query);
+                    break;
+                }
+
+                _logger.LogInformation("Gmail list messages rate-limited (attempt {Attempt}), retrying same page.", rateLimitRetries);
+                await Task.Delay(TimeSpan.FromSeconds(2 * rateLimitRetries), cancellationToken);
                 continue;
             }
+
+            rateLimitRetries = 0;
 
             var body = await response.Content.ReadAsStringAsync(cancellationToken);
             if (!response.IsSuccessStatusCode)
@@ -435,32 +450,47 @@ public class GmailSyncService : IGmailSyncService
                 }
             }
 
+            pageCount++;
             pageToken = json.RootElement.TryGetProperty("nextPageToken", out var nextEl)
                 ? nextEl.GetString()
                 : null;
-        } while (!string.IsNullOrWhiteSpace(pageToken) && pageCount < maxPages);
+
+            if (string.IsNullOrWhiteSpace(pageToken) || pageCount >= maxPages) break;
+        }
 
         return list;
     }
 
     private async Task<GmailMessageLite?> GetMessageAsync(string accessToken, string messageId, CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, $"https://gmail.googleapis.com/gmail/v1/users/me/messages/{Uri.EscapeDataString(messageId)}?format=full");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        for (var attempt = 1; attempt <= 5; attempt++)
         {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"https://gmail.googleapis.com/gmail/v1/users/me/messages/{Uri.EscapeDataString(messageId)}?format=full");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
             {
-                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
-                return null;
+                _logger.LogInformation("Gmail get message rate-limited for {MessageId} (attempt {Attempt}), retrying.", messageId, attempt);
+                await Task.Delay(TimeSpan.FromSeconds(2 * attempt), cancellationToken);
+                continue;
             }
 
-            throw new InvalidOperationException($"Gmail get message failed: {response.StatusCode} {body}");
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException($"Gmail get message failed: {response.StatusCode} {body}");
+            }
+
+            return ParseMessage(body);
         }
 
+        // Every attempt was rate-limited; surface this as a failure rather than silently dropping the message.
+        throw new InvalidOperationException($"Gmail get message for {messageId} was rate-limited on every retry.");
+    }
+
+    private static GmailMessageLite? ParseMessage(string body)
+    {
         using var json = JsonDocument.Parse(body);
         var root = json.RootElement;
 
