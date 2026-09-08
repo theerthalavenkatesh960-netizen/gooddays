@@ -271,6 +271,7 @@ public class GmailSyncService : IGmailSyncService
                     TransactionType = tx.TransactionType,
                     TransactionStatus = tx.TransactionStatus,
                     PaymentInstrumentType = tx.InstrumentType,
+                    PaymentRail = tx.PaymentRail,
                     InstitutionName = tx.ProviderOrBank,
                     InstrumentLast4 = tx.InstrumentLast4,
                     SourceInstrumentType = tx.SourceInstrumentType,

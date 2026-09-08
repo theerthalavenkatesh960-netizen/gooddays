@@ -170,6 +170,7 @@ ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS transaction_type varchar(40) NOT NULL DEFAULT 'OTHER',
   ADD COLUMN IF NOT EXISTS transaction_status varchar(20) NOT NULL DEFAULT 'UNKNOWN',
   ADD COLUMN IF NOT EXISTS payment_instrument_type varchar(30) NOT NULL DEFAULT 'UNKNOWN',
+  ADD COLUMN IF NOT EXISTS payment_rail varchar(30),
   ADD COLUMN IF NOT EXISTS institution_name varchar(120),
   ADD COLUMN IF NOT EXISTS instrument_last4 varchar(4),
   ADD COLUMN IF NOT EXISTS source_instrument_type varchar(30),

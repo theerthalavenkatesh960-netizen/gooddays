@@ -8,6 +8,7 @@ public class ExtractedTransaction
     public string TransactionType { get; set; } = "OTHER";
     public string Direction { get; set; } = "DEBIT";
     public string InstrumentType { get; set; } = "UNKNOWN";
+    public string? PaymentRail { get; set; }
     public string TransactionStatus { get; set; } = "UNKNOWN";
     public DateTime? TransactionDateUtc { get; set; }
     public string? ProviderOrBank { get; set; }

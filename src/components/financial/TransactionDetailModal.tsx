@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, Mail, CreditCard, Package, ArrowDownLeft, ArrowUpRight, Pencil } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import * as api from '../../lib/api';
 import { formatTxDateTime } from '../../lib/config';
 
@@ -34,19 +35,26 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
   const [busy, setBusy] = useState(false);
   const [showRaw, setShowRaw] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ description: '', category: 'Other', amount: '', date: '' });
+  const [merchants, setMerchants] = useState<string[]>([]);
+  const [items, setItems] = useState<Array<{ name: string; quantity: number; amount: string }>>([]);
+  const [form, setForm] = useState({ description: '', merchant: '', category: 'Other', amount: '', date: '' });
 
   useEffect(() => {
+    api.getFinanceGmailMerchants().then(value => setMerchants(Array.isArray(value) ? value : [])).catch(() => setMerchants([]));
     setLoading(true);
     api.getFinanceGmailTransactionDetail(transactionId)
       .then(d => {
         setDetail(d);
         setForm({
           description: d.description || '',
+          merchant: d.merchantName || d.counterpartyName || '',
           category: d.category || 'Other',
           amount: String(d.amount ?? ''),
           date: d.date ? new Date(d.date).toISOString().slice(0, 10) : '',
         });
+        setItems((d.orders?.[0]?.items || []).map((item: any) => ({
+          name: item.name || '', quantity: item.quantity || 1, amount: item.amount == null ? '' : String(item.amount),
+        })));
       })
       .finally(() => setLoading(false));
   }, [transactionId]);
@@ -60,6 +68,13 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
       form.category,
       form.date ? new Date(`${form.date}T12:00:00`) : undefined,
     );
+    const merchant = form.merchant.trim();
+    if (merchant) {
+      await api.updateFinanceGmailMerchant(transactionId, merchant, form.category || undefined, true);
+    }
+    await api.saveFinanceGmailTransactionItems(transactionId, items
+      .filter(item => item.name.trim() && item.quantity > 0)
+      .map(item => ({ name: item.name.trim(), quantity: item.quantity, amount: item.amount ? Number(item.amount) : undefined })));
   };
 
   const decide = async (decision: 'APPROVE' | 'REJECT') => {
@@ -102,6 +117,23 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
                       </p>
                     )}
                   </div>
+                  {editing ? (
+                    <>
+                      <input
+                        value={form.merchant}
+                        onChange={(e) => setForm(f => ({ ...f, merchant: e.target.value }))}
+                        placeholder="Merchant"
+                        list="finance-merchant-options"
+                        className="mt-1.5 h-8 px-2 rounded-lg text-sm w-full outline-none"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                      />
+                      <datalist id="finance-merchant-options">
+                        {merchants.map(merchant => <option key={merchant} value={merchant} />)}
+                      </datalist>
+                    </>
+                  ) : (
+                    <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{detail.merchantName || detail.counterpartyName || 'Merchant not identified'}</p>
+                  )}
                   {editing ? (
                     <input
                       value={form.description}
@@ -164,12 +196,20 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
               </section>
 
               <section>
-                <p className="text-xs font-bold mb-1" style={{ color: 'var(--text-secondary)' }}>Paid from / to</p>
-                <Row label="Merchant" value={detail.merchantName} />
-                <Row label="Counterparty" value={detail.counterpartyName} />
+                <p className="text-xs font-bold mb-1 flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>Paid from / to</p>
+                {(detail.merchantName || detail.counterpartyName) ? (
+                  <div className="flex justify-between gap-3 py-1.5">
+                    <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>Merchant</span>
+                    <Link to={`/finance/merchant-history?merchant=${encodeURIComponent(detail.merchantName || detail.counterpartyName)}`} onClick={onClose} className="text-xs font-medium text-right break-words" style={{ color: 'var(--accent)' }}>
+                      {detail.merchantName || detail.counterpartyName}
+                    </Link>
+                  </div>
+                ) : null}
+                <Row label="Counterparty" value={detail.counterpartyName || detail.merchantName} />
                 <Row label="UPI / VPA" value={detail.counterpartyIdentifier} />
                 <Row label="Bank / Issuer" value={detail.institutionName} />
                 <Row label="Instrument" value={detail.paymentInstrumentType} />
+                <Row label="Payment rail" value={detail.paymentRail} />
                 <Row label="Card / A/c" value={detail.instrumentLast4 ? `••${detail.instrumentLast4}` : null} />
                 <Row label="Source" value={detail.sourceInstrumentType} />
                 <Row label="Destination" value={detail.destinationInstrumentName || detail.destinationInstrumentType} />
@@ -187,9 +227,12 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
 
               {detail.orders?.length > 0 && detail.orders.map((link: any, i: number) => (
                 <section key={i}>
-                  <p className="text-xs font-bold mb-1 flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-bold flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
                     <Package size={12} /> Order {link.order?.orderNumber ? `#${link.order.orderNumber}` : ''}
-                  </p>
+                    </p>
+                    {link.order?.id && <Link to={`/finance/orders/${link.order.id}`} onClick={onClose} className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>Open order</Link>}
+                  </div>
                   <Row label="Merchant" value={link.order?.merchant} />
                   <Row label="Order total" value={link.order?.totalAmount ? money(link.order.totalAmount) : null} />
                   <Row label="Match" value={`${link.status} (${Math.round((link.matchScore || 0) * 100)}%)`} />
@@ -205,6 +248,25 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
                   )}
                 </section>
               ))}
+
+              {editing && (
+                <section>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-bold" style={{ color: 'var(--text-secondary)' }}>Items bought</p>
+                    <button onClick={() => setItems(current => [...current, { name: '', quantity: 1, amount: '' }])} className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>Add item</button>
+                  </div>
+                  <div className="space-y-2">
+                    {items.map((item, index) => (
+                      <div key={index} className="grid grid-cols-[1fr_3.5rem_5rem_1.5rem] gap-1">
+                        <input value={item.name} placeholder="Item" onChange={e => setItems(current => current.map((x, i) => i === index ? { ...x, name: e.target.value } : x))} className="h-8 px-2 rounded-lg text-xs outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+                        <input value={item.quantity} min={1} type="number" aria-label="Quantity" onChange={e => setItems(current => current.map((x, i) => i === index ? { ...x, quantity: Number(e.target.value) } : x))} className="h-8 px-2 rounded-lg text-xs outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+                        <input value={item.amount} min={0} type="number" placeholder="Amount" aria-label="Amount" onChange={e => setItems(current => current.map((x, i) => i === index ? { ...x, amount: e.target.value } : x))} className="h-8 px-2 rounded-lg text-xs outline-none" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+                        <button onClick={() => setItems(current => current.filter((_, i) => i !== index))} aria-label="Remove item" className="text-xs" style={{ color: '#ef4444' }}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {detail.sourceEmail && (
                 <section>
@@ -228,7 +290,16 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
             <div className="p-4 border-t flex gap-2 sticky bottom-0" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}>
               {editing ? (
                 <button
-                  onClick={async () => { setBusy(true); try { await saveEdits(); setEditing(false); onChanged?.(); } finally { setBusy(false); } }}
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      await saveEdits();
+                      const refreshed = await api.getFinanceGmailTransactionDetail(transactionId);
+                      setDetail(refreshed);
+                      setEditing(false);
+                      onChanged?.();
+                    } finally { setBusy(false); }
+                  }}
                   disabled={busy}
                   className="flex-1 h-10 rounded-xl text-sm font-semibold text-white press disabled:opacity-60"
                   style={{ backgroundColor: 'var(--accent)' }}

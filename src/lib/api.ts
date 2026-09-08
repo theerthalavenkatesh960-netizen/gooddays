@@ -468,6 +468,13 @@ export async function deleteTask(id: number, deleteMode: 'this' | 'series' = 'th
   return request(`tasks/${id}${queryParam}`, { method: 'DELETE' });
 }
 
+export async function addTaskOccurrence(id: number, dueDate: Date) {
+  return request(`tasks/${id}/occurrence`, {
+    method: 'POST',
+    body: JSON.stringify({ dueDate: dueDate.toISOString() }),
+  });
+}
+
 // Expenses
 export async function getExpenses(userId: number) {
   return request(`expenses/user/${userId}`);
@@ -533,6 +540,10 @@ export async function updateFinanceGmailMerchant(expenseId: number, merchant: st
   });
 }
 
+export async function getFinanceGmailMerchants(): Promise<string[]> {
+  return request('finance/gmail/merchants');
+}
+
 export async function getFinanceGmailCandidates(status = 'NEEDS_REVIEW') {
   const query = status ? `?status=${encodeURIComponent(status)}` : '';
   return request(`finance/gmail/candidates${query}`);
@@ -562,6 +573,21 @@ export async function getFinanceGmailSettings() {
 
 export async function getFinanceGmailTransactionDetail(id: number) {
   return request(`finance/gmail/transactions/${id}`);
+}
+
+export async function saveFinanceGmailTransactionItems(id: number, items: Array<{ name: string; quantity: number; amount?: number }>) {
+  return request(`finance/gmail/transactions/${id}/items`, {
+    method: 'POST',
+    body: JSON.stringify({ items }),
+  });
+}
+
+export async function getFinanceGmailMerchantHistory(merchant: string) {
+  return request(`finance/gmail/merchant-history?merchant=${encodeURIComponent(merchant)}`);
+}
+
+export async function getFinanceGmailOrderDetail(id: string) {
+  return request(`finance/gmail/orders/${encodeURIComponent(id)}`);
 }
 
 export async function decideFinanceGmailTransaction(id: number, decision: 'APPROVE' | 'REJECT') {

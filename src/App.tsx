@@ -51,6 +51,8 @@ import BodyAllMealsPage from './pages/BodyAllMealsPage';
 import MealNeedsReviewPage from './pages/MealNeedsReviewPage';
 import LogIngredientPage from './pages/LogIngredientPage';
 import AiChat from './pages/AiChat';
+import FinanceMerchantHistory from './pages/FinanceMerchantHistory';
+import FinanceOrderDetail from './pages/FinanceOrderDetail';
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -119,6 +121,8 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/body/workout/exercise/:exerciseId/log" element={<PrivateRoute><Layout><ExerciseLoggerPage /></Layout></PrivateRoute>} />
               <Route path="/body/workout-log" element={<PrivateRoute><Layout><Workout /></Layout></PrivateRoute>} />
               <Route path="/finance"  element={<PrivateRoute><Layout><Finance /></Layout></PrivateRoute>} />
+              <Route path="/finance/merchant-history" element={<PrivateRoute><Layout><FinanceMerchantHistory /></Layout></PrivateRoute>} />
+              <Route path="/finance/orders/:orderId" element={<PrivateRoute><Layout><FinanceOrderDetail /></Layout></PrivateRoute>} />
               <Route path="/finance/cards" element={<PrivateRoute><Layout><Cards /></Layout></PrivateRoute>} />
               <Route path="/finance/cards/category/:category" element={<PrivateRoute><Layout><CardCategoryTransactions /></Layout></PrivateRoute>} />
               <Route path="/finance/cards/:cardId/category/:category" element={<PrivateRoute><Layout><CardCategoryTransactions /></Layout></PrivateRoute>} />

@@ -24,7 +24,7 @@ public class TransactionExtractionService : ITransactionExtractionService
         $@"\b(?:transaction\s+amount|total\s+paid|amount\s+paid|paid\s+via[^\n]{{0,30}}|grand\s+total|order\s+total|amount)\b[^\d\n]{{0,20}}(?:INR|Rs\.?|₹)\s*{NumberPattern}",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex RefRegex = new(@"\b(?:ref(?:erence)?\s*(?:no|number)?|utr|rrn|txn(?:\s*id)?|transaction\s*(?:id|reference\s*(?:no|number)?))\b[\s.:#\-]*(?:is\s+)?([A-Za-z0-9\-]{6,30})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex DateRegex = new(@"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{1,2}[- ][A-Za-z]{3,9}[- ]\d{2,4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex DateRegex = new(@"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{1,2}[- ][A-Za-z]{3,9}[-, ]+\d{2,4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex Last4Regex = new(@"(?:ending(?:\s+(?:with|in))?|ends\s+with|last\s*4(?:\s*digits)?|a\s*/\s*c|account|card|no\.?|number|[xX*]{2,})\s*[-#:]?\s*[xX*]{0,16}\s*(\d{4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex WalletRegex = new(@"\b(amazon\s*pay|paytm|phonepe|mobikwik|freecharge|wallet|balance)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     // UPI handles end in a scheme suffix (axl, ybl, okhdfcbank) rather than a domain, so no dot is required.
@@ -148,6 +148,7 @@ public class TransactionExtractionService : ITransactionExtractionService
         if (last4Match.Success) transaction.InstrumentLast4 = last4Match.Groups[1].Value;
 
         ApplyInstrumentFlow(anchor, transaction, fullText);
+        transaction.PaymentRail = InferPaymentRail(fullText, transaction.InstrumentType);
 
         var merchantMatch = MerchantRegex.Match(anchor);
         if (merchantMatch.Success)
@@ -203,6 +204,7 @@ public class TransactionExtractionService : ITransactionExtractionService
             amount = transaction.Amount,
             merchant = transaction.Merchant,
             instrument = transaction.InstrumentType,
+            paymentRail = transaction.PaymentRail,
             last4 = transaction.InstrumentLast4,
             sourceInstrumentType = transaction.SourceInstrumentType,
             sourceInstrumentLast4 = transaction.SourceInstrumentLast4,
@@ -381,7 +383,9 @@ public class TransactionExtractionService : ITransactionExtractionService
         if (vpa.Success) transaction.CounterpartyIdentifier = vpa.Groups[1].Value.Trim();
 
         var named = CounterpartyParenRegex.Match(anchor);
-        if (named.Success && !named.Groups[1].Value.Contains('@'))
+        if (named.Success
+            && !named.Groups[1].Value.Contains('@')
+            && !Regex.IsMatch(named.Groups[1].Value, @"^(?:ref(?:erence)?|txn|transaction|id|no\.?)\b", RegexOptions.IgnoreCase))
         {
             transaction.CounterpartyName = CleanMerchant(named.Groups[1].Value);
         }
@@ -487,7 +491,8 @@ public class TransactionExtractionService : ITransactionExtractionService
         "dd-MM-yy", "d-M-yy", "dd-MM-yyyy", "d-M-yyyy",
         "dd/MM/yy", "d/M/yy", "dd/MM/yyyy", "d/M/yyyy",
         "dd-MMM-yyyy", "d-MMM-yyyy", "dd-MMM-yy", "d-MMM-yy",
-        "dd MMM yyyy", "d MMM yyyy", "dd MMMM yyyy", "d MMMM yyyy"
+        "dd MMM yyyy", "d MMM yyyy", "dd MMMM yyyy", "d MMMM yyyy",
+        "dd MMM, yyyy", "d MMM, yyyy", "dd MMMM, yyyy", "d MMMM, yyyy"
     };
 
     private static DateTime? ReadDate(string text)
@@ -563,6 +568,15 @@ public class TransactionExtractionService : ITransactionExtractionService
         if (Regex.IsMatch(text, @"\bupi\b|\bvpa\b|\butr\b", RegexOptions.IgnoreCase)) return "UPI";
         if (Regex.IsMatch(text, @"\bcard\b", RegexOptions.IgnoreCase)) return "CARD_UNSPECIFIED";
         return "UNKNOWN";
+    }
+
+    private static string? InferPaymentRail(string text, string instrumentType)
+    {
+        if (Regex.IsMatch(text, @"\b(?:upi|vpa|utr|upi\s+ref(?:erence)?)\b", RegexOptions.IgnoreCase)) return "UPI";
+        if (instrumentType == "WALLET") return "WALLET";
+        if (instrumentType is "CREDIT_CARD" or "DEBIT_CARD" or "CARD_UNSPECIFIED") return "CARD";
+        if (instrumentType == "BANK_ACCOUNT") return "BANK_TRANSFER";
+        return null;
     }
 
     private static void ApplyInstrumentFlow(string text, ExtractedTransaction transaction, string fullText)

@@ -218,6 +218,16 @@ Check("REAL: SBI card spend via UPI stays a credit card", parser.TryExtract(
     && rSbi.ReferenceNumber == "624425455781"
     && rSbi.Merchant?.Contains("AXISMAXLIFE", StringComparison.OrdinalIgnoreCase) == true);
 
+Check("REAL: SBI card merchant is retained for BHARATFOODPOINT", parser.TryExtract(
+    "Transaction alert", "", GoodDaysApi.Tests.RealEmailSamples.SbiCardBharatFoodPoint, out var rBharat)
+    && rBharat.Amount == 60m
+    && rBharat.Merchant == "BHARATFOODPOINT"
+    && rBharat.CounterpartyName == "BHARATFOODPOINT"
+    && rBharat.InstrumentType == "CREDIT_CARD"
+    && rBharat.PaymentRail == "UPI"
+    && rBharat.InstrumentLast4 == "0697"
+    && rBharat.TransactionStatus == "COMPLETED");
+
 Check("REAL: Amazon Pay payment to merchant", parser.TryExtract(
     "Your payment to SWIGGY was Approved", "", GoodDaysApi.Tests.RealEmailSamples.AmazonPayToMerchant, out var rApay, "payments-messages@amazon.in")
     && rApay.Amount == 335m
@@ -225,6 +235,8 @@ Check("REAL: Amazon Pay payment to merchant", parser.TryExtract(
     && rApay.InstrumentType == "WALLET");
 
 Check("REAL: Amazon Pay counterparty does not swallow trailing verb", rApay.CounterpartyName == "SWIGGY");
+
+Check("REAL: Amazon Pay payment date parses comma format", rApay.TransactionDateUtc?.Date == new DateTime(2026, 8, 29));
 
 CheckFn("REAL: Amazon Pay display title has no trailing verb noise", () =>
 {

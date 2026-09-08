@@ -87,6 +87,12 @@ This is to inform you that,
 
 Rs.3,706.08 spent on your SBI Credit Card ending with 0697 at AXISMAXLIFEINSURANCE on 01-09-26 via UPI (Ref No. 624425455781). Trxn. not done by you? Report at https://sbicard.com/Dispute . If you have not authorized this transaction please contact the SBI Card helpline.";
 
+    public const string SbiCardBharatFoodPoint = @"Dear Cardholder,
+
+This is to inform you that,
+
+Rs.60.00 spent on your SBI Credit Card ending with 0697 at BHARATFOODPOINT on 08-09-26 via UPI (Ref No. 625186553096). Trxn. not done by you? Report at https://sbicard.com/Dispute . If you have not authorized this transaction please contact the SBI Card helpline.";
+
     public const string AmazonPayToMerchant = @"Hi Venkatesh,
 
 Your payment to SWIGGY was Approved

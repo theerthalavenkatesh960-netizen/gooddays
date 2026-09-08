@@ -6,7 +6,7 @@ import {
   ArrowUpRight, ArrowDownRight, Trash2, Pencil, Mail, RefreshCw, Unplug, Info
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 import { formatTxDateTime } from '../lib/config';
@@ -49,6 +49,7 @@ function PillTabs({ active, onChange }: { active: string; onChange: (t: string) 
 function TransactionsTab() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [month, setMonth] = useState(new Date());
   const [expenses, setExpenses] = useState<any[]>([]);
   const [gmailStatus, setGmailStatus] = useState<any>(null);
@@ -90,6 +91,11 @@ function TransactionsTab() {
       isMounted = false;
     };
   }, [user, month]);
+
+  useEffect(() => {
+    const transaction = Number(searchParams.get('transaction'));
+    if (transaction > 0) setDetailId(transaction);
+  }, [searchParams]);
 
   useEffect(() => {
     const onFocus = () => {
