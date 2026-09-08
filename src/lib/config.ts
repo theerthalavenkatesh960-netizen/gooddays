@@ -205,3 +205,27 @@ export const BUDGET_PRESETS = [
   { value: '6000', label: '₹6000', desc: 'Quality focus' },
   { value: '10000', label: 'No cap', desc: 'Best fit recs' },
 ];
+
+/** Formats a transaction date/time into a human friendly string like "Sep 3rd, 6:32 am". */
+export function formatTxDateTime(raw: string | Date | null | undefined): string {
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return '';
+
+  const month = d.toLocaleDateString('en-US', { month: 'short' });
+  const day = d.getDate();
+  const suffix = (day % 10 === 1 && day !== 11) ? 'st' :
+                 (day % 10 === 2 && day !== 12) ? 'nd' :
+                 (day % 10 === 3 && day !== 13) ? 'rd' : 'th';
+
+  const hours = d.getHours();
+  const minutes = d.getMinutes();
+  const hasTime = !(hours === 0 && minutes === 0 && d.getSeconds() === 0);
+  if (!hasTime) {
+    return `${month} ${day}${suffix}`;
+  }
+
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+  return `${month} ${day}${suffix}, ${time}`;
+}
+

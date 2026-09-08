@@ -32,6 +32,61 @@ public class Expense
     [Column("source_type")]
     public string? SourceType { get; set; }
 
+    [Column("direction")]
+    public string Direction { get; set; } = "DEBIT";
+
+    [Column("transaction_type")]
+    public string TransactionType { get; set; } = "OTHER";
+
+    [Column("transaction_status")]
+    public string TransactionStatus { get; set; } = "UNKNOWN";
+
+    [Column("payment_instrument_type")]
+    public string PaymentInstrumentType { get; set; } = "UNKNOWN";
+
+    [Column("institution_name")]
+    public string? InstitutionName { get; set; }
+
+    [Column("instrument_last4")]
+    public string? InstrumentLast4 { get; set; }
+
+    [Column("source_instrument_type")]
+    public string? SourceInstrumentType { get; set; }
+
+    [Column("source_instrument_last4")]
+    public string? SourceInstrumentLast4 { get; set; }
+
+    [Column("destination_instrument_type")]
+    public string? DestinationInstrumentType { get; set; }
+
+    [Column("destination_instrument_name")]
+    public string? DestinationInstrumentName { get; set; }
+
+    [Column("merchant_name")]
+    public string? MerchantName { get; set; }
+
+    [Column("counterparty_name")]
+    public string? CounterpartyName { get; set; }
+
+    [Column("counterparty_identifier")]
+    public string? CounterpartyIdentifier { get; set; }
+
+    [Column("currency")]
+    public string Currency { get; set; } = "INR";
+
+    [Column("confidence_score")]
+    public decimal ConfidenceScore { get; set; }
+
+    [Column("extraction_version")]
+    public string ExtractionVersion { get; set; } = "v2.0";
+
+    [Column("evidence_json", TypeName = "jsonb")]
+    public string EvidenceJson { get; set; } = "{}";
+
+    // originally detected merchant text, kept even after a manual correction, used as the alias lookup key
+    [Column("raw_merchant")]
+    public string? RawMerchant { get; set; }
+
     [Column("is_reviewed")]
     public bool IsReviewed { get; set; } = true;
 

@@ -526,6 +526,65 @@ export async function bulkSetCategoryFinanceGmailTransactions(expenseIds: number
   });
 }
 
+export async function updateFinanceGmailMerchant(expenseId: number, merchant: string, category?: string, applyToFuture = true) {
+  return request('finance/gmail/merchant', {
+    method: 'POST',
+    body: JSON.stringify({ expenseId, merchant, category, applyToFuture }),
+  });
+}
+
+export async function getFinanceGmailCandidates(status = 'NEEDS_REVIEW') {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return request(`finance/gmail/candidates${query}`);
+}
+
+export async function updateFinanceGmailCandidateStatus(id: string, status: 'NEEDS_REVIEW' | 'REJECTED') {
+  return request(`finance/gmail/candidates/${id}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function promoteFinanceGmailCandidate(id: string, payload: any) {
+  return request(`finance/gmail/candidates/${id}/promote`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getFinanceGmailCandidateEmail(id: string) {
+  return request(`finance/gmail/candidates/${id}/email`);
+}
+
+export async function getFinanceGmailSettings() {
+  return request('finance/gmail/settings');
+}
+
+export async function getFinanceGmailTransactionDetail(id: number) {
+  return request(`finance/gmail/transactions/${id}`);
+}
+
+export async function decideFinanceGmailTransaction(id: number, decision: 'APPROVE' | 'REJECT') {
+  return request(`finance/gmail/transactions/${id}/decision`, {
+    method: 'POST',
+    body: JSON.stringify({ decision }),
+  });
+}
+
+export async function decideFinanceGmailTransactions(expenseIds: number[], decision: 'APPROVE' | 'REJECT') {
+  return request('finance/gmail/transactions/decision', {
+    method: 'POST',
+    body: JSON.stringify({ expenseIds, decision }),
+  });
+}
+
+export async function updateFinanceGmailSettings(payload: any) {
+  return request('finance/gmail/settings', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
 // Daily tracking (sleep/workout/phone/sunlight/mood)
 export type DailyTracking = {
   id: number;

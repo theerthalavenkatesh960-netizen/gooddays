@@ -82,6 +82,32 @@ export interface CardAnalytics {
   endDate?: string;
 }
 
+export interface AccountInstrumentSummary {
+  name: string;
+  type: 'WALLET' | 'BANK_ACCOUNT' | 'UPI' | 'OTHER';
+  topUps: number;
+  spends: number;
+  refunds: number;
+  estimatedBalance: number;
+  debits: number;
+  credits: number;
+  last4?: string;
+  transactionCount: number;
+  latestActivity?: string;
+  recentTransactions: Array<{
+    id: number;
+    description: string;
+    amount: number;
+    category?: string;
+    date?: string;
+    direction: string;
+    transactionType: string;
+    sourceInstrumentType?: string;
+    destinationInstrumentType?: string;
+    destinationInstrumentName?: string;
+  }>;
+}
+
 let DUMMY_CARDS: CreditCard[] = [
   {
     id: 'd9d9e3d5-4f92-4cb7-ae21-2d589d9f0001',
@@ -229,6 +255,24 @@ export const cardApi = {
     return request(`cards/user/${userId}`);
   },
 
+  getAccountInstruments: async (userId: number): Promise<AccountInstrumentSummary[]> => {
+    if (USE_DUMMY_FINANCE) return Promise.resolve([]);
+    return request(`cards/user/${userId}/instruments`);
+  },
+
+  getUnlinkedCardTransactions: async (userId: number): Promise<any[]> => {
+    if (USE_DUMMY_FINANCE) return Promise.resolve([]);
+    return request(`cards/user/${userId}/unlinked-card-transactions`);
+  },
+
+  assignExpenseToCard: async (cardId: string, expenseId: number): Promise<any> => {
+    if (USE_DUMMY_FINANCE) return Promise.resolve({ updated: true });
+    return request(`cards/${cardId}/assign-expense`, {
+      method: 'POST',
+      body: JSON.stringify({ expenseId }),
+    });
+  },
+
   /**
    * Get a specific card
    */
@@ -360,6 +404,31 @@ export const cardApi = {
 
     const query = params.toString();
     return request(`cards/${cardId}/expenses${query ? `?${query}` : ''}`);
+  },
+
+  /**
+   * Get statement history for a specific card
+   */
+  getCardStatements: async (cardId: string): Promise<any[]> => {
+    if (USE_DUMMY_FINANCE) return Promise.resolve([]);
+    return request(`cards/${cardId}/statements`);
+  },
+
+  /**
+   * Get orders linked to transactions on a specific card
+   */
+  getCardOrders: async (cardId: string): Promise<any[]> => {
+    if (USE_DUMMY_FINANCE) return Promise.resolve([]);
+    return request(`cards/${cardId}/orders`);
+  },
+
+  getCardReconciliation: async (cardId: string, startDate?: Date, endDate?: Date): Promise<any> => {
+    if (USE_DUMMY_FINANCE) return Promise.resolve(null);
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate.toISOString());
+    if (endDate) params.append('endDate', endDate.toISOString());
+    const query = params.toString();
+    return request(`cards/${cardId}/reconciliation${query ? `?${query}` : ''}`);
   },
 
   /**

@@ -8,11 +8,14 @@ import {
 import { startOfMonth, endOfMonth } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContextApi';
-import cardApi, { CreditCard, CardAnalytics as CardAnalyticsType } from '../lib/cardApi';
+import cardApi, { CreditCard, CardAnalytics as CardAnalyticsType, AccountInstrumentSummary } from '../lib/cardApi';
 import BankStatementImport from '../components/financial/BankStatementImport';
 import CreditCardComponent from '../components/financial/CreditCardComponent';
 import CardAnalyticsComponent from '../components/financial/CardAnalytics';
 import EnhancedCreditCardComponent from '../components/financial/EnhancedCreditCardComponent';
+import CardStatementsAndOrders from '../components/financial/CardStatementsAndOrders';
+import AccountsAndWalletsPanel from '../components/financial/AccountsAndWalletsPanel';
+import UnlinkedCardTransactionsPanel from '../components/financial/UnlinkedCardTransactionsPanel';
 import SpendingAlertBanner from '../components/financial/SpendingAlertBanner';
 import RewardRedemptionModal from '../components/financial/RewardRedemptionModal';
 import { generateSpendingAlert, SpendingAlert } from '../lib/spendingAlerts';
@@ -64,6 +67,8 @@ export default function Cards() {
   const [cardForm, setCardForm] = useState<CardFormState>(EMPTY_CARD_FORM);
   const [isSavingCard, setIsSavingCard] = useState(false);
   const [alerts, setAlerts] = useState<SpendingAlert[]>([]);
+  const [accountInstruments, setAccountInstruments] = useState<AccountInstrumentSummary[]>([]);
+  const [unlinkedCardTransactions, setUnlinkedCardTransactions] = useState<any[]>([]);
   const [dateRange] = useState({
     start: startOfMonth(new Date()),
     end: endOfMonth(new Date())
@@ -73,6 +78,8 @@ export default function Cards() {
     if (!user) return;
     try {
       const fetchedCards = await cardApi.getCards(user.id);
+      const fetchedInstruments = await cardApi.getAccountInstruments(user.id).catch(() => []);
+      const fetchedUnlinked = await cardApi.getUnlinkedCardTransactions(user.id).catch(() => []);
       
       // Fetch analytics for each card
       const withAnalytics = await Promise.all(
@@ -93,6 +100,8 @@ export default function Cards() {
       );
 
       setCards(withAnalytics);
+      setAccountInstruments(fetchedInstruments);
+  setUnlinkedCardTransactions(fetchedUnlinked);
 
       // Generate alerts for all cards
       const cardAlerts = withAnalytics
@@ -142,6 +151,11 @@ export default function Cards() {
   }).format(value || 0)}`;
 
   const formatCount = (value: number) => new Intl.NumberFormat('en-IN').format(value || 0);
+
+  const assignExpenseToCard = async (cardId: string, expenseId: number) => {
+    await cardApi.assignExpenseToCard(cardId, expenseId);
+    await loadCards();
+  };
 
   const openAddCardModal = () => {
     setEditingCardId(null);
@@ -382,33 +396,38 @@ export default function Cards() {
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-5"
+              className="space-y-4"
             >
-              {cards.map((card, idx) => (
-                <motion.div
-                  key={card.id}
-                  whileHover={{ y: -4 }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={() => {
-                    setSelectedCardIndex(idx);
-                    setActiveTab(`card${idx + 1}` as TabType);
-                  }}
-                    className="text-left transition-all rounded-2xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer"
-                >
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openEditCardModal(card);
+              <AccountsAndWalletsPanel instruments={accountInstruments} />
+              <UnlinkedCardTransactionsPanel cards={cards} transactions={unlinkedCardTransactions} onAssign={assignExpenseToCard} />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-5">
+                {cards.map((card, idx) => (
+                  <motion.div
+                    key={card.id}
+                    whileHover={{ y: -4 }}
+                    whileTap={{ scale: 0.99 }}
+                    onClick={() => {
+                      setSelectedCardIndex(idx);
+                      setActiveTab(`card${idx + 1}` as TabType);
                     }}
-                    className="absolute z-20 top-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
-                    aria-label="Edit card"
+                      className="text-left transition-all rounded-2xl overflow-hidden shadow-sm hover:shadow-md cursor-pointer"
                   >
-                    <Pencil size={12} />
-                  </button>
-                  <CreditCardComponent card={card} index={idx} />
-                </motion.div>
-              ))}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditCardModal(card);
+                      }}
+                      className="absolute z-20 top-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                      aria-label="Edit card"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <CreditCardComponent card={card} index={idx} />
+                  </motion.div>
+                ))}
+              </div>
             </motion.div>
           )}
 
@@ -465,6 +484,9 @@ export default function Cards() {
                   }}
                 />
               )}
+
+              {/* Statement history + linked orders (from Gmail sync) */}
+              <CardStatementsAndOrders cardId={currentCard.id} />
 
               {/* Recent Transactions */}
               <motion.div

@@ -154,7 +154,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   external_reference varchar(120),
   source_type varchar(50),
   is_reviewed boolean NOT NULL DEFAULT true,
-  reviewed_at timestamp without time zone NULL,
+  reviewed_at timestamptz NULL,
   date timestamptz NOT NULL DEFAULT now(),
   created_at timestamptz DEFAULT now()
 );
@@ -165,7 +165,27 @@ ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS external_reference varchar(120),
   ADD COLUMN IF NOT EXISTS source_type varchar(50),
   ADD COLUMN IF NOT EXISTS is_reviewed boolean NOT NULL DEFAULT true,
-  ADD COLUMN IF NOT EXISTS reviewed_at timestamp without time zone NULL;
+  ADD COLUMN IF NOT EXISTS reviewed_at timestamptz NULL,
+  ADD COLUMN IF NOT EXISTS direction varchar(20) NOT NULL DEFAULT 'DEBIT',
+  ADD COLUMN IF NOT EXISTS transaction_type varchar(40) NOT NULL DEFAULT 'OTHER',
+  ADD COLUMN IF NOT EXISTS transaction_status varchar(20) NOT NULL DEFAULT 'UNKNOWN',
+  ADD COLUMN IF NOT EXISTS payment_instrument_type varchar(30) NOT NULL DEFAULT 'UNKNOWN',
+  ADD COLUMN IF NOT EXISTS institution_name varchar(120),
+  ADD COLUMN IF NOT EXISTS instrument_last4 varchar(4),
+  ADD COLUMN IF NOT EXISTS source_instrument_type varchar(30),
+  ADD COLUMN IF NOT EXISTS source_instrument_last4 varchar(4),
+  ADD COLUMN IF NOT EXISTS destination_instrument_type varchar(30),
+  ADD COLUMN IF NOT EXISTS destination_instrument_name varchar(120),
+  ADD COLUMN IF NOT EXISTS merchant_name varchar(120),
+  ADD COLUMN IF NOT EXISTS counterparty_name varchar(120),
+  ADD COLUMN IF NOT EXISTS counterparty_identifier varchar(120),
+  ADD COLUMN IF NOT EXISTS currency varchar(10) NOT NULL DEFAULT 'INR',
+  ADD COLUMN IF NOT EXISTS confidence_score numeric NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
+  ADD COLUMN IF NOT EXISTS evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+ALTER TABLE IF EXISTS expenses
+  ALTER COLUMN evidence_json TYPE jsonb USING COALESCE(gd_try_parse_jsonb(evidence_json::text), '{}'::jsonb);
 
 -- Ensure Clerk auth column exists when upgrading already-existing user_profiles table.
 ALTER TABLE IF EXISTS user_profiles
@@ -1055,9 +1075,9 @@ CREATE TABLE IF NOT EXISTS connected_email_accounts (
     provider varchar(50) NOT NULL,
     access_token_encrypted text NOT NULL,
     refresh_token_encrypted text NOT NULL,
-    token_expiry_utc timestamp without time zone NOT NULL,
-    last_synced_utc timestamp without time zone NULL,
-    created_at timestamp without time zone NOT NULL DEFAULT now()
+    token_expiry_utc timestamptz NOT NULL,
+    last_synced_utc timestamptz NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_connected_email_accounts_user_provider
@@ -1068,14 +1088,170 @@ CREATE TABLE IF NOT EXISTS synced_emails (
     user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
     gmail_message_id varchar(200) NOT NULL,
     thread_id varchar(200) NULL,
-    internal_date timestamp without time zone NOT NULL,
-    processed_at timestamp without time zone NOT NULL DEFAULT now()
+    internal_date timestamptz NOT NULL,
+    processed_at timestamptz NOT NULL DEFAULT now(),
+    subject text NOT NULL DEFAULT '',
+    snippet text NOT NULL DEFAULT '',
+    body_text text NOT NULL DEFAULT '',
+    sender varchar(255) NULL,
+    processing_status varchar(30) NOT NULL DEFAULT 'PROCESSED',
+    parser_name varchar(100) NOT NULL DEFAULT 'GenericTransactionParser',
+    extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
+    processing_error text NULL,
+    is_content_encrypted boolean NOT NULL DEFAULT false
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_synced_emails_user_message
     ON synced_emails(user_id, gmail_message_id);
 
--- Indexes for expense Gmail columns
+CREATE TABLE IF NOT EXISTS transaction_candidates (
+  id uuid PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  source_message_id varchar(200) NOT NULL,
+  source_thread_id varchar(200) NULL,
+  status varchar(30) NOT NULL DEFAULT 'NEEDS_REVIEW',
+  evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+  error text NULL,
+  extraction_version varchar(20) NOT NULL DEFAULT 'v2.0',
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_transaction_candidates_user_message
+  ON transaction_candidates(user_id, source_message_id);
+
+CREATE TABLE IF NOT EXISTS card_statements (
+    id uuid PRIMARY KEY,
+    user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    card_id uuid NULL REFERENCES credit_cards(id) ON DELETE SET NULL,
+    institution_name varchar(120) NULL,
+    card_last4 varchar(4) NULL,
+    statement_date timestamptz NULL,
+    due_date timestamptz NULL,
+    statement_balance numeric NULL,
+    minimum_amount_due numeric NULL,
+    total_amount_due numeric NULL,
+    available_credit_limit numeric NULL,
+    credit_limit numeric NULL,
+    currency varchar(10) NOT NULL DEFAULT 'INR',
+    source_message_id varchar(200) NULL,
+    extraction_version varchar(20) NOT NULL DEFAULT 'v1.0',
+    confidence_score numeric NOT NULL DEFAULT 0,
+    evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_card_statements_user_card
+    ON card_statements(user_id, card_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_card_statements_user_message
+  ON card_statements(user_id, source_message_id)
+  WHERE source_message_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS orders (
+    id uuid PRIMARY KEY,
+    user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    merchant varchar(120) NULL,
+    order_number varchar(120) NULL,
+    order_date timestamptz NULL,
+    total_amount numeric NULL,
+    currency varchar(10) NOT NULL DEFAULT 'INR',
+    source_message_id varchar(200) NULL,
+    evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ix_orders_user_id ON orders(user_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_user_merchant_order_number
+  ON orders(user_id, merchant, order_number)
+  WHERE merchant IS NOT NULL AND order_number IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_orders_user_message
+  ON orders(user_id, source_message_id)
+  WHERE source_message_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS order_transaction_links (
+    id uuid PRIMARY KEY,
+    order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    expense_id integer NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+    match_score numeric NOT NULL DEFAULT 0,
+    match_method varchar(60) NOT NULL DEFAULT 'AMOUNT_DATE',
+    status varchar(30) NOT NULL DEFAULT 'NEEDS_REVIEW',
+    evidence_json jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_order_transaction_links_order_expense
+    ON order_transaction_links(order_id, expense_id);
+
+CREATE TABLE IF NOT EXISTS order_items (
+    id uuid PRIMARY KEY,
+    order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    name varchar(200) NOT NULL,
+    quantity integer NOT NULL DEFAULT 1,
+    amount numeric NULL,
+    line_number integer NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS ix_order_items_order_id ON order_items(order_id);
+
+CREATE TABLE IF NOT EXISTS merchant_aliases (
+    id uuid PRIMARY KEY,
+    user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+    raw_merchant_key varchar(200) NOT NULL,
+    corrected_merchant varchar(200) NOT NULL,
+    corrected_category varchar(60) NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_merchant_aliases_user_key
+    ON merchant_aliases(user_id, raw_merchant_key);
+
+CREATE TABLE IF NOT EXISTS gmail_sync_preferences (
+  id uuid PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  finance_sender_allowlist text NOT NULL DEFAULT '',
+  blocked_sender_patterns text NOT NULL DEFAULT '',
+  trusted_order_domains text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_gmail_sync_preferences_user
+  ON gmail_sync_preferences(user_id);
+
+CREATE TABLE IF NOT EXISTS gmail_sender_stats (
+  id uuid PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  sender_key varchar(200) NOT NULL,
+  confirmed_count integer NOT NULL DEFAULT 0,
+  rejected_count integer NOT NULL DEFAULT 0,
+  last_seen_utc timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_gmail_sender_stats_user_sender
+  ON gmail_sender_stats(user_id, sender_key);
+
+
+-- Upgrade path for expenses only, since it is never dropped and may predate the timestamptz declaration.
+-- The Gmail tables are recreated from scratch by other/gmail_rebuild.sql, so they need no conversion.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'expenses'
+      AND column_name = 'reviewed_at'
+      AND data_type = 'timestamp without time zone'
+  ) THEN
+    ALTER TABLE expenses
+      ALTER COLUMN reviewed_at TYPE timestamptz USING reviewed_at AT TIME ZONE 'UTC';
+  END IF;
+END $$;
+
+ALTER TABLE IF EXISTS expenses
+  ADD COLUMN IF NOT EXISTS raw_merchant text;
 CREATE INDEX IF NOT EXISTS ix_expenses_user_gmail_message_id
     ON expenses(user_id, gmail_message_id);
 

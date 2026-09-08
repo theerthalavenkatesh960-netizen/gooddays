@@ -43,9 +43,28 @@ DROP TABLE IF EXISTS user_ai_settings;
 DROP INDEX IF EXISTS ix_expenses_user_source_reviewed;
 DROP INDEX IF EXISTS ix_expenses_user_external_reference;
 DROP INDEX IF EXISTS ix_expenses_user_gmail_message_id;
+DROP INDEX IF EXISTS ix_transaction_candidates_user_message;
+DROP INDEX IF EXISTS ix_gmail_sync_preferences_user;
+DROP INDEX IF EXISTS ix_gmail_sender_stats_user_sender;
+DROP INDEX IF EXISTS ix_merchant_aliases_user_key;
+DROP INDEX IF EXISTS ix_order_transaction_links_order_expense;
+DROP INDEX IF EXISTS ix_order_items_order_id;
+DROP INDEX IF EXISTS ix_orders_user_id;
+DROP INDEX IF EXISTS ix_orders_user_merchant_order_number;
+DROP INDEX IF EXISTS ix_orders_user_message;
+DROP INDEX IF EXISTS ix_card_statements_user_card;
+DROP INDEX IF EXISTS ix_card_statements_user_message;
 DROP INDEX IF EXISTS ix_synced_emails_user_message;
 DROP INDEX IF EXISTS ix_connected_email_accounts_user_provider;
 
+DROP TABLE IF EXISTS merchant_aliases;
+DROP TABLE IF EXISTS gmail_sender_stats;
+DROP TABLE IF EXISTS gmail_sync_preferences;
+DROP TABLE IF EXISTS order_transaction_links;
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS card_statements;
+DROP TABLE IF EXISTS transaction_candidates;
 DROP TABLE IF EXISTS synced_emails;
 DROP TABLE IF EXISTS connected_email_accounts;
 
@@ -54,7 +73,34 @@ ALTER TABLE expenses
     DROP COLUMN IF EXISTS is_reviewed,
     DROP COLUMN IF EXISTS source_type,
     DROP COLUMN IF EXISTS external_reference,
-    DROP COLUMN IF EXISTS gmail_message_id;
+    DROP COLUMN IF EXISTS gmail_message_id,
+    DROP COLUMN IF EXISTS subject,
+    DROP COLUMN IF EXISTS snippet,
+    DROP COLUMN IF EXISTS body_text,
+    DROP COLUMN IF EXISTS sender,
+    DROP COLUMN IF EXISTS processing_status,
+    DROP COLUMN IF EXISTS parser_name,
+    DROP COLUMN IF EXISTS extraction_version,
+    DROP COLUMN IF EXISTS processing_error,
+    DROP COLUMN IF EXISTS is_content_encrypted,
+    DROP COLUMN IF EXISTS direction,
+    DROP COLUMN IF EXISTS transaction_type,
+    DROP COLUMN IF EXISTS transaction_status,
+    DROP COLUMN IF EXISTS payment_instrument_type,
+    DROP COLUMN IF EXISTS institution_name,
+    DROP COLUMN IF EXISTS instrument_last4,
+    DROP COLUMN IF EXISTS source_instrument_type,
+    DROP COLUMN IF EXISTS source_instrument_last4,
+    DROP COLUMN IF EXISTS destination_instrument_type,
+    DROP COLUMN IF EXISTS destination_instrument_name,
+    DROP COLUMN IF EXISTS merchant_name,
+    DROP COLUMN IF EXISTS counterparty_name,
+    DROP COLUMN IF EXISTS counterparty_identifier,
+    DROP COLUMN IF EXISTS currency,
+    DROP COLUMN IF EXISTS confidence_score,
+    DROP COLUMN IF EXISTS extraction_version,
+    DROP COLUMN IF EXISTS evidence_json,
+    DROP COLUMN IF EXISTS raw_merchant;
 
 -- ===================================================================
 -- 007 ROLLBACK: Advanced goals

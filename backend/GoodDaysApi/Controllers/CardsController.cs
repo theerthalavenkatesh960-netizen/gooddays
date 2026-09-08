@@ -27,6 +27,115 @@ public class CardsController : ControllerBase
         return Ok(cards);
     }
 
+    // GET /api/cards/user/{userId}/instruments
+    [HttpGet("user/{userId}/instruments")]
+    public async Task<IActionResult> GetUserInstruments(int userId)
+    {
+        var instrumentExpenses = await _db.Expenses
+            .Where(e => e.UserId == userId
+                        && e.SourceType == "gmail"
+                        && (e.PaymentInstrumentType == "WALLET"
+                            || e.PaymentInstrumentType == "BANK_ACCOUNT"
+                            || e.PaymentInstrumentType == "UPI"
+                            || e.SourceInstrumentType == "WALLET"
+                            || e.DestinationInstrumentType == "WALLET"))
+            .OrderByDescending(e => e.Date ?? e.CreatedAt)
+            .ToListAsync();
+
+        var instruments = instrumentExpenses
+            .GroupBy(GetInstrumentKey)
+            .Select(g => new
+            {
+                name = g.Key,
+                type = ResolveInstrumentType(g.First()),
+                topUps = g.Where(e => e.DestinationInstrumentType == "WALLET").Sum(e => e.Amount),
+                spends = g.Where(e => e.SourceInstrumentType == "WALLET" && e.Direction == "DEBIT").Sum(e => e.Amount),
+                refunds = g.Where(e => e.PaymentInstrumentType == "WALLET" && e.Direction == "CREDIT").Sum(e => e.Amount),
+                estimatedBalance = g.Where(e => e.DestinationInstrumentType == "WALLET").Sum(e => e.Amount)
+                    + g.Where(e => e.PaymentInstrumentType == "WALLET" && e.Direction == "CREDIT").Sum(e => e.Amount)
+                    - g.Where(e => e.SourceInstrumentType == "WALLET" && e.Direction == "DEBIT").Sum(e => e.Amount),
+                debits = g.Where(e => e.Direction == "DEBIT").Sum(e => e.Amount),
+                credits = g.Where(e => e.Direction == "CREDIT").Sum(e => e.Amount),
+                last4 = g.First().InstrumentLast4,
+                transactionCount = g.Count(),
+                latestActivity = g.Max(e => e.Date ?? e.CreatedAt),
+                recentTransactions = g.Take(5).Select(e => new
+                {
+                    e.Id,
+                    e.Description,
+                    e.Amount,
+                    e.Category,
+                    e.Date,
+                    e.Direction,
+                    e.TransactionType,
+                    e.SourceInstrumentType,
+                    e.DestinationInstrumentType,
+                    e.DestinationInstrumentName
+                })
+            })
+            .OrderByDescending(w => w.latestActivity)
+            .ToList();
+
+        return Ok(instruments);
+    }
+
+    // GET /api/cards/user/{userId}/unlinked-card-transactions
+    [HttpGet("user/{userId}/unlinked-card-transactions")]
+    public async Task<IActionResult> GetUnlinkedCardTransactions(int userId)
+    {
+        var linkedExpenseIds = await _db.CardExpenses.Select(x => x.ExpenseId).ToListAsync();
+        var transactions = await _db.Expenses
+            .Where(e => e.UserId == userId
+                        && e.SourceType == "gmail"
+                        && (e.PaymentInstrumentType == "CREDIT_CARD" || e.PaymentInstrumentType == "DEBIT_CARD")
+                        && !linkedExpenseIds.Contains(e.Id))
+            .OrderByDescending(e => e.Date ?? e.CreatedAt)
+            .Take(100)
+            .ToListAsync();
+
+        return Ok(transactions);
+    }
+
+    // POST /api/cards/{id}/assign-expense
+    [HttpPost("{id}/assign-expense")]
+    public async Task<IActionResult> AssignExpenseToCard(Guid id, [FromBody] AssignExpenseToCardRequest request)
+    {
+        var card = await _db.CreditCards.FindAsync(id);
+        if (card == null) return NotFound();
+
+        var expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == request.ExpenseId && e.UserId == card.UserId);
+        if (expense == null) return NotFound();
+
+        var existing = await _db.CardExpenses.FirstOrDefaultAsync(e => e.ExpenseId == expense.Id);
+        if (existing == null)
+        {
+            _db.CardExpenses.Add(new CardExpense { CardId = id, ExpenseId = expense.Id, AssignedAt = DateTime.UtcNow });
+        }
+        else
+        {
+            existing.CardId = id;
+            existing.AssignedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(new { updated = true });
+    }
+
+    private static string GetInstrumentKey(Expense expense)
+    {
+        if (expense.DestinationInstrumentType == "WALLET") return expense.DestinationInstrumentName ?? "Wallet";
+        if (expense.SourceInstrumentType == "WALLET") return expense.InstitutionName ?? "Wallet";
+        if (expense.PaymentInstrumentType == "UPI") return expense.InstitutionName ?? "UPI";
+        if (expense.PaymentInstrumentType == "BANK_ACCOUNT") return $"{expense.InstitutionName ?? "Bank Account"} {expense.InstrumentLast4 ?? string.Empty}".Trim();
+        return expense.InstitutionName ?? expense.PaymentInstrumentType ?? "Instrument";
+    }
+
+    private static string ResolveInstrumentType(Expense expense)
+    {
+        if (expense.DestinationInstrumentType == "WALLET" || expense.SourceInstrumentType == "WALLET") return "WALLET";
+        return expense.PaymentInstrumentType ?? "OTHER";
+    }
+
     // GET /api/cards/{id}
     [HttpGet("{id}")]
     public async Task<IActionResult> GetCard(Guid id)
@@ -117,6 +226,97 @@ public class CardsController : ControllerBase
         return Ok(expenses);
     }
 
+    // GET /api/cards/{id}/statements
+    [HttpGet("{id}/statements")]
+    public async Task<IActionResult> GetCardStatements(Guid id)
+    {
+        var cardExists = await _db.CreditCards.AnyAsync(c => c.Id == id);
+        if (!cardExists) return NotFound();
+
+        var statements = await _db.CardStatements
+            .Where(s => s.CardId == id)
+            .OrderByDescending(s => s.StatementDate ?? s.CreatedAt)
+            .ToListAsync();
+        return Ok(statements);
+    }
+
+    // GET /api/cards/{id}/orders
+    [HttpGet("{id}/orders")]
+    public async Task<IActionResult> GetCardOrders(Guid id)
+    {
+        var cardExists = await _db.CreditCards.AnyAsync(c => c.Id == id);
+        if (!cardExists) return NotFound();
+
+        var expenseIds = await _db.CardExpenses
+            .Where(ce => ce.CardId == id)
+            .Select(ce => ce.ExpenseId)
+            .ToListAsync();
+
+        var orders = await _db.OrderTransactionLinks
+            .Where(link => expenseIds.Contains(link.ExpenseId))
+            .Include(link => link.Order)
+            .Include(link => link.Expense)
+            .OrderByDescending(link => link.Order!.OrderDate ?? link.Order!.CreatedAt)
+            .Select(link => new
+            {
+                link.Id,
+                link.Status,
+                link.MatchScore,
+                link.MatchMethod,
+                Order = link.Order,
+                ExpenseId = link.ExpenseId,
+                ExpenseAmount = link.Expense!.Amount,
+                ExpenseDate = link.Expense!.Date
+            })
+            .ToListAsync();
+        return Ok(orders);
+    }
+
+    // GET /api/cards/{id}/reconciliation
+    [HttpGet("{id}/reconciliation")]
+    public async Task<IActionResult> GetCardReconciliation(Guid id, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
+    {
+        var card = await _db.CreditCards.FindAsync(id);
+        if (card == null) return NotFound();
+
+        var query = _db.CardExpenses.Where(ce => ce.CardId == id).Include(ce => ce.Expense).AsQueryable();
+        if (startDate.HasValue) query = query.Where(ce => ce.Expense!.Date >= startDate);
+        if (endDate.HasValue) query = query.Where(ce => ce.Expense!.Date <= endDate);
+
+        var expenses = await query.Select(ce => ce.Expense!).Where(e => e.TransactionType != "TRANSFER").ToListAsync();
+        var gmail = expenses.Where(e => e.SourceType == "gmail").ToList();
+        var imported = expenses.Where(e => e.SourceType != "gmail").ToList();
+
+        var matchedGmailIds = new HashSet<int>();
+        var matchedImportedIds = new HashSet<int>();
+        foreach (var gmailExpense in gmail)
+        {
+            var match = imported.FirstOrDefault(importedExpense =>
+                !matchedImportedIds.Contains(importedExpense.Id)
+                && importedExpense.Amount == gmailExpense.Amount
+                && importedExpense.Date.HasValue
+                && gmailExpense.Date.HasValue
+                && Math.Abs((importedExpense.Date.Value.Date - gmailExpense.Date.Value.Date).TotalDays) <= 2);
+            if (match != null)
+            {
+                matchedGmailIds.Add(gmailExpense.Id);
+                matchedImportedIds.Add(match.Id);
+            }
+        }
+
+        return Ok(new
+        {
+            cardId = id,
+            gmailTotal = gmail.Sum(e => e.Amount),
+            importedTotal = imported.Sum(e => e.Amount),
+            matchedCount = matchedGmailIds.Count,
+            unmatchedGmailCount = gmail.Count(e => !matchedGmailIds.Contains(e.Id)),
+            unmatchedImportedCount = imported.Count(e => !matchedImportedIds.Contains(e.Id)),
+            unmatchedGmail = gmail.Where(e => !matchedGmailIds.Contains(e.Id)).Take(10),
+            unmatchedImported = imported.Where(e => !matchedImportedIds.Contains(e.Id)).Take(10)
+        });
+    }
+
     // GET /api/cards/{id}/analytics
     [HttpGet("{id}/analytics")]
     public async Task<IActionResult> GetCardAnalytics(Guid id, [FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
@@ -133,7 +333,9 @@ public class CardsController : ControllerBase
         if (endDate.HasValue)
             query = query.Where(ce => ce.Expense!.Date <= endDate);
 
-        var cardExpenses = await query.ToListAsync();
+        var cardExpenses = await query
+            .Where(ce => ce.Expense!.TransactionType != "TRANSFER")
+            .ToListAsync();
 
         // Group by category
         var byCategory = cardExpenses
@@ -197,3 +399,5 @@ public record UpdateCardRequest(
     int? RewardPointsBalance,
     string? Status
 );
+
+public record AssignExpenseToCardRequest(int ExpenseId);
