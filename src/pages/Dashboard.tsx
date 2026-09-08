@@ -42,6 +42,23 @@ interface Task {
   updatedAt?: string;
 }
 
+interface ActivityDay {
+  key: string;
+  label: string;
+  dateLabel: string;
+  taskCompleted: number;
+  taskTotal: number;
+  workout: boolean;
+  journal: boolean;
+  finance: boolean;
+  routine: { completed: number; total: number } | null;
+}
+
+interface SpendCategory {
+  name: string;
+  amount: number;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORY_OPTIONS = [
@@ -109,58 +126,21 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+function normalizeMomentumWeights(weights: MomentumWeights, routineEnabled: boolean): MomentumWeights {
+  const enabled = { ...weights, routine: routineEnabled ? weights.routine : 0 };
+  const total = Object.values(enabled).reduce((sum, value) => sum + value, 0);
+  if (total <= 0) return enabled;
+  const scaled = Object.fromEntries(Object.entries(enabled).map(([key, value]) => [key, Math.round(value * 100 / total)])) as MomentumWeights;
+  const roundedTotal = Object.values(scaled).reduce((sum, value) => sum + value, 0);
+  scaled.tasks += 100 - roundedTotal;
+  return scaled;
+}
+
 function momentumBand(score: number) {
   if (score < 30) return 'Recover';
   if (score < 60) return 'Build';
   if (score < 85) return 'Strong';
   return 'Legendary';
-}
-
-function pickVariant(options: string[], seed: number) {
-  if (!options.length) return '';
-  return options[Math.abs(seed) % options.length];
-}
-
-function getHeroMessage(params: {
-  score: number;
-  delta: number;
-  dayKey: string;
-  routinePendingCount: number;
-  tasksPendingCount: number;
-}) {
-  const band = momentumBand(params.score);
-  const scoreSeed = [...params.dayKey].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) + params.score;
-
-  const byBand: Record<string, string[]> = {
-    Recover: [
-      'Reset mode: one intentional action can flip this day.',
-      'Low momentum is not failure. It is your launch point.',
-      'Start tiny, finish strong. First action wins today.',
-    ],
-    Build: [
-      'You are building momentum. Protect it with the next step.',
-      'Solid base today. One focused push lifts the whole score.',
-      'Consistency is forming. Keep stacking clean wins.',
-    ],
-    Strong: [
-      'You are in strong form. Convert this into a streak day.',
-      'Great pace. Stay disciplined for one more high-value action.',
-      'You are close to elite mode. Keep the chain unbroken.',
-    ],
-    Legendary: [
-      'Legendary pace. Lock it in and make this your new normal.',
-      'You are operating at peak consistency today.',
-      'Top-tier day. Use this energy to pull tomorrow forward.',
-    ],
-  };
-
-  let suffix = '';
-  if (params.delta > 0) suffix = ` (+${params.delta} vs yesterday)`;
-  if (params.delta < 0) suffix = ` (${params.delta} vs yesterday, recover now)`;
-  if (params.routinePendingCount > 0) suffix += ` · ${params.routinePendingCount} routine block${params.routinePendingCount > 1 ? 's' : ''} pending`;
-  if (!suffix && params.tasksPendingCount > 0) suffix = ` · ${params.tasksPendingCount} task${params.tasksPendingCount > 1 ? 's' : ''} to close`;
-
-  return `${pickVariant(byBand[band] ?? byBand.Build, scoreSeed)}${suffix}`;
 }
 
 function calculateMomentumScore(input: {
@@ -206,6 +186,29 @@ function StatChip({ icon: Icon, label, value, color, empty }: {
   );
 }
 
+function DashboardSectionHeading({ icon: Icon, label, detail, color = 'var(--accent)', action }: {
+  icon: React.ElementType;
+  label: string;
+  detail?: string;
+  color?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 mb-3">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${color}18`, color }}>
+          <Icon size={14} />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] truncate" style={{ color: 'var(--text-secondary)' }}>{label}</p>
+          {detail && <p className="text-[10px] mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>{detail}</p>}
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
 // ─── Dashboard Tab ────────────────────────────────────────────────────────────
 
 function DashboardTab({
@@ -213,24 +216,27 @@ function DashboardTab({
   navigate,
   onOpenTasks,
   onOpenRoutine,
+  showRoutineTab,
 }: {
   user: any;
   navigate: (p: string) => void;
   onOpenTasks: () => void;
   onOpenRoutine: () => void;
+  showRoutineTab: boolean;
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [todayTaskItems, setTodayTaskItems] = useState<Task[]>([]);
   const [water, setWater] = useState(0);
   const [waterGoal] = useState(8);
   const [workoutStreak, setWorkoutStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const [reminders, setReminders] = useState<any[]>([]);
   const [momentumScore, setMomentumScore] = useState(0);
-  const [momentumDelta, setMomentumDelta] = useState(0);
   const [weeklyTaskDays, setWeeklyTaskDays] = useState(0);
   const [weeklyWorkoutDays, setWeeklyWorkoutDays] = useState(0);
   const [weeklyJournalDays, setWeeklyJournalDays] = useState(0);
   const [weeklySpend, setWeeklySpend] = useState(0);
+  const [monthlySpend, setMonthlySpend] = useState(0);
   const [goalsInProgress, setGoalsInProgress] = useState(0);
   const [nearestGoalDays, setNearestGoalDays] = useState<number | null>(null);
   const [monthlyNet, setMonthlyNet] = useState<number | null>(null);
@@ -242,10 +248,17 @@ function DashboardTab({
   const [momentumWeights, setMomentumWeights] = useState(DEFAULT_MOMENTUM_WEIGHTS);
   const [upcomingMeal, setUpcomingMeal] = useState<any>(null);
   const [upcomingWorkout, setUpcomingWorkout] = useState<any>(null);
+  const [progressBreakdownOpen, setProgressBreakdownOpen] = useState(true);
+  const [todayProgress, setTodayProgress] = useState({ completed: 0, total: 0 });
+  const [progressBreakdown, setProgressBreakdown] = useState<Array<{ key: string; completed: number; total: number; icon: React.ElementType }>>([]);
+  const [yesterdayProgressPercent, setYesterdayProgressPercent] = useState<number | null>(null);
+  const [activityDays, setActivityDays] = useState<ActivityDay[]>([]);
+  const [spendCategories, setSpendCategories] = useState<SpendCategory[]>([]);
+  const [previousMonthSpend, setPreviousMonthSpend] = useState<number | null>(null);
+  const [nearestGoalName, setNearestGoalName] = useState<string | null>(null);
 
   const today = format(new Date(), 'yyyy-MM-dd');
-  const completedTaskCount = tasks.filter(t => t.isCompleted ?? t.status === 'completed').length;
-  const pendingTaskCount = tasks.filter(t => !(t.isCompleted ?? t.status === 'completed')).length;
+  const completedTaskCount = todayTaskItems.filter(t => String(t.status ?? '').toLowerCase() !== 'skipped' && (t.isCompleted ?? t.status === 'completed')).length;
   const scoreBand = momentumBand(momentumScore);
 
   const nextActionRules: Array<() => {
@@ -276,7 +289,7 @@ function DashboardTab({
         icon: CheckCircle2,
       };
     },
-    () => routinePendingCount > 0 ? {
+    () => showRoutineTab && routinePendingCount > 0 ? {
       title: 'Finish your next routine block',
       subtitle: `${routinePendingCount} block${routinePendingCount > 1 ? 's' : ''} pending today`,
       points: Math.max(4, Math.round(momentumWeights.routine / 4)),
@@ -326,14 +339,6 @@ function DashboardTab({
     onPress: () => navigate('/life'),
     icon: Flame,
   };
-
-  const heroMessage = getHeroMessage({
-    score: momentumScore,
-    delta: momentumDelta,
-    dayKey: today,
-    routinePendingCount,
-    tasksPendingCount: pendingTaskCount,
-  });
 
   const wins = [
     completedTaskCount > 0
@@ -390,6 +395,7 @@ function DashboardTab({
         api.getWorkoutPlanByDate(format(addDays(new Date(), 1), 'yyyy-MM-dd')).catch(() => null),
       ]);
 
+      let effectiveWeights = DEFAULT_MOMENTUM_WEIGHTS;
       const settingsWeights = (settingsData as any)?.dashboardWeights;
       if (settingsWeights) {
         const readWeight = (value: unknown, fallback: number) => {
@@ -404,39 +410,38 @@ function DashboardTab({
           finance: clamp(readWeight(settingsWeights.finance, DEFAULT_MOMENTUM_WEIGHTS.finance), 0, 100),
           journal: clamp(readWeight(settingsWeights.journal, DEFAULT_MOMENTUM_WEIGHTS.journal), 0, 100),
         };
-        const total = normalized.tasks + normalized.routine + normalized.body + normalized.workout + normalized.finance + normalized.journal;
-        if (total > 0) {
-          const scale = 100 / total;
-          const scaled = {
-            tasks: Math.round(normalized.tasks * scale),
-            routine: Math.round(normalized.routine * scale),
-            body: Math.round(normalized.body * scale),
-            workout: Math.round(normalized.workout * scale),
-            finance: Math.round(normalized.finance * scale),
-            journal: 0,
-          };
-          scaled.journal = Math.max(0, 100 - scaled.tasks - scaled.routine - scaled.body - scaled.workout - scaled.finance);
-          setMomentumWeights(scaled);
-        }
+        effectiveWeights = normalizeMomentumWeights(normalized, showRoutineTab);
+        setMomentumWeights(effectiveWeights);
+      } else {
+        effectiveWeights = normalizeMomentumWeights(DEFAULT_MOMENTUM_WEIGHTS, showRoutineTab);
+        setMomentumWeights(effectiveWeights);
       }
 
       const allTasks = Array.isArray(taskData) ? taskData : [];
-      const todayTasks = allTasks.filter((t: Task) => {
+      const todayTaskItems = allTasks.filter((t: Task) => {
         const due = t.dueDate ?? t.due_date;
         if (!due) return false;
         try {
-          return isToday(parseISO(due));
+          return isToday(parseISO(due)) && String(t.status ?? '').toLowerCase() !== 'skipped';
         } catch {
           return false;
         }
-      }).slice(0, 5);
-      setTasks(todayTasks);
+      });
+      setTodayTaskItems(todayTaskItems);
+      setTasks(todayTaskItems.slice(0, 5));
 
-      const completedYesterday = allTasks.filter((t: any) => {
+      const yesterdayTasks = allTasks.filter((t: any) => {
+        const due = t.dueDate ?? t.due_date;
+        if (!due) return false;
+        try {
+          return format(parseISO(due), 'yyyy-MM-dd') === yesterday;
+        } catch {
+          return false;
+        }
+      });
+      const completedYesterday = yesterdayTasks.filter((t: any) => {
         const done = t.isCompleted ?? t.status === 'completed';
-        if (!done) return false;
-        const updated = t.updatedAt ? format(new Date(t.updatedAt), 'yyyy-MM-dd') : null;
-        return updated === yesterday;
+        return done && String(t.status ?? '').toLowerCase() !== 'skipped';
       }).length;
 
       const tracking: any = trackingData ?? {};
@@ -467,9 +472,14 @@ function DashboardTab({
       const last7 = Array.from({ length: 7 }, (_, i) => format(subDays(new Date(), 6 - i), 'yyyy-MM-dd'));
       const weeklyTaskHitCount = last7.filter(d =>
         allTasks.some((t: any) => {
+          const due = t.dueDate ?? t.due_date;
           const done = t.isCompleted ?? t.status === 'completed';
-          if (!done || !t.updatedAt) return false;
-          return format(new Date(t.updatedAt), 'yyyy-MM-dd') === d;
+          if (!done || String(t.status ?? '').toLowerCase() === 'skipped' || !due) return false;
+          try {
+            return format(parseISO(due), 'yyyy-MM-dd') === d;
+          } catch {
+            return false;
+          }
         })
       ).length;
       setWeeklyTaskDays(weeklyTaskHitCount);
@@ -494,10 +504,15 @@ function DashboardTab({
       const routineCompleted = Number((routineData as any)?.stats?.completed ?? 0);
       const routineTotal = Number((routineData as any)?.stats?.total ?? 0);
       const pendingRoutine = routineBlocks.filter((b: any) => b.status === 'pending').length;
-      setRoutinePendingCount(pendingRoutine);
-      setRoutineCompletionText(routineTotal > 0 ? `${routineCompleted}/${routineTotal} completed` : 'No routine today');
+      setRoutinePendingCount(showRoutineTab ? pendingRoutine : 0);
+      setRoutineCompletionText(showRoutineTab && routineTotal > 0 ? `${routineCompleted}/${routineTotal} completed` : 'No routine today');
 
       const expenses = Array.isArray(expenseData) ? expenseData : [];
+      const isSpend = (expense: any) => {
+        const direction = String(expense.direction ?? '').toUpperCase();
+        const transactionType = String(expense.transactionType ?? expense.transaction_type ?? '').toUpperCase();
+        return direction !== 'CREDIT' && transactionType !== 'TRANSFER';
+      };
       const touchedFinanceToday = expenses.some((e: any) => {
         const raw = e.date ?? e.createdAt ?? e.created_at;
         if (!raw) return false;
@@ -510,7 +525,7 @@ function DashboardTab({
           const raw = e.date ?? e.createdAt ?? e.created_at;
           if (!raw) return false;
           const dt = new Date(raw);
-          return dt >= weekStart;
+          return dt >= weekStart && isSpend(e);
         })
         .reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
       setWeeklySpend(weeklyExpenseTotal);
@@ -519,9 +534,28 @@ function DashboardTab({
         .filter((e: any) => {
           const raw = e.date ?? e.createdAt ?? e.created_at;
           if (!raw) return false;
-          return format(new Date(raw), 'yyyy-MM') === currentMonthKey;
+          return format(new Date(raw), 'yyyy-MM') === currentMonthKey && isSpend(e);
         })
         .reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
+      setMonthlySpend(monthExpenseTotal);
+
+      const previousMonthKey = format(subDays(new Date(currentMonthKey + '-01'), 1), 'yyyy-MM');
+      const previousMonthTotal = expenses
+        .filter((e: any) => {
+          const raw = e.date ?? e.createdAt ?? e.created_at;
+          return raw && format(new Date(raw), 'yyyy-MM') === previousMonthKey && isSpend(e);
+        })
+        .reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
+      setPreviousMonthSpend(previousMonthTotal);
+
+      const categoryTotals = new Map<string, number>();
+      expenses.forEach((expense: any) => {
+        const raw = expense.date ?? expense.createdAt ?? expense.created_at;
+        if (!raw || format(new Date(raw), 'yyyy-MM') !== currentMonthKey || !isSpend(expense)) return;
+        const category = String(expense.category ?? expense.categoryName ?? 'Other').trim() || 'Other';
+        categoryTotals.set(category, (categoryTotals.get(category) ?? 0) + Number(expense.amount || 0));
+      });
+      setSpendCategories(Array.from(categoryTotals.entries()).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount).slice(0, 4));
 
       if (budgetData) {
         const fixed = (budgetData.fixedExpenses ?? []).reduce((sum: number, f: any) => sum + Number(f.effectiveAmount ?? f.amount ?? 0), 0);
@@ -535,16 +569,45 @@ function DashboardTab({
       const activeGoals = goals.filter((g: any) => (g.status ?? '').toLowerCase() !== 'completed');
       setGoalsInProgress(activeGoals.length);
       const deadlines = activeGoals
-        .map((g: any) => g.deadlineDate ?? g.deadline_date)
+        .map((g: any) => ({ name: g.title ?? g.name ?? 'Untitled goal', date: g.deadlineDate ?? g.deadline_date }))
         .filter(Boolean)
-        .map((d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-        .filter((n: number) => n >= 0)
-        .sort((a: number, b: number) => a - b);
-      setNearestGoalDays(deadlines.length > 0 ? deadlines[0] : null);
+        .map((goal: any) => ({ ...goal, days: Math.ceil((new Date(goal.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) }))
+        .filter((goal: any) => goal.days >= 0)
+        .sort((a: any, b: any) => a.days - b.days);
+      setNearestGoalDays(deadlines.length > 0 ? deadlines[0].days : null);
+      setNearestGoalName(deadlines.length > 0 ? deadlines[0].name : null);
+
+      const activity = last7.map((key) => {
+        const dayTasks = allTasks.filter((task: Task) => {
+          const due = task.dueDate ?? task.due_date;
+          return due && format(parseISO(due), 'yyyy-MM-dd') === key && String(task.status ?? '').toLowerCase() !== 'skipped';
+        });
+        const dayJournal = journalEntries.some((entry: any) => {
+          const raw = entry.date ?? entry.createdAt ?? entry.created_at;
+          return raw && format(new Date(raw), 'yyyy-MM-dd') === key;
+        });
+        const dayFinance = expenses.some((expense: any) => {
+          const raw = expense.date ?? expense.createdAt ?? expense.created_at;
+          return raw && format(new Date(raw), 'yyyy-MM-dd') === key && isSpend(expense);
+        });
+        return {
+          key,
+          label: format(parseISO(key), 'EEE'),
+          dateLabel: format(parseISO(key), 'MMM d'),
+          taskCompleted: dayTasks.filter((task: Task) => Boolean(task.isCompleted ?? task.status === 'completed')).length,
+          taskTotal: dayTasks.length,
+          workout: trainedDates.includes(key),
+          journal: dayJournal,
+          finance: dayFinance,
+          routine: showRoutineTab && key === today && routineTotal > 0 ? { completed: routineCompleted, total: routineTotal } : null,
+        };
+      });
+      setActivityDays(activity);
 
       // Daily momentum model (0..100)
-      const taskCompletionRatio = todayTasks.length > 0 ? todayTasks.filter(t => t.isCompleted ?? t.status === 'completed').length / todayTasks.length : 0.4;
-      const routineRatio = routineTotal > 0 ? routineCompleted / routineTotal : 0.5;
+      const completedTodayTaskCount = todayTaskItems.filter(t => t.isCompleted ?? t.status === 'completed').length;
+      const taskCompletionRatio = todayTaskItems.length > 0 ? completedTodayTaskCount / todayTaskItems.length : 0;
+      const routineRatio = showRoutineTab && routineTotal > 0 ? routineCompleted / routineTotal : 0;
       const score = calculateMomentumScore({
         taskCompletionRatio,
         routineRatio,
@@ -555,38 +618,31 @@ function DashboardTab({
         workoutDone: workoutDoneToday,
         financeTouched: touchedFinanceToday,
         journalDone: hasJournalToday,
-        weights: settingsWeights ? {
-          tasks: Number(settingsWeights.tasks ?? momentumWeights.tasks),
-          routine: Number(settingsWeights.routine ?? momentumWeights.routine),
-          body: Number(settingsWeights.body ?? momentumWeights.body),
-          workout: Number(settingsWeights.workout ?? momentumWeights.workout),
-          finance: Number(settingsWeights.finance ?? momentumWeights.finance),
-          journal: Number(settingsWeights.journal ?? momentumWeights.journal),
-        } : momentumWeights,
+        weights: effectiveWeights,
       });
 
-      const yesterdayScore = calculateMomentumScore({
-        taskCompletionRatio: completedYesterday > 0 ? 0.6 : 0.25,
-        routineRatio: 0.5,
-        sleepHours: ySleepHours,
-        waterCups: yWaterCups,
-        waterGoal,
-        calories: yCalories,
-        workoutDone: trainedDates.includes(yesterday),
-        financeTouched: false,
-        journalDone: false,
-        weights: settingsWeights ? {
-          tasks: Number(settingsWeights.tasks ?? momentumWeights.tasks),
-          routine: Number(settingsWeights.routine ?? momentumWeights.routine),
-          body: Number(settingsWeights.body ?? momentumWeights.body),
-          workout: Number(settingsWeights.workout ?? momentumWeights.workout),
-          finance: Number(settingsWeights.finance ?? momentumWeights.finance),
-          journal: Number(settingsWeights.journal ?? momentumWeights.journal),
-        } : momentumWeights,
-      });
+      const bodyCompleted = [sleepHours > 0, waterCups >= waterGoal, calories > 0].filter(Boolean).length;
+      const currentParts = [
+        { key: 'Tasks', completed: completedTodayTaskCount, total: todayTaskItems.length, icon: CheckSquare, weight: effectiveWeights.tasks },
+        { key: 'Workout', completed: workoutDoneToday ? 1 : 0, total: 1, icon: Dumbbell, weight: effectiveWeights.workout },
+        { key: 'Journal', completed: hasJournalToday ? 1 : 0, total: 1, icon: BookOpen, weight: effectiveWeights.journal },
+        { key: 'Finance', completed: touchedFinanceToday ? 1 : 0, total: 1, icon: DollarSign, weight: effectiveWeights.finance },
+        { key: 'Body', completed: bodyCompleted, total: 3, icon: HeartPulse, weight: effectiveWeights.body },
+        ...(showRoutineTab ? [{ key: 'Routine', completed: routineCompleted, total: routineTotal, icon: Repeat, weight: effectiveWeights.routine }] : []),
+      ].filter(part => part.weight > 0 && part.total > 0);
+      const currentCompleted = currentParts.reduce((sum, part) => sum + part.completed, 0);
+      const currentTotal = currentParts.reduce((sum, part) => sum + part.total, 0);
+      setTodayProgress({ completed: currentCompleted, total: currentTotal });
+      setProgressBreakdown(currentParts.map(({ key, completed, total, icon }) => ({ key, completed, total, icon })));
+
+      const yesterdayJournal = journalEntries.some((j: any) => format(new Date(j.date ?? j.createdAt ?? j.created_at), 'yyyy-MM-dd') === yesterday);
+      const yesterdayExpenses = expenses.some((e: any) => isSpend(e) && format(new Date(e.date ?? e.createdAt ?? e.created_at), 'yyyy-MM-dd') === yesterday);
+      const yesterdayBody = [ySleepHours > 0, yWaterCups >= waterGoal, yCalories > 0].filter(Boolean).length;
+      const yesterdayCompleted = completedYesterday + (trainedDates.includes(yesterday) ? 1 : 0) + (yesterdayJournal ? 1 : 0) + (yesterdayExpenses ? 1 : 0) + yesterdayBody;
+      const yesterdayTotal = yesterdayTasks.filter((task: any) => String(task.status ?? '').toLowerCase() !== 'skipped').length + 1 + 1 + 1 + 3;
+      setYesterdayProgressPercent(yesterdayTotal > 0 ? Math.round(yesterdayCompleted / yesterdayTotal * 100) : null);
 
       setMomentumScore(clamp(score, 0, 100));
-      setMomentumDelta(clamp(score - yesterdayScore, -100, 100));
 
       // Set upcoming meal and workout
       if (weeklyMealPlanData?.planJson || weeklyMealPlanData?.plan_json) {
@@ -625,31 +681,107 @@ function DashboardTab({
   };
 
   const NextIcon = nextAction.icon;
+  const todayProgressPercent = todayProgress.total > 0 ? Math.round(todayProgress.completed / todayProgress.total * 100) : 0;
+  const progressDelta = yesterdayProgressPercent === null ? null : todayProgressPercent - yesterdayProgressPercent;
+  const formatMoney = (amount: number) => `₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(amount))}`;
+  const spendDelta = previousMonthSpend === null || previousMonthSpend === 0
+    ? null
+    : Math.round(((monthlySpend - previousMonthSpend) / previousMonthSpend) * 100);
+  const goalUrgency = nearestGoalDays === null ? null : nearestGoalDays <= 3 ? 'Due very soon' : nearestGoalDays <= 14 ? 'Due soon' : 'On track';
+  const goalUrgencyColor = nearestGoalDays !== null && nearestGoalDays <= 3 ? 'var(--accent-warm)' : nearestGoalDays !== null && nearestGoalDays <= 14 ? 'var(--accent-gold)' : 'var(--accent-green)';
 
   return (
     <div>
-      {/* Momentum hero */}
-      <div className="mb-4 p-4 rounded-2xl" style={{ background: 'linear-gradient(135deg, var(--accent)26, var(--surface))', border: '1px solid var(--accent)33' }}>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>Daily Momentum</p>
-            <p className="text-3xl font-extrabold num mt-0.5" style={{ color: 'var(--text-primary)' }}>{momentumScore}</p>
+      {/* Today progress hero */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22 }} className="mb-4 p-4 rounded-2xl" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)55', boxShadow: '0 10px 26px rgba(0, 0, 0, 0.12)' }}>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--accent)' }} />
+              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--accent)' }}>Today’s Progress</p>
+            </div>
+            <p className="text-3xl font-extrabold num mt-1" style={{ color: 'var(--text-primary)' }}>{loading ? '--' : todayProgress.completed}<span className="text-lg font-semibold" style={{ color: 'var(--text-muted)' }}>/{loading ? '--' : todayProgress.total}</span></p>
             <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-              {scoreBand} mode {momentumDelta !== 0 ? `· ${momentumDelta > 0 ? '+' : ''}${momentumDelta} vs yesterday` : '· same as yesterday'}
+              {loading ? 'Loading today’s activity…' : `${todayProgressPercent}% complete`}{progressDelta === null ? '' : ` · ${progressDelta > 0 ? '+' : ''}${progressDelta}% vs yesterday`}
             </p>
           </div>
-          <div className="px-2 py-1 rounded-lg" style={{ backgroundColor: 'var(--surface)' }}>
-            <TrendingUp size={16} style={{ color: 'var(--accent)' }} />
+          <div className="w-[76px] h-[76px] rounded-full flex items-center justify-center flex-shrink-0" style={{ background: `conic-gradient(var(--accent) ${todayProgressPercent * 3.6}deg, var(--surface-elevated) 0deg)`, boxShadow: '0 0 0 5px var(--surface-elevated)' }}>
+            <div className="w-[58px] h-[58px] rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--surface)' }}>
+              <span className="text-xs font-bold num" style={{ color: 'var(--accent)' }}>{loading ? '--' : `${todayProgressPercent}%`}</span>
+            </div>
           </div>
         </div>
-        <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>{heroMessage}</p>
-      </div>
+        <div className="mt-4 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+          <motion.div initial={{ width: 0 }} animate={{ width: loading ? '35%' : `${todayProgressPercent}%` }} transition={{ duration: 0.5, delay: 0.12 }} className="h-full rounded-full" style={{ backgroundColor: 'var(--accent)' }} />
+        </div>
+        <button onClick={() => setProgressBreakdownOpen(value => !value)} className="w-full mt-3 flex items-center justify-between text-left press">
+          <span className="text-[11px] font-semibold" style={{ color: 'var(--text-secondary)' }}>Calculation breakdown</span>
+          {progressBreakdownOpen ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
+        </button>
+        {progressBreakdownOpen && (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3">
+            {progressBreakdown.map(({ key, completed, total, icon: Icon }) => {
+              const percent = total > 0 ? Math.round(completed / total * 100) : 0;
+              return (
+                <div key={key}>
+                  <div className="flex items-center justify-between text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                    <span className="flex items-center gap-1"><Icon size={12} />{key}</span>
+                    <span className="num">{completed}/{total}</span>
+                  </div>
+                  <div className="h-1 mt-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: 'var(--accent)' }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <p className="text-[10px] mt-3" style={{ color: 'var(--text-muted)' }}>Completion is calculated from the activity categories above. Skipped tasks are excluded.</p>
+      </motion.div>
+
+      {/* Seven-day activity strip */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.04 }} className="mb-4 rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <DashboardSectionHeading icon={TrendingUp} label="7-day activity" detail="A quick read of your consistency" />
+        {loading ? (
+          <div className="grid grid-cols-7 gap-1.5">{Array.from({ length: 7 }, (_, index) => <div key={index} className="skeleton h-24 rounded-lg" />)}</div>
+        ) : activityDays.length === 0 ? (
+          <p className="py-5 text-center text-xs" style={{ color: 'var(--text-muted)' }}>Activity will appear here after your first day is logged.</p>
+        ) : (
+          <div className="grid grid-cols-7 gap-1.5 overflow-x-auto">
+            {activityDays.map((day) => {
+              const taskPercent = day.taskTotal > 0 ? Math.round(day.taskCompleted / day.taskTotal * 100) : 0;
+              const routineSegment = showRoutineTab && day.routine;
+              return (
+                <div key={day.key} className="min-w-[42px] rounded-lg px-1 py-2 text-center transition-transform hover:-translate-y-0.5" style={{ backgroundColor: day.key === today ? 'var(--accent)18' : 'var(--surface-elevated)', border: day.key === today ? '1px solid var(--accent)55' : '1px solid transparent' }} title={day.dateLabel}>
+                  <p className="text-[10px] font-semibold" style={{ color: day.key === today ? 'var(--accent)' : 'var(--text-secondary)' }}>{day.label}</p>
+                  <div className="h-8 mt-1.5 flex items-end justify-center">
+                    <div className="w-3 rounded-t-sm" style={{ height: `${Math.max(5, taskPercent)}%`, backgroundColor: day.taskTotal === 0 ? 'var(--border)' : taskPercent === 100 ? 'var(--accent-green)' : 'var(--accent)' }} />
+                  </div>
+                  <p className="text-[9px] num mt-1" style={{ color: 'var(--text-muted)' }}>{day.taskTotal ? `${day.taskCompleted}/${day.taskTotal}` : '—'}</p>
+                  <div className="flex justify-center gap-1 mt-1.5" aria-label={`${day.dateLabel}: workout ${day.workout ? 'done' : 'not logged'}, journal ${day.journal ? 'done' : 'not logged'}, finance ${day.finance ? 'logged' : 'not logged'}`}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: day.workout ? 'var(--accent-warm)' : 'var(--border)' }} />
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: day.journal ? 'var(--accent-green)' : 'var(--border)' }} />
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: day.finance ? 'var(--accent-gold)' : 'var(--border)' }} />
+                    {routineSegment && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: day.routine!.completed === day.routine!.total ? 'var(--accent)' : 'var(--border)' }} />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-[9px]" style={{ color: 'var(--text-muted)' }}>
+          <span><i className="inline-block w-1.5 h-1.5 rounded-full mr-1" style={{ backgroundColor: 'var(--accent-warm)' }} />Workout</span>
+          <span><i className="inline-block w-1.5 h-1.5 rounded-full mr-1" style={{ backgroundColor: 'var(--accent-green)' }} />Journal</span>
+          <span><i className="inline-block w-1.5 h-1.5 rounded-full mr-1" style={{ backgroundColor: 'var(--accent-gold)' }} />Finance</span>
+          {showRoutineTab && <span><i className="inline-block w-1.5 h-1.5 rounded-full mr-1" style={{ backgroundColor: 'var(--accent)' }} />Routine</span>}
+        </div>
+      </motion.div>
 
       {/* Next best action */}
-      <div className="mb-4 rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>Next Best Action</p>
-          <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>+{nextAction.points}</span>
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.08 }} className="mb-4 rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between mb-3">
+          <DashboardSectionHeading icon={Zap} label="Next best action" />
+          <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)22', color: 'var(--accent)' }}>{scoreBand} · +{nextAction.points}</span>
         </div>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--accent)22' }}>
@@ -663,23 +795,26 @@ function DashboardTab({
             {nextAction.cta}
           </button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Snapshot */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <StatChip icon={Target} label="Tasks Today" value={`${completedTaskCount}/${tasks.length || 0}`} color="var(--accent)" empty={tasks.length === 0} />
-        <StatChip icon={Repeat} label="Routine" value={routineCompletionText} color="var(--accent-green)" empty={routineCompletionText === 'No routine'} />
-        <StatChip icon={Flame} label="Workout" value={workoutToday ? 'Logged' : `${workoutStreak}d streak`} color="var(--accent-warm)" empty={!workoutToday && workoutStreak === 0} />
-        <StatChip icon={DollarSign} label="Monthly Net" value={monthlyNet === null ? '--' : `${monthlyNet >= 0 ? '+' : '-'}₹${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(monthlyNet))}`} color={monthlyNet !== null && monthlyNet >= 0 ? 'var(--accent-green)' : 'var(--accent-warm)'} empty={monthlyNet === null} />
-      </div>
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.12 }} className="mb-4">
+        <DashboardSectionHeading icon={LayoutDashboard} label="Your snapshot" detail="The signals shaping today" />
+        <div className="grid grid-cols-2 gap-2">
+          <StatChip icon={Target} label="Tasks Today" value={`${completedTaskCount}/${tasks.length || 0}`} color="var(--accent)" empty={tasks.length === 0} />
+          {showRoutineTab && <StatChip icon={Repeat} label="Routine" value={routineCompletionText} color="var(--accent-green)" empty={routineCompletionText === 'No routine'} />}
+          <StatChip icon={Flame} label="Workout" value={workoutToday ? 'Logged' : `${workoutStreak}d streak`} color="var(--accent-warm)" empty={!workoutToday && workoutStreak === 0} />
+          <StatChip icon={DollarSign} label="Monthly Net" value={monthlyNet === null ? '--' : `${monthlyNet >= 0 ? '+' : '-'}₹${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(monthlyNet))}`} color={monthlyNet !== null && monthlyNet >= 0 ? 'var(--accent-green)' : 'var(--accent-warm)'} empty={monthlyNet === null} />
+        </div>
+      </motion.div>
 
       {/* AI Health Advisor banner */}
       <button
         onClick={() => navigate('/health-advisor')}
-        className="w-full mb-4 rounded-2xl p-4 flex items-center gap-3 press"
-        style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-green, var(--accent)))', border: 'none' }}
+        className="w-full mb-4 rounded-2xl p-4 flex items-center gap-3 press transition-colors"
+        style={{ backgroundColor: 'var(--accent)', border: '1px solid var(--accent)', boxShadow: '0 8px 18px var(--accent)22' }}
       >
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(255,255,255,0.18)' }}>
           <Brain size={20} className="text-white" />
         </div>
         <div className="flex-1 text-left">
@@ -692,20 +827,20 @@ function DashboardTab({
       {/* Quick add row */}
       <div className="grid grid-cols-4 gap-2 mb-4">
         {[
-          { label: 'Task', icon: Plus, onPress: onOpenTasks },
-          { label: 'Quick Log', icon: Zap, onPress: () => navigate('/life') },
-          { label: 'Journal', icon: BookOpen, onPress: () => navigate('/journal/new') },
-          { label: 'Expense', icon: DollarSign, onPress: () => navigate('/finance') },
+          { label: 'Task', icon: Plus, color: 'var(--accent)', onPress: onOpenTasks },
+          { label: 'Quick Log', icon: Zap, color: 'var(--accent-gold)', onPress: () => navigate('/life') },
+          { label: 'Journal', icon: BookOpen, color: 'var(--accent-green)', onPress: () => navigate('/journal/new') },
+          { label: 'Expense', icon: DollarSign, color: 'var(--accent-warm)', onPress: () => navigate('/finance') },
         ].map((item) => {
           const Icon = item.icon;
           return (
             <button
               key={item.label}
               onClick={item.onPress}
-              className="rounded-xl py-2.5 flex flex-col items-center gap-1.5 press"
+              className="rounded-xl py-2.5 flex flex-col items-center gap-1.5 press transition-colors hover:border-[var(--accent)]"
               style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}
             >
-              <Icon size={14} style={{ color: 'var(--accent)' }} />
+              <Icon size={14} style={{ color: item.color }} />
               <span className="text-[10px] font-semibold" style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
             </button>
           );
@@ -716,8 +851,8 @@ function DashboardTab({
       {(upcomingMeal || upcomingWorkout) && (
         <div className="mb-4 grid grid-cols-2 gap-2">
           {upcomingMeal && (
-            <div className="rounded-xl p-3 flex flex-col" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Next Meal</p>
+            <div className="rounded-xl p-3 flex flex-col transition-transform hover:-translate-y-0.5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-1.5"><HeartPulse size={13} style={{ color: 'var(--accent-green)' }} /><p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Next Meal</p></div>
               <p className="text-xs font-bold mt-1.5 truncate" style={{ color: 'var(--text-primary)' }}>
                 {upcomingMeal.mealTemplateId ? `Meal ${upcomingMeal.mealTemplateId}` : 'Planned'}
               </p>
@@ -730,8 +865,8 @@ function DashboardTab({
             </div>
           )}
           {upcomingWorkout && (
-            <div className="rounded-xl p-3 flex flex-col" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Next Workout</p>
+            <div className="rounded-xl p-3 flex flex-col transition-transform hover:-translate-y-0.5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-1.5"><Dumbbell size={13} style={{ color: 'var(--accent-warm)' }} /><p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>Next Workout</p></div>
               <p className="text-xs font-bold mt-1.5 truncate" style={{ color: 'var(--text-primary)' }}>
                 {upcomingWorkout.dayLabel || format(parseISO(upcomingWorkout.date || today), 'EEE')}
               </p>
@@ -747,10 +882,8 @@ function DashboardTab({
       )}
 
       {/* Wins board */}
-      <div className="mb-4 rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <div className="section-header px-0 mb-2">
-          <span className="section-label">Wins Board</span>
-        </div>
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.16 }} className="mb-4 rounded-2xl p-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <DashboardSectionHeading icon={CheckCircle2} label="Wins board" detail="Small proof that today is moving" color="var(--accent-green)" />
         {wins.length === 0 ? (
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Your wins will show here as soon as you complete actions today.</p>
         ) : (
@@ -762,37 +895,73 @@ function DashboardTab({
             ))}
           </div>
         )}
-      </div>
+      </motion.div>
 
-      {/* Weekly trend mini cards */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Task consistency</p>
-          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>{weeklyTaskDays}/7 days</p>
+      {/* Weekly analytics */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.22, delay: 0.2 }} className="mb-4">
+        <DashboardSectionHeading icon={TrendingUp} label="Weekly analytics" detail="Consistency, spending, and goals" />
+        <div className="grid grid-cols-2 gap-2">
+        {[
+          { label: 'Task consistency', value: `${weeklyTaskDays}/7 days`, icon: CheckSquare, color: 'var(--accent)', onClick: onOpenTasks, progress: weeklyTaskDays / 7 },
+          { label: 'Workout consistency', value: `${weeklyWorkoutDays}/7 days`, icon: Dumbbell, color: 'var(--accent-warm)', onClick: () => navigate('/body?tab=Workout'), progress: weeklyWorkoutDays / 7 },
+          { label: 'Journal days', value: `${weeklyJournalDays}/7 days`, icon: BookOpen, color: 'var(--accent-green)', progress: weeklyJournalDays / 7 },
+          { label: 'Weekly spend', value: formatMoney(weeklySpend), icon: TrendingUp, color: 'var(--accent-gold)', onClick: () => navigate('/finance') },
+          { label: 'Monthly spend', value: formatMoney(monthlySpend), icon: DollarSign, color: 'var(--accent-gold)', onClick: () => navigate('/finance'), detail: spendDelta === null ? 'No prior month comparison' : `${spendDelta > 0 ? '+' : ''}${spendDelta}% vs last month` },
+          { label: 'Goals', value: `${goalsInProgress} active`, icon: Target, color: goalUrgencyColor, onClick: () => navigate('/goals'), detail: nearestGoalDays === null ? 'No upcoming deadline' : `${goalUrgency} · ${nearestGoalDays}d`, detailColor: goalUrgencyColor },
+        ].map((item) => {
+          const Icon = item.icon;
+          return (
+            <button key={item.label} onClick={item.onClick} disabled={!item.onClick} className="rounded-xl p-3 text-left press transition-transform hover:-translate-y-0.5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', opacity: item.onClick ? 1 : 0.85 }}>
+              <div className="flex items-center justify-between">
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{item.label}</p>
+                <Icon size={13} style={{ color: item.color }} />
+              </div>
+              <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>{item.value}</p>
+              {item.progress !== undefined && <div className="h-1 mt-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border)' }}><div className="h-full rounded-full" style={{ width: `${item.progress * 100}%`, backgroundColor: item.color }} /></div>}
+              {'detail' in item && item.detail && <p className="text-[9px] mt-1 truncate" style={{ color: item.detailColor ?? 'var(--text-muted)' }}>{item.detail}</p>}
+            </button>
+          );
+        })}
         </div>
-        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Workout consistency</p>
-          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>{weeklyWorkoutDays}/7 days</p>
-        </div>
-        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Journal days</p>
-          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>{weeklyJournalDays}/7 days</p>
-        </div>
-        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Week spend</p>
-          <p className="text-sm font-bold num mt-1" style={{ color: 'var(--text-primary)' }}>₹{new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.round(weeklySpend))}</p>
-        </div>
+      </motion.div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+        <button onClick={() => navigate('/finance')} className="rounded-xl p-3 text-left press" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>This month by category</p>
+            <ChevronRight size={13} style={{ color: 'var(--accent)' }} />
+          </div>
+          {spendCategories.length === 0 ? (
+            <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>No spending recorded this month.</p>
+          ) : (
+            <div className="space-y-2 mt-3">
+              {spendCategories.map((category) => (
+                <div key={category.name}>
+                  <div className="flex justify-between text-[10px]" style={{ color: 'var(--text-secondary)' }}><span className="truncate mr-2">{category.name}</span><span className="num">{formatMoney(category.amount)}</span></div>
+                  <div className="h-1 mt-1 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--border)' }}><div className="h-full rounded-full" style={{ width: `${monthlySpend > 0 ? Math.min(100, category.amount / monthlySpend * 100) : 0}%`, backgroundColor: 'var(--accent)' }} /></div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-[9px] mt-3" style={{ color: 'var(--text-muted)' }}>Credits and transfers excluded</p>
+        </button>
+        <button onClick={() => navigate('/goals')} className="rounded-xl p-3 text-left press" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between"><p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Goal focus</p><Target size={13} style={{ color: 'var(--accent)' }} /></div>
+          <p className="text-xl font-bold num mt-2" style={{ color: 'var(--text-primary)' }}>{goalsInProgress}</p>
+          <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>active goal{goalsInProgress === 1 ? '' : 's'}</p>
+          {nearestGoalDays === null ? <p className="text-[10px] mt-3" style={{ color: 'var(--text-muted)' }}>Add a deadline to create a clear next target.</p> : <p className="text-[10px] mt-3 truncate" style={{ color: goalUrgencyColor }}>{nearestGoalName} · {goalUrgency} in {nearestGoalDays}d</p>}
+        </button>
       </div>
 
       {/* Today tasks quick list */}
       <div className="mb-4">
-        <div className="section-header px-0 mb-2">
-          <span className="section-label">Today's Tasks</span>
-          <button onClick={onOpenTasks} className="flex items-center gap-0.5 text-xs press" style={{ color: 'var(--accent)' }}>
-            Open <ChevronRight size={14} />
-          </button>
-        </div>
-        <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <DashboardSectionHeading
+          icon={CheckSquare}
+          label="Today's tasks"
+          detail={`${completedTaskCount} of ${tasks.length || 0} complete`}
+          action={<button onClick={onOpenTasks} className="flex items-center gap-0.5 text-xs press" style={{ color: 'var(--accent)' }}>Open <ChevronRight size={14} /></button>}
+        />
+        <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 6px 18px rgba(0, 0, 0, 0.08)' }}>
           {loading ? (
             [1, 2, 3].map(i => (
               <div key={i} className="task-row">
@@ -809,7 +978,7 @@ function DashboardTab({
             tasks.map(task => {
               const done = task.isCompleted ?? task.status === 'completed';
               return (
-                <div key={task.id} className="task-row" onClick={() => toggleTask(task)}>
+                <div key={task.id} className="task-row transition-colors hover:bg-[var(--surface-elevated)]" onClick={() => toggleTask(task)}>
                   <div className={`checkbox-custom ${done ? 'checked' : ''}`}>
                     {done && <CheckCircle2 size={13} color="#fff" />}
                   </div>
@@ -825,13 +994,13 @@ function DashboardTab({
 
       {/* Reminders + goals snapshot */}
       <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-xl p-3" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Active reminders</p>
+        <div className="rounded-xl p-3 transition-transform hover:-translate-y-0.5" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-1.5 mb-2"><Zap size={13} style={{ color: 'var(--accent-gold)' }} /><p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Active reminders</p></div>
           <p className="text-base font-bold num" style={{ color: 'var(--text-primary)' }}>{reminders.length}</p>
           <p className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>today</p>
         </div>
-        <div className="rounded-xl p-3 cursor-pointer" onClick={() => navigate('/life?tab=Goals')} style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <p className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>Goals in progress</p>
+        <div className="rounded-xl p-3 cursor-pointer transition-transform hover:-translate-y-0.5 press" onClick={() => navigate('/life?tab=Goals')} style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center gap-1.5 mb-2"><Target size={13} style={{ color: 'var(--accent)' }} /><p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Goals in progress</p></div>
           <p className="text-base font-bold num" style={{ color: 'var(--text-primary)' }}>{goalsInProgress}</p>
           {nearestGoalDays !== null ? (
             <p className="text-[10px] mt-1" style={{ color: 'var(--accent)' }}>⏳ {nearestGoalDays}d to next deadline</p>
@@ -2798,6 +2967,7 @@ export default function Dashboard() {
               navigate={navigate}
               onOpenTasks={() => setActiveTab('tasks')}
               onOpenRoutine={() => setActiveTab(showRoutineTab ? 'routine' : 'dashboard')}
+              showRoutineTab={showRoutineTab}
             />
           )}
           {activeTab === 'tasks' && <TasksTab user={user} />}
