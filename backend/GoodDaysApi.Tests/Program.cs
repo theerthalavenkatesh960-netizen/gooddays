@@ -62,6 +62,20 @@ Check("multiple transactions detected", multiple.Count == 2
     && multiple.Any(x => x.Amount == 1249m && x.Merchant?.Contains("Amazon", StringComparison.OrdinalIgnoreCase) == true)
     && multiple.Any(x => x.Amount == 499m && x.Merchant?.Contains("Swiggy", StringComparison.OrdinalIgnoreCase) == true));
 
+Check("fuel station brands classify as Fuel", parser.TryExtract(
+    "HPCL filling station payment", "", "Your SBI Credit Card ending 0697 was charged Rs.200.00 at HPCL petrol pump on 08-09-26", out var hpclFuel)
+    && hpclFuel.SuggestedCategory == "Fuel"
+    && parser.TryExtract(
+        "IndianOil transaction", "", "Your SBI Credit Card ending 0697 was charged Rs.300.00 at IndianOil filling station on 08-09-26", out var indianOilFuel)
+    && indianOilFuel.SuggestedCategory == "Fuel");
+
+Check("fuel brand aliases share canonical merchant names", parser.TryExtract(
+    "Fuel payment", "", "Your SBI Credit Card ending 0697 was charged Rs.300.00 at IndianOil filling station on 08-09-26", out var canonicalIndianOil)
+    && canonicalIndianOil.Merchant == "Indian Oil"
+    && parser.TryExtract(
+        "Fuel payment", "", "Your SBI Credit Card ending 0697 was charged Rs.300.00 at IOCL on 08-09-26", out var canonicalIocl)
+    && canonicalIocl.Merchant == "Indian Oil");
+
 var orderParser = new OrderExtractionService();
 Check("generic order merchant from sender", orderParser.TryExtract(
     "Your booking is confirmed",

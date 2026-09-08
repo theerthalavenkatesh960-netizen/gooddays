@@ -2241,7 +2241,7 @@ export async function deleteInvestment(id: string | number) {
 
 // ─── Vehicles API ──────────────────────────────────────────────────────────────
 
-export type Refill = { id: number; date: string; litres: number; amount: number; odometer: number; mileage?: number };
+export type Refill = { id: number; date: string; litres?: number | null; amount?: number | null; pricePerLitre?: number | null; odometer: number; mileage?: number | null; rangeLeft?: number | null; gapDetected?: boolean; isEstimated?: boolean; mileageConfidence?: string | null; estimatedFuelUsed?: number | null; estimatedFuelCost?: number | null };
 export type ServiceLog = { id: number; date: string; items: string[]; cost: number; nextDue?: string; odometer?: number };
 export type IssueLog = { id: number; date: string; description: string; resolved: boolean };
 export type Vehicle = { id: number; name: string; make: string; model: string; year: number; regNo: string; fuelType: string; color: string; odometer: number; refills: Refill[]; services: ServiceLog[]; issues: IssueLog[] };
@@ -2301,13 +2301,16 @@ export async function deleteVehicle(id: number) {
   return request(`vehicles/${id}`, { method: 'DELETE' });
 }
 
-export async function addRefill(vehicleId: number, body: Omit<Refill, 'id'>) {
+export async function addRefill(vehicleId: number, body: Omit<Refill, 'id' | 'mileage'>) {
   if (DUMMY_FLAGS.vehicles) {
     const v = findVehicle(vehicleId);
     if (!v) throw new Error('Vehicle not found');
     const prev = v.refills[0];
-    const mileage = prev ? parseFloat(((v.odometer - prev.odometer) / (body.litres || 1)).toFixed(1)) : undefined;
-    const r: Refill = { id: Math.max(...v.refills.map(r => r.id), 0) + 1, mileage, ...body };
+    const pricePerLitre = body.pricePerLitre ?? (body.litres && body.amount ? body.amount / body.litres : undefined);
+    const litres = body.litres ?? (body.amount && pricePerLitre ? body.amount / pricePerLitre : undefined);
+    const amount = body.amount ?? (body.litres && pricePerLitre ? body.litres * pricePerLitre : undefined);
+    const mileage = prev && litres ? parseFloat(((body.odometer - prev.odometer) / litres).toFixed(1)) : undefined;
+    const r: Refill = { id: Math.max(...v.refills.map(r => r.id), 0) + 1, mileage, ...body, litres, amount, pricePerLitre };
     v.refills.unshift(r);
     v.odometer = Math.max(v.odometer, body.odometer);
     return Promise.resolve(r);
@@ -2332,6 +2335,13 @@ export async function deleteRefill(vehicleId: number, refillId: number) {
     return Promise.resolve({ success: true });
   }
   return request(`vehicles/${vehicleId}/refills/${refillId}`, { method: 'DELETE' });
+}
+
+export type FuelCandidate = { id: number; description?: string; amount: number; date: string; sourceType?: string };
+
+export async function getFuelCandidates(vehicleId: number): Promise<FuelCandidate[]> {
+  if (DUMMY_FLAGS.vehicles) return Promise.resolve([]);
+  return request(`vehicles/${vehicleId}/fuel-candidates`);
 }
 
 export async function addService(vehicleId: number, body: Omit<ServiceLog, 'id'>) {

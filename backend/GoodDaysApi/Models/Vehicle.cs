@@ -64,16 +64,37 @@ public class VehicleRefill
     public DateTime Date { get; set; } = DateTime.UtcNow;
 
     [Column("litres")]
-    public double Litres { get; set; }
+    public double? Litres { get; set; }
 
     [Column("amount")]
-    public double Amount { get; set; }
+    public double? Amount { get; set; }
+
+    [Column("price_per_litre")]
+    public double? PricePerLitre { get; set; }
 
     [Column("odometer")]
     public int Odometer { get; set; }
 
     [Column("mileage")]
     public double? Mileage { get; set; }
+
+    [Column("range_left")]
+    public double? RangeLeft { get; set; }
+
+    [Column("gap_detected")]
+    public bool GapDetected { get; set; }
+
+    [Column("is_estimated")]
+    public bool IsEstimated { get; set; }
+
+    [Column("mileage_confidence")]
+    public string? MileageConfidence { get; set; }
+
+    [Column("estimated_fuel_used")]
+    public double? EstimatedFuelUsed { get; set; }
+
+    [Column("estimated_fuel_cost")]
+    public double? EstimatedFuelCost { get; set; }
 
     public Vehicle? Vehicle { get; set; }
 }

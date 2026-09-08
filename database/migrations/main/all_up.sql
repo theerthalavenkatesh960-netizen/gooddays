@@ -1036,11 +1036,28 @@ CREATE TABLE IF NOT EXISTS vehicle_refills (
     id          SERIAL PRIMARY KEY,
     vehicle_id  INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
     date        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    litres      DOUBLE PRECISION NOT NULL,
-    amount      DOUBLE PRECISION NOT NULL,
+    litres      DOUBLE PRECISION,
+    amount      DOUBLE PRECISION,
     odometer    INTEGER NOT NULL,
-    mileage     DOUBLE PRECISION
+    mileage     DOUBLE PRECISION,
+    price_per_litre DOUBLE PRECISION,
+    range_left  DOUBLE PRECISION,
+    gap_detected BOOLEAN NOT NULL DEFAULT FALSE,
+    is_estimated BOOLEAN NOT NULL DEFAULT FALSE,
+    mileage_confidence TEXT,
+    estimated_fuel_used DOUBLE PRECISION,
+    estimated_fuel_cost DOUBLE PRECISION
 );
+
+  ALTER TABLE vehicle_refills ALTER COLUMN litres DROP NOT NULL;
+  ALTER TABLE vehicle_refills ALTER COLUMN amount DROP NOT NULL;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS price_per_litre DOUBLE PRECISION;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS range_left DOUBLE PRECISION;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS gap_detected BOOLEAN NOT NULL DEFAULT FALSE;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS is_estimated BOOLEAN NOT NULL DEFAULT FALSE;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS mileage_confidence TEXT;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS estimated_fuel_used DOUBLE PRECISION;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS estimated_fuel_cost DOUBLE PRECISION;
 
 CREATE TABLE IF NOT EXISTS vehicle_services (
     id          SERIAL PRIMARY KEY,

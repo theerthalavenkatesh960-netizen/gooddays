@@ -52,6 +52,27 @@ public class TransactionExtractionService : ITransactionExtractionService
         ["fuel"] = "Fuel",
         ["petrol"] = "Fuel",
         ["diesel"] = "Fuel",
+        ["hpcl"] = "Fuel",
+        ["hindustan petroleum"] = "Fuel",
+        ["bharat petroleum"] = "Fuel",
+        ["bpcl"] = "Fuel",
+        ["indian oil"] = "Fuel",
+        ["indianoil"] = "Fuel",
+        ["iocl"] = "Fuel",
+        ["shell"] = "Fuel",
+        ["reliance petrol"] = "Fuel",
+        ["reliance petroleum"] = "Fuel",
+        ["jio-bp"] = "Fuel",
+        ["jiobp"] = "Fuel",
+        ["nayara"] = "Fuel",
+        ["nayara energy"] = "Fuel",
+        ["essar"] = "Fuel",
+        ["mrpl"] = "Fuel",
+        ["petrol pump"] = "Fuel",
+        ["filling station"] = "Fuel",
+        ["fuel station"] = "Fuel",
+        ["service station"] = "Fuel",
+        ["fuel bunk"] = "Fuel",
         ["airlines"] = "Travel",
         ["flight"] = "Travel",
         ["hotel"] = "Travel",
@@ -482,7 +503,21 @@ public class TransactionExtractionService : ITransactionExtractionService
     {
         var cleaned = raw.Trim().Trim('*', '-', ':', '.', ' ');
         cleaned = TrailingStatusRegex.Replace(cleaned, string.Empty).Trim();
+        cleaned = CanonicalizeKnownMerchant(cleaned);
         return cleaned.Length > 60 ? cleaned[..60].Trim() : cleaned;
+    }
+
+    private static string CanonicalizeKnownMerchant(string merchant)
+    {
+        if (Regex.IsMatch(merchant, @"\b(?:hpcl|hindustan\s+petroleum)\b", RegexOptions.IgnoreCase)) return "HPCL";
+        if (Regex.IsMatch(merchant, @"\b(?:bharat\s+petroleum|bpcl)\b", RegexOptions.IgnoreCase)) return "Bharat Petroleum";
+        if (Regex.IsMatch(merchant, @"\b(?:indian\s*oil|iocl)\b", RegexOptions.IgnoreCase)) return "Indian Oil";
+        if (Regex.IsMatch(merchant, @"\b(?:reliance\s+petrol(?:eum)?|reliance\s+fuel)\b", RegexOptions.IgnoreCase)) return "Reliance Petrol";
+        if (Regex.IsMatch(merchant, @"\b(?:jio[- ]?bp)\b", RegexOptions.IgnoreCase)) return "Jio-bp";
+        if (Regex.IsMatch(merchant, @"\bnayara(?:\s+energy)?\b", RegexOptions.IgnoreCase)) return "Nayara Energy";
+        if (Regex.IsMatch(merchant, @"\bshell\b", RegexOptions.IgnoreCase)) return "Shell";
+        if (Regex.IsMatch(merchant, @"\b(?:essar|mrpl)\b", RegexOptions.IgnoreCase)) return merchant.Trim();
+        return merchant;
     }
 
     // Indian alerts use dd-MM-yy, dd-MMM-yyyy and "16 Mar 2026"; invariant explicit formats avoid US month/day flips.

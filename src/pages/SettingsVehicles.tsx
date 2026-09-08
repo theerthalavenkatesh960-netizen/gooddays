@@ -15,22 +15,29 @@ function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Veh
   const [showAdd, setShowAdd] = useState(false);
   const [litres, setLitres] = useState('');
   const [amount, setAmount] = useState('');
+  const [pricePerLitre, setPricePerLitre] = useState('');
+  const [rangeLeft, setRangeLeft] = useState('');
   const [odo, setOdo] = useState('');
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
   const refills = vehicle.refills ?? [];
   const avgMileage = refills.filter(r => r.mileage).reduce((s, r, _, a) => s + (r.mileage ?? 0) / (a.length || 1), 0);
+  const monthKey = format(new Date(), 'yyyy-MM');
+  const monthSpend = refills.filter(r => r.date.startsWith(monthKey)).reduce((sum, r) => sum + (r.amount ?? 0), 0);
+  const avgPrice = refills.filter(r => r.pricePerLitre).reduce((sum, r, _, all) => sum + (r.pricePerLitre ?? 0) / all.length, 0);
+  const costPerKm = avgMileage > 0 && avgPrice > 0 ? avgPrice / avgMileage : null;
+  const gapEstimate = refills.reduce((sum, r) => sum + (r.estimatedFuelCost ?? 0), 0);
   const lastOdo = refills[0]?.odometer ?? vehicle.odometer;
   const lastRefillAgo = refills[0]
     ? Math.round((new Date().getTime() - new Date(refills[0].date).getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
   async function handleSave() {
-    if (!litres || !amount || !odo) return;
-    const r = await api.addRefill(vehicle.id, { date, litres: parseFloat(litres), amount: parseFloat(amount), odometer: parseInt(odo) });
+    if ((!litres && !amount) || !odo) return;
+    const r = await api.addRefill(vehicle.id, { date, litres: litres ? parseFloat(litres) : undefined, amount: amount ? parseFloat(amount) : undefined, pricePerLitre: pricePerLitre ? parseFloat(pricePerLitre) : undefined, rangeLeft: rangeLeft ? parseFloat(rangeLeft) : undefined, odometer: parseInt(odo) });
     const updated = { ...vehicle, refills: [r, ...refills], odometer: Math.max(vehicle.odometer, parseInt(odo)) };
     onUpdate(updated);
-    setLitres(''); setAmount(''); setOdo(''); setShowAdd(false);
+    setLitres(''); setAmount(''); setPricePerLitre(''); setRangeLeft(''); setOdo(''); setShowAdd(false);
   }
 
   async function handleDeleteRefill(refillId: number) {
@@ -40,11 +47,23 @@ function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Veh
 
   return (
     <div className="px-4 pb-nav">
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
         <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <Gauge size={16} className="mx-auto mb-1" style={{ color: 'var(--accent)' }} />
           <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{avgMileage.toFixed(1)}</p>
           <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>km/L avg</p>
+        </div>
+        <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>₹{monthSpend.toFixed(0)}</p>
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>month spend</p>
+        </div>
+        <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{avgPrice ? `₹${avgPrice.toFixed(2)}/L` : '--'}</p>
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>avg price · {costPerKm ? `₹${costPerKm.toFixed(2)}/km` : '--'}</p>
+        </div>
+        <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <p className="text-sm font-bold num" style={{ color: 'var(--text-primary)' }}>{gapEstimate ? `₹${gapEstimate.toFixed(0)}` : '--'}</p>
+          <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>gap estimate</p>
         </div>
         <div className="p-3 rounded-2xl text-center" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
           <MapPin size={16} className="mx-auto mb-1" style={{ color: 'var(--accent-green)' }} />
@@ -67,7 +86,7 @@ function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Veh
 
       {showAdd && (
         <div className="p-3 rounded-2xl space-y-2 mb-4" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--accent)44' }}>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
             <input
               type="number"
               placeholder="Litres"
@@ -76,6 +95,8 @@ function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Veh
               className="h-10 px-3 rounded-xl outline-none text-sm num"
               style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
             />
+            <input type="number" placeholder="Price/L" value={pricePerLitre} onChange={(e) => setPricePerLitre(e.target.value)} className="h-10 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
+            <input type="number" placeholder="Range left" value={rangeLeft} onChange={(e) => setRangeLeft(e.target.value)} className="h-10 px-3 rounded-xl outline-none text-sm num" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }} />
             <input
               type="number"
               placeholder="Amount ₹"
@@ -114,9 +135,9 @@ function RefillsTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Veh
           refills.map((r: any, i) => (
             <div key={r.id ?? i} className="p-3 rounded-2xl flex items-center justify-between" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>₹{r.amount} · {r.litres}L</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{r.amount != null ? `₹${r.amount}` : 'Fuel recorded'}{r.litres != null ? ` · ${r.litres}L` : ''}{r.pricePerLitre ? ` · ₹${r.pricePerLitre}/L` : ''}</p>
                 <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                  {r.mileage ? `${r.mileage.toFixed(1)} km/L · ` : ''}{r.odometer} km · {format(new Date(r.date), 'd MMM')}
+                  {r.mileage ? `${r.mileage.toFixed(1)} km/L${r.isEstimated ? ' est.' : ''} · ` : ''}{r.rangeLeft != null ? `${r.rangeLeft} km range · ` : ''}{r.odometer} km · {format(new Date(r.date), 'd MMM')}
                 </p>
               </div>
               <button onClick={() => handleDeleteRefill(r.id)} className="press p-2" style={{ color: '#ef4444' }}>
