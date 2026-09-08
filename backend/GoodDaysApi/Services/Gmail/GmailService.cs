@@ -73,7 +73,7 @@ public class GmailService : IGmailService
         var tokenBody = await tokenResp.Content.ReadAsStringAsync(cancellationToken);
         if (!tokenResp.IsSuccessStatusCode)
         {
-            _logger.LogWarning("Google OAuth callback token exchange failed. Response: {Response}", tokenBody);
+            _logger.LogWarning("Google OAuth callback token exchange failed with status {StatusCode}.", tokenResp.StatusCode);
             throw new InvalidOperationException("Failed to exchange OAuth code with Google.");
         }
 
@@ -162,7 +162,7 @@ public class GmailService : IGmailService
         var body = await resp.Content.ReadAsStringAsync(cancellationToken);
         if (!resp.IsSuccessStatusCode)
         {
-            _logger.LogWarning("Google token refresh failed for user {UserId}. Response: {Body}", account.UserId, body);
+            _logger.LogWarning("Google token refresh failed for user {UserId} with status {StatusCode}.", account.UserId, resp.StatusCode);
             throw new InvalidOperationException("Failed to refresh Gmail access token.");
         }
 

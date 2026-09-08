@@ -87,6 +87,12 @@ This is to inform you that,
 
 Rs.3,706.08 spent on your SBI Credit Card ending with 0697 at AXISMAXLIFEINSURANCE on 01-09-26 via UPI (Ref No. 624425455781). Trxn. not done by you? Report at https://sbicard.com/Dispute . If you have not authorized this transaction please contact the SBI Card helpline.";
 
+    public const string SbiCardBharatFoodPoint = @"Dear Cardholder,
+
+This is to inform you that,
+
+Rs.60.00 spent on your SBI Credit Card ending with 0697 at BHARATFOODPOINT on 08-09-26 via UPI (Ref No. 625186553096). Trxn. not done by you? Report at https://sbicard.com/Dispute . If you have not authorized this transaction please contact the SBI Card helpline.";
+
     public const string AmazonPayToMerchant = @"Hi Venkatesh,
 
 Your payment to SWIGGY was Approved
@@ -108,4 +114,22 @@ Platform fee with GST		₹17.58
 Discount Applied (SWIGGYIT)		- ₹49.99
 Taxes		₹37.75
 Paid Via Credit/Debit card		₹800";
+
+    public const string AmazonShipmentOrder = @"Your package was shipped!
+
+Arriving 14 July
+
+Venkatesh – HYDERABAD, TELANGANA
+
+Order # 403-2433571-4161966
+
+* KAM'S LIEU 6XL Luxury Faux Leather Bean Bag with Footrest & Cushion | Pre-Filled High-Density Polystyrene Beans | Premium Leatherette |Teardrop Handle Design | 6 Months Warranty Color- Aqua
+
+Quantity: 1
+
+2499 INR
+
+Total
+
+2502.0499999999997 INR";
 }

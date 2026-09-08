@@ -170,6 +170,7 @@ ALTER TABLE IF EXISTS expenses
   ADD COLUMN IF NOT EXISTS transaction_type varchar(40) NOT NULL DEFAULT 'OTHER',
   ADD COLUMN IF NOT EXISTS transaction_status varchar(20) NOT NULL DEFAULT 'UNKNOWN',
   ADD COLUMN IF NOT EXISTS payment_instrument_type varchar(30) NOT NULL DEFAULT 'UNKNOWN',
+  ADD COLUMN IF NOT EXISTS payment_rail varchar(30),
   ADD COLUMN IF NOT EXISTS institution_name varchar(120),
   ADD COLUMN IF NOT EXISTS instrument_last4 varchar(4),
   ADD COLUMN IF NOT EXISTS source_instrument_type varchar(30),
@@ -1035,11 +1036,28 @@ CREATE TABLE IF NOT EXISTS vehicle_refills (
     id          SERIAL PRIMARY KEY,
     vehicle_id  INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
     date        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    litres      DOUBLE PRECISION NOT NULL,
-    amount      DOUBLE PRECISION NOT NULL,
+    litres      DOUBLE PRECISION,
+    amount      DOUBLE PRECISION,
     odometer    INTEGER NOT NULL,
-    mileage     DOUBLE PRECISION
+    mileage     DOUBLE PRECISION,
+    price_per_litre DOUBLE PRECISION,
+    range_left  DOUBLE PRECISION,
+    gap_detected BOOLEAN NOT NULL DEFAULT FALSE,
+    is_estimated BOOLEAN NOT NULL DEFAULT FALSE,
+    mileage_confidence TEXT,
+    estimated_fuel_used DOUBLE PRECISION,
+    estimated_fuel_cost DOUBLE PRECISION
 );
+
+  ALTER TABLE vehicle_refills ALTER COLUMN litres DROP NOT NULL;
+  ALTER TABLE vehicle_refills ALTER COLUMN amount DROP NOT NULL;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS price_per_litre DOUBLE PRECISION;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS range_left DOUBLE PRECISION;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS gap_detected BOOLEAN NOT NULL DEFAULT FALSE;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS is_estimated BOOLEAN NOT NULL DEFAULT FALSE;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS mileage_confidence TEXT;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS estimated_fuel_used DOUBLE PRECISION;
+  ALTER TABLE vehicle_refills ADD COLUMN IF NOT EXISTS estimated_fuel_cost DOUBLE PRECISION;
 
 CREATE TABLE IF NOT EXISTS vehicle_services (
     id          SERIAL PRIMARY KEY,
@@ -1232,6 +1250,21 @@ CREATE TABLE IF NOT EXISTS gmail_sender_stats (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ix_gmail_sender_stats_user_sender
   ON gmail_sender_stats(user_id, sender_key);
+
+CREATE TABLE IF NOT EXISTS gmail_learning_rules (
+  id uuid PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  sender_key varchar(200) NOT NULL,
+  rule_type varchar(60) NOT NULL,
+  pattern_key varchar(200) NOT NULL,
+  learned_value varchar(120) NOT NULL,
+  confirmed_count integer NOT NULL DEFAULT 0,
+  rejected_count integer NOT NULL DEFAULT 0,
+  last_seen_utc timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_gmail_learning_rules_key
+  ON gmail_learning_rules(user_id, sender_key, rule_type, pattern_key, learned_value);
 
 
 -- Upgrade path for expenses only, since it is never dropped and may predate the timestamptz declaration.

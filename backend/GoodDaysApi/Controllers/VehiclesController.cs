@@ -12,6 +12,7 @@ namespace GoodDaysApi.Controllers;
 [Authorize]
 public class VehiclesController : ControllerBase
 {
+    private const double MinimumGapDistanceKm = 2000;
     private readonly AppDbContext _db;
     public VehiclesController(AppDbContext db) => _db = db;
 
@@ -45,8 +46,15 @@ public class VehiclesController : ControllerBase
         date = r.Date.ToString("yyyy-MM-dd"),
         litres = r.Litres,
         amount = r.Amount,
+        pricePerLitre = r.PricePerLitre,
         odometer = r.Odometer,
         mileage = r.Mileage,
+        rangeLeft = r.RangeLeft,
+        gapDetected = r.GapDetected,
+        isEstimated = r.IsEstimated,
+        mileageConfidence = r.MileageConfidence,
+        estimatedFuelUsed = r.EstimatedFuelUsed,
+        estimatedFuelCost = r.EstimatedFuelCost,
     };
 
     private static object ToServiceResponse(VehicleService s) => new
@@ -181,20 +189,65 @@ public class VehiclesController : ControllerBase
             .FirstOrDefaultAsync();
         if (vehicle == null) return NotFound();
 
-        // Calculate mileage if previous refill exists
+        if ((!req.Litres.HasValue || req.Litres <= 0) && (!req.Amount.HasValue || req.Amount <= 0))
+            return BadRequest("At least one of litres or amount must be greater than zero.");
+        if (req.Litres.HasValue && req.Litres <= 0 || req.Amount.HasValue && req.Amount <= 0 || req.PricePerLitre.HasValue && req.PricePerLitre <= 0)
+            return BadRequest("Fuel values must be greater than zero when provided.");
+
+        var litres = req.Litres;
+        var amount = req.Amount;
+        var pricePerLitre = req.PricePerLitre;
+        if (!pricePerLitre.HasValue && litres.HasValue && amount.HasValue)
+            pricePerLitre = amount.Value / litres.Value;
+        if (!litres.HasValue && amount.HasValue && pricePerLitre.HasValue)
+            litres = amount.Value / pricePerLitre.Value;
+        if (!amount.HasValue && litres.HasValue && pricePerLitre.HasValue)
+            amount = litres.Value * pricePerLitre.Value;
+
+        var history = vehicle.Refills.OrderByDescending(r => r.Date).ToList();
+        var lastRefill = history.FirstOrDefault();
+        var distance = lastRefill != null && req.Odometer > lastRefill.Odometer ? req.Odometer - lastRefill.Odometer : 0;
+        var priorIntervals = history.Zip(history.Skip(1), (newer, older) => newer.Odometer - older.Odometer)
+            .Where(interval => interval > 0).OrderBy(interval => interval).ToList();
+        var medianInterval = priorIntervals.Count == 0 ? 0 : priorIntervals.Count % 2 == 1
+            ? priorIntervals[priorIntervals.Count / 2]
+            : (priorIntervals[priorIntervals.Count / 2 - 1] + priorIntervals[priorIntervals.Count / 2]) / 2.0;
+        var gapDetected = distance > Math.Max(MinimumGapDistanceKm, medianInterval > 0 ? medianInterval * 2 : MinimumGapDistanceKm);
+        var confirmedMileages = history.Where(r => r.Mileage.HasValue && r.Mileage > 0)
+            .OrderByDescending(r => r.Date).Take(3).Select(r => r.Mileage!.Value).ToList();
+        var rollingMileage = confirmedMileages.Count > 0 ? confirmedMileages.Average() : (double?)null;
+        var latestPrice = pricePerLitre ?? history.FirstOrDefault(r => r.PricePerLitre.HasValue)?.PricePerLitre;
         double? mileage = null;
-        var lastRefill = vehicle.Refills.OrderByDescending(r => r.Date).FirstOrDefault();
-        if (lastRefill != null && req.Odometer > lastRefill.Odometer && req.Litres > 0)
-            mileage = Math.Round((req.Odometer - lastRefill.Odometer) / req.Litres, 1);
+        double? estimatedFuelUsed = null;
+        double? estimatedFuelCost = null;
+        var isEstimated = false;
+        if (gapDetected && rollingMileage.HasValue)
+        {
+            mileage = Math.Round(rollingMileage.Value, 1);
+            estimatedFuelUsed = Math.Round(distance / rollingMileage.Value, 2);
+            estimatedFuelCost = latestPrice.HasValue ? Math.Round(estimatedFuelUsed.Value * latestPrice.Value, 2) : null;
+            isEstimated = true;
+        }
+        else if (lastRefill != null && distance > 0 && litres.HasValue)
+        {
+            mileage = Math.Round(distance / litres.Value, 1);
+        }
 
         var refill = new VehicleRefill
         {
             VehicleId = vehicleId,
             Date = ParseDate(req.Date),
-            Litres = req.Litres,
-            Amount = req.Amount,
+            Litres = litres,
+            Amount = amount,
+            PricePerLitre = pricePerLitre,
             Odometer = req.Odometer,
             Mileage = mileage,
+            RangeLeft = req.RangeLeft,
+            GapDetected = gapDetected,
+            IsEstimated = isEstimated,
+            MileageConfidence = gapDetected ? (rollingMileage.HasValue ? "estimated" : "low") : mileage.HasValue ? "confirmed" : null,
+            EstimatedFuelUsed = estimatedFuelUsed,
+            EstimatedFuelCost = estimatedFuelCost,
         };
         _db.VehicleRefills.Add(refill);
 
@@ -217,6 +270,65 @@ public class VehiclesController : ControllerBase
         _db.VehicleRefills.Remove(refill);
         await _db.SaveChangesAsync();
         return Ok(new { success = true });
+    }
+
+    [HttpGet("{vehicleId}/fuel-candidates")]
+    public async Task<IActionResult> FuelCandidates(int vehicleId)
+    {
+        var userId = GetUserId();
+        var vehicle = await _db.Vehicles
+            .Where(v => v.Id == vehicleId && v.UserId == userId)
+            .Include(v => v.Refills)
+            .FirstOrDefaultAsync();
+        if (vehicle == null) return NotFound();
+
+        var fuelExpenses = await _db.Expenses.AsNoTracking()
+            .Where(x => x.UserId == userId
+                        && (x.Category == "Fuel"
+                            || x.Description.ToLower().Contains("petrol")
+                            || x.Description.ToLower().Contains("fuel")
+                            || x.Description.ToLower().Contains("diesel")
+                            || x.Description.ToLower().Contains("hpcl")
+                            || x.Description.ToLower().Contains("hindustan petroleum")
+                            || x.Description.ToLower().Contains("bharat petroleum")
+                            || x.Description.ToLower().Contains("bpcl")
+                            || x.Description.ToLower().Contains("indian oil")
+                            || x.Description.ToLower().Contains("indianoil")
+                            || x.Description.ToLower().Contains("iocl")
+                            || x.Description.ToLower().Contains("shell")
+                            || x.Description.ToLower().Contains("reliance petrol")
+                            || x.Description.ToLower().Contains("reliance petroleum")
+                            || x.Description.ToLower().Contains("jio-bp")
+                            || x.Description.ToLower().Contains("jiobp")
+                            || x.Description.ToLower().Contains("nayara")
+                            || x.Description.ToLower().Contains("essar")
+                            || x.Description.ToLower().Contains("mrpl")
+                            || x.Description.ToLower().Contains("petrol pump")
+                            || x.Description.ToLower().Contains("filling station")
+                            || x.Description.ToLower().Contains("fuel station")
+                            || x.Description.ToLower().Contains("service station")
+                            || x.Description.ToLower().Contains("fuel bunk"))
+                        && x.Amount > 0
+                        && x.Date != null)
+            .OrderByDescending(x => x.Date)
+            .Take(100)
+            .Select(x => new { x.Id, x.Description, x.Amount, x.Date, x.Category, x.SourceType })
+            .ToListAsync();
+
+        var candidates = fuelExpenses.Where(expense => !vehicle.Refills.Any(refill =>
+            refill.Amount.HasValue
+            && Math.Abs(refill.Amount.Value - (double)expense.Amount) < 0.01
+            && Math.Abs((refill.Date.Date - expense.Date!.Value.Date).TotalDays) <= 1))
+            .Select(x => new
+            {
+                id = x.Id,
+                description = x.Description,
+                amount = x.Amount,
+                date = x.Date,
+                sourceType = x.SourceType
+            });
+
+        return Ok(candidates);
     }
 
     // ── Services ──────────────────────────────────────────────────────────────
@@ -323,9 +435,11 @@ public class CreateVehicleRequest
 public class AddRefillRequest
 {
     public string? Date { get; set; }
-    public double Litres { get; set; }
-    public double Amount { get; set; }
+    public double? Litres { get; set; }
+    public double? Amount { get; set; }
+    public double? PricePerLitre { get; set; }
     public int Odometer { get; set; }
+    public double? RangeLeft { get; set; }
 }
 
 public class AddServiceRequest

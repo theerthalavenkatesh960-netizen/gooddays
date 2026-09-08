@@ -47,6 +47,17 @@ export default function Tasks() {
   const [editingTask, setEditingTask] = useState<any | null>(null);
   const [scheduledDate, setScheduledDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
+  const addOccurrence = async (task: any) => {
+    const dueDates = tasks
+      .filter(candidate => candidate.recurrenceId === task.recurrenceId && (candidate.dueDate || candidate.due_date))
+      .map(candidate => new Date(candidate.dueDate || candidate.due_date).getTime());
+    const nextDate = new Date(Math.max(...dueDates, Date.now()));
+    const unitDays = task.recurrenceUnit === 'weeks' ? 7 : task.recurrenceUnit === 'months' ? 30 : task.recurrenceUnit === 'years' ? 365 : 1;
+    nextDate.setDate(nextDate.getDate() + (task.recurrenceInterval || 1) * unitDays);
+    await api.addTaskOccurrence(task.id, nextDate);
+    await loadTasks();
+  };
+
   // when recurrence toggle flips, initialize default date range
   useEffect(() => {
     if (recurring) {
@@ -60,8 +71,25 @@ export default function Tasks() {
     }
   }, [recurring]);
 
-  // Show completion history and missed count without treating future dates as missed.
-const renderOccurrences = (task: any) => {
+  const skipMissedOccurrences = async (task: any) => {
+    if (!task.recurrenceId) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const missed = tasks.filter((candidate) => {
+      if (candidate.recurrenceId !== task.recurrenceId) return false;
+      const dueValue = candidate.dueDate || candidate.due_date;
+      if (!dueValue) return false;
+      const due = new Date(dueValue);
+      due.setHours(0, 0, 0, 0);
+      return due < today && candidate.status !== 'completed' && candidate.status !== 'skipped';
+    });
+
+    await Promise.all(missed.map(candidate => api.updateTask(candidate.id, { status: 'skipped' })));
+    await loadTasks();
+  };
+
+  // Show completion history and allow old occurrences to be closed without completing them.
+  const renderOccurrences = (task: any) => {
   if (!task.recurrenceId) return null;
 
   const selected = new Date(selectedDate);
@@ -93,7 +121,8 @@ const renderOccurrences = (task: any) => {
     })
     .slice(0, 10);
 
-  const missedCount = seriesHistory.filter((t) => !(t.isCompleted || t.status === 'completed')).length;
+  const missedTasks = seriesHistory.filter((t) => !(t.isCompleted || t.status === 'completed' || t.status === 'skipped'));
+  const missedCount = missedTasks.length;
 
   if (completedOccurrences.length === 0 && missedCount === 0) return null;
 
@@ -112,9 +141,19 @@ const renderOccurrences = (task: any) => {
           ))}
         </div>
       )}
-      <span className="text-xs px-2 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">
-        Missed: {missedCount}
-      </span>
+      <div className="flex items-center gap-1">
+        <span className="text-xs px-2 py-1 rounded-full bg-red-50 text-red-700 border border-red-200">
+          Missed: {missedCount}
+        </span>
+        {missedCount > 0 && (
+          <button
+            onClick={(event) => { event.stopPropagation(); skipMissedOccurrences(task); }}
+            className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200"
+          >
+            Skip missed
+          </button>
+        )}
+      </div>
     </div>
   );
 };
@@ -247,7 +286,7 @@ const renderOccurrences = (task: any) => {
     } else if (filterView === 'overdue') {
       filtered = filtered.filter((t) => {
         const due = t.dueDate ?? t.due_date;
-        return due && isPast(parseISO(due)) && !isToday(parseISO(due)) && t.status !== 'completed';
+        return due && isPast(parseISO(due)) && !isToday(parseISO(due)) && t.status !== 'completed' && t.status !== 'skipped';
       });
     }
 
@@ -515,7 +554,7 @@ const renderOccurrences = (task: any) => {
             <motion.div
               key={task.id}
               className={`bg-white rounded-xl p-2 sm:p-2.5 shadow-lg hover:shadow-xl transition-all ${
-                task.isCompleted ? 'opacity-60' : ''
+                task.isCompleted || task.status === 'skipped' ? 'opacity-60' : ''
               }`}
             >
                 <div className="flex items-center gap-1.5 sm:gap-3">
@@ -534,7 +573,7 @@ const renderOccurrences = (task: any) => {
                 <div className="flex-1">
                   <h3
                       className={`font-semibold text-xs sm:text-sm ${
-                      task.isCompleted ? 'line-through text-gray-400' : 'text-gray-800'
+                      task.isCompleted || task.status === 'skipped' ? 'line-through text-gray-400' : 'text-gray-800'
                     }`}
                   >
                     {task.title}
@@ -569,6 +608,11 @@ const renderOccurrences = (task: any) => {
                         Scheduled • series
                       </span>
                     )}
+                    {task.status === 'skipped' && (
+                      <span className="text-[11px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+                        Skipped
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -586,6 +630,17 @@ const renderOccurrences = (task: any) => {
                     </motion.button>
                   )}
                   {/* edit button */}
+                  {task.recurring && (
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => addOccurrence(task)}
+                      className="p-1 sm:p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg text-[10px]"
+                      title="Add occurrence to series"
+                    >
+                      +
+                    </motion.button>
+                  )}
                   {!task.isCompleted && (
                     <motion.button
                       whileHover={{ scale: 1.1 }}

@@ -360,6 +360,40 @@ public class TasksController : ControllerBase
             return Ok(new { message = "Task deleted" });
         }
     }
+
+    [HttpPost("{id}/occurrence")]
+    public async Task<IActionResult> AddOccurrence(int id, [FromBody] AddOccurrenceRequest req)
+    {
+        var source = await _db.Tasks.FindAsync(id);
+        if (source == null || !source.Recurring || !source.RecurrenceId.HasValue)
+            return BadRequest(new { message = "Task is not part of a recurring series." });
+
+        var dueDate = DateTime.SpecifyKind(req.DueDate.Date, DateTimeKind.Utc);
+        var exists = await _db.Tasks.AnyAsync(t => t.UserId == source.UserId && t.RecurrenceId == source.RecurrenceId && t.DueDate == dueDate);
+        if (exists) return Conflict(new { message = "That occurrence already exists." });
+
+        var occurrence = new DailyTask
+        {
+            UserId = source.UserId,
+            Title = source.Title,
+            Category = source.Category,
+            Priority = source.Priority,
+            DueDate = dueDate,
+            Recurring = true,
+            RecurrenceStartDate = source.RecurrenceStartDate,
+            RecurrenceEndDate = source.RecurrenceEndDate,
+            RecurrenceDays = source.RecurrenceDays,
+            RecurrenceId = source.RecurrenceId,
+            RecurrenceInterval = source.RecurrenceInterval,
+            RecurrenceUnit = source.RecurrenceUnit,
+            Status = "pending",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _db.Tasks.Add(occurrence);
+        await _db.SaveChangesAsync();
+        return Ok(occurrence);
+    }
 }
 
 public record CreateTaskRequest(
@@ -396,3 +430,5 @@ public record UpdateTaskRequest(
     bool? IsCompleted = null,
     string? NotesJson = null
 );
+
+public record AddOccurrenceRequest(DateTime DueDate);

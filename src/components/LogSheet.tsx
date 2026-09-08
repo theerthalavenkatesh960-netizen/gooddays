@@ -216,6 +216,8 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null);
   const [refillLitres, setRefillLitres] = useState('');
   const [refillAmount, setRefillAmount] = useState('');
+  const [refillPricePerLitre, setRefillPricePerLitre] = useState('');
+  const [refillRangeLeft, setRefillRangeLeft] = useState('');
   const [refillOdometer, setRefillOdometer] = useState('');
 
   // Task state
@@ -775,11 +777,13 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
         }
       } else if (sub === 'refill') {
         const vehicleId = Number(selectedVehicleId || 0);
-        const litres = Number(refillLitres || 0);
-        const amount = Number(refillAmount || 0);
+        const litres = refillLitres ? Number(refillLitres) : undefined;
+        const amount = refillAmount ? Number(refillAmount) : undefined;
+        const pricePerLitre = refillPricePerLitre ? Number(refillPricePerLitre) : (litres && amount ? amount / litres : undefined);
+        const derivedAmount = amount ?? (litres && pricePerLitre ? litres * pricePerLitre : undefined);
         const odometer = Number(refillOdometer || 0);
 
-        if (!vehicleId || litres <= 0 || amount <= 0 || odometer <= 0) {
+        if (!vehicleId || (!litres && !amount) || litres !== undefined && litres <= 0 || amount !== undefined && amount <= 0 || pricePerLitre !== undefined && pricePerLitre <= 0 || odometer <= 0) {
           setError('Select vehicle and fill valid refill details');
           return;
         }
@@ -789,21 +793,25 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
           date: new Date().toISOString(),
           litres,
           amount,
+          pricePerLitre,
+          rangeLeft: refillRangeLeft ? Number(refillRangeLeft) : undefined,
           odometer,
-          mileage: undefined,
         });
 
         // Quick log backend supports fixed types only; keep refill trace under expense with subtype.
-        await api.logQuickEntry('expense', {
-          subtype: 'refill',
-          category: 'Fuel',
-          amount,
-          litres,
-          odometer,
-          vehicleId,
-          vehicleName: vehicle?.name || 'Vehicle',
-          description: `Fuel refill${vehicle?.name ? ` (${vehicle.name})` : ''}`,
-        }, today);
+        if (derivedAmount && derivedAmount > 0) {
+          await api.logQuickEntry('expense', {
+            subtype: 'refill',
+            category: 'Fuel',
+            amount: derivedAmount,
+            litres,
+            pricePerLitre,
+            odometer,
+            vehicleId,
+            vehicleName: vehicle?.name || 'Vehicle',
+            description: `Fuel refill${vehicle?.name ? ` (${vehicle.name})` : ''}`,
+          }, today);
+        }
       } else if (sub === 'task' && taskTitle && userId) {
         await api.createTask({
           userId,
@@ -862,7 +870,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
       (mealPickMode === 'capture' && mealCaptureText.trim().length > 0) ||
       (mealPickMode === 'create' && newMealName.trim().length > 0)
     )) ||
-    (sub === 'refill' && selectedVehicleId !== null && Number(refillLitres) > 0 && Number(refillAmount) > 0 && Number(refillOdometer) > 0) ||
+    (sub === 'refill' && selectedVehicleId !== null && (Number(refillLitres) > 0 || Number(refillAmount) > 0) && Number(refillOdometer) > 0) ||
     (sub === 'task' && taskTitle.trim().length > 0) ||
     (sub === 'journal' && (journalTitle.trim().length > 0 || journalBody.trim().length > 0)) ||
     (sub === 'note' && noteText.trim().length > 0) ||
@@ -1567,6 +1575,18 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
                       />
                     </div>
                     <div>
+                      <label className="section-label mb-2 block">Price per litre (₹)</label>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        value={refillPricePerLitre}
+                        onChange={e => setRefillPricePerLitre(e.target.value)}
+                        placeholder="98.00"
+                        className="w-full p-2.5 rounded-xl outline-none text-lg font-bold num"
+                        style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                      />
+                    </div>
+                    <div>
                       <label className="section-label mb-2 block">Amount (₹)</label>
                       <input
                         type="number"
@@ -1587,6 +1607,18 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
                       value={refillOdometer}
                       onChange={e => setRefillOdometer(e.target.value)}
                       placeholder="12500"
+                      className="w-full p-2.5 rounded-xl outline-none text-lg font-bold num"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="section-label mb-2 block">Range left (km)</label>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={refillRangeLeft}
+                      onChange={e => setRefillRangeLeft(e.target.value)}
+                      placeholder="120"
                       className="w-full p-2.5 rounded-xl outline-none text-lg font-bold num"
                       style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
                     />

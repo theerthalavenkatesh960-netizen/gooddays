@@ -1,4 +1,5 @@
 using GoodDaysApi.DTOs.Gmail;
+using System.Text.Json;
 using GoodDaysApi.Data;
 using GoodDaysApi.Models;
 using GoodDaysApi.Services.Gmail;
@@ -20,6 +21,7 @@ public class FinanceGmailController : ControllerBase
     private readonly IMerchantAliasService _merchantAlias;
     private readonly ITokenEncryptionService _tokenEncryption;
     private readonly ISenderReliabilityService _senderReliability;
+    private readonly IGmailLearningService _learning;
     private readonly GmailOptions _gmailOptions;
 
     public FinanceGmailController(
@@ -30,6 +32,7 @@ public class FinanceGmailController : ControllerBase
         IMerchantAliasService merchantAlias,
         ITokenEncryptionService tokenEncryption,
         ISenderReliabilityService senderReliability,
+        IGmailLearningService learning,
         IOptions<GmailOptions> gmailOptions)
     {
         _gmailService = gmailService;
@@ -39,6 +42,7 @@ public class FinanceGmailController : ControllerBase
         _merchantAlias = merchantAlias;
         _tokenEncryption = tokenEncryption;
         _senderReliability = senderReliability;
+        _learning = learning;
         _gmailOptions = gmailOptions.Value;
     }
 
@@ -171,6 +175,7 @@ public class FinanceGmailController : ControllerBase
                 x.TransactionType,
                 x.TransactionStatus,
                 x.PaymentInstrumentType,
+                x.PaymentRail,
                 x.InstitutionName,
                 x.InstrumentLast4,
                 x.SourceInstrumentType,
@@ -235,6 +240,7 @@ public class FinanceGmailController : ControllerBase
             expense.TransactionType,
             expense.TransactionStatus,
             expense.PaymentInstrumentType,
+            expense.PaymentRail,
             expense.InstitutionName,
             expense.InstrumentLast4,
             expense.SourceInstrumentType,
@@ -263,6 +269,175 @@ public class FinanceGmailController : ControllerBase
         });
     }
 
+    [HttpGet("merchant-history")]
+    [Authorize]
+    public async Task<IActionResult> MerchantHistory([FromQuery] string merchant, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+        if (string.IsNullOrWhiteSpace(merchant)) return BadRequest(new { message = "Merchant is required." });
+
+        var normalized = merchant.Trim();
+        var transactions = await _db.Expenses.AsNoTracking()
+            .Where(x => x.UserId == userId.Value
+                        && x.SourceType == "gmail"
+                        && (x.MerchantName == normalized || x.CounterpartyName == normalized || x.RawMerchant == normalized))
+            .OrderByDescending(x => x.Date ?? x.CreatedAt)
+            .Select(x => new
+            {
+                x.Id, x.Description, x.Amount, x.Currency, x.Category, x.Date, x.CreatedAt,
+                x.Direction, x.TransactionType, x.TransactionStatus, x.PaymentInstrumentType,
+                x.PaymentRail, x.InstitutionName, x.InstrumentLast4, x.MerchantName, x.CounterpartyName
+            })
+            .ToListAsync(cancellationToken);
+
+        var orders = await _db.Orders.AsNoTracking()
+            .Where(x => x.UserId == userId.Value && x.Merchant == normalized)
+            .OrderByDescending(x => x.OrderDate ?? x.CreatedAt)
+            .Select(x => new
+            {
+                x.Id, x.Merchant, x.OrderNumber, x.OrderDate, x.TotalAmount, x.Currency,
+                Items = _db.OrderItems.Where(i => i.OrderId == x.Id)
+                    .OrderBy(i => i.LineNumber)
+                    .Select(i => new { i.Name, i.Quantity, i.Amount })
+                    .ToList()
+            })
+            .ToListAsync(cancellationToken);
+
+        return Ok(new { merchant = normalized, transactions, orders });
+    }
+
+    [HttpGet("orders/{id:guid}")]
+    [Authorize]
+    public async Task<IActionResult> OrderDetail(Guid id, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var order = await _db.Orders.AsNoTracking()
+            .Where(x => x.Id == id && x.UserId == userId.Value)
+            .Select(x => new
+            {
+                x.Id, x.Merchant, x.OrderNumber, x.OrderDate, x.TotalAmount, x.Currency,
+                x.SourceMessageId,
+                Items = _db.OrderItems.Where(i => i.OrderId == x.Id)
+                    .OrderBy(i => i.LineNumber)
+                    .Select(i => new { i.Name, i.Quantity, i.Amount })
+                    .ToList(),
+                Transactions = _db.OrderTransactionLinks
+                    .Where(link => link.OrderId == x.Id)
+                    .Select(link => new { link.ExpenseId, link.Status, link.MatchScore })
+                    .ToList()
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return order == null ? NotFound() : Ok(order);
+    }
+
+    [HttpPost("transactions/{id:int}/items")]
+    [Authorize]
+    public async Task<IActionResult> SaveTransactionItems(int id, [FromBody] TransactionItemsRequest request, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var expense = await _db.Expenses.FirstOrDefaultAsync(
+            x => x.Id == id && x.UserId == userId.Value && x.SourceType == "gmail", cancellationToken);
+        if (expense == null) return NotFound();
+
+        var items = (request.Items ?? new List<TransactionItemRequest>())
+            .Where(x => !string.IsNullOrWhiteSpace(x.Name) && x.Quantity > 0)
+            .Select((x, index) => new OrderItem
+            {
+                Name = x.Name.Trim(),
+                Quantity = x.Quantity,
+                Amount = x.Amount,
+                LineNumber = index
+            })
+            .ToList();
+
+        var link = await _db.OrderTransactionLinks
+            .Include(x => x.Order)
+            .FirstOrDefaultAsync(x => x.ExpenseId == id && x.Order.UserId == userId.Value, cancellationToken);
+
+        if (link == null)
+        {
+            var order = new Order
+            {
+                UserId = userId.Value,
+                Merchant = expense.MerchantName ?? expense.CounterpartyName,
+                TotalAmount = expense.Amount,
+                OrderDate = expense.Date ?? expense.CreatedAt,
+                EvidenceJson = "{\"source\":\"manual-transaction-items\"}"
+            };
+            _db.Orders.Add(order);
+            link = new OrderTransactionLink
+            {
+                Order = order,
+                Expense = expense,
+                MatchScore = 1m,
+                MatchMethod = "MANUAL",
+                Status = "VALIDATED",
+                EvidenceJson = "{\"source\":\"manual-transaction-items\"}"
+            };
+            _db.OrderTransactionLinks.Add(link);
+        }
+
+        var orderId = link.OrderId == Guid.Empty ? link.Order!.Id : link.OrderId;
+        var existingItems = await _db.OrderItems.Where(x => x.OrderId == orderId).ToListAsync(cancellationToken);
+        _db.OrderItems.RemoveRange(existingItems);
+        foreach (var item in items) item.OrderId = orderId;
+        _db.OrderItems.AddRange(items);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return Ok(new { saved = items.Count });
+    }
+
+    [HttpPost("transactions/{id:int}/copy")]
+    [Authorize]
+    public async Task<IActionResult> CopyTransaction(int id, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var source = await _db.Expenses.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId.Value, cancellationToken);
+        if (source == null) return NotFound();
+
+        var copy = new Expense
+        {
+            UserId = userId.Value,
+            Description = source.Description,
+            Amount = source.Amount,
+            Category = source.Category,
+            SourceType = "manual",
+            Direction = source.Direction,
+            TransactionType = source.TransactionType,
+            TransactionStatus = "COMPLETED",
+            PaymentInstrumentType = source.PaymentInstrumentType,
+            PaymentRail = source.PaymentRail,
+            InstitutionName = source.InstitutionName,
+            InstrumentLast4 = source.InstrumentLast4,
+            SourceInstrumentType = source.SourceInstrumentType,
+            SourceInstrumentLast4 = source.SourceInstrumentLast4,
+            DestinationInstrumentType = source.DestinationInstrumentType,
+            DestinationInstrumentName = source.DestinationInstrumentName,
+            MerchantName = source.MerchantName,
+            CounterpartyName = source.CounterpartyName,
+            CounterpartyIdentifier = source.CounterpartyIdentifier,
+            Currency = source.Currency,
+            Date = source.Date,
+            CreatedAt = DateTime.UtcNow,
+            IsReviewed = true,
+            ReviewedAt = DateTime.UtcNow,
+            EvidenceJson = "{\"source\":\"copied-transaction\"}"
+        };
+
+        _db.Expenses.Add(copy);
+        await _db.SaveChangesAsync(cancellationToken);
+        return Ok(new { id = copy.Id });
+    }
+
     [HttpPost("transactions/{id:int}/decision")]
     [Authorize]
     public async Task<IActionResult> DecideTransaction(int id, [FromBody] TransactionDecisionRequest request, CancellationToken cancellationToken)
@@ -279,6 +454,7 @@ public class FinanceGmailController : ControllerBase
 
         if (string.Equals(request.Decision, "REJECT", StringComparison.OrdinalIgnoreCase))
         {
+            await RecordLearningOutcomeAsync(userId.Value, expense, email, false, cancellationToken);
             _db.Expenses.Remove(expense);
             if (email != null)
             {
@@ -294,6 +470,7 @@ public class FinanceGmailController : ControllerBase
 
         expense.IsReviewed = true;
         expense.ReviewedAt = DateTime.UtcNow;
+        await RecordLearningOutcomeAsync(userId.Value, expense, email, true, cancellationToken);
         if (email != null)
         {
             await _senderReliability.RecordOutcomeAsync(userId.Value, email.Sender, confirmed: true, cancellationToken);
@@ -327,6 +504,7 @@ public class FinanceGmailController : ControllerBase
             var rejected = request.Decision == "REJECT";
             if (rejected)
             {
+                await RecordLearningOutcomeAsync(userId.Value, expense, email, false, cancellationToken);
                 _db.Expenses.Remove(expense);
                 if (email != null)
                 {
@@ -340,6 +518,7 @@ public class FinanceGmailController : ControllerBase
             {
                 expense.IsReviewed = true;
                 expense.ReviewedAt = DateTime.UtcNow;
+                await RecordLearningOutcomeAsync(userId.Value, expense, email, true, cancellationToken);
                 if (email != null)
                 {
                     await _senderReliability.RecordOutcomeAsync(userId.Value, email.Sender, confirmed: true, cancellationToken);
@@ -349,6 +528,19 @@ public class FinanceGmailController : ControllerBase
 
         await _db.SaveChangesAsync(cancellationToken);
         return Ok(new { updated = expenses.Count, decision = request.Decision });
+    }
+
+    private async Task RecordLearningOutcomeAsync(int userId, Expense expense, SyncedEmail? email, bool confirmed, CancellationToken cancellationToken)
+    {
+        if (email == null || string.IsNullOrWhiteSpace(expense.EvidenceJson)) return;
+        try
+        {
+            using var document = JsonDocument.Parse(expense.EvidenceJson);
+            if (!document.RootElement.TryGetProperty("learningSignals", out var signalsElement)) return;
+            var signals = JsonSerializer.Deserialize<List<GmailLearningSignal>>(signalsElement.GetRawText()) ?? new();
+            await _learning.RecordOutcomeAsync(userId, email.Sender, signals, confirmed, cancellationToken);
+        }
+        catch (JsonException) { }
     }
 
     [HttpPost("review")]
@@ -393,8 +585,22 @@ public class FinanceGmailController : ControllerBase
             x => x.Id == request.ExpenseId && x.UserId == userId.Value && x.SourceType == "gmail", cancellationToken);
         if (expense == null) return NotFound();
 
+        var requestedMerchant = request.Merchant.Trim();
+        var canonicalMerchant = await _db.Expenses.AsNoTracking()
+            .Where(x => x.UserId == userId.Value && x.SourceType == "gmail")
+            .SelectMany(x => new[] { x.MerchantName, x.CounterpartyName })
+            .Where(x => x != null && x != "")
+            .FirstOrDefaultAsync(x => x!.Trim().ToLower() == requestedMerchant.ToLower(), cancellationToken);
+        canonicalMerchant ??= await _db.MerchantAliases.AsNoTracking()
+            .Where(x => x.UserId == userId.Value)
+            .Select(x => x.CorrectedMerchant)
+            .FirstOrDefaultAsync(x => x.Trim().ToLower() == requestedMerchant.ToLower(), cancellationToken);
+        canonicalMerchant ??= requestedMerchant;
+
         var provider = string.IsNullOrWhiteSpace(expense.InstitutionName) ? string.Empty : $" [{expense.InstitutionName}]";
-        expense.Description = $"{request.Merchant}{provider}";
+        expense.Description = $"{canonicalMerchant}{provider}";
+        expense.MerchantName = canonicalMerchant;
+        expense.CounterpartyName = canonicalMerchant;
         if (!string.IsNullOrWhiteSpace(request.Category))
         {
             expense.Category = request.Category;
@@ -404,11 +610,38 @@ public class FinanceGmailController : ControllerBase
 
         if (request.ApplyToFuture && !string.IsNullOrWhiteSpace(expense.RawMerchant))
         {
-            await _merchantAlias.UpsertAsync(userId.Value, expense.RawMerchant, request.Merchant, request.Category, cancellationToken);
+            await _merchantAlias.UpsertAsync(userId.Value, expense.RawMerchant, canonicalMerchant, request.Category, cancellationToken);
         }
 
         await _db.SaveChangesAsync(cancellationToken);
         return Ok(new { updated = true, expense.Description, expense.Category });
+    }
+
+    [HttpGet("merchants")]
+    [Authorize]
+    public async Task<IActionResult> Merchants(CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var detected = await _db.Expenses.AsNoTracking()
+            .Where(x => x.UserId == userId.Value && x.SourceType == "gmail")
+            .SelectMany(x => new[] { x.MerchantName, x.CounterpartyName })
+            .Where(x => x != null && x != "")
+            .ToListAsync(cancellationToken);
+        var corrected = await _db.MerchantAliases.AsNoTracking()
+            .Where(x => x.UserId == userId.Value)
+            .Select(x => x.CorrectedMerchant)
+            .ToListAsync(cancellationToken);
+
+        var merchants = detected.Concat(corrected)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return Ok(merchants);
     }
 
     [HttpPost("category")]
@@ -695,6 +928,8 @@ public class CandidateStatusRequest
 public record GmailBulkReviewRequest(List<int> ExpenseIds, bool IsReviewed);
 public record GmailBulkCategoryRequest(List<int> ExpenseIds, string Category, bool MarkReviewedOnCategoryChange = true);
 public record GmailMerchantCorrectionRequest(int ExpenseId, string Merchant, string? Category, bool ApplyToFuture = true);
+public record TransactionItemsRequest(List<TransactionItemRequest>? Items);
+public record TransactionItemRequest(string Name, int Quantity, decimal? Amount);
 public record PromoteCandidateRequest(
     decimal Amount,
     string Merchant,

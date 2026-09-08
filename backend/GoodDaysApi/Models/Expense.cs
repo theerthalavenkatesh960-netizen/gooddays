@@ -44,6 +44,9 @@ public class Expense
     [Column("payment_instrument_type")]
     public string PaymentInstrumentType { get; set; } = "UNKNOWN";
 
+    [Column("payment_rail")]
+    public string? PaymentRail { get; set; }
+
     [Column("institution_name")]
     public string? InstitutionName { get; set; }
 

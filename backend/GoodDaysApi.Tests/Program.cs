@@ -62,6 +62,20 @@ Check("multiple transactions detected", multiple.Count == 2
     && multiple.Any(x => x.Amount == 1249m && x.Merchant?.Contains("Amazon", StringComparison.OrdinalIgnoreCase) == true)
     && multiple.Any(x => x.Amount == 499m && x.Merchant?.Contains("Swiggy", StringComparison.OrdinalIgnoreCase) == true));
 
+Check("fuel station brands classify as Fuel", parser.TryExtract(
+    "HPCL filling station payment", "", "Your SBI Credit Card ending 0697 was charged Rs.200.00 at HPCL petrol pump on 08-09-26", out var hpclFuel)
+    && hpclFuel.SuggestedCategory == "Fuel"
+    && parser.TryExtract(
+        "IndianOil transaction", "", "Your SBI Credit Card ending 0697 was charged Rs.300.00 at IndianOil filling station on 08-09-26", out var indianOilFuel)
+    && indianOilFuel.SuggestedCategory == "Fuel");
+
+Check("fuel brand aliases share canonical merchant names", parser.TryExtract(
+    "Fuel payment", "", "Your SBI Credit Card ending 0697 was charged Rs.300.00 at IndianOil filling station on 08-09-26", out var canonicalIndianOil)
+    && canonicalIndianOil.Merchant == "Indian Oil"
+    && parser.TryExtract(
+        "Fuel payment", "", "Your SBI Credit Card ending 0697 was charged Rs.300.00 at IOCL on 08-09-26", out var canonicalIocl)
+    && canonicalIocl.Merchant == "Indian Oil");
+
 var orderParser = new OrderExtractionService();
 Check("generic order merchant from sender", orderParser.TryExtract(
     "Your booking is confirmed",
@@ -218,6 +232,16 @@ Check("REAL: SBI card spend via UPI stays a credit card", parser.TryExtract(
     && rSbi.ReferenceNumber == "624425455781"
     && rSbi.Merchant?.Contains("AXISMAXLIFE", StringComparison.OrdinalIgnoreCase) == true);
 
+Check("REAL: SBI card merchant is retained for BHARATFOODPOINT", parser.TryExtract(
+    "Transaction alert", "", GoodDaysApi.Tests.RealEmailSamples.SbiCardBharatFoodPoint, out var rBharat)
+    && rBharat.Amount == 60m
+    && rBharat.Merchant == "BHARATFOODPOINT"
+    && rBharat.CounterpartyName == "BHARATFOODPOINT"
+    && rBharat.InstrumentType == "CREDIT_CARD"
+    && rBharat.PaymentRail == "UPI"
+    && rBharat.InstrumentLast4 == "0697"
+    && rBharat.TransactionStatus == "COMPLETED");
+
 Check("REAL: Amazon Pay payment to merchant", parser.TryExtract(
     "Your payment to SWIGGY was Approved", "", GoodDaysApi.Tests.RealEmailSamples.AmazonPayToMerchant, out var rApay, "payments-messages@amazon.in")
     && rApay.Amount == 335m
@@ -225,6 +249,8 @@ Check("REAL: Amazon Pay payment to merchant", parser.TryExtract(
     && rApay.InstrumentType == "WALLET");
 
 Check("REAL: Amazon Pay counterparty does not swallow trailing verb", rApay.CounterpartyName == "SWIGGY");
+
+Check("REAL: Amazon Pay payment date parses comma format", rApay.TransactionDateUtc?.Date == new DateTime(2026, 8, 29));
 
 CheckFn("REAL: Amazon Pay display title has no trailing verb noise", () =>
 {
@@ -237,6 +263,30 @@ CheckFn("REAL: Swiggy itemised bill picks total paid", () =>
     var order = new OrderExtractionService();
     return order.TryExtract("Order delivered", "", GoodDaysApi.Tests.RealEmailSamples.SwiggyOrderItemised, out var o, "noreply@swiggy.in", new[] { "swiggy.in" })
         && o.TotalAmount == 800m;
+});
+
+CheckFn("REAL: Amazon shipment preserves total, number, and item", () =>
+{
+    var order = new OrderExtractionService();
+    return order.TryExtract("Your package was shipped", "", GoodDaysApi.Tests.RealEmailSamples.AmazonShipmentOrder, out var amazon, "shipment-tracking@amazon.in", new[] { "amazon.in" })
+        && amazon.Merchant == "Amazon"
+        && amazon.OrderNumber == "403-2433571-4161966"
+        && amazon.TotalAmount == 2502.05m
+        && order.ExtractItems("Your package was shipped", "", GoodDaysApi.Tests.RealEmailSamples.AmazonShipmentOrder).Any(item => item.Name.StartsWith("KAM'S LIEU", StringComparison.OrdinalIgnoreCase) && item.Quantity == 1);
+});
+
+CheckFn("REAL: BookMyShow order preserves booking, total, date, and tickets", () =>
+{
+    var order = new OrderExtractionService();
+    const string body = "BookMyShow | Your booking is confirmed! | Booking ID PTTH00CJCT2XPT | Vishwanath and Sons (Telugu) (UA16+) | Sat, 15 Aug, 2026 | ORDER SUMMARY | TICKET AMOUNT | Rs.450.00 | 3 tickets | AMOUNT PAID | Rs.520.80 | Booking Date & Time | Sat, 15 Aug, 2026 | 02:18pm |";
+    var parsed = order.TryExtract("Your booking is confirmed", "", body, out var bookMyShow, "alerts@bookmyshow.com", new[] { "bookmyshow.com" });
+    var items = order.ExtractItems("Your booking is confirmed", "", body);
+    return parsed
+        && bookMyShow.Merchant == "BookMyShow"
+        && bookMyShow.OrderNumber == "PTTH00CJCT2XPT"
+        && bookMyShow.TotalAmount == 520.80m
+        && bookMyShow.OrderDate?.Date == new DateTime(2026, 8, 15)
+        && items.Any(item => item.Name.Contains("Vishwanath and Sons", StringComparison.OrdinalIgnoreCase) && item.Quantity == 3 && item.Amount == 450m);
 });
 
 // ── Learned issuer knowledge ──────────────────────────────────────────────

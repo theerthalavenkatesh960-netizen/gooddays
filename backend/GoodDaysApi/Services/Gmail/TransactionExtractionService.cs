@@ -24,7 +24,7 @@ public class TransactionExtractionService : ITransactionExtractionService
         $@"\b(?:transaction\s+amount|total\s+paid|amount\s+paid|paid\s+via[^\n]{{0,30}}|grand\s+total|order\s+total|amount)\b[^\d\n]{{0,20}}(?:INR|Rs\.?|₹)\s*{NumberPattern}",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex RefRegex = new(@"\b(?:ref(?:erence)?\s*(?:no|number)?|utr|rrn|txn(?:\s*id)?|transaction\s*(?:id|reference\s*(?:no|number)?))\b[\s.:#\-]*(?:is\s+)?([A-Za-z0-9\-]{6,30})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    private static readonly Regex DateRegex = new(@"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{1,2}[- ][A-Za-z]{3,9}[- ]\d{2,4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex DateRegex = new(@"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{1,2}[- ][A-Za-z]{3,9}[-, ]+\d{2,4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex Last4Regex = new(@"(?:ending(?:\s+(?:with|in))?|ends\s+with|last\s*4(?:\s*digits)?|a\s*/\s*c|account|card|no\.?|number|[xX*]{2,})\s*[-#:]?\s*[xX*]{0,16}\s*(\d{4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex WalletRegex = new(@"\b(amazon\s*pay|paytm|phonepe|mobikwik|freecharge|wallet|balance)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     // UPI handles end in a scheme suffix (axl, ybl, okhdfcbank) rather than a domain, so no dot is required.
@@ -52,6 +52,27 @@ public class TransactionExtractionService : ITransactionExtractionService
         ["fuel"] = "Fuel",
         ["petrol"] = "Fuel",
         ["diesel"] = "Fuel",
+        ["hpcl"] = "Fuel",
+        ["hindustan petroleum"] = "Fuel",
+        ["bharat petroleum"] = "Fuel",
+        ["bpcl"] = "Fuel",
+        ["indian oil"] = "Fuel",
+        ["indianoil"] = "Fuel",
+        ["iocl"] = "Fuel",
+        ["shell"] = "Fuel",
+        ["reliance petrol"] = "Fuel",
+        ["reliance petroleum"] = "Fuel",
+        ["jio-bp"] = "Fuel",
+        ["jiobp"] = "Fuel",
+        ["nayara"] = "Fuel",
+        ["nayara energy"] = "Fuel",
+        ["essar"] = "Fuel",
+        ["mrpl"] = "Fuel",
+        ["petrol pump"] = "Fuel",
+        ["filling station"] = "Fuel",
+        ["fuel station"] = "Fuel",
+        ["service station"] = "Fuel",
+        ["fuel bunk"] = "Fuel",
         ["airlines"] = "Travel",
         ["flight"] = "Travel",
         ["hotel"] = "Travel",
@@ -148,6 +169,7 @@ public class TransactionExtractionService : ITransactionExtractionService
         if (last4Match.Success) transaction.InstrumentLast4 = last4Match.Groups[1].Value;
 
         ApplyInstrumentFlow(anchor, transaction, fullText);
+        transaction.PaymentRail = InferPaymentRail(fullText, transaction.InstrumentType);
 
         var merchantMatch = MerchantRegex.Match(anchor);
         if (merchantMatch.Success)
@@ -203,6 +225,7 @@ public class TransactionExtractionService : ITransactionExtractionService
             amount = transaction.Amount,
             merchant = transaction.Merchant,
             instrument = transaction.InstrumentType,
+            paymentRail = transaction.PaymentRail,
             last4 = transaction.InstrumentLast4,
             sourceInstrumentType = transaction.SourceInstrumentType,
             sourceInstrumentLast4 = transaction.SourceInstrumentLast4,
@@ -381,7 +404,9 @@ public class TransactionExtractionService : ITransactionExtractionService
         if (vpa.Success) transaction.CounterpartyIdentifier = vpa.Groups[1].Value.Trim();
 
         var named = CounterpartyParenRegex.Match(anchor);
-        if (named.Success && !named.Groups[1].Value.Contains('@'))
+        if (named.Success
+            && !named.Groups[1].Value.Contains('@')
+            && !Regex.IsMatch(named.Groups[1].Value, @"^(?:ref(?:erence)?|txn|transaction|id|no\.?)\b", RegexOptions.IgnoreCase))
         {
             transaction.CounterpartyName = CleanMerchant(named.Groups[1].Value);
         }
@@ -478,7 +503,21 @@ public class TransactionExtractionService : ITransactionExtractionService
     {
         var cleaned = raw.Trim().Trim('*', '-', ':', '.', ' ');
         cleaned = TrailingStatusRegex.Replace(cleaned, string.Empty).Trim();
+        cleaned = CanonicalizeKnownMerchant(cleaned);
         return cleaned.Length > 60 ? cleaned[..60].Trim() : cleaned;
+    }
+
+    private static string CanonicalizeKnownMerchant(string merchant)
+    {
+        if (Regex.IsMatch(merchant, @"\b(?:hpcl|hindustan\s+petroleum)\b", RegexOptions.IgnoreCase)) return "HPCL";
+        if (Regex.IsMatch(merchant, @"\b(?:bharat\s+petroleum|bpcl)\b", RegexOptions.IgnoreCase)) return "Bharat Petroleum";
+        if (Regex.IsMatch(merchant, @"\b(?:indian\s*oil|iocl)\b", RegexOptions.IgnoreCase)) return "Indian Oil";
+        if (Regex.IsMatch(merchant, @"\b(?:reliance\s+petrol(?:eum)?|reliance\s+fuel)\b", RegexOptions.IgnoreCase)) return "Reliance Petrol";
+        if (Regex.IsMatch(merchant, @"\b(?:jio[- ]?bp)\b", RegexOptions.IgnoreCase)) return "Jio-bp";
+        if (Regex.IsMatch(merchant, @"\bnayara(?:\s+energy)?\b", RegexOptions.IgnoreCase)) return "Nayara Energy";
+        if (Regex.IsMatch(merchant, @"\bshell\b", RegexOptions.IgnoreCase)) return "Shell";
+        if (Regex.IsMatch(merchant, @"\b(?:essar|mrpl)\b", RegexOptions.IgnoreCase)) return merchant.Trim();
+        return merchant;
     }
 
     // Indian alerts use dd-MM-yy, dd-MMM-yyyy and "16 Mar 2026"; invariant explicit formats avoid US month/day flips.
@@ -487,7 +526,8 @@ public class TransactionExtractionService : ITransactionExtractionService
         "dd-MM-yy", "d-M-yy", "dd-MM-yyyy", "d-M-yyyy",
         "dd/MM/yy", "d/M/yy", "dd/MM/yyyy", "d/M/yyyy",
         "dd-MMM-yyyy", "d-MMM-yyyy", "dd-MMM-yy", "d-MMM-yy",
-        "dd MMM yyyy", "d MMM yyyy", "dd MMMM yyyy", "d MMMM yyyy"
+        "dd MMM yyyy", "d MMM yyyy", "dd MMMM yyyy", "d MMMM yyyy",
+        "dd MMM, yyyy", "d MMM, yyyy", "dd MMMM, yyyy", "d MMMM, yyyy"
     };
 
     private static DateTime? ReadDate(string text)
@@ -563,6 +603,15 @@ public class TransactionExtractionService : ITransactionExtractionService
         if (Regex.IsMatch(text, @"\bupi\b|\bvpa\b|\butr\b", RegexOptions.IgnoreCase)) return "UPI";
         if (Regex.IsMatch(text, @"\bcard\b", RegexOptions.IgnoreCase)) return "CARD_UNSPECIFIED";
         return "UNKNOWN";
+    }
+
+    private static string? InferPaymentRail(string text, string instrumentType)
+    {
+        if (Regex.IsMatch(text, @"\b(?:upi|vpa|utr|upi\s+ref(?:erence)?)\b", RegexOptions.IgnoreCase)) return "UPI";
+        if (instrumentType == "WALLET") return "WALLET";
+        if (instrumentType is "CREDIT_CARD" or "DEBIT_CARD" or "CARD_UNSPECIFIED") return "CARD";
+        if (instrumentType == "BANK_ACCOUNT") return "BANK_TRANSFER";
+        return null;
     }
 
     private static void ApplyInstrumentFlow(string text, ExtractedTransaction transaction, string fullText)
