@@ -1251,6 +1251,21 @@ CREATE TABLE IF NOT EXISTS gmail_sender_stats (
 CREATE UNIQUE INDEX IF NOT EXISTS ix_gmail_sender_stats_user_sender
   ON gmail_sender_stats(user_id, sender_key);
 
+CREATE TABLE IF NOT EXISTS gmail_learning_rules (
+  id uuid PRIMARY KEY,
+  user_id integer NOT NULL REFERENCES user_profiles(id) ON DELETE CASCADE,
+  sender_key varchar(200) NOT NULL,
+  rule_type varchar(60) NOT NULL,
+  pattern_key varchar(200) NOT NULL,
+  learned_value varchar(120) NOT NULL,
+  confirmed_count integer NOT NULL DEFAULT 0,
+  rejected_count integer NOT NULL DEFAULT 0,
+  last_seen_utc timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ix_gmail_learning_rules_key
+  ON gmail_learning_rules(user_id, sender_key, rule_type, pattern_key, learned_value);
+
 
 -- Upgrade path for expenses only, since it is never dropped and may predate the timestamptz declaration.
 -- The Gmail tables are recreated from scratch by other/gmail_rebuild.sql, so they need no conversion.

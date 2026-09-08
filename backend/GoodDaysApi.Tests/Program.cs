@@ -265,6 +265,30 @@ CheckFn("REAL: Swiggy itemised bill picks total paid", () =>
         && o.TotalAmount == 800m;
 });
 
+CheckFn("REAL: Amazon shipment preserves total, number, and item", () =>
+{
+    var order = new OrderExtractionService();
+    return order.TryExtract("Your package was shipped", "", GoodDaysApi.Tests.RealEmailSamples.AmazonShipmentOrder, out var amazon, "shipment-tracking@amazon.in", new[] { "amazon.in" })
+        && amazon.Merchant == "Amazon"
+        && amazon.OrderNumber == "403-2433571-4161966"
+        && amazon.TotalAmount == 2502.05m
+        && order.ExtractItems("Your package was shipped", "", GoodDaysApi.Tests.RealEmailSamples.AmazonShipmentOrder).Any(item => item.Name.StartsWith("KAM'S LIEU", StringComparison.OrdinalIgnoreCase) && item.Quantity == 1);
+});
+
+CheckFn("REAL: BookMyShow order preserves booking, total, date, and tickets", () =>
+{
+    var order = new OrderExtractionService();
+    const string body = "BookMyShow | Your booking is confirmed! | Booking ID PTTH00CJCT2XPT | Vishwanath and Sons (Telugu) (UA16+) | Sat, 15 Aug, 2026 | ORDER SUMMARY | TICKET AMOUNT | Rs.450.00 | 3 tickets | AMOUNT PAID | Rs.520.80 | Booking Date & Time | Sat, 15 Aug, 2026 | 02:18pm |";
+    var parsed = order.TryExtract("Your booking is confirmed", "", body, out var bookMyShow, "alerts@bookmyshow.com", new[] { "bookmyshow.com" });
+    var items = order.ExtractItems("Your booking is confirmed", "", body);
+    return parsed
+        && bookMyShow.Merchant == "BookMyShow"
+        && bookMyShow.OrderNumber == "PTTH00CJCT2XPT"
+        && bookMyShow.TotalAmount == 520.80m
+        && bookMyShow.OrderDate?.Date == new DateTime(2026, 8, 15)
+        && items.Any(item => item.Name.Contains("Vishwanath and Sons", StringComparison.OrdinalIgnoreCase) && item.Quantity == 3 && item.Amount == 450m);
+});
+
 // ── Learned issuer knowledge ──────────────────────────────────────────────
 
 Check("INTEL: NACH mandate debit is classified as EMI", parser.TryExtract(

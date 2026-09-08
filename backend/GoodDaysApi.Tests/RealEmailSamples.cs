@@ -114,4 +114,22 @@ Platform fee with GST		₹17.58
 Discount Applied (SWIGGYIT)		- ₹49.99
 Taxes		₹37.75
 Paid Via Credit/Debit card		₹800";
+
+    public const string AmazonShipmentOrder = @"Your package was shipped!
+
+Arriving 14 July
+
+Venkatesh – HYDERABAD, TELANGANA
+
+Order # 403-2433571-4161966
+
+* KAM'S LIEU 6XL Luxury Faux Leather Bean Bag with Footrest & Cushion | Pre-Filled High-Density Polystyrene Beans | Premium Leatherette |Teardrop Handle Design | 6 Months Warranty Color- Aqua
+
+Quantity: 1
+
+2499 INR
+
+Total
+
+2502.0499999999997 INR";
 }

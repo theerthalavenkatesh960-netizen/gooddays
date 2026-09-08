@@ -597,6 +597,10 @@ export async function decideFinanceGmailTransaction(id: number, decision: 'APPRO
   });
 }
 
+export async function copyFinanceGmailTransaction(id: number): Promise<{ id: number }> {
+  return request(`finance/gmail/transactions/${id}/copy`, { method: 'POST' });
+}
+
 export async function decideFinanceGmailTransactions(expenseIds: number[], decision: 'APPROVE' | 'REJECT') {
   return request('finance/gmail/transactions/decision', {
     method: 'POST',

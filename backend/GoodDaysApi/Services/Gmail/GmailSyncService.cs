@@ -29,6 +29,7 @@ public class GmailSyncService : IGmailSyncService
     private readonly IOrderMatchingService _orderMatching;
     private readonly IMerchantAliasService _merchantAlias;
     private readonly ISenderReliabilityService _senderReliability;
+    private readonly IGmailLearningService _learning;
     private readonly ITokenEncryptionService _tokenEncryption;
     private readonly ILogger<GmailSyncService> _logger;
 
@@ -46,6 +47,7 @@ public class GmailSyncService : IGmailSyncService
         IOrderMatchingService orderMatching,
         IMerchantAliasService merchantAlias,
         ISenderReliabilityService senderReliability,
+        IGmailLearningService learning,
         ITokenEncryptionService tokenEncryption,
         ILogger<GmailSyncService> logger)
     {
@@ -62,6 +64,7 @@ public class GmailSyncService : IGmailSyncService
         _orderMatching = orderMatching;
         _merchantAlias = merchantAlias;
         _senderReliability = senderReliability;
+        _learning = learning;
         _tokenEncryption = tokenEncryption;
         _logger = logger;
     }
@@ -235,13 +238,17 @@ public class GmailSyncService : IGmailSyncService
                 }
 
                 result.Parsed++;
-                if (await IsDuplicateTransactionAsync(userId, message.MessageId, tx, message.InternalDateUtc, cancellationToken))
+                var duplicate = await FindDuplicateTransactionAsync(userId, message.MessageId, tx, message.InternalDateUtc, cancellationToken);
+                if (duplicate != null)
                 {
+                    await AttachGmailEvidenceAsync(duplicate, message, tx, cancellationToken);
                     result.DuplicatesSkipped++;
                     continue;
                 }
 
                 var rawMerchant = tx.Merchant;
+                await _learning.ApplyAsync(userId, message.From, message.Subject + "\n" + message.Snippet + "\n" + message.BodyText, tx, cancellationToken);
+                var learningSignals = await _learning.BuildSignalsAsync(userId, message.From, message.Subject + "\n" + message.Snippet + "\n" + message.BodyText, tx, cancellationToken);
                 var resolvedAlias = await _merchantAlias.ResolveAsync(userId, rawMerchant, cancellationToken);
                 if (resolvedAlias != null)
                 {
@@ -284,7 +291,7 @@ public class GmailSyncService : IGmailSyncService
                     Currency = tx.Currency,
                     ConfidenceScore = tx.ConfidenceScore,
                     ExtractionVersion = "v3.0",
-                    EvidenceJson = tx.EvidenceJson,
+                    EvidenceJson = AddLearningSignals(tx.EvidenceJson, learningSignals),
                     RawMerchant = rawMerchant,
                     IsReviewed = false,
                     ReviewedAt = null
@@ -294,6 +301,7 @@ public class GmailSyncService : IGmailSyncService
                 await _db.SaveChangesAsync(cancellationToken);
                 result.Created++;
                 await _cardMatching.TryLinkExpenseToCardAsync(userId, expense, cancellationToken);
+                await _orderMatching.TryLinkExpenseAsync(userId, expense, cancellationToken);
             }
 
             await RecordEmailAsync(userId, message, needsReview ? "NEEDS_REVIEW" : "PROCESSED", null, cancellationToken);
@@ -303,6 +311,17 @@ public class GmailSyncService : IGmailSyncService
         await _db.SaveChangesAsync(cancellationToken);
 
         return result;
+    }
+
+    private static string AddLearningSignals(string evidenceJson, IReadOnlyList<GmailLearningSignal> signals)
+    {
+        try
+        {
+            var evidence = JsonSerializer.Deserialize<Dictionary<string, object>>(string.IsNullOrWhiteSpace(evidenceJson) ? "{}" : evidenceJson) ?? new();
+            evidence["learningSignals"] = signals;
+            return JsonSerializer.Serialize(evidence);
+        }
+        catch { return evidenceJson; }
     }
 
     private async Task SaveCandidateAsync(int userId, GmailMessageLite message, string status, string evidenceOrError, CancellationToken cancellationToken)
@@ -601,40 +620,58 @@ public class GmailSyncService : IGmailSyncService
         }
     }
 
-    private async Task<bool> IsDuplicateTransactionAsync(int userId, string gmailMessageId, ExtractedTransaction tx, DateTime fallbackDateUtc, CancellationToken cancellationToken)
+    private async Task<Expense?> FindDuplicateTransactionAsync(int userId, string gmailMessageId, ExtractedTransaction tx, DateTime fallbackDateUtc, CancellationToken cancellationToken)
     {
-        var hasMessageId = await _db.Expenses.AnyAsync(
+        var byMessage = await _db.Expenses.FirstOrDefaultAsync(
             x => x.UserId == userId && x.GmailMessageId == gmailMessageId,
             cancellationToken);
 
-        if (hasMessageId)
-        {
-            return true;
-        }
+        if (byMessage != null) return byMessage;
 
         if (!string.IsNullOrWhiteSpace(tx.ReferenceNumber))
         {
-            var hasReference = await _db.Expenses.AnyAsync(
+            var byReference = await _db.Expenses.FirstOrDefaultAsync(
                 x => x.UserId == userId && x.ExternalReference == tx.ReferenceNumber,
                 cancellationToken);
 
-            if (hasReference)
-            {
-                return true;
-            }
+            if (byReference != null) return byReference;
         }
 
         var txDate = tx.TransactionDateUtc ?? fallbackDateUtc;
         var minTime = txDate.AddMinutes(-5);
         var maxTime = txDate.AddMinutes(5);
 
-        return await _db.Expenses.AnyAsync(
+        return await _db.Expenses.FirstOrDefaultAsync(
             x => x.UserId == userId
                  && x.Amount == tx.Amount
                  && x.Date.HasValue
                  && x.Date.Value >= minTime
                  && x.Date.Value <= maxTime,
             cancellationToken);
+    }
+
+    private async Task AttachGmailEvidenceAsync(Expense existing, GmailMessageLite message, ExtractedTransaction transaction, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(existing.GmailMessageId)) existing.GmailMessageId = message.MessageId;
+        if (string.IsNullOrWhiteSpace(existing.ExternalReference)) existing.ExternalReference = transaction.ReferenceNumber;
+        if (string.IsNullOrWhiteSpace(existing.RawMerchant)) existing.RawMerchant = transaction.Merchant;
+        existing.EvidenceJson = MergeTransactionEvidence(existing.EvidenceJson, transaction.EvidenceJson, message.MessageId);
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string MergeTransactionEvidence(string existingEvidenceJson, string latestEvidenceJson, string sourceMessageId)
+    {
+        try
+        {
+            return JsonSerializer.Serialize(new
+            {
+                previous = JsonSerializer.Deserialize<JsonElement>(string.IsNullOrWhiteSpace(existingEvidenceJson) ? "{}" : existingEvidenceJson),
+                latest = JsonSerializer.Deserialize<JsonElement>(string.IsNullOrWhiteSpace(latestEvidenceJson) ? "{}" : latestEvidenceJson),
+                additionalSourceMessageId = sourceMessageId,
+                mergedAt = DateTime.UtcNow
+            });
+        }
+        catch { return existingEvidenceJson; }
     }
 
     private static string BuildDescription(ExtractedTransaction tx)

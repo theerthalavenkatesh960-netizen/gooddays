@@ -8,6 +8,7 @@ namespace GoodDaysApi.Services.Gmail;
 public interface IOrderMatchingService
 {
     Task TryLinkOrderAsync(int userId, Order order, CancellationToken cancellationToken = default);
+    Task TryLinkExpenseAsync(int userId, Expense expense, CancellationToken cancellationToken = default);
 }
 
 public class OrderMatchingService : IOrderMatchingService
@@ -54,6 +55,25 @@ public class OrderMatchingService : IOrderMatchingService
         var status = score >= 0.80m ? "VALIDATED" : "NEEDS_REVIEW";
 
         await AddLinkAsync(order, match, score, "AMOUNT_DATE", status, cancellationToken);
+    }
+
+    public async Task TryLinkExpenseAsync(int userId, Expense expense, CancellationToken cancellationToken = default)
+    {
+        if (expense.Amount <= 0 || !expense.Date.HasValue) return;
+
+        var expenseDate = AsUtc(expense.Date.Value);
+        var orders = await _db.Orders
+            .Where(x => x.UserId == userId
+                        && x.TotalAmount == expense.Amount
+                        && x.OrderDate != null
+                        && x.OrderDate >= expenseDate.AddDays(-7)
+                        && x.OrderDate <= expenseDate.AddDays(3))
+            .ToListAsync(cancellationToken);
+
+        foreach (var order in orders)
+        {
+            await TryLinkOrderAsync(userId, order, cancellationToken);
+        }
     }
 
     // orders.order_date is a naive timestamp, so values read back are Unspecified and cannot be compared to timestamptz columns.

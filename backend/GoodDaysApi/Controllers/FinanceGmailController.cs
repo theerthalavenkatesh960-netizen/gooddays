@@ -1,4 +1,5 @@
 using GoodDaysApi.DTOs.Gmail;
+using System.Text.Json;
 using GoodDaysApi.Data;
 using GoodDaysApi.Models;
 using GoodDaysApi.Services.Gmail;
@@ -20,6 +21,7 @@ public class FinanceGmailController : ControllerBase
     private readonly IMerchantAliasService _merchantAlias;
     private readonly ITokenEncryptionService _tokenEncryption;
     private readonly ISenderReliabilityService _senderReliability;
+    private readonly IGmailLearningService _learning;
     private readonly GmailOptions _gmailOptions;
 
     public FinanceGmailController(
@@ -30,6 +32,7 @@ public class FinanceGmailController : ControllerBase
         IMerchantAliasService merchantAlias,
         ITokenEncryptionService tokenEncryption,
         ISenderReliabilityService senderReliability,
+        IGmailLearningService learning,
         IOptions<GmailOptions> gmailOptions)
     {
         _gmailService = gmailService;
@@ -39,6 +42,7 @@ public class FinanceGmailController : ControllerBase
         _merchantAlias = merchantAlias;
         _tokenEncryption = tokenEncryption;
         _senderReliability = senderReliability;
+        _learning = learning;
         _gmailOptions = gmailOptions.Value;
     }
 
@@ -389,6 +393,51 @@ public class FinanceGmailController : ControllerBase
         return Ok(new { saved = items.Count });
     }
 
+    [HttpPost("transactions/{id:int}/copy")]
+    [Authorize]
+    public async Task<IActionResult> CopyTransaction(int id, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var source = await _db.Expenses.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId.Value, cancellationToken);
+        if (source == null) return NotFound();
+
+        var copy = new Expense
+        {
+            UserId = userId.Value,
+            Description = source.Description,
+            Amount = source.Amount,
+            Category = source.Category,
+            SourceType = "manual",
+            Direction = source.Direction,
+            TransactionType = source.TransactionType,
+            TransactionStatus = "COMPLETED",
+            PaymentInstrumentType = source.PaymentInstrumentType,
+            PaymentRail = source.PaymentRail,
+            InstitutionName = source.InstitutionName,
+            InstrumentLast4 = source.InstrumentLast4,
+            SourceInstrumentType = source.SourceInstrumentType,
+            SourceInstrumentLast4 = source.SourceInstrumentLast4,
+            DestinationInstrumentType = source.DestinationInstrumentType,
+            DestinationInstrumentName = source.DestinationInstrumentName,
+            MerchantName = source.MerchantName,
+            CounterpartyName = source.CounterpartyName,
+            CounterpartyIdentifier = source.CounterpartyIdentifier,
+            Currency = source.Currency,
+            Date = source.Date,
+            CreatedAt = DateTime.UtcNow,
+            IsReviewed = true,
+            ReviewedAt = DateTime.UtcNow,
+            EvidenceJson = "{\"source\":\"copied-transaction\"}"
+        };
+
+        _db.Expenses.Add(copy);
+        await _db.SaveChangesAsync(cancellationToken);
+        return Ok(new { id = copy.Id });
+    }
+
     [HttpPost("transactions/{id:int}/decision")]
     [Authorize]
     public async Task<IActionResult> DecideTransaction(int id, [FromBody] TransactionDecisionRequest request, CancellationToken cancellationToken)
@@ -405,6 +454,7 @@ public class FinanceGmailController : ControllerBase
 
         if (string.Equals(request.Decision, "REJECT", StringComparison.OrdinalIgnoreCase))
         {
+            await RecordLearningOutcomeAsync(userId.Value, expense, email, false, cancellationToken);
             _db.Expenses.Remove(expense);
             if (email != null)
             {
@@ -420,6 +470,7 @@ public class FinanceGmailController : ControllerBase
 
         expense.IsReviewed = true;
         expense.ReviewedAt = DateTime.UtcNow;
+        await RecordLearningOutcomeAsync(userId.Value, expense, email, true, cancellationToken);
         if (email != null)
         {
             await _senderReliability.RecordOutcomeAsync(userId.Value, email.Sender, confirmed: true, cancellationToken);
@@ -453,6 +504,7 @@ public class FinanceGmailController : ControllerBase
             var rejected = request.Decision == "REJECT";
             if (rejected)
             {
+                await RecordLearningOutcomeAsync(userId.Value, expense, email, false, cancellationToken);
                 _db.Expenses.Remove(expense);
                 if (email != null)
                 {
@@ -466,6 +518,7 @@ public class FinanceGmailController : ControllerBase
             {
                 expense.IsReviewed = true;
                 expense.ReviewedAt = DateTime.UtcNow;
+                await RecordLearningOutcomeAsync(userId.Value, expense, email, true, cancellationToken);
                 if (email != null)
                 {
                     await _senderReliability.RecordOutcomeAsync(userId.Value, email.Sender, confirmed: true, cancellationToken);
@@ -475,6 +528,19 @@ public class FinanceGmailController : ControllerBase
 
         await _db.SaveChangesAsync(cancellationToken);
         return Ok(new { updated = expenses.Count, decision = request.Decision });
+    }
+
+    private async Task RecordLearningOutcomeAsync(int userId, Expense expense, SyncedEmail? email, bool confirmed, CancellationToken cancellationToken)
+    {
+        if (email == null || string.IsNullOrWhiteSpace(expense.EvidenceJson)) return;
+        try
+        {
+            using var document = JsonDocument.Parse(expense.EvidenceJson);
+            if (!document.RootElement.TryGetProperty("learningSignals", out var signalsElement)) return;
+            var signals = JsonSerializer.Deserialize<List<GmailLearningSignal>>(signalsElement.GetRawText()) ?? new();
+            await _learning.RecordOutcomeAsync(userId, email.Sender, signals, confirmed, cancellationToken);
+        }
+        catch (JsonException) { }
     }
 
     [HttpPost("review")]

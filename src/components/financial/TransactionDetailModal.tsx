@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Mail, CreditCard, Package, ArrowDownLeft, ArrowUpRight, Pencil } from 'lucide-react';
+import { X, Mail, CreditCard, Package, ArrowDownLeft, ArrowUpRight, Pencil, Copy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import * as api from '../../lib/api';
 import { formatTxDateTime } from '../../lib/config';
@@ -84,6 +84,18 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
       await api.decideFinanceGmailTransaction(transactionId, decision);
       onChanged?.();
       onClose();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copyTransaction = async () => {
+    setBusy(true);
+    try {
+      const copied = await api.copyFinanceGmailTransaction(transactionId);
+      onChanged?.();
+      onClose();
+      window.dispatchEvent(new CustomEvent('gooddays:transaction-copied', { detail: copied.id }));
     } finally {
       setBusy(false);
     }
@@ -179,14 +191,17 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
                 {editing ? (
                   <div className="flex justify-between items-center gap-3 py-1.5">
                     <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>Category</span>
-                    <select
+                    <input
                       value={form.category}
                       onChange={(e) => setForm(f => ({ ...f, category: e.target.value }))}
+                      list="finance-category-options"
+                      placeholder="Category"
                       className="h-8 px-2 rounded-lg text-xs outline-none"
                       style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                    >
-                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    />
+                    <datalist id="finance-category-options">
+                      {CATEGORIES.map(c => <option key={c} value={c} />)}
+                    </datalist>
                   </div>
                 ) : (
                   <Row label="Category" value={detail.category} />
@@ -288,6 +303,9 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
             </div>
 
             <div className="p-4 border-t flex gap-2 sticky bottom-0" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface)' }}>
+              <button onClick={copyTransaction} disabled={busy} className="h-10 px-3 rounded-xl text-sm font-semibold press disabled:opacity-60" style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-secondary)' }} aria-label="Copy transaction">
+                <Copy size={14} />
+              </button>
               {editing ? (
                 <button
                   onClick={async () => {
