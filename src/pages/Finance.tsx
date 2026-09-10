@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 import { formatTxDateTime } from '../lib/config';
@@ -49,62 +50,49 @@ function PillTabs({ active, onChange }: { active: string; onChange: (t: string) 
 function TransactionsTab() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [month, setMonth] = useState(new Date());
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [gmailStatus, setGmailStatus] = useState<any>(null);
   const [syncingGmail, setSyncingGmail] = useState(false);
   const [gmailOnly, setGmailOnly] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [budgetProfile, setBudgetProfile] = useState<any>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null);
   const [editorForm, setEditorForm] = useState({ amount: '', category: 'Food', note: '', date: format(new Date(), 'yyyy-MM-dd') });
 
-  const loadTransactions = () => Promise.all([
-    user ? api.getExpenses(user.id).catch(() => []) : Promise.resolve([]),
-    (api as any).getFinanceBudgetProfile(month.getMonth() + 1, month.getFullYear()).catch(() => null),
-    user ? api.getFinanceGmailStatus().catch(() => null) : Promise.resolve(null),
-  ]).then(([expenseData, budget, gmail]) => {
-    setExpenses(Array.isArray(expenseData) ? expenseData : []);
-    setBudgetProfile(budget);
-    setGmailStatus(gmail);
+  const expensesQuery = useQuery({
+    queryKey: ['expenses', user?.id],
+    queryFn: () => user ? api.getExpenses(user.id) : Promise.resolve([]),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const budgetQuery = useQuery({
+    queryKey: ['financeBudgetProfile', month.getMonth() + 1, month.getFullYear()],
+    queryFn: () => (api as any).getFinanceBudgetProfile(month.getMonth() + 1, month.getFullYear()),
+    staleTime: 5 * 60_000,
+  });
+  const gmailStatusQuery = useQuery({
+    queryKey: ['financeGmailStatus', user?.id],
+    queryFn: () => user ? api.getFinanceGmailStatus() : Promise.resolve(null),
+    enabled: !!user,
+    staleTime: 30_000,
   });
 
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-    Promise.all([
-      user ? api.getExpenses(user.id).catch(() => []) : Promise.resolve([]),
-      (api as any).getFinanceBudgetProfile(month.getMonth() + 1, month.getFullYear()).catch(() => null),
-      user ? api.getFinanceGmailStatus().catch(() => null) : Promise.resolve(null),
-    ]).then(([expenseData, budget, gmail]) => {
-      if (!isMounted) return;
-      setExpenses(Array.isArray(expenseData) ? expenseData : []);
-      setBudgetProfile(budget);
-      setGmailStatus(gmail);
-    }).finally(() => {
-      if (isMounted) setLoading(false);
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, [user, month]);
+  const expenses = Array.isArray(expensesQuery.data) ? expensesQuery.data : [];
+  const budgetProfile = budgetQuery.data as any;
+  const gmailStatus = gmailStatusQuery.data as any;
+  const loading = expensesQuery.isLoading || budgetQuery.isLoading || gmailStatusQuery.isLoading;
+
+  const loadTransactions = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['expenses', user?.id] }),
+    queryClient.invalidateQueries({ queryKey: ['financeBudgetProfile', month.getMonth() + 1, month.getFullYear()] }),
+    queryClient.invalidateQueries({ queryKey: ['financeGmailStatus', user?.id] }),
+  ]).then(() => undefined);
 
   useEffect(() => {
     const transaction = Number(searchParams.get('transaction'));
     if (transaction > 0) setDetailId(transaction);
   }, [searchParams]);
-
-  useEffect(() => {
-    const onFocus = () => {
-      if (!user) return;
-      loadTransactions().catch(() => undefined);
-    };
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [user, month]);
 
   const monthExpenses = expenses.filter(e => {
     const d = new Date(e.date ?? e.createdAt ?? e.created_at);
@@ -160,18 +148,17 @@ function TransactionsTab() {
 
     const txDate = new Date(`${editorForm.date}T12:00:00`);
     if (editingExpenseId) {
-      const updated = await api.updateExpense(editingExpenseId, editorForm.note, amount, editorForm.category, txDate);
-      setExpenses(prev => prev.map(e => e.id === editingExpenseId ? { ...e, ...updated } : e));
+      await api.updateExpense(editingExpenseId, editorForm.note, amount, editorForm.category, txDate);
     } else {
-      const created = await api.createExpense(user.id, editorForm.note, amount, editorForm.category, txDate);
-      setExpenses(prev => [created, ...prev]);
+      await api.createExpense(user.id, editorForm.note, amount, editorForm.category, txDate);
     }
+    await queryClient.invalidateQueries({ queryKey: ['expenses', user.id] });
     setShowEditor(false);
   };
 
   const deleteTransaction = async (id: number) => {
     await api.deleteExpense(id);
-    setExpenses(prev => prev.filter(e => e.id !== id));
+    if (user) await queryClient.invalidateQueries({ queryKey: ['expenses', user.id] });
   };
 
   const connectGmail = async () => {

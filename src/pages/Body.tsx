@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, subDays } from 'date-fns';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import * as api from '../lib/api';
 
 type Tab = 'Workout' | 'Diet' | 'Progress';
@@ -108,6 +109,7 @@ function PillTabs({ active, onChange }: { tabs: string[]; active: string; onChan
 
 function WorkoutTab() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [routine, setRoutine] = useState<RoutineMap>({});
   const [loading, setLoading] = useState(true);
@@ -121,10 +123,10 @@ function WorkoutTab() {
     const fromDate = format(subDays(new Date(), 365), 'yyyy-MM-dd');
 
     Promise.all([
-      api.getExercises(),
-      api.getWorkoutPlanByDate(today),
-      api.getActiveSplit(),
-      api.getWorkoutPlans(fromDate),
+      queryClient.fetchQuery({ queryKey: ['exercises'], queryFn: () => api.getExercises(), staleTime: 15 * 60_000 }),
+      queryClient.fetchQuery({ queryKey: ['workoutPlanByDate', today], queryFn: () => api.getWorkoutPlanByDate(today), staleTime: 60_000 }),
+      queryClient.fetchQuery({ queryKey: ['activeSplit'], queryFn: () => api.getActiveSplit(), staleTime: 5 * 60_000 }),
+      queryClient.fetchQuery({ queryKey: ['workoutPlans', fromDate], queryFn: () => api.getWorkoutPlans(fromDate), staleTime: 2 * 60_000 }),
     ])
       .then(([exData, plan, activeSplit, plans]) => {
         setExercises(Array.isArray(exData) ? exData : []);
@@ -181,7 +183,7 @@ function WorkoutTab() {
         setExerciseAverages({});
       })
       .finally(() => setLoading(false));
-  }, [today]);
+  }, [today, queryClient]);
 
   const routineCards = useMemo(() => {
     const entries = routine[dayKey] || [];
@@ -455,6 +457,7 @@ function parseMealIngredients(rawJson: string): MealIngredient[] {
 }
 
 function DietTab() {
+  const queryClient = useQueryClient();
   const [plannedMeals, setPlannedMeals] = useState<MealTemplate[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [goal, setGoal] = useState(2400);
@@ -487,11 +490,11 @@ function DietTab() {
       setLoading(true);
       try {
         const [templates, weeklyPlan, todayLog, settings, waterLog] = await Promise.all([
-          api.getMealTemplates(),
-          api.getWeeklyMealPlan() as Promise<WeeklyMealPlan>,
-          (api as any).getDailyMealLog(today) as Promise<DailyMealLog | null>,
-          api.getUserSettings(),
-          api.getDailyWaterLog(today) as Promise<any>,
+          queryClient.fetchQuery({ queryKey: ['mealTemplates'], queryFn: () => api.getMealTemplates(), staleTime: 10 * 60_000 }),
+          queryClient.fetchQuery({ queryKey: ['weeklyMealPlan'], queryFn: () => api.getWeeklyMealPlan(), staleTime: 5 * 60_000 }) as Promise<WeeklyMealPlan>,
+          queryClient.fetchQuery({ queryKey: ['dailyMealLog', today], queryFn: () => (api as any).getDailyMealLog(today), staleTime: 60_000 }) as Promise<DailyMealLog | null>,
+          queryClient.fetchQuery({ queryKey: ['userSettings'], queryFn: () => api.getUserSettings(), staleTime: 5 * 60_000 }),
+          queryClient.fetchQuery({ queryKey: ['dailyWaterLog', today], queryFn: () => api.getDailyWaterLog(today), staleTime: 60_000 }) as Promise<any>,
         ]);
 
         const list = Array.isArray(templates) ? templates : [];
@@ -526,7 +529,7 @@ function DietTab() {
     }
 
     load();
-  }, [today, todayKey, utcToday, refreshTrigger]);
+  }, [today, todayKey, utcToday, refreshTrigger, queryClient]);
   
   function isIngredientMeal(meal: MealTemplate): boolean {
     const ingredients = parseMealIngredients(meal.ingredientsJson);

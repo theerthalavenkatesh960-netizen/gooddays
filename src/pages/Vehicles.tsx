@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../lib/api';
 import type { Vehicle } from '../lib/api';
 
@@ -397,8 +398,8 @@ function IssuesTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Vehi
 
 export default function Vehicles() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [tab, setTab] = useState<VehicleTab>('Refills');
   const [showAddVehicle, setShowAddVehicle] = useState(false);
@@ -407,9 +408,20 @@ export default function Vehicles() {
     regNo: '', fuelType: 'Petrol', color: '#6C63FF', odometer: ''
   });
 
+  const vehiclesQuery = useQuery({ queryKey: ['vehicles'], queryFn: () => api.getVehicles(), staleTime: 5 * 60_000 });
+  const loading = vehiclesQuery.isLoading && vehicles.length === 0;
+
   useEffect(() => {
-    api.getVehicles().then((data: any) => setVehicles(Array.isArray(data) ? data : [])).finally(() => setLoading(false));
-  }, []);
+    if (Array.isArray(vehiclesQuery.data)) setVehicles(vehiclesQuery.data);
+  }, [vehiclesQuery.data]);
+
+  const setVehiclesCached = (updater: (prev: Vehicle[]) => Vehicle[]) => {
+    setVehicles(prev => {
+      const next = updater(prev);
+      queryClient.setQueryData(['vehicles'], next);
+      return next;
+    });
+  };
 
   async function handleAddVehicle() {
     if (!addForm.name.trim() || !addForm.make.trim() || !addForm.odometer) return;
@@ -423,13 +435,13 @@ export default function Vehicles() {
       color: addForm.color,
       odometer: parseInt(addForm.odometer),
     });
-    setVehicles(prev => [...prev, created]);
+    setVehiclesCached(prev => [...prev, created]);
     setAddForm({ name: '', make: '', model: '', year: new Date().getFullYear().toString(), regNo: '', fuelType: 'Petrol', color: '#6C63FF', odometer: '' });
     setShowAddVehicle(false);
   }
 
   function handleVehicleUpdate(updated: Vehicle) {
-    setVehicles(prev => prev.map(v => v.id === updated.id ? updated : v));
+    setVehiclesCached(prev => prev.map(v => v.id === updated.id ? updated : v));
   }
 
   const selected = vehicles.find(v => v.id === selectedId) ?? null;

@@ -2,6 +2,9 @@ import { ReactNode, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Sun, Dumbbell, DollarSign, Settings, Plus } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 import LogSheet from './LogSheet';
 
@@ -16,7 +19,36 @@ export default function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [logOpen, setLogOpen] = useState(false);
+  const today = format(new Date(), 'yyyy-MM-dd');
+
+  const prefetchForPath = (path: string) => {
+    if (!user) return;
+    if (path === '/finance') {
+      queryClient.prefetchQuery({ queryKey: ['expenses', user.id], queryFn: () => api.getExpenses(user.id), staleTime: 60_000 });
+      queryClient.prefetchQuery({ queryKey: ['financeGmailStatus', user.id], queryFn: () => api.getFinanceGmailStatus(), staleTime: 30_000 });
+      queryClient.prefetchQuery({ queryKey: ['financeBudgetProfile', new Date().getMonth() + 1, new Date().getFullYear()], queryFn: () => (api as any).getFinanceBudgetProfile(new Date().getMonth() + 1, new Date().getFullYear()), staleTime: 5 * 60_000 });
+    }
+    if (path === '/body') {
+      queryClient.prefetchQuery({ queryKey: ['exercises'], queryFn: () => api.getExercises(), staleTime: 15 * 60_000 });
+      queryClient.prefetchQuery({ queryKey: ['workoutPlanByDate', today], queryFn: () => api.getWorkoutPlanByDate(today), staleTime: 60_000 });
+      queryClient.prefetchQuery({ queryKey: ['mealTemplates'], queryFn: () => api.getMealTemplates(), staleTime: 10 * 60_000 });
+      queryClient.prefetchQuery({ queryKey: ['weeklyMealPlan'], queryFn: () => api.getWeeklyMealPlan(), staleTime: 5 * 60_000 });
+    }
+    if (path === '/settings') {
+      queryClient.prefetchQuery({ queryKey: ['userSettings'], queryFn: () => api.getUserSettings(), staleTime: 5 * 60_000 });
+      queryClient.prefetchQuery({ queryKey: ['vehicles'], queryFn: () => api.getVehicles(), staleTime: 5 * 60_000 });
+    }
+  };
+
+  const prefetchQuickLog = () => {
+    if (!user) return;
+    queryClient.prefetchQuery({ queryKey: ['cards', user.id], queryFn: () => import('../lib/cardApi').then(m => m.default.getCards(user.id)), staleTime: 5 * 60_000 });
+    queryClient.prefetchQuery({ queryKey: ['exercises'], queryFn: () => api.getExercises(), staleTime: 15 * 60_000 });
+    queryClient.prefetchQuery({ queryKey: ['mealTemplates'], queryFn: () => api.getMealTemplates(), staleTime: 10 * 60_000 });
+    queryClient.prefetchQuery({ queryKey: ['vehicles'], queryFn: () => api.getVehicles(), staleTime: 5 * 60_000 });
+  };
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg)' }}>
@@ -44,6 +76,9 @@ export default function Layout({ children }: { children: ReactNode }) {
             return (
               <button
                 key={tab.path}
+                onPointerEnter={() => prefetchForPath(tab.path)}
+                onFocus={() => prefetchForPath(tab.path)}
+                onTouchStart={() => prefetchForPath(tab.path)}
                 onClick={() => navigate(tab.path)}
                 className="flex flex-col items-center gap-1 py-2 press"
               >
@@ -65,6 +100,9 @@ export default function Layout({ children }: { children: ReactNode }) {
             return (
               <button
                 key={tab.path}
+                onPointerEnter={() => prefetchForPath(tab.path)}
+                onFocus={() => prefetchForPath(tab.path)}
+                onTouchStart={() => prefetchForPath(tab.path)}
                 onClick={() => navigate(tab.path)}
                 className="flex flex-col items-center gap-1 py-2 press"
               >
@@ -79,7 +117,10 @@ export default function Layout({ children }: { children: ReactNode }) {
           {/* Log button - floating above the nav items row */}
           <div className="absolute left-1/2 -translate-x-1/2 -top-5 pointer-events-none">
             <button
-              onClick={() => setLogOpen(true)}
+              onPointerEnter={prefetchQuickLog}
+              onFocus={prefetchQuickLog}
+              onTouchStart={prefetchQuickLog}
+              onClick={() => { prefetchQuickLog(); setLogOpen(true); }}
               className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg press pointer-events-auto"
               style={{
                 backgroundColor: 'var(--accent)',

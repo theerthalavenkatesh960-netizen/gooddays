@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../lib/api';
 import type { Vehicle } from '../lib/api';
 
@@ -342,10 +343,10 @@ function IssuesTab({ vehicle, onUpdate }: { vehicle: Vehicle; onUpdate: (v: Vehi
 
 export default function SettingsVehicles() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [tab, setTab] = useState<VehicleTab>('Refills');
-  const [loading, setLoading] = useState(true);
   const [showAddVehicle, setShowAddVehicle] = useState(false);
   const [showEditVehicle, setShowEditVehicle] = useState(false);
   const [editingVehicleId, setEditingVehicleId] = useState<number | null>(null);
@@ -360,12 +361,20 @@ export default function SettingsVehicles() {
     regNo: '', fuelType: 'Petrol', color: '#6C63FF', odometer: ''
   });
 
+  const vehiclesQuery = useQuery({ queryKey: ['vehicles'], queryFn: () => api.getVehicles(), staleTime: 5 * 60_000 });
+  const loading = vehiclesQuery.isLoading && vehicles.length === 0;
+
   useEffect(() => {
-    api.getVehicles().then((data: any) => {
-      const vList = Array.isArray(data) ? data : [];
-      setVehicles(vList);
-    }).catch(() => setVehicles([])).finally(() => setLoading(false));
-  }, []);
+    if (Array.isArray(vehiclesQuery.data)) setVehicles(vehiclesQuery.data);
+  }, [vehiclesQuery.data]);
+
+  const setVehiclesCached = (updater: (prev: Vehicle[]) => Vehicle[]) => {
+    setVehicles(prev => {
+      const next = updater(prev);
+      queryClient.setQueryData(['vehicles'], next);
+      return next;
+    });
+  };
 
   async function handleAddVehicle() {
     if (!addForm.name.trim() || !addForm.make.trim() || !addForm.odometer) return;
@@ -379,7 +388,7 @@ export default function SettingsVehicles() {
       color: addForm.color,
       odometer: parseInt(addForm.odometer),
     });
-    setVehicles(prev => [...prev, created]);
+    setVehiclesCached(prev => [...prev, created]);
     setAddForm({ name: '', make: '', model: '', year: new Date().getFullYear().toString(), regNo: '', fuelType: 'Petrol', color: '#6C63FF', odometer: '' });
     setShowAddVehicle(false);
   }
@@ -427,7 +436,7 @@ export default function SettingsVehicles() {
       issues: updatedFromApi?.issues ?? existingVehicle.issues ?? [],
     };
 
-    setVehicles(prev => prev.map(v => v.id === targetId ? updatedVehicle : v));
+    setVehiclesCached(prev => prev.map(v => v.id === targetId ? updatedVehicle : v));
     if (selectedVehicle?.id === targetId) {
       setSelectedVehicle(updatedVehicle);
     }
@@ -446,7 +455,7 @@ export default function SettingsVehicles() {
 
     await api.deleteVehicle(vehicleId);
     const nextVehicles = vehicles.filter(v => v.id !== vehicleId);
-    setVehicles(nextVehicles);
+    setVehiclesCached(() => nextVehicles);
     if (selectedVehicle?.id === vehicleId) {
       setSelectedVehicle(null);
     }
@@ -482,7 +491,7 @@ export default function SettingsVehicles() {
   }
 
   function handleVehicleUpdate(updated: Vehicle) {
-    setVehicles(prev => prev.map(v => v.id === updated.id ? updated : v));
+    setVehiclesCached(prev => prev.map(v => v.id === updated.id ? updated : v));
     setSelectedVehicle(updated);
   }
 

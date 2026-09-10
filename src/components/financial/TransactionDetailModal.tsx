@@ -19,16 +19,6 @@ const CATEGORIES = [
 const money = (v: number, currency = 'INR') =>
   `${currency === 'INR' ? '₹' : ''}${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0)}`;
 
-function paymentSummary(detail: any) {
-  const merchant = detail.merchantName || detail.counterpartyName;
-  const institution = detail.institutionName;
-  const instrument = [detail.paymentInstrumentType, detail.instrumentLast4 ? `••${detail.instrumentLast4}` : null].filter(Boolean).join(' ');
-  const paymentSource = [institution, instrument].filter(Boolean).join(' ');
-  if (!merchant && !paymentSource) return '';
-  const direction = detail.direction === 'CREDIT' ? 'From' : 'To';
-  return [merchant, paymentSource ? `${direction} ${paymentSource}` : null].filter(Boolean).join(' · ');
-}
-
 function PaymentSummaryLine({ detail }: { detail: any }) {
   const merchant = detail.merchantName || detail.counterpartyName;
   const institution = detail.institutionName;

@@ -9,6 +9,7 @@ import * as api from '../lib/api';
 import cardApi, { type CreditCard } from '../lib/cardApi';
 import { format, subDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface LogSheetProps {
   onClose: () => void;
@@ -162,6 +163,7 @@ const EXPENSE_CATEGORIES = [
 
 export default function LogSheet({ onClose, userId }: LogSheetProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const showEstimateDebug = Boolean((import.meta as any).env?.DEV || (import.meta as any).env?.VITE_MEAL_ESTIMATE_DEBUG === 'true');
   const [sub, setSub] = useState<SubSheet>(null);
   const [saving, setSaving] = useState(false);
@@ -238,6 +240,18 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
 
   const today = format(new Date(), 'yyyy-MM-dd');
   const todayDayKey = format(new Date(), 'EEEE').toLowerCase();
+  const quickMealFromDate = format(subDays(new Date(), 30), 'yyyy-MM-dd');
+
+  useEffect(() => {
+    if (userId == null) return;
+    queryClient.prefetchQuery({ queryKey: ['cards', userId], queryFn: () => cardApi.getCards(userId), staleTime: 5 * 60_000 });
+    queryClient.prefetchQuery({ queryKey: ['exercises'], queryFn: () => api.getExercises(), staleTime: 15 * 60_000 });
+    queryClient.prefetchQuery({ queryKey: ['workoutPlanByDate', today], queryFn: () => api.getWorkoutPlanByDate(today), staleTime: 60_000 });
+    queryClient.prefetchQuery({ queryKey: ['mealTemplates'], queryFn: () => api.getMealTemplates(), staleTime: 10 * 60_000 });
+    queryClient.prefetchQuery({ queryKey: ['weeklyMealPlan'], queryFn: () => api.getWeeklyMealPlan(), staleTime: 5 * 60_000 });
+    queryClient.prefetchQuery({ queryKey: ['dailyMealLog', today], queryFn: () => api.getDailyMealLog(today), staleTime: 60_000 });
+    queryClient.prefetchQuery({ queryKey: ['vehicles'], queryFn: () => api.getVehicles(), staleTime: 5 * 60_000 });
+  }, [queryClient, userId, today]);
 
   const selectedExercise = useMemo(
     () => allExercises.find(ex => ex.id === selectedExerciseId) || null,
@@ -276,14 +290,14 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
       setError('');
       try {
         if (sub === 'expense') {
-          const userCards = await cardApi.getCards(currentUserId);
+          const userCards = await queryClient.fetchQuery({ queryKey: ['cards', currentUserId], queryFn: () => cardApi.getCards(currentUserId), staleTime: 5 * 60_000 });
           if (!cancelled) setCards(Array.isArray(userCards) ? userCards : []);
         }
 
         if (sub === 'workout') {
           const [exerciseData, todayPlan] = await Promise.all([
-            api.getExercises(),
-            api.getWorkoutPlanByDate(today),
+            queryClient.fetchQuery({ queryKey: ['exercises'], queryFn: () => api.getExercises(), staleTime: 15 * 60_000 }),
+            queryClient.fetchQuery({ queryKey: ['workoutPlanByDate', today], queryFn: () => api.getWorkoutPlanByDate(today), staleTime: 60_000 }),
           ]);
 
           const all: ExerciseOption[] = Array.isArray(exerciseData)
@@ -306,13 +320,12 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
         }
 
         if (sub === 'meal') {
-          const fromDate = format(subDays(new Date(), 30), 'yyyy-MM-dd');
           const [templateData, weeklyPlan, todayLog, quickMealLogs, twins] = await Promise.all([
-            api.getMealTemplates(),
-            api.getWeeklyMealPlan() as Promise<any>,
-            api.getDailyMealLog(today) as Promise<any>,
-            api.getQuickLogHistory(fromDate, today, 'meal') as Promise<any[]>,
-            api.getMealTwinSuggestions(8, 45).catch(() => []),
+            queryClient.fetchQuery({ queryKey: ['mealTemplates'], queryFn: () => api.getMealTemplates(), staleTime: 10 * 60_000 }),
+            queryClient.fetchQuery({ queryKey: ['weeklyMealPlan'], queryFn: () => api.getWeeklyMealPlan(), staleTime: 5 * 60_000 }) as Promise<any>,
+            queryClient.fetchQuery({ queryKey: ['dailyMealLog', today], queryFn: () => api.getDailyMealLog(today), staleTime: 60_000 }) as Promise<any>,
+            queryClient.fetchQuery({ queryKey: ['quickLogHistory', 'meal', quickMealFromDate, today], queryFn: () => api.getQuickLogHistory(quickMealFromDate, today, 'meal'), staleTime: 2 * 60_000 }) as Promise<any[]>,
+            queryClient.fetchQuery({ queryKey: ['mealTwinSuggestions', 8, 45], queryFn: () => api.getMealTwinSuggestions(8, 45).catch(() => []), staleTime: 2 * 60_000 }),
           ]);
 
           const templates: MealTemplateOption[] = Array.isArray(templateData)
@@ -369,7 +382,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
         }
 
         if (sub === 'refill') {
-          const list = await api.getVehicles();
+          const list = await queryClient.fetchQuery({ queryKey: ['vehicles'], queryFn: () => api.getVehicles(), staleTime: 5 * 60_000 });
           const vehicleList = Array.isArray(list) ? list : [];
           if (!cancelled) {
             setVehicles(vehicleList);
@@ -395,7 +408,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
     return () => {
       cancelled = true;
     };
-  }, [sub, userId, today, todayDayKey]);
+  }, [sub, userId, today, todayDayKey, quickMealFromDate, queryClient, refillOdometer]);
 
   useEffect(() => {
     if (sub !== 'meal' || mealPickMode !== 'existing') {
@@ -487,6 +500,40 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
     } finally {
       setEstimatingMeal(false);
     }
+  };
+
+  const invalidateAfterSave = async (savedSub: SubSheet) => {
+    if (userId == null) return;
+    const invalidations: Array<Promise<unknown>> = [
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+      queryClient.invalidateQueries({ queryKey: ['quickLogHistory'] }),
+    ];
+
+    if (savedSub === 'expense') {
+      invalidations.push(queryClient.invalidateQueries({ queryKey: ['expenses', userId] }));
+      invalidations.push(queryClient.invalidateQueries({ queryKey: ['cards', userId] }));
+    }
+    if (savedSub === 'workout') {
+      invalidations.push(queryClient.invalidateQueries({ queryKey: ['workoutPlanByDate', today] }));
+      invalidations.push(queryClient.invalidateQueries({ queryKey: ['workoutAnalytics'] }));
+    }
+    if (savedSub === 'meal') {
+      invalidations.push(queryClient.invalidateQueries({ queryKey: ['dailyMealLog', today] }));
+      invalidations.push(queryClient.invalidateQueries({ queryKey: ['mealTemplates'] }));
+      invalidations.push(queryClient.invalidateQueries({ queryKey: ['quickLogHistory', 'meal'] }));
+    }
+    if (savedSub === 'refill') {
+      invalidations.push(queryClient.invalidateQueries({ queryKey: ['vehicles'] }));
+      invalidations.push(queryClient.invalidateQueries({ queryKey: ['expenses', userId] }));
+    }
+    if (savedSub === 'task') {
+      invalidations.push(queryClient.invalidateQueries({ queryKey: ['tasks', userId] }));
+    }
+    if (savedSub === 'water' || savedSub === 'weight') {
+      invalidations.push(queryClient.invalidateQueries({ queryKey: ['dailyTracking', userId, today] }));
+    }
+
+    await Promise.all(invalidations);
   };
 
   const handleSave = async () => {
@@ -839,6 +886,7 @@ export default function LogSheet({ onClose, userId }: LogSheetProps) {
         await api.logQuickEntry('water', { ml: waterMl }, today);
       }
 
+      await invalidateAfterSave(sub);
       setSaved(true);
       setTimeout(() => {
         onClose();

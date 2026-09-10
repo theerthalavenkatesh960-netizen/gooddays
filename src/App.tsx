@@ -1,58 +1,67 @@
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ClerkProvider } from '@clerk/clerk-react';
 import { AuthProvider, useAuth } from './contexts/AuthContextApi';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LoadingProvider } from './contexts/LoadingContext';
 import Layout from './components/Layout';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
-import Body from './pages/Body';
-import Workout from './pages/Workout';
-import Finance from './pages/Finance';
-import Cards from './pages/Cards';
-import CardCategoryTransactions from './pages/CardCategoryTransactions';
-import FinanceBudgetSettings from './pages/FinanceBudgetSettings';
-import BucketDetail from './pages/BucketDetail';
-import Tasks from './pages/Tasks';
-import Life from './pages/Life';
-import GoalDetail from './pages/GoalDetail';
-import GoalCreate from './pages/GoalCreate';
-import Settings from './pages/Settings';
-import DashboardMomentumSettings from './pages/DashboardMomentumSettings';
-import JournalEditor from './pages/JournalEditor';
-import WorkoutLibrarySettings from './pages/WorkoutLibrarySettings';
-import MealPlannerSettings from './pages/MealPlannerSettings';
-import MealCatalogBrowse from './pages/MealCatalogBrowse';
-import RoutineManager from './pages/RoutineManager';
-import WorkoutExerciseDetails from './pages/WorkoutExerciseDetails';
-import MealTemplateDetails from './pages/MealTemplateDetails';
-import WorkoutAddExercisePage from './pages/WorkoutAddExercisePage';
-import MealIngredientLibraryPage from './pages/MealIngredientLibraryPage';
-import Onboarding from './pages/Onboarding';
-import MealCreateTemplatePage from './pages/MealCreateTemplatePage';
-import MealDayPickerPage from './pages/MealDayPickerPage';
-import RoutineExercisePickerPage from './pages/RoutineExercisePickerPage';
-import AiPlannerSettings from './pages/AiPlannerSettings';
-import { AiAnalysisPage } from './pages/AiAnalysisPage';
-import HealthAdvisor from './pages/HealthAdvisor';
-import ClerkCallback from './pages/ClerkCallback';
-import ClerkSsoCallback from './pages/ClerkSsoCallback';
-import SettingsLife from './pages/SettingsLife';
-import SettingsVehicles from './pages/SettingsVehicles';
-import SettingsAnalytics from './pages/SettingsAnalytics';
-import FinanceGmailReview from './pages/FinanceGmailReview';
-import AddIngredientPage from './pages/AddIngredientPage';
-import IngredientPickerPage from './pages/IngredientPickerPage';
-import ExerciseLoggerPage from './pages/ExerciseLoggerPage';
-import BodyAllPrsPage from './pages/BodyAllPrsPage';
-import BodyAllMealsPage from './pages/BodyAllMealsPage';
-import MealNeedsReviewPage from './pages/MealNeedsReviewPage';
-import LogIngredientPage from './pages/LogIngredientPage';
-import AiChat from './pages/AiChat';
-import FinanceMerchantHistory from './pages/FinanceMerchantHistory';
-import FinanceOrderDetail from './pages/FinanceOrderDetail';
+
+const Login = lazy(() => import('./pages/Login'));
+const Signup = lazy(() => import('./pages/Signup'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Body = lazy(() => import('./pages/Body'));
+const Workout = lazy(() => import('./pages/Workout'));
+const Finance = lazy(() => import('./pages/Finance'));
+const Cards = lazy(() => import('./pages/Cards'));
+const CardCategoryTransactions = lazy(() => import('./pages/CardCategoryTransactions'));
+const FinanceBudgetSettings = lazy(() => import('./pages/FinanceBudgetSettings'));
+const BucketDetail = lazy(() => import('./pages/BucketDetail'));
+const Tasks = lazy(() => import('./pages/Tasks'));
+const Life = lazy(() => import('./pages/Life'));
+const GoalDetail = lazy(() => import('./pages/GoalDetail'));
+const GoalCreate = lazy(() => import('./pages/GoalCreate'));
+const Settings = lazy(() => import('./pages/Settings'));
+const DashboardMomentumSettings = lazy(() => import('./pages/DashboardMomentumSettings'));
+const JournalEditor = lazy(() => import('./pages/JournalEditor'));
+const WorkoutLibrarySettings = lazy(() => import('./pages/WorkoutLibrarySettings'));
+const MealPlannerSettings = lazy(() => import('./pages/MealPlannerSettings'));
+const MealCatalogBrowse = lazy(() => import('./pages/MealCatalogBrowse'));
+const RoutineManager = lazy(() => import('./pages/RoutineManager'));
+const WorkoutExerciseDetails = lazy(() => import('./pages/WorkoutExerciseDetails'));
+const MealTemplateDetails = lazy(() => import('./pages/MealTemplateDetails'));
+const WorkoutAddExercisePage = lazy(() => import('./pages/WorkoutAddExercisePage'));
+const MealIngredientLibraryPage = lazy(() => import('./pages/MealIngredientLibraryPage'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
+const MealCreateTemplatePage = lazy(() => import('./pages/MealCreateTemplatePage'));
+const MealDayPickerPage = lazy(() => import('./pages/MealDayPickerPage'));
+const RoutineExercisePickerPage = lazy(() => import('./pages/RoutineExercisePickerPage'));
+const AiPlannerSettings = lazy(() => import('./pages/AiPlannerSettings'));
+const AiAnalysisPage = lazy(() => import('./pages/AiAnalysisPage').then(module => ({ default: module.AiAnalysisPage })));
+const HealthAdvisor = lazy(() => import('./pages/HealthAdvisor'));
+const ClerkCallback = lazy(() => import('./pages/ClerkCallback'));
+const ClerkSsoCallback = lazy(() => import('./pages/ClerkSsoCallback'));
+const SettingsLife = lazy(() => import('./pages/SettingsLife'));
+const SettingsVehicles = lazy(() => import('./pages/SettingsVehicles'));
+const SettingsAnalytics = lazy(() => import('./pages/SettingsAnalytics'));
+const FinanceGmailReview = lazy(() => import('./pages/FinanceGmailReview'));
+const AddIngredientPage = lazy(() => import('./pages/AddIngredientPage'));
+const IngredientPickerPage = lazy(() => import('./pages/IngredientPickerPage'));
+const ExerciseLoggerPage = lazy(() => import('./pages/ExerciseLoggerPage'));
+const BodyAllPrsPage = lazy(() => import('./pages/BodyAllPrsPage'));
+const BodyAllMealsPage = lazy(() => import('./pages/BodyAllMealsPage'));
+const MealNeedsReviewPage = lazy(() => import('./pages/MealNeedsReviewPage'));
+const LogIngredientPage = lazy(() => import('./pages/LogIngredientPage'));
+const AiChat = lazy(() => import('./pages/AiChat'));
+const FinanceMerchantHistory = lazy(() => import('./pages/FinanceMerchantHistory'));
+const FinanceOrderDetail = lazy(() => import('./pages/FinanceOrderDetail'));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-[45vh] flex items-center justify-center" style={{ color: 'var(--text-muted)' }}>
+      <div className="w-6 h-6 rounded-full border-2 border-current border-t-transparent animate-spin" />
+    </div>
+  );
+}
 
 function PrivateRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -105,7 +114,8 @@ VITE_API_URL=https://gooddays.onrender.com
         <AuthProvider>
           <ThemeProvider>
             <LoadingProvider>
-            <Routes>
+            <Suspense fallback={<RouteFallback />}>
+              <Routes>
               <Route path="/login"  element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/onboarding" element={<Onboarding />} />
@@ -170,7 +180,8 @@ VITE_API_URL=https://gooddays.onrender.com
               <Route path="/workout"  element={<Navigate to="/body" />} />
               <Route path="/tasks" element={<PrivateRoute><Layout><Tasks /></Layout></PrivateRoute>} />
               <Route path="/calendar" element={<Navigate to="/settings" />} />
-            </Routes>
+              </Routes>
+            </Suspense>
           </LoadingProvider>
         </ThemeProvider>
       </AuthProvider>
