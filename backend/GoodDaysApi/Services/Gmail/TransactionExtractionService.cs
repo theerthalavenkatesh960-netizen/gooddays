@@ -503,9 +503,12 @@ public class TransactionExtractionService : ITransactionExtractionService
     {
         var cleaned = raw.Trim().Trim('*', '-', ':', '.', ' ');
         cleaned = TrailingStatusRegex.Replace(cleaned, string.Empty).Trim();
+        cleaned = Regex.Replace(cleaned, @"\s+(?:Axis\s+Bank\s+Credit\s+Card|Credit\s+Card|Debit\s+Card|Card\s+No\.?|No\.|XX\d{4}|X{2,}\d{4}).*$", string.Empty, RegexOptions.IgnoreCase).Trim();
+        cleaned = Regex.Replace(cleaned, @"^(?:PAY|RAZ|UPI|POS|PG|WWW)[*\-\s]+", string.Empty, RegexOptions.IgnoreCase).Trim();
         cleaned = CanonicalizeKnownMerchant(cleaned);
         return cleaned.Length > 60 ? cleaned[..60].Trim() : cleaned;
     }
+
 
     private static string CanonicalizeKnownMerchant(string merchant)
     {

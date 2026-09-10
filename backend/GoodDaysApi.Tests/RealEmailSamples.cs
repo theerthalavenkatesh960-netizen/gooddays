@@ -93,6 +93,12 @@ This is to inform you that,
 
 Rs.60.00 spent on your SBI Credit Card ending with 0697 at BHARATFOODPOINT on 08-09-26 via UPI (Ref No. 625186553096). Trxn. not done by you? Report at https://sbicard.com/Dispute . If you have not authorized this transaction please contact the SBI Card helpline.";
 
+    public const string SbiCardSwiggyInstamart = @"Dear Cardholder,
+
+This is to inform you that,
+
+Rs.603.00 spent on your SBI Credit Card ending with 0697 at SWIGGYINSTAMART on 09-09-26 via UPI (Ref No. 661806838927). Trxn. not done by you? Report at https://sbicard.com/Dispute . If you have not authorized this transaction please contact the SBI Card helpline.";
+
     public const string AmazonPayToMerchant = @"Hi Venkatesh,
 
 Your payment to SWIGGY was Approved

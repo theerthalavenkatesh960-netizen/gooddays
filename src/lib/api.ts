@@ -544,6 +544,10 @@ export async function getFinanceGmailMerchants(): Promise<string[]> {
   return request('finance/gmail/merchants');
 }
 
+export async function getFinanceGmailCategories(): Promise<string[]> {
+  return request('finance/gmail/categories');
+}
+
 export async function getFinanceGmailCandidates(status = 'NEEDS_REVIEW') {
   const query = status ? `?status=${encodeURIComponent(status)}` : '';
   return request(`finance/gmail/candidates${query}`);
