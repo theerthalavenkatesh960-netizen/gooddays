@@ -123,6 +123,9 @@ export default function GmailReviewTab() {
 
   const decide = async (id: number, decision: 'APPROVE' | 'REJECT') => {
     await api.decideFinanceGmailTransaction(id, decision);
+    if (decision === 'APPROVE' && reviewFilter === 'unreviewed') {
+      setRows(prev => prev.filter(row => row.id !== id));
+    }
     await load();
   };
 

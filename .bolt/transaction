@@ -1,3 +1,22 @@
+UPDATE transaction_candidates tc
+SET status = 'PROCESSED',
+    error = NULL
+FROM expenses e
+WHERE e.gmail_message_id = tc.source_message_id
+  AND e.source_type = 'gmail'
+  AND e.is_reviewed = true
+  AND tc.status = 'NEEDS_REVIEW';
+
+UPDATE synced_emails se
+SET processing_status = 'PROCESSED',
+    processing_error = NULL,
+    processed_at = now()
+FROM expenses e
+WHERE e.gmail_message_id = se.gmail_message_id
+  AND e.source_type = 'gmail'
+  AND e.is_reviewed = true
+  AND se.processing_status = 'NEEDS_REVIEW';
+
 Dear Customer,
 
 Greetings from HDFC Bank!

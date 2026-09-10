@@ -476,6 +476,10 @@ public class FinanceGmailController : ControllerBase
         await RecordLearningOutcomeAsync(userId.Value, expense, email, true, cancellationToken);
         if (email != null)
         {
+            email.ProcessingStatus = "PROCESSED";
+            email.ProcessingError = null;
+            email.ProcessedAt = DateTime.UtcNow;
+            await CloseCandidateForMessageAsync(userId.Value, email.GmailMessageId, cancellationToken);
             await _senderReliability.RecordOutcomeAsync(userId.Value, email.Sender, confirmed: true, cancellationToken);
         }
 
@@ -524,6 +528,10 @@ public class FinanceGmailController : ControllerBase
                 await RecordLearningOutcomeAsync(userId.Value, expense, email, true, cancellationToken);
                 if (email != null)
                 {
+                    email.ProcessingStatus = "PROCESSED";
+                    email.ProcessingError = null;
+                    email.ProcessedAt = DateTime.UtcNow;
+                    await CloseCandidateForMessageAsync(userId.Value, email.GmailMessageId, cancellationToken);
                     await _senderReliability.RecordOutcomeAsync(userId.Value, email.Sender, confirmed: true, cancellationToken);
                 }
             }
@@ -544,6 +552,18 @@ public class FinanceGmailController : ControllerBase
             await _learning.RecordOutcomeAsync(userId, email.Sender, signals, confirmed, cancellationToken);
         }
         catch (JsonException) { }
+    }
+
+    private async Task CloseCandidateForMessageAsync(int userId, string messageId, CancellationToken cancellationToken)
+    {
+        var candidates = await _db.TransactionCandidates
+            .Where(x => x.UserId == userId && x.SourceMessageId == messageId && x.Status == "NEEDS_REVIEW")
+            .ToListAsync(cancellationToken);
+        foreach (var candidate in candidates)
+        {
+            candidate.Status = "PROCESSED";
+            candidate.Error = null;
+        }
     }
 
     [HttpPost("review")]
@@ -761,7 +781,19 @@ public class FinanceGmailController : ControllerBase
             .Where(e => e.UserId == userId.Value && messageIds.Contains(e.GmailMessageId))
             .ToListAsync(cancellationToken);
 
-        var items = candidates.Select(candidate =>
+        var approvedMessageIds = await _db.Expenses.AsNoTracking()
+            .Where(x => x.UserId == userId.Value
+                        && x.SourceType == "gmail"
+                        && x.IsReviewed
+                        && x.GmailMessageId != null
+                        && messageIds.Contains(x.GmailMessageId))
+            .Select(x => x.GmailMessageId!)
+            .ToListAsync(cancellationToken);
+        var approvedSet = approvedMessageIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var items = candidates
+            .Where(candidate => !(candidate.Status == "NEEDS_REVIEW" && approvedSet.Contains(candidate.SourceMessageId)))
+            .Select(candidate =>
         {
             var email = emails.FirstOrDefault(e => e.GmailMessageId == candidate.SourceMessageId);
             return new
@@ -790,10 +822,10 @@ public class FinanceGmailController : ControllerBase
     {
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
-        var allowed = new[] { "NEEDS_REVIEW", "REJECTED" };
+        var allowed = new[] { "NEEDS_REVIEW", "REJECTED", "PROCESSED" };
         if (!allowed.Contains(request.Status, StringComparer.OrdinalIgnoreCase))
         {
-            return BadRequest(new { message = "Only NEEDS_REVIEW or REJECTED is allowed until a candidate is explicitly promoted." });
+            return BadRequest(new { message = "Only NEEDS_REVIEW, REJECTED, or PROCESSED is allowed." });
         }
 
         var candidate = await _db.TransactionCandidates.FirstOrDefaultAsync(
