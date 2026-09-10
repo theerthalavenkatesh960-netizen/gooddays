@@ -586,19 +586,28 @@ public class FinanceGmailController : ControllerBase
         if (expense == null) return NotFound();
 
         var requestedMerchant = request.Merchant.Trim();
+        var normalizedRequestedMerchant = requestedMerchant.ToLower();
         var canonicalMerchant = await _db.Expenses.AsNoTracking()
-            .Where(x => x.UserId == userId.Value && x.SourceType == "gmail")
-            .SelectMany(x => new[] { x.MerchantName, x.CounterpartyName })
-            .Where(x => x != null && x != "")
-            .FirstOrDefaultAsync(x => x!.Trim().ToLower() == requestedMerchant.ToLower(), cancellationToken);
+            .Where(x => x.UserId == userId.Value
+                        && x.SourceType == "gmail"
+                        && x.MerchantName != null
+                        && x.MerchantName.ToLower() == normalizedRequestedMerchant)
+            .Select(x => x.MerchantName)
+            .FirstOrDefaultAsync(cancellationToken);
+        canonicalMerchant ??= await _db.Expenses.AsNoTracking()
+            .Where(x => x.UserId == userId.Value
+                        && x.SourceType == "gmail"
+                        && x.CounterpartyName != null
+                        && x.CounterpartyName.ToLower() == normalizedRequestedMerchant)
+            .Select(x => x.CounterpartyName)
+            .FirstOrDefaultAsync(cancellationToken);
         canonicalMerchant ??= await _db.MerchantAliases.AsNoTracking()
             .Where(x => x.UserId == userId.Value)
             .Select(x => x.CorrectedMerchant)
-            .FirstOrDefaultAsync(x => x.Trim().ToLower() == requestedMerchant.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(x => x.ToLower() == normalizedRequestedMerchant, cancellationToken);
         canonicalMerchant ??= requestedMerchant;
 
-        var provider = string.IsNullOrWhiteSpace(expense.InstitutionName) ? string.Empty : $" [{expense.InstitutionName}]";
-        expense.Description = $"{canonicalMerchant}{provider}";
+        expense.Description = canonicalMerchant;
         expense.MerchantName = canonicalMerchant;
         expense.CounterpartyName = canonicalMerchant;
         if (!string.IsNullOrWhiteSpace(request.Category))
@@ -624,11 +633,19 @@ public class FinanceGmailController : ControllerBase
         var userId = GetCurrentUserId();
         if (userId == null) return Unauthorized();
 
-        var detected = await _db.Expenses.AsNoTracking()
+        var merchantNames = await _db.Expenses.AsNoTracking()
             .Where(x => x.UserId == userId.Value && x.SourceType == "gmail")
-            .SelectMany(x => new[] { x.MerchantName, x.CounterpartyName })
-            .Where(x => x != null && x != "")
+            .Where(x => x.MerchantName != null && x.MerchantName != "")
+            .Select(x => x.MerchantName)
             .ToListAsync(cancellationToken);
+        var counterpartyNames = await _db.Expenses.AsNoTracking()
+            .Where(x => x.UserId == userId.Value && x.SourceType == "gmail")
+            .Where(x => x.CounterpartyName != null && x.CounterpartyName != "")
+            .Select(x => x.CounterpartyName)
+            .ToListAsync(cancellationToken);
+        var detected = merchantNames.Concat(counterpartyNames)
+            .Where(x => x != null && x != "")
+            .ToList();
         var corrected = await _db.MerchantAliases.AsNoTracking()
             .Where(x => x.UserId == userId.Value)
             .Select(x => x.CorrectedMerchant)
@@ -642,6 +659,32 @@ public class FinanceGmailController : ControllerBase
             .ToList();
 
         return Ok(merchants);
+    }
+
+    [HttpGet("categories")]
+    [Authorize]
+    public async Task<IActionResult> Categories(CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var expenseCategories = await _db.Expenses.AsNoTracking()
+            .Where(x => x.UserId == userId.Value && x.Category != null && x.Category != "")
+            .Select(x => x.Category)
+            .ToListAsync(cancellationToken);
+        var aliasCategories = await _db.MerchantAliases.AsNoTracking()
+            .Where(x => x.UserId == userId.Value && x.CorrectedCategory != null && x.CorrectedCategory != "")
+            .Select(x => x.CorrectedCategory)
+            .ToListAsync(cancellationToken);
+
+        var categories = expenseCategories.Concat(aliasCategories)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return Ok(categories);
     }
 
     [HttpPost("category")]

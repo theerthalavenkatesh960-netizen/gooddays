@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Mail, CreditCard, Package, ArrowDownLeft, ArrowUpRight, Pencil, Copy } from 'lucide-react';
+import { X, Mail, CreditCard, Package, ArrowDownLeft, ArrowUpRight, Pencil, Copy, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import * as api from '../../lib/api';
 import { formatTxDateTime } from '../../lib/config';
@@ -19,6 +19,32 @@ const CATEGORIES = [
 const money = (v: number, currency = 'INR') =>
   `${currency === 'INR' ? '₹' : ''}${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0)}`;
 
+function paymentSummary(detail: any) {
+  const merchant = detail.merchantName || detail.counterpartyName;
+  const institution = detail.institutionName;
+  const instrument = [detail.paymentInstrumentType, detail.instrumentLast4 ? `••${detail.instrumentLast4}` : null].filter(Boolean).join(' ');
+  const paymentSource = [institution, instrument].filter(Boolean).join(' ');
+  if (!merchant && !paymentSource) return '';
+  const direction = detail.direction === 'CREDIT' ? 'From' : 'To';
+  return [merchant, paymentSource ? `${direction} ${paymentSource}` : null].filter(Boolean).join(' · ');
+}
+
+function PaymentSummaryLine({ detail }: { detail: any }) {
+  const merchant = detail.merchantName || detail.counterpartyName;
+  const institution = detail.institutionName;
+  const instrument = [detail.paymentInstrumentType, detail.instrumentLast4 ? `••${detail.instrumentLast4}` : null].filter(Boolean).join(' ');
+  const paymentSource = [institution, instrument].filter(Boolean).join(' ');
+  if (!merchant && !paymentSource) return null;
+  const isCredit = detail.direction === 'CREDIT';
+  const Arrow = isCredit ? ArrowLeft : ArrowRight;
+  return (
+    <div className="mt-1 flex items-center gap-1.5 text-xs break-words" style={{ color: 'var(--text-secondary)' }}>
+      {merchant && <span>{merchant}</span>}
+      {paymentSource && <><Arrow size={13} style={{ color: isCredit ? 'var(--accent-green)' : 'var(--accent-warm)' }} /><span>{paymentSource}</span></>}
+    </div>
+  );
+}
+
 function Row({ label, value }: { label: string; value?: string | number | null }) {
   if (value === null || value === undefined || value === '') return null;
   return (
@@ -29,6 +55,16 @@ function Row({ label, value }: { label: string; value?: string | number | null }
   );
 }
 
+function toForm(detail: any) {
+  return {
+    description: detail.merchantName || detail.counterpartyName || detail.rawMerchant || detail.description || '',
+    merchant: detail.merchantName || detail.counterpartyName || detail.rawMerchant || '',
+    category: detail.category || 'Other',
+    amount: String(detail.amount ?? ''),
+    date: detail.date ? new Date(detail.date).toISOString().slice(0, 10) : '',
+  };
+}
+
 export default function TransactionDetailModal({ transactionId, onClose, onChanged }: Props) {
   const [detail, setDetail] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,22 +72,21 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
   const [showRaw, setShowRaw] = useState(false);
   const [editing, setEditing] = useState(false);
   const [merchants, setMerchants] = useState<string[]>([]);
+  const [categories, setCategories] = useState<string[]>(CATEGORIES);
   const [items, setItems] = useState<Array<{ name: string; quantity: number; amount: string }>>([]);
   const [form, setForm] = useState({ description: '', merchant: '', category: 'Other', amount: '', date: '' });
 
   useEffect(() => {
     api.getFinanceGmailMerchants().then(value => setMerchants(Array.isArray(value) ? value : [])).catch(() => setMerchants([]));
+    api.getFinanceGmailCategories()
+      .then(value => setCategories([...CATEGORIES, ...(Array.isArray(value) ? value : [])]
+        .filter((category, index, all) => all.findIndex(item => item.toLowerCase() === category.toLowerCase()) === index)))
+      .catch(() => setCategories(CATEGORIES));
     setLoading(true);
     api.getFinanceGmailTransactionDetail(transactionId)
       .then(d => {
         setDetail(d);
-        setForm({
-          description: d.description || '',
-          merchant: d.merchantName || d.counterpartyName || '',
-          category: d.category || 'Other',
-          amount: String(d.amount ?? ''),
-          date: d.date ? new Date(d.date).toISOString().slice(0, 10) : '',
-        });
+        setForm(toForm(d));
         setItems((d.orders?.[0]?.items || []).map((item: any) => ({
           name: item.name || '', quantity: item.quantity || 1, amount: item.amount == null ? '' : String(item.amount),
         })));
@@ -102,6 +137,10 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
   };
 
   const isCredit = detail?.direction === 'CREDIT';
+  const categoryQuery = form.category.trim().toLowerCase();
+  const categorySuggestions = categories
+    .filter(category => !categoryQuery || category.toLowerCase().includes(categoryQuery))
+    .slice(0, 20);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
@@ -147,15 +186,9 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
                     <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{detail.merchantName || detail.counterpartyName || 'Merchant not identified'}</p>
                   )}
                   {editing ? (
-                    <input
-                      value={form.description}
-                      onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-                      placeholder="Title"
-                      className="mt-1.5 h-8 px-2 rounded-lg text-sm w-full outline-none"
-                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
-                    />
+                    null
                   ) : (
-                    <p className="text-sm font-semibold mt-1 break-words" style={{ color: 'var(--text-primary)' }}>{detail.description}</p>
+                    <PaymentSummaryLine detail={detail} />
                   )}
                   {editing ? (
                     <input
@@ -200,7 +233,7 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
                       style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
                     />
                     <datalist id="finance-category-options">
-                      {CATEGORIES.map(c => <option key={c} value={c} />)}
+                      {categorySuggestions.map(c => <option key={c} value={c} />)}
                     </datalist>
                   </div>
                 ) : (
@@ -314,6 +347,7 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
                       await saveEdits();
                       const refreshed = await api.getFinanceGmailTransactionDetail(transactionId);
                       setDetail(refreshed);
+                      setForm(toForm(refreshed));
                       setEditing(false);
                       onChanged?.();
                     } finally { setBusy(false); }

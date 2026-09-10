@@ -221,6 +221,12 @@ Check("REAL: Axis label-value credit card txn", parser.TryExtract(
     && rAxis.InstrumentLast4 == "3949"
     && rAxis.Merchant?.Contains("FLIPKART", StringComparison.OrdinalIgnoreCase) == true);
 
+Check("DETAIL: merchant cleanup removes payment prefixes and card tail", parser.TryExtract(
+    "Transaction alert on Axis Bank Credit Card", "", "Transaction Amount: INR 900\nMerchant Name: PAY*SWIGGY Axis Bank Credit Card No. XX3949\nAxis Bank Credit Card No. XX3949\nDate & Time: 01-09-2026, 18:33:19 IST", out var axisSwiggy)
+    && axisSwiggy.Merchant == "SWIGGY"
+    && axisSwiggy.InstrumentType == "CREDIT_CARD"
+    && axisSwiggy.InstrumentLast4 == "3949");
+
 CheckFn("REAL: Axis email yields exactly one transaction", () =>
     parser.ExtractMany("Transaction alert", "", GoodDaysApi.Tests.RealEmailSamples.AxisCreditCard).Count == 1);
 
@@ -241,6 +247,18 @@ Check("REAL: SBI card merchant is retained for BHARATFOODPOINT", parser.TryExtra
     && rBharat.PaymentRail == "UPI"
     && rBharat.InstrumentLast4 == "0697"
     && rBharat.TransactionStatus == "COMPLETED");
+
+Check("REAL: SBI card merchant is retained for SWIGGYINSTAMART", parser.TryExtract(
+    "Transaction alert", "", GoodDaysApi.Tests.RealEmailSamples.SbiCardSwiggyInstamart, out var rInstamart)
+    && rInstamart.Amount == 603m
+    && rInstamart.Merchant == "SWIGGYINSTAMART"
+    && rInstamart.CounterpartyName == "SWIGGYINSTAMART"
+    && rInstamart.InstrumentType == "CREDIT_CARD"
+    && rInstamart.PaymentRail == "UPI"
+    && rInstamart.InstrumentLast4 == "0697"
+    && rInstamart.ReferenceNumber == "661806838927"
+    && rInstamart.TransactionDateUtc?.Date == new DateTime(2026, 9, 9)
+    && rInstamart.TransactionStatus == "COMPLETED");
 
 Check("REAL: Amazon Pay payment to merchant", parser.TryExtract(
     "Your payment to SWIGGY was Approved", "", GoodDaysApi.Tests.RealEmailSamples.AmazonPayToMerchant, out var rApay, "payments-messages@amazon.in")
