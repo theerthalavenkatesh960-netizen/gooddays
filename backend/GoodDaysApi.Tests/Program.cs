@@ -225,7 +225,8 @@ Check("DETAIL: merchant cleanup removes payment prefixes and card tail", parser.
     "Transaction alert on Axis Bank Credit Card", "", "Transaction Amount: INR 900\nMerchant Name: PAY*SWIGGY Axis Bank Credit Card No. XX3949\nAxis Bank Credit Card No. XX3949\nDate & Time: 01-09-2026, 18:33:19 IST", out var axisSwiggy)
     && axisSwiggy.Merchant == "SWIGGY"
     && axisSwiggy.InstrumentType == "CREDIT_CARD"
-    && axisSwiggy.InstrumentLast4 == "3949");
+    && axisSwiggy.InstrumentLast4 == "3949"
+    && axisSwiggy.TransactionDateUtc?.TimeOfDay == new TimeSpan(18, 33, 19));
 
 CheckFn("REAL: Axis email yields exactly one transaction", () =>
     parser.ExtractMany("Transaction alert", "", GoodDaysApi.Tests.RealEmailSamples.AxisCreditCard).Count == 1);
