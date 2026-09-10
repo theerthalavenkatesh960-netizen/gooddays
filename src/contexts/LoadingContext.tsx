@@ -35,6 +35,7 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
   const countRef = useRef(0);
   // Show full-screen loader only on first mount (startup)
   const [startup, setStartup] = useState(true);
+  const [miniVisible, setMiniVisible] = useState(false);
 
   useEffect(() => {
     // Hide startup loader after 3.5s (enough for one full animation loop)
@@ -57,6 +58,16 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
     return () => setLoadingHandler(() => {});
   }, [startLoading, stopLoading]);
 
+  useEffect(() => {
+    if (startup || count === 0) {
+      setMiniVisible(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setMiniVisible(true), 450);
+    return () => clearTimeout(timer);
+  }, [count, startup]);
+
   return (
     <LoadingContext.Provider value={{ startLoading, stopLoading }}>
       {children}
@@ -64,7 +75,7 @@ export function LoadingProvider({ children }: { children: React.ReactNode }) {
         {startup && <SkillTreeLoader key="startup" />}
       </AnimatePresence>
       <AnimatePresence>
-        {!startup && count > 0 && <MiniLoader key="mini" />}
+        {miniVisible && <MiniLoader key="mini" />}
       </AnimatePresence>
     </LoadingContext.Provider>
   );

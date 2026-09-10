@@ -204,10 +204,13 @@ export function setLoadingHandler(fn: (active: boolean) => void) { _onLoadingCha
 function pushLoad() { _loadingCount++; if (_loadingCount === 1) _onLoadingChange?.(true); }
 function popLoad() { _loadingCount = Math.max(0, _loadingCount - 1); if (_loadingCount === 0) _onLoadingChange?.(false); }
 
-async function request(path: string, opts: RequestInit = {}) {
-  pushLoad();
+type AppRequestInit = RequestInit & { trackGlobalLoading?: boolean };
+
+async function request(path: string, opts: AppRequestInit = {}) {
+  const method = String(opts.method || 'GET').toUpperCase();
+  const trackGlobalLoading = method !== 'GET' || opts.trackGlobalLoading === true;
+  if (trackGlobalLoading) pushLoad();
   try {
-    const method = String(opts.method || 'GET').toUpperCase();
     const requestOpts: RequestInit = {
       ...opts,
       // Avoid stale cached GET responses after create/update flows.
@@ -221,7 +224,7 @@ async function request(path: string, opts: RequestInit = {}) {
     if (!res.ok) throw new Error(resolveErrorMessage(payload, `Request failed (${res.status})`));
     return payload;
   } finally {
-    popLoad();
+    if (trackGlobalLoading) popLoad();
   }
 }
 
@@ -490,8 +493,8 @@ export async function createExpense(userId: number, description: string, amount:
   return request('expenses', { method: 'POST', body: JSON.stringify(body) });
 }
 
-export async function updateExpense(id: number, description?: string, amount?: number, category?: string, date?: Date) {
-  const body: any = { description, amount, category };
+export async function updateExpense(id: number, description?: string, amount?: number, category?: string, date?: Date, shortNote?: string | null) {
+  const body: any = { description, amount, category, shortNote };
   if (date) body.date = date.toISOString();
   return request(`expenses/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
@@ -546,6 +549,10 @@ export async function getFinanceGmailMerchants(): Promise<string[]> {
 
 export async function getFinanceGmailCategories(): Promise<string[]> {
   return request('finance/gmail/categories');
+}
+
+export async function getFinanceGmailComments(): Promise<string[]> {
+  return request('finance/gmail/comments');
 }
 
 export async function getFinanceGmailCandidates(status = 'NEEDS_REVIEW') {

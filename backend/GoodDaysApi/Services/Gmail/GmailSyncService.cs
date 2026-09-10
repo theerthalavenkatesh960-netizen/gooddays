@@ -260,13 +260,16 @@ public class GmailSyncService : IGmailSyncService
                 }
 
                 var transactionDate = tx.TransactionDateUtc.HasValue
-                    ? DateTime.SpecifyKind(tx.TransactionDateUtc.Value.Date + message.InternalDateUtc.TimeOfDay, DateTimeKind.Utc)
+                    ? DateTime.SpecifyKind(tx.TransactionDateUtc.Value.TimeOfDay == TimeSpan.Zero
+                        ? tx.TransactionDateUtc.Value.Date + message.InternalDateUtc.TimeOfDay
+                        : tx.TransactionDateUtc.Value, DateTimeKind.Utc)
                     : message.InternalDateUtc;
 
                 var expense = new Expense
                 {
                     UserId = userId,
                     Description = BuildDescription(tx),
+                    ShortNote = null,
                     Amount = tx.Amount,
                     Category = tx.SuggestedCategory,
                     Date = transactionDate,

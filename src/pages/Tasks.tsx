@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, CheckCircle2, RotateCcw, Trash2, Filter, PencilLine, Home, Briefcase, BookOpen, User, Heart, DollarSign, ShoppingCart, Users, Film, HeartPulse, Plane, Music, Dumbbell, Bell } from 'lucide-react';
 import { format, isToday, isPast, parseISO, isSameDay } from 'date-fns';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 import Reminders from './Reminders';
@@ -27,8 +28,8 @@ const priorities = ['low', 'medium', 'high'];
 
 export default function Tasks() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'tasks' | 'reminders'>('tasks');
-  const [tasks, setTasks] = useState<any[]>([]);
   const [newTask, setNewTask] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(CATEGORY_OPTIONS[0].name);
   const [selectedPriority, setSelectedPriority] = useState('medium');
@@ -46,6 +47,14 @@ export default function Tasks() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTask, setEditingTask] = useState<any | null>(null);
   const [scheduledDate, setScheduledDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+
+  const tasksQuery = useQuery({
+    queryKey: ['tasks', user?.id],
+    queryFn: () => user ? api.getTasks(user.id) : Promise.resolve([]),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const tasks = Array.isArray(tasksQuery.data) ? tasksQuery.data : [];
 
   const addOccurrence = async (task: any) => {
     const dueDates = tasks
@@ -158,17 +167,9 @@ export default function Tasks() {
   );
 };
 
-  useEffect(() => {
-    if (user) {
-      loadTasks();
-    }
-  }, [user]);
-
   const loadTasks = async () => {
     if (!user) return;
-
-    const data = await api.getTasks(user.id);
-    setTasks(Array.isArray(data) ? data : []);
+    await queryClient.invalidateQueries({ queryKey: ['tasks', user.id] });
   };
 
   const addTask = async () => {
@@ -224,7 +225,7 @@ export default function Tasks() {
     setRecurrenceEnd('');
     setShowAddModal(false);
     setEditingTask(null);
-    loadTasks();
+    await loadTasks();
   };
 
   const openEditModal = (task: any) => {
@@ -255,13 +256,13 @@ export default function Tasks() {
       await api.addPoints(user.id, 'task_completed', 1);
     }
 
-    loadTasks();
+    await loadTasks();
   };
 
   const deleteTask = async (id: number, deleteMode: 'this' | 'series' = 'this') => {
     await api.deleteTask(id, deleteMode);
     setDeleteConfirm(null);
-    loadTasks();
+    await loadTasks();
   };
 
   const getFilteredTasks = () => {

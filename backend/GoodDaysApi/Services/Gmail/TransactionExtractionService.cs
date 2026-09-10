@@ -24,6 +24,7 @@ public class TransactionExtractionService : ITransactionExtractionService
         $@"\b(?:transaction\s+amount|total\s+paid|amount\s+paid|paid\s+via[^\n]{{0,30}}|grand\s+total|order\s+total|amount)\b[^\d\n]{{0,20}}(?:INR|Rs\.?|₹)\s*{NumberPattern}",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex RefRegex = new(@"\b(?:ref(?:erence)?\s*(?:no|number)?|utr|rrn|txn(?:\s*id)?|transaction\s*(?:id|reference\s*(?:no|number)?))\b[\s.:#\-]*(?:is\s+)?([A-Za-z0-9\-]{6,30})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex DateTimeRegex = new(@"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{1,2}[- ][A-Za-z]{3,9}[-, ]+\d{2,4})\s*,?\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*(AM|PM|IST)?\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex DateRegex = new(@"\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{1,2}[- ][A-Za-z]{3,9}[-, ]+\d{2,4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex Last4Regex = new(@"(?:ending(?:\s+(?:with|in))?|ends\s+with|last\s*4(?:\s*digits)?|a\s*/\s*c|account|card|no\.?|number|[xX*]{2,})\s*[-#:]?\s*[xX*]{0,16}\s*(\d{4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
     private static readonly Regex WalletRegex = new(@"\b(amazon\s*pay|paytm|phonepe|mobikwik|freecharge|wallet|balance)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -535,6 +536,18 @@ public class TransactionExtractionService : ITransactionExtractionService
 
     private static DateTime? ReadDate(string text)
     {
+        foreach (Match match in DateTimeRegex.Matches(text))
+        {
+            var dateValue = match.Groups[1].Value.Trim();
+            var timeValue = match.Groups[2].Value.Trim();
+            var meridiem = match.Groups[3].Value.Trim();
+            var candidate = NormalizeDateTimeText(dateValue, timeValue, meridiem);
+            if (DateTime.TryParseExact(candidate, DateTimeFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDateTime))
+            {
+                return DateTime.SpecifyKind(parsedDateTime, DateTimeKind.Utc);
+            }
+        }
+
         foreach (Match match in DateRegex.Matches(text))
         {
             var value = match.Groups[1].Value.Trim();
@@ -546,6 +559,32 @@ public class TransactionExtractionService : ITransactionExtractionService
 
         return null;
     }
+
+    private static string NormalizeDateTimeText(string dateValue, string timeValue, string meridiem)
+    {
+        var normalizedDate = dateValue.Replace(",", string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(meridiem)) return $"{normalizedDate} {timeValue}";
+
+        var hourText = timeValue.Split(':')[0];
+        if (int.TryParse(hourText, NumberStyles.None, CultureInfo.InvariantCulture, out var hour) && hour > 12)
+        {
+            return $"{normalizedDate} {timeValue}";
+        }
+
+        return $"{normalizedDate} {timeValue} {meridiem.ToUpperInvariant()}";
+    }
+
+    private static readonly string[] DateTimeFormats =
+    {
+        "dd-MM-yy H:mm", "d-M-yy H:mm", "dd-MM-yyyy H:mm", "d-M-yyyy H:mm",
+        "dd-MM-yy H:mm:ss", "d-M-yy H:mm:ss", "dd-MM-yyyy H:mm:ss", "d-M-yyyy H:mm:ss",
+        "dd/MM/yy H:mm", "d/M/yy H:mm", "dd/MM/yyyy H:mm", "d/M/yyyy H:mm",
+        "dd/MM/yy H:mm:ss", "d/M/yy H:mm:ss", "dd/MM/yyyy H:mm:ss", "d/M/yyyy H:mm:ss",
+        "dd MMM yyyy H:mm", "d MMM yyyy H:mm", "dd MMMM yyyy H:mm", "d MMMM yyyy H:mm",
+        "dd MMM yyyy H:mm:ss", "d MMM yyyy H:mm:ss", "dd MMMM yyyy H:mm:ss", "d MMMM yyyy H:mm:ss",
+        "dd MMM yyyy h:mm tt", "d MMM yyyy h:mm tt", "dd MMMM yyyy h:mm tt", "d MMMM yyyy h:mm tt",
+        "dd MMM yyyy h:mm:ss tt", "d MMM yyyy h:mm:ss tt", "dd MMMM yyyy h:mm:ss tt", "d MMMM yyyy h:mm:ss tt"
+    };
 
     private static string InferCategory(string text, string direction)
     {

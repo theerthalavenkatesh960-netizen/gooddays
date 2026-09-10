@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from 'date-fns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../lib/api';
 import { useAuth } from '../contexts/AuthContextApi';
 import { formatTxDateTime } from '../lib/config';
@@ -25,6 +26,26 @@ const formatMoney = (value: number) => `₹${new Intl.NumberFormat('en-IN', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
 }).format(value || 0)}`;
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Food: '#F97316', Groceries: '#22C55E', Transport: '#3B82F6', Fuel: '#EF4444',
+  Home: '#14B8A6', Rent: '#A855F7', Utilities: '#06B6D4', Internet: '#0EA5E9',
+  Subscriptions: '#8B5CF6', Personal: '#64748B', Medical: '#10B981', Health: '#10B981',
+  Gym: '#F59E0B', 'Self Care': '#EC4899', Fun: '#EAB308', Entertainment: '#EAB308',
+  Shopping: '#F43F5E', Education: '#6366F1', Books: '#7C3AED', Coffee: '#A16207',
+  Travel: '#0D9488', Investments: '#059669', Transfer: '#94A3B8', Lending: '#D946EF',
+  EMI: '#DC2626', Cricket: '#16A34A', Sports: '#16A34A', Other: '#8888A0',
+};
+
+const FALLBACK_CATEGORY_COLORS = ['#F97316', '#22C55E', '#3B82F6', '#A855F7', '#F43F5E', '#14B8A6', '#EAB308', '#6366F1', '#EC4899', '#0EA5E9'];
+
+function categoryColor(category?: string | null) {
+  const normalized = (category || 'Other').trim();
+  const existing = Object.entries(CATEGORY_COLORS).find(([key]) => key.toLowerCase() === normalized.toLowerCase());
+  if (existing) return existing[1];
+  const hash = [...normalized].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  return FALLBACK_CATEGORY_COLORS[hash % FALLBACK_CATEGORY_COLORS.length];
+}
 
 function PillTabs({ active, onChange }: { active: string; onChange: (t: string) => void }) {
   return (
@@ -49,62 +70,49 @@ function PillTabs({ active, onChange }: { active: string; onChange: (t: string) 
 function TransactionsTab() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [month, setMonth] = useState(new Date());
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [gmailStatus, setGmailStatus] = useState<any>(null);
   const [syncingGmail, setSyncingGmail] = useState(false);
   const [gmailOnly, setGmailOnly] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [budgetProfile, setBudgetProfile] = useState<any>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null);
   const [editorForm, setEditorForm] = useState({ amount: '', category: 'Food', note: '', date: format(new Date(), 'yyyy-MM-dd') });
 
-  const loadTransactions = () => Promise.all([
-    user ? api.getExpenses(user.id).catch(() => []) : Promise.resolve([]),
-    (api as any).getFinanceBudgetProfile(month.getMonth() + 1, month.getFullYear()).catch(() => null),
-    user ? api.getFinanceGmailStatus().catch(() => null) : Promise.resolve(null),
-  ]).then(([expenseData, budget, gmail]) => {
-    setExpenses(Array.isArray(expenseData) ? expenseData : []);
-    setBudgetProfile(budget);
-    setGmailStatus(gmail);
+  const expensesQuery = useQuery({
+    queryKey: ['expenses', user?.id],
+    queryFn: () => user ? api.getExpenses(user.id) : Promise.resolve([]),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const budgetQuery = useQuery({
+    queryKey: ['financeBudgetProfile', month.getMonth() + 1, month.getFullYear()],
+    queryFn: () => (api as any).getFinanceBudgetProfile(month.getMonth() + 1, month.getFullYear()),
+    staleTime: 5 * 60_000,
+  });
+  const gmailStatusQuery = useQuery({
+    queryKey: ['financeGmailStatus', user?.id],
+    queryFn: () => user ? api.getFinanceGmailStatus() : Promise.resolve(null),
+    enabled: !!user,
+    staleTime: 30_000,
   });
 
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-    Promise.all([
-      user ? api.getExpenses(user.id).catch(() => []) : Promise.resolve([]),
-      (api as any).getFinanceBudgetProfile(month.getMonth() + 1, month.getFullYear()).catch(() => null),
-      user ? api.getFinanceGmailStatus().catch(() => null) : Promise.resolve(null),
-    ]).then(([expenseData, budget, gmail]) => {
-      if (!isMounted) return;
-      setExpenses(Array.isArray(expenseData) ? expenseData : []);
-      setBudgetProfile(budget);
-      setGmailStatus(gmail);
-    }).finally(() => {
-      if (isMounted) setLoading(false);
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, [user, month]);
+  const expenses = Array.isArray(expensesQuery.data) ? expensesQuery.data : [];
+  const budgetProfile = budgetQuery.data as any;
+  const gmailStatus = gmailStatusQuery.data as any;
+  const loading = expensesQuery.isLoading || budgetQuery.isLoading || gmailStatusQuery.isLoading;
+
+  const loadTransactions = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['expenses', user?.id] }),
+    queryClient.invalidateQueries({ queryKey: ['financeBudgetProfile', month.getMonth() + 1, month.getFullYear()] }),
+    queryClient.invalidateQueries({ queryKey: ['financeGmailStatus', user?.id] }),
+  ]).then(() => undefined);
 
   useEffect(() => {
     const transaction = Number(searchParams.get('transaction'));
     if (transaction > 0) setDetailId(transaction);
   }, [searchParams]);
-
-  useEffect(() => {
-    const onFocus = () => {
-      if (!user) return;
-      loadTransactions().catch(() => undefined);
-    };
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [user, month]);
 
   const monthExpenses = expenses.filter(e => {
     const d = new Date(e.date ?? e.createdAt ?? e.created_at);
@@ -128,11 +136,7 @@ function TransactionsTab() {
   });
   const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
-  const categoryColors: Record<string, string> = {
-    Food: '#FF6B6B', Transport: '#6C63FF', Shopping: '#FFD93D',
-    Entertainment: '#4ECDC4', Health: '#10B981', Utilities: '#8888A0',
-    Education: '#3B82F6', Rent: '#F97316', Fuel: '#EF4444', Other: '#8888A0',
-  };
+  const categoryOptions = Object.keys(CATEGORY_COLORS);
 
   const openCreate = () => {
     setEditingExpenseId(null);
@@ -160,18 +164,17 @@ function TransactionsTab() {
 
     const txDate = new Date(`${editorForm.date}T12:00:00`);
     if (editingExpenseId) {
-      const updated = await api.updateExpense(editingExpenseId, editorForm.note, amount, editorForm.category, txDate);
-      setExpenses(prev => prev.map(e => e.id === editingExpenseId ? { ...e, ...updated } : e));
+      await api.updateExpense(editingExpenseId, editorForm.note, amount, editorForm.category, txDate);
     } else {
-      const created = await api.createExpense(user.id, editorForm.note, amount, editorForm.category, txDate);
-      setExpenses(prev => [created, ...prev]);
+      await api.createExpense(user.id, editorForm.note, amount, editorForm.category, txDate);
     }
+    await queryClient.invalidateQueries({ queryKey: ['expenses', user.id] });
     setShowEditor(false);
   };
 
   const deleteTransaction = async (id: number) => {
     await api.deleteExpense(id);
-    setExpenses(prev => prev.filter(e => e.id !== id));
+    if (user) await queryClient.invalidateQueries({ queryKey: ['expenses', user.id] });
   };
 
   const connectGmail = async () => {
@@ -320,7 +323,7 @@ function TransactionsTab() {
               className="h-10 px-3 rounded-xl outline-none text-sm"
               style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
             >
-              {Object.keys(categoryColors).map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+              {categoryOptions.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
             </select>
           </div>
           <input
@@ -367,7 +370,7 @@ function TransactionsTab() {
             </p>
             <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               {grouped[date].map((exp, i) => {
-                const color = categoryColors[exp.category] ?? '#8888A0';
+                const color = categoryColor(exp.category);
                 const isGmail = (exp.sourceType || '').toLowerCase() === 'gmail';
                 const isCredit = (exp.direction || '').toUpperCase() === 'CREDIT';
                 const isTransfer = (exp.transactionType || '').toUpperCase() === 'TRANSFER';

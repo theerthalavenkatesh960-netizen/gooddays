@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Mail, CreditCard, Package, ArrowDownLeft, ArrowUpRight, Pencil, Copy, ArrowRight, ArrowLeft } from 'lucide-react';
+import { X, Mail, CreditCard, Package, ArrowDownLeft, ArrowUpRight, Pencil, Copy, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import * as api from '../../lib/api';
 import { formatTxDateTime } from '../../lib/config';
@@ -19,16 +19,6 @@ const CATEGORIES = [
 const money = (v: number, currency = 'INR') =>
   `${currency === 'INR' ? '₹' : ''}${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0)}`;
 
-function paymentSummary(detail: any) {
-  const merchant = detail.merchantName || detail.counterpartyName;
-  const institution = detail.institutionName;
-  const instrument = [detail.paymentInstrumentType, detail.instrumentLast4 ? `••${detail.instrumentLast4}` : null].filter(Boolean).join(' ');
-  const paymentSource = [institution, instrument].filter(Boolean).join(' ');
-  if (!merchant && !paymentSource) return '';
-  const direction = detail.direction === 'CREDIT' ? 'From' : 'To';
-  return [merchant, paymentSource ? `${direction} ${paymentSource}` : null].filter(Boolean).join(' · ');
-}
-
 function PaymentSummaryLine({ detail }: { detail: any }) {
   const merchant = detail.merchantName || detail.counterpartyName;
   const institution = detail.institutionName;
@@ -36,11 +26,12 @@ function PaymentSummaryLine({ detail }: { detail: any }) {
   const paymentSource = [institution, instrument].filter(Boolean).join(' ');
   if (!merchant && !paymentSource) return null;
   const isCredit = detail.direction === 'CREDIT';
-  const Arrow = isCredit ? ArrowLeft : ArrowRight;
+  const Arrow = isCredit ? ArrowRight : ArrowLeft;
   return (
     <div className="mt-1 flex items-center gap-1.5 text-xs break-words" style={{ color: 'var(--text-secondary)' }}>
       {merchant && <span>{merchant}</span>}
-      {paymentSource && <><Arrow size={13} style={{ color: isCredit ? 'var(--accent-green)' : 'var(--accent-warm)' }} /><span>{paymentSource}</span></>}
+      {merchant && paymentSource && <Arrow size={13} style={{ color: isCredit ? 'var(--accent-green)' : 'var(--accent-warm)' }} />}
+      {paymentSource && <span>{paymentSource}</span>}
     </div>
   );
 }
@@ -58,6 +49,7 @@ function Row({ label, value }: { label: string; value?: string | number | null }
 function toForm(detail: any) {
   return {
     description: detail.merchantName || detail.counterpartyName || detail.rawMerchant || detail.description || '',
+    shortNote: detail.shortNote || '',
     merchant: detail.merchantName || detail.counterpartyName || detail.rawMerchant || '',
     category: detail.category || 'Other',
     amount: String(detail.amount ?? ''),
@@ -73,8 +65,9 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
   const [editing, setEditing] = useState(false);
   const [merchants, setMerchants] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>(CATEGORIES);
+  const [comments, setComments] = useState<string[]>([]);
   const [items, setItems] = useState<Array<{ name: string; quantity: number; amount: string }>>([]);
-  const [form, setForm] = useState({ description: '', merchant: '', category: 'Other', amount: '', date: '' });
+  const [form, setForm] = useState({ description: '', shortNote: '', merchant: '', category: 'Other', amount: '', date: '' });
 
   useEffect(() => {
     api.getFinanceGmailMerchants().then(value => setMerchants(Array.isArray(value) ? value : [])).catch(() => setMerchants([]));
@@ -82,6 +75,10 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
       .then(value => setCategories([...CATEGORIES, ...(Array.isArray(value) ? value : [])]
         .filter((category, index, all) => all.findIndex(item => item.toLowerCase() === category.toLowerCase()) === index)))
       .catch(() => setCategories(CATEGORIES));
+    api.getFinanceGmailComments()
+      .then(value => setComments((Array.isArray(value) ? value : [])
+        .filter((comment, index, all) => all.findIndex(item => item.toLowerCase() === comment.toLowerCase()) === index)))
+      .catch(() => setComments([]));
     setLoading(true);
     api.getFinanceGmailTransactionDetail(transactionId)
       .then(d => {
@@ -102,6 +99,7 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
       amount > 0 ? amount : undefined,
       form.category,
       form.date ? new Date(`${form.date}T12:00:00`) : undefined,
+      form.shortNote.trim() || null,
     );
     const merchant = form.merchant.trim();
     if (merchant) {
@@ -140,6 +138,10 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
   const categoryQuery = form.category.trim().toLowerCase();
   const categorySuggestions = categories
     .filter(category => !categoryQuery || category.toLowerCase().includes(categoryQuery))
+    .slice(0, 20);
+  const commentQuery = form.shortNote.trim().toLowerCase();
+  const commentSuggestions = comments
+    .filter(comment => !commentQuery || comment.toLowerCase().includes(commentQuery))
     .slice(0, 20);
 
   return (
@@ -238,6 +240,25 @@ export default function TransactionDetailModal({ transactionId, onClose, onChang
                   </div>
                 ) : (
                   <Row label="Category" value={detail.category} />
+                )}
+                {editing ? (
+                  <div className="flex justify-between items-center gap-3 py-1.5">
+                    <span className="text-xs flex-shrink-0" style={{ color: 'var(--text-muted)' }}>Comment</span>
+                    <input
+                      value={form.shortNote}
+                      onChange={(e) => setForm(f => ({ ...f, shortNote: e.target.value.slice(0, 120) }))}
+                      placeholder="bat protection"
+                      list="finance-comment-options"
+                      maxLength={120}
+                      className="h-8 px-2 rounded-lg text-xs outline-none min-w-0 flex-1"
+                      style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
+                    />
+                    <datalist id="finance-comment-options">
+                      {commentSuggestions.map(comment => <option key={comment} value={comment} />)}
+                    </datalist>
+                  </div>
+                ) : (
+                  <Row label="Comment" value={detail.shortNote} />
                 )}
                 <Row label="Reference" value={detail.externalReference} />
                 <Row label="Confidence" value={detail.confidenceScore != null ? `${Math.round(detail.confidenceScore * 100)}%` : null} />

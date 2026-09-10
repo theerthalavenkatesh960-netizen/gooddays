@@ -109,6 +109,7 @@ public class ExpensesController : ControllerBase
         if (expense == null) return NotFound();
         
         expense.Description = req.Description ?? req.Note ?? expense.Description;
+        if (req.ShortNote is not null) expense.ShortNote = string.IsNullOrWhiteSpace(req.ShortNote) ? null : req.ShortNote.Trim();
         expense.Amount = req.Amount ?? expense.Amount;
         expense.Category = req.Category ?? expense.Category;
         if (req.Date.HasValue) expense.Date = req.Date.Value;
@@ -135,5 +136,5 @@ public class ExpensesController : ControllerBase
 }
 
 public record CreateExpenseRequest(int UserId, string? Description, string? Note, decimal Amount, string? Category, DateTime? Date, bool? IsReviewed);
-public record UpdateExpenseRequest(string? Description, string? Note, decimal? Amount, string? Category, DateTime? Date, bool? IsReviewed);
+public record UpdateExpenseRequest(string? Description, string? Note, string? ShortNote, decimal? Amount, string? Category, DateTime? Date, bool? IsReviewed);
 public record BulkExpenseItem(CreateExpenseRequest Expense, Guid? CardId);
