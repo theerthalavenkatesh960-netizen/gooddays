@@ -27,6 +27,26 @@ const formatMoney = (value: number) => `₹${new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 2
 }).format(value || 0)}`;
 
+const CATEGORY_COLORS: Record<string, string> = {
+  Food: '#F97316', Groceries: '#22C55E', Transport: '#3B82F6', Fuel: '#EF4444',
+  Home: '#14B8A6', Rent: '#A855F7', Utilities: '#06B6D4', Internet: '#0EA5E9',
+  Subscriptions: '#8B5CF6', Personal: '#64748B', Medical: '#10B981', Health: '#10B981',
+  Gym: '#F59E0B', 'Self Care': '#EC4899', Fun: '#EAB308', Entertainment: '#EAB308',
+  Shopping: '#F43F5E', Education: '#6366F1', Books: '#7C3AED', Coffee: '#A16207',
+  Travel: '#0D9488', Investments: '#059669', Transfer: '#94A3B8', Lending: '#D946EF',
+  EMI: '#DC2626', Cricket: '#16A34A', Sports: '#16A34A', Other: '#8888A0',
+};
+
+const FALLBACK_CATEGORY_COLORS = ['#F97316', '#22C55E', '#3B82F6', '#A855F7', '#F43F5E', '#14B8A6', '#EAB308', '#6366F1', '#EC4899', '#0EA5E9'];
+
+function categoryColor(category?: string | null) {
+  const normalized = (category || 'Other').trim();
+  const existing = Object.entries(CATEGORY_COLORS).find(([key]) => key.toLowerCase() === normalized.toLowerCase());
+  if (existing) return existing[1];
+  const hash = [...normalized].reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  return FALLBACK_CATEGORY_COLORS[hash % FALLBACK_CATEGORY_COLORS.length];
+}
+
 function PillTabs({ active, onChange }: { active: string; onChange: (t: string) => void }) {
   return (
     <div className="flex gap-1 mx-4 mb-2 p-1 rounded-2xl" style={{ backgroundColor: 'var(--surface)' }}>
@@ -116,11 +136,7 @@ function TransactionsTab() {
   });
   const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
-  const categoryColors: Record<string, string> = {
-    Food: '#FF6B6B', Transport: '#6C63FF', Shopping: '#FFD93D',
-    Entertainment: '#4ECDC4', Health: '#10B981', Utilities: '#8888A0',
-    Education: '#3B82F6', Rent: '#F97316', Fuel: '#EF4444', Other: '#8888A0',
-  };
+  const categoryOptions = Object.keys(CATEGORY_COLORS);
 
   const openCreate = () => {
     setEditingExpenseId(null);
@@ -307,7 +323,7 @@ function TransactionsTab() {
               className="h-10 px-3 rounded-xl outline-none text-sm"
               style={{ backgroundColor: 'var(--surface-elevated)', color: 'var(--text-primary)' }}
             >
-              {Object.keys(categoryColors).map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+              {categoryOptions.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
             </select>
           </div>
           <input
@@ -354,7 +370,7 @@ function TransactionsTab() {
             </p>
             <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)' }}>
               {grouped[date].map((exp, i) => {
-                const color = categoryColors[exp.category] ?? '#8888A0';
+                const color = categoryColor(exp.category);
                 const isGmail = (exp.sourceType || '').toLowerCase() === 'gmail';
                 const isCredit = (exp.direction || '').toUpperCase() === 'CREDIT';
                 const isTransfer = (exp.transactionType || '').toUpperCase() === 'TRANSFER';

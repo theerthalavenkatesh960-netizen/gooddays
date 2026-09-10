@@ -493,8 +493,8 @@ export async function createExpense(userId: number, description: string, amount:
   return request('expenses', { method: 'POST', body: JSON.stringify(body) });
 }
 
-export async function updateExpense(id: number, description?: string, amount?: number, category?: string, date?: Date) {
-  const body: any = { description, amount, category };
+export async function updateExpense(id: number, description?: string, amount?: number, category?: string, date?: Date, shortNote?: string | null) {
+  const body: any = { description, amount, category, shortNote };
   if (date) body.date = date.toISOString();
   return request(`expenses/${id}`, { method: 'PUT', body: JSON.stringify(body) });
 }
@@ -549,6 +549,10 @@ export async function getFinanceGmailMerchants(): Promise<string[]> {
 
 export async function getFinanceGmailCategories(): Promise<string[]> {
   return request('finance/gmail/categories');
+}
+
+export async function getFinanceGmailComments(): Promise<string[]> {
+  return request('finance/gmail/comments');
 }
 
 export async function getFinanceGmailCandidates(status = 'NEEDS_REVIEW') {

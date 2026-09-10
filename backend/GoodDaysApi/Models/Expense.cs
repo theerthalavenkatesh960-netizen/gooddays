@@ -17,6 +17,9 @@ public class Expense
     [Column("description")]
     public string Description { get; set; } = string.Empty;
 
+    [Column("short_note")]
+    public string? ShortNote { get; set; }
+
     [Required]
     [Column("amount")]
     public decimal Amount { get; set; }

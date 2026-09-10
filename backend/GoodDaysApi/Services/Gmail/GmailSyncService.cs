@@ -267,6 +267,7 @@ public class GmailSyncService : IGmailSyncService
                 {
                     UserId = userId,
                     Description = BuildDescription(tx),
+                    ShortNote = null,
                     Amount = tx.Amount,
                     Category = tx.SuggestedCategory,
                     Date = transactionDate,

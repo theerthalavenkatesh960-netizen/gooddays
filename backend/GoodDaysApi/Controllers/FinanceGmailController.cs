@@ -161,6 +161,7 @@ public class FinanceGmailController : ControllerBase
             {
                 x.Id,
                 x.Description,
+                x.ShortNote,
                 x.Amount,
                 x.Currency,
                 x.Category,
@@ -231,6 +232,7 @@ public class FinanceGmailController : ControllerBase
         {
             expense.Id,
             expense.Description,
+            expense.ShortNote,
             expense.Amount,
             expense.Currency,
             expense.Category,
@@ -408,6 +410,7 @@ public class FinanceGmailController : ControllerBase
         {
             UserId = userId.Value,
             Description = source.Description,
+            ShortNote = source.ShortNote,
             Amount = source.Amount,
             Category = source.Category,
             SourceType = "manual",
@@ -685,6 +688,27 @@ public class FinanceGmailController : ControllerBase
             .ToList();
 
         return Ok(categories);
+    }
+
+    [HttpGet("comments")]
+    [Authorize]
+    public async Task<IActionResult> Comments(CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null) return Unauthorized();
+
+        var comments = await _db.Expenses.AsNoTracking()
+            .Where(x => x.UserId == userId.Value && x.ShortNote != null && x.ShortNote != "")
+            .Select(x => x.ShortNote)
+            .ToListAsync(cancellationToken);
+
+        return Ok(comments
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .Take(100)
+            .ToList());
     }
 
     [HttpPost("category")]

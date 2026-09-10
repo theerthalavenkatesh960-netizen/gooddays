@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   id SERIAL PRIMARY KEY,
   user_id integer REFERENCES user_profiles(id) ON DELETE CASCADE NOT NULL,
   description text NOT NULL,
+  short_note text,
   amount numeric NOT NULL,
   category text,
   gmail_message_id varchar(200),
@@ -161,6 +162,7 @@ CREATE TABLE IF NOT EXISTS expenses (
 
 -- Ensure Gmail sync columns exist when upgrading an already-existing expenses table.
 ALTER TABLE IF EXISTS expenses
+  ADD COLUMN IF NOT EXISTS short_note text,
   ADD COLUMN IF NOT EXISTS gmail_message_id varchar(200),
   ADD COLUMN IF NOT EXISTS external_reference varchar(120),
   ADD COLUMN IF NOT EXISTS source_type varchar(50),
